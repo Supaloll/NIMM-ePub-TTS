@@ -316,6 +316,17 @@ lecture.
 - **Bibliothèque** : grille de livres (couverture + titre + auteur), bouton upload
 - **Lecteur** : texte du chapitre, navigation chapitres, barre TTS, curseur glitch
 
+### Cartes de livres sur mobile — titre en entier (15/09/2026)
+Demande de Laurent : sur son téléphone, la **couverture était rognée** par le
+cadre de la vignette et le titre, limité à deux lignes, ne disait pas toujours
+de quel livre il s'agissait. Choix retenu (**option A**) : la vignette reste
+**recadrée** au format 2/3 (`.book-cover`, `object-fit: cover`) pour garder une
+grille régulière, et c'est le **texte sous la vignette** qui rattrape
+l'information — sur mobile, `.book-title` ne se limite plus à 2 lignes :
+il s'affiche **en entier**, un peu plus grand, et `.book-author` passe à la
+ligne au lieu d'être tronqué (`@media (max-width: 640px)`,
+`frontend/styles.css`).
+
 ### Pas de framework
 HTML/CSS/JS vanilla. Même approche que NIMM.
 
@@ -398,15 +409,15 @@ d'une phrase.
 - Sélection sur **une seule phrase** : lecture continue à partir d'elle,
   comportement historique inchangé.
 
-### "Lire à partir d'ici" sur mobile (23/08/2026, 2e passe)
+### "Lire à partir d'ici" sur mobile (23/08/2026, 2e passe — **modifié le 15/09/2026**)
 Sur mobile, le long-press sur le texte déclenche le menu natif du navigateur
 (copier/coller) : la sélection "Lire à partir d'ici" du desktop est donc
 inutilisable. Le lecteur détecte l'appareil tactile (`_isTouchDevice`,
-`ontouchstart` / `maxTouchPoints`) et propose deux gestes équivalents :
-- **Tap simple sur une phrase** : le curseur glitch se positionne sur la
-  phrase (`_setCursor`) et la lecture continue repart de là (`_stopTTS` puis
-  `_startTTS`). Un tap pendant une lecture en cours relance proprement depuis
-  la phrase touchée (même logique que les boutons de navigation).
+`ontouchstart` / `maxTouchPoints`) et propose :
+- **Tap simple sur une phrase** : depuis le **15/09/2026** (demande de Laurent),
+  il n'entraîne **plus** la lecture : il ouvre le **panneau « voix de cette
+  phrase »** (voir la section suivante). Un tap ne fait rien d'autre — la
+  lecture "à partir d'ici" passe désormais par la sélection longue.
 - **Sélection longue** : le tooltip "Lire à partir d'ici" s'affiche aussi
   au-dessus des poignées natives (détection via `selectionchange`, plus
   fiable que `mouseup` sur tactile), avec lecture bornée de la plage couverte.
@@ -418,14 +429,59 @@ inutilisable. Le lecteur détecte l'appareil tactile (`_isTouchDevice`,
   `e.pointerType === 'mouse'` pour ne pas perturber la sélection de texte
   native.
 
+### Panneau « voix de cette phrase » (15/09/2026)
+Demande de Laurent : sur mobile, il voulait voir **à qui appartient la voix**
+d'une phrase et pouvoir la changer — sans que le tap lance la lecture.
+
+- **Ouverture** : tap sur une phrase (mobile, hors fin de sélection) ou bouton
+  **« 🎭 Voir la voix »** du tooltip de sélection (PC, ajouté à côté de « Lire à
+  partir d'ici »). Les deux passent par `_openVoicePanel(idx)`.
+- **Contenu** : début de la phrase, **qui parle** (`_personnageDePhrase()` :
+  le personnage attribué, ou *Narration* quand la phrase n'en a pas — valeur
+  `narration` incluse), et **la voix** réellement utilisée
+  (`_voixDePhrase()` : voix de la fiche de casting, sinon voix du lecteur).
+  La voix est **nommée par le catalogue** (`_libelleCatalogue`), jamais par son
+  identifiant technique, et les réglages non neutres sont rappelés
+  (« vitesse +10 % · hauteur −8 Hz »).
+- **Changement** : menu des voix construit par `_remplirMenuVoixPhrase()`
+  (groupes Femmes / Hommes / Autres, comme la fenêtre du casting). Une voix en
+  place mais **non proposée** (moteur éteint) est **ajoutée au menu** avec son
+  nom : elle ne peut donc pas être remplacée en silence. Pour un **personnage**,
+  l'enregistrement passe par `_updateCharacterVoice()` (route
+  `PUT /api/books/{id}/cast/voice`, la même que la fenêtre du casting) —
+  elle renvoie maintenant **`true`/`false`** pour que le panneau dise si
+  l'enregistrement a réussi ; pour *Narration*, c'est `#voice-select` (voix du
+  lecteur) qui est changé. Dans les deux cas, une lecture en cours est
+  **relancée** pour que le changement s'entende tout de suite (playlist figée
+  par construction, cf. la règle du 15/09/2026).
+- **Aperçu** : bouton « ▶ Écouter » (`_apercuVoixPhrase()`) — la voix
+  choisie dit un extrait **de la phrase ouverte**, avec la vitesse et la
+  hauteur du personnage (celles du lecteur pour la narration) ; si le moteur
+  est éteint, le panneau l'indique sans se bloquer.
+- **Fermeture** : croix, tap à côté de la feuille, ou touche `Échap`. Le
+  panneau est aussi fermé au **changement de chapitre** (les index de phrases
+  changent, il pointerait sur la mauvaise phrase).
+- **Présentation** : feuille collée en bas d'écran sur mobile (avec l'animation
+  `slide-up`), petite fenêtre centrée à partir de 641 px de large
+  (`frontend/styles.css`). *Vérification* : `test_voix/test_voix_phrase.js`
+  (24 contrôles, sans navigateur).
+
 ### Navigation
 | Bouton | Action |
 |---|---|
 | ⏮ | Début du paragraphe précédent |
 | ⏪ | Phrase précédente |
 | ▶️ / ⏸ | Lecture / Pause depuis le curseur |
-| ⏩ | Phrase suivante |
 | ⏭ | Début du paragraphe suivant |
+| `<` / `>` | Chapitre précédent / suivant (encadrent la barre) |
+
+**Le bouton « phrase suivante » ⏩ a été retiré le 15/09/2026** (demande de
+Laurent : il faisait doublon avec ⏭, car dans un dialogue un paragraphe fait
+souvent une seule phrase). Les commandes du casque et de l'écran verrouillé
+(`navigator.mediaSession`, `nexttrack`) continuent d'avancer **d'une phrase** :
+elles appellent directement `_cursorSentNext()` au lieu de cliquer sur un
+bouton qui n'existe plus. ⏪ reste disponible (reculer d'une phrase reste
+utile quand ⏮ saute tout le paragraphe).
 
 La navigation pendant la lecture coupe le TTS en cours et repart
 immédiatement depuis la nouvelle position du curseur.
@@ -534,13 +590,22 @@ Dans la boucle de lecture `_runTTS`, avant de jouer une nouvelle unité
 audio (phrase ou sous-segment), on compare le `paraIdx` de la phrase
 précédente et de la phrase courante (`_sentences[...].paraIdx`). Si le
 paragraphe change (ex : un titre de chapitre suivi du premier paragraphe
-de texte), une pause silencieuse de `PARAGRAPH_PAUSE_MS` (**300ms** depuis
-le 23/08/2026, 2e passe — c'était 500ms) est insérée via `_pause()` avant
-de poursuivre. Ramener à 300ms évite que la pause de paragraphe, cumulée
-aux silences de début/fin propres à chaque requête Edge, ne se fasse
-entendre comme une coupure nette entre deux paragraphes de dialogue. La
-pause est interrompable immédiatement si le TTS est stoppé pendant son
-écoulement (respect du signal d'abort).
+de texte), une pause silencieuse de `PARAGRAPH_PAUSE_MS` est insérée via
+`_pause()` avant de poursuivre. La pause est interrompable immédiatement si le
+TTS est stoppé pendant son écoulement (respect du signal d'abort).
+
+**Mise à jour du 15/09/2026 — la pause passe à 0 (idée de Laurent, à
+l'écoute d'une heure du Comte de Monte-Cristo).** La valeur avait déjà été
+réduite de 500 ms à 300 ms le 23/08/2026 ; à l'usage, Laurent a constaté que
+les **successions de petites répliques entre deux interlocuteurs** restaient
+« hachées ». Or dans un dialogue, **chaque réplique est un paragraphe** :
+la pause de 300 ms s'ajoutait donc à chaque échange, **par-dessus** le
+silence de fin de phrase du moteur. La mesure faite le même jour a montré que
+ce silence de queue était le vrai coupable (XTTS : 0,54 à 0,91 s, variable
+d'une phrase à l'autre ; Edge : déjà ramené à 0,25 s depuis le 08/09/2026).
+Une fois le silence de queue XTTS ramené lui aussi à 0,25 s (voir plus bas),
+la pause ajoutée par le lecteur devenait inutile : `PARAGRAPH_PAUSE_MS` est
+donc passé à **0** (mettre 300 rétablit l'ancien comportement).
 
 Sans cette pause, deux phrases de paragraphes différents s'enchaînaient
 sans aucun silence — un titre de chapitre type "La tempête" (souvent
@@ -1087,6 +1152,19 @@ plus bas dans ce document pour le détail technique complet.
   cours (avec avancement `n/N`) / erreur / actif — cliquer dessus une
   fois actif ouvre la fenêtre du casting (voir section dédiée plus bas)
   au lieu de relancer une analyse.
+
+**Barre de réglages du lecteur remaniée le 15/09/2026** (demande de Laurent :
+« moins gros, plus esthétique »). Elle tient maintenant en deux rangées :
+les **deux boutons d'action** compacts côte à côte (« 🎭 Voix multiples »,
+libellé raccourci, et « 🎧 Écouter les voix ») puis un conteneur
+`#settings-menus` avec les **deux menus** — la voix du narrateur
+(`#voice-select`, prend la place restante) et la vitesse (`#speed-select`,
+taille naturelle). Constat qui a motivé le changement : le bouton
+**« Écouter les voix » n'avait aucun style**, il gardait donc l'apparence
+native du navigateur (fond clair, taille système) au milieu du thème sombre.
+Au même moment, `color-scheme: dark` a été déclaré dans `:root`
+(`styles.css`) pour que les **éléments natifs** (listes déroulantes des menus,
+barres de défilement) s'affichent en sombre eux aussi.
 - Moteur TTS (`app.js` / `_runTTS` + `_voiceForSentence`) : chaque phrase
   détermine sa voix/pitch via `_chapterSpeakers[idx]` (qui parle) croisé
   avec `_currentBookData.voices` (voix attribuée à ce personnage). Depuis
@@ -1716,7 +1794,8 @@ point d'entrée unique, utilisé par `analyze_chapter` et
   même verrou de sécurité (suppression du champ `"texte"` recopié)
 
 **Choix du moteur** : fenêtre de sélection (`#provider-modal`,
-`app.js`) qui s'ouvre au clic sur "🎭 Activer voix multiples" — 3
+`app.js`) qui s'ouvre au clic sur le bouton "🎭 Voix multiples"
+(libellé raccourci le 15/09/2026) — 3
 boutons (Gemini mis en avant comme recommandé/défaut depuis le
 23/08/2026 — DeepSeek était le défaut avant, Mistral, Gemini). Le choix
 voyage via `POST /api/books/{id}/cast?provider=...` jusqu'au bout du
@@ -1724,7 +1803,7 @@ pipeline (chapitre par chapitre + consolidation finale). Défaut serveur
 si absent : `gemini`.
 
 **Estimation du coût avant lancement (23/08/2026)** : au clic sur
-"🎭 Activer voix multiples", le frontend appelle
+"🎭 Voix multiples", le frontend appelle
 `GET /api/books/{id}/cast/estimate?provider=...` (une requête par moteur)
 et affiche le coût estimé sous chaque bouton du `#provider-modal`.
 Aucun appel IA : `voice_casting.estimate_cast_cost()` découpe les
@@ -1902,6 +1981,22 @@ cache** : le fichier stocké et envoyé au client est déjà nettoyé. Les voix
 locales Kokoro/Piper (WAV) ont des silences courts et naturels
 (0,03-0,25 s mesurés) → non rognées.
 
+**Complément du 15/09/2026 — XTTS v2 est rogné à son tour (même marge).**
+Constats d'écoute de Laurent (une heure du Comte de Monte-Cristo) : pauses de
+fin de phrase **plus longues** qu'avec Kokoro ou Edge, et encore des
+**respirations** en fin de phrase. Mesure sur 19 fichiers réels
+(`xtts_service/_mesurer_bords_xtts.py`) : **silence de queue de 0,54 à 0,91 s,
+variable d'une phrase à l'autre** (silence de tête négligeable), donc un
+espacement **irrégulier** d'une phrase à l'autre — très audible dans les
+dialogues. Le rognage se fait **dans le service** (`servir_xtts.py`,
+`rogner_queue()`, constante `SILENCE_QUEUE_S = 0,25 s`, en numpy, aucune
+dépendance ajoutée), **pas** dans `modules/tts.py` qui est partagé par tous
+les moteurs. Mesure après rognage sur les mêmes fichiers : **0,26 s partout**
+(0,25 s + arrondi du bloc d'analyse de 20 ms). *Vérification sans moteur* :
+`test_voix/test_rogner_queue_xtts.py` (14 contrôles). *À savoir* : le rognage
+change la **clé du cache audio** côté lecteur — les phrases déjà générées
+gardent l'ancien rendu jusqu'à purge de `data/tts_cache/`.
+
 
 ### 🎙️ Voix « écoutables » selon le moteur allumé — session du 14/09/2026
 
@@ -2037,9 +2132,53 @@ lecteur aussi (les phrases déjà lues gardent l'ancien rendu jusqu'à purge de
 `data/tts_cache/`) ; et le nettoyage est **propre à XTTS** — les trois autres
 moteurs reçoivent la phrase telle quelle.
 
+*Et à la sortie du moteur* (15/09/2026) : le WAV produit passe par
+`rogner_queue()`, qui ramène le **silence de queue** à `SILENCE_QUEUE_S`
+(0,25 s, la même marge qu'Edge) au lieu des 0,54 à 0,91 s laissés par le
+moteur — voir « Rognage des silences de bord » plus haut.
+
 *Défauts résiduels notés au BACKLOG* (à traiter séparément) : une pause de 3 s
 et un souffle final sur un dialogue à ponctuation interne (segments très
 courts), et un petit accroc sur « monsieur » en fin de phrase.
+
+### Extraits de voix libres de droits pour XTTS — chantier du 15/09/2026
+XTTS v2 est un moteur de **clonage** : il ne parle qu'avec la voix d'un extrait
+de référence. En plus des **60 voix CML-TTS** déjà installées, Laurent fabrique
+ses propres extraits à partir d'enregistrements du **domaine public**, qu'il
+nettoie dans **Audacity** et dépose en **MP3** dans `Extraits de voix\` (dossier
+**ignoré par Git**, comme tout l'audio).
+
+*Chaîne de préparation*, reprise de l'atelier NIMM Voix
+(`G:\NIMM Voix\outils\xtts_tts\_preparer_reference.py`) :
+1. conversion en **WAV mono 24 000 Hz 16 bits** (format natif du moteur) ;
+2. **rognage des silences de bord** (ffmpeg `silenceremove` à -45 dB, marge
+   conservée 0,10 s) ;
+3. dépôt dans `xtts_service\voix_fr\` sous `<identifiant>_enhanced.wav` (le
+   suffixe `_enhanced` est la version que le service retient).
+
+*Repères de durée* : **10 à 20 s** (idéal) ; **6 s = minimum** ; au-delà de
+**30 s** le moteur tronque et n'utilise rien de plus (config du modèle :
+`max_ref_len = 30`, `gpt_cond_len = 30`). Les bords doivent être **propres**
+(silences courts) : la référence est rejouée à chaque phrase.
+
+*Outils du projet* :
+- `xtts_service/_preparer_extraits.py` — conversion + mesures (durée, silence de
+  tête, silence de queue) + verdict ; **refuse d'écraser** une voix en place ;
+  `--verser` écrit dans la banque **et recharge le moteur à chaud**
+  (`POST /recharger`, sans redémarrage) ;
+- `xtts_service/_ecouter_extraits_dp.py` — **lot d'écoute** comparatif : pour
+  chaque voix, `..._reference.wav` (l'extrait entendu par le moteur) puis
+  `..._clone.wav` (le même passage lu par le clone), avec `index_ecoute.txt` et
+  `ECOUTER_LE_LOT.cmd`.
+
+*Ce qu'il reste à faire pour qu'une voix soit utilisable dans le lecteur* : une
+entrée dans **`XTTS_VOICES`** (`modules/tts.py`) — cette même liste alimente les
+**menus** *et* le **pool du casting automatique** — puis un **redémarrage** du
+lecteur (la liste est lue au démarrage). État du chantier, prénoms attribués et
+réserve de prénoms : voir le BACKLOG (« Voix XTTS créées à partir d'extraits
+libres de droits »).
+
+
 
 
 

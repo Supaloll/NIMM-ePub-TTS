@@ -1,0 +1,95 @@
+VOIX XTTS ISSUES D'EXTRAITS LIBRES DE DROITS — TABLEAU DE SUIVI
+==============================================================
+Chantier ouvert le 15/09/2026 (Laurent). Ce tableau fait le lien entre :
+
+  - l'IDENTIFIANT de la voix dans la banque du moteur
+    (xtts_service\voix_fr\<identifiant>_enhanced.wav) ;
+  - le PRENOM qui sera affiche dans le lecteur (menu de voix, casting) ;
+  - le FICHIER SOURCE de Laurent, dans « Extraits de voix\ »
+    (dossier ignore par Git : aucun audio ne va sur le depot).
+
+ETAT (15/09/2026) : les 19 voix sont dans le MOTEUR **et dans le CATALOGUE du
+lecteur** (`XTTS_VOICES`, modules/tts.py, bloc « Voix issues d'extraits LIBRES
+DE DROITS »). Laurent a choisi de les verser sans attendre le verdict du lot 2
+(« je te dirai apres ecoute dans le lecteur si l'une m'enerve ») : une voix peut
+donc etre retiree a tout moment (retirer son entree dans modules/tts.py ET son
+WAV dans voix_fr).
+
+RESTE A FAIRE : relancer le lecteur (la liste des voix est lue au demarrage ;
+avant relance il annonce encore 60 voix XTTS), puis ecouter dans la fenetre
+« Ecouter les voix » et fixer les ETOILES (2 partout pour l'instant).
+
+METHODE (outils du projet, voir ARCHITECTURE.md) :
+    python _preparer_extraits.py            # rapport (n'ecrit rien)
+    python _preparer_extraits.py --verser   # convertit + verse + recharge le moteur
+    python _ecouter_extraits_dp.py          # lot d'ecoute (reference + clone)
+  ou simplement : double-clic sur PREPARER_LES_EXTRAITS.bat
+
+TABLEAU
+-------
+  #   identifiant                 prenom      genre  duree    source (Extraits de voix)
+  1   dp_femme001                 Marthe      F      16,72 s  Femme001.mp3
+  2   dp_femme002                 Solange     F      17,35 s  Femme002.mp3
+  3   dp_femme003                 Yvette      F      27,45 s  Femme003.mp3
+  4   dp_femme004                 Henriette   F      18,15 s  Femme004.mp3
+  5   dp_homme001                 Marius      M      26,06 s  Homme001.mp3
+  6   dp_homme002                 Theodore    M      20,45 s  Homme002.mp3
+  7   dp_homme004                 Edouard     M      25,18 s  Homme004.mp3
+  8   dp_femme121235456           Rose        F      17,72 s  Femme121235456.mp3
+  9   dp_femme32321312445         Georgette   F      16,92 s  Femme32321312445.mp3
+ 10   dp_femme48897               Therese     F      12,30 s  Femme48897.mp3
+ 11   dp_femme65465464            Colette     F      15,04 s  Femme65465464.mp3
+ 12   dp_femme6566554478          Juliette    F      14,44 s  Femme6566554478.mp3
+ 13   dp_femme65699878            Madeleine   F      13,78 s  Femme65699878.mp3
+ 14   dp_homme1122544987          Victor      M      13,80 s  Homme1122544987.mp3
+ 15   dp_homme1122545656487       Robert      M      14,37 s  Homme1122545656487.mp3
+ 16   dp_homme313213265           Paul        M      18,19 s  Homme313213265.mp3
+ 17   dp_homme45788656512         Albert      M      19,82 s  Homme45788656512.mp3
+ 18   dp_homme65462104            Jules       M      14,85 s  Homme65462104.mp3
+ 19   dp_homme87976454321         Arthur      M      18,40 s  Homme87976454321.mp3
+
+Les 7 premiers forment le LOT 1 (valides a l'oreille par Laurent le 15/09/2026,
+« elles sont top »). Les 12 suivants forment le LOT 2 (mis a l'ecoute le
+15/09/2026, verdict en attente).
+
+NOTES D'ECOUTE DE LAURENT (15/09/2026)
+-------------------------------------
+Reportees dans le catalogue (modules/tts.py) par
+test_voix/_appliquer_annotations_voix.py :
+
+  lot 1 : Marthe 3* | Solange 3* | Yvette 3* (dynamique) | Henriette 3* |
+          Marius 3* | Theodore 3* (grave) | Edouard 3*
+  lot 2 : Rose 0* (ECARTEE : « etouffee ») | Georgette 3* | Therese 3* |
+          Colette 3* (lente) | Juliette 3* (cristaline) | Madeleine 3* (douce) |
+          Victor 3* (vieux lent) | Robert 3* (rapide) | Paul 3* (jeune rapide) |
+          Albert 0* (ECARTE) | Jules 3* | Arthur 3*
+
+=> **17 voix libres sur 19 sont a 3 etoiles** ; les 2 ecartees (Rose, Albert)
+sortent du **casting automatique** mais restent **selectionnables a la main**
+dans les menus du lecteur.
+
+AJOUT AU CATALOGUE (FAIT le 15/09/2026)
+-------------------------------------
+Chaque voix a recu son entree dans XTTS_VOICES (modules/tts.py), du type :
+
+    {"id": "xtts:dp_femme001", "name": "Marthe",
+     "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2}
+
+Cette liste alimente les MENUS du lecteur ET le pool du casting automatique.
+Pour une nouvelle voix : meme chose, puis relancer le lecteur (liste lue au
+demarrage), puis ecouter dans « Ecouter les voix » pour fixer les etoiles.
+
+PRENOMS LIBRES EN RESERVE (verifies sans doublon avec les 151 voix de toutes
+les familles, au 15/09/2026)
+---------------------------------------------------------------------------
+  femmes : Yvonne | Angele | Clemence | Germaine | Sidonie | Bertille | Adeline
+           Lucile | Nadine | Virginie | Elise | Fernande | Martine | Simone
+           Odile | Pascale | Brigitte | Monique
+  hommes : Rene | Roger | Andre | Casimir | Theophile | Anatole | Barnabe
+           Firmin | Gedeon | Ismael | Joachim | Leandre | Narcisse | Ovide
+           Pamphile
+
+RAPPEL DROITS : XTTS v2 est sous licence CPML (usage non commercial) : l'audio
+produit ne se partage pas. Les extraits eux-memes doivent venir de sources
+libres (domaine public, LibriVox, CC0) ou de sa propre voix — voir
+xtts_service\ATTRIBUTION.md.

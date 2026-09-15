@@ -22,6 +22,11 @@
   --shadow:       0 4px 24px rgba(0,0,0,0.5);
   --font-read:    Georgia, 'Times New Roman', serif;
   --font-ui:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Theme sombre assume jusqu'aux elements NATIFS du navigateur. Sans cette
+     ligne, les listes deroulantes des menus (choix de voix, notes du casting...)
+     et les barres de defilement s'affichent en BLANC sur le fond noir
+     (constat de Laurent, 15/09/2026). */
+  color-scheme: dark;
 }
 
 /* --- Reset --- */
@@ -230,8 +235,8 @@ body {
   color: var(--text);
   line-height: 1.3;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -282,6 +287,26 @@ body {
 @media (max-width: 640px) {
   .book-delete-btn { opacity: 1; }
   #book-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+
+  /* Titre du livre EN ENTIER sous la couverture (demande de Laurent,
+     15/09/2026). La vignette reste recadree au format 2/3 -- la grille reste
+     bien reguliere -- mais le titre, lui, n'est plus coupe : comme il est
+     rogne sur la couverture elle-meme, c'est lui qui dit de quel livre il
+     s'agit. Il est aussi un peu plus grand, et l'auteur passe a la ligne au
+     lieu d'etre tronque. */
+  .book-title {
+    font-size: 0.9rem;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    display: block;
+    overflow: visible;
+  }
+  .book-author {
+    font-size: 0.78rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 /* Bibliotheque vide */
@@ -473,10 +498,15 @@ body {
   transition: width 0.4s ease;
 }
 
+/* Barre de reglages du lecteur. Depuis le 15/09/2026 (demande de Laurent :
+   « moins gros, plus esthetique »), deux rangees compactes :
+     1. les deux boutons d'action, de la taille de leur texte ;
+     2. les deux menus (voix du narrateur + vitesse) sur leur propre rangee. */
 #reader-settings {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  align-items: center;
 }
 
 /* Voyant de l'etat des moteurs de voix lourds (Kyutai, XTTS v2) : sur sa
@@ -492,18 +522,29 @@ body {
 #moteur-etat:empty { display: none; }
 #moteur-etat.moteur-etat-off { opacity: 0.7; }
 
-#multivoice-btn {
-  flex: 1;
+/* Boutons d'action de la barre : le MEME look pour les deux, compact.
+   « Ecouter les voix » n'avait aucun style : il gardait l'apparence native du
+   navigateur (fond clair, police systeme) -- c'est lui qui « faisait blanc »
+   dans le theme sombre (constat de Laurent, 15/09/2026). */
+#multivoice-btn,
+#voices-open-btn {
+  flex: 0 1 auto;
+  min-height: 30px;
+  padding: 5px 10px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 0.8rem;
-  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-family: var(--font-ui);
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+#multivoice-btn:hover:not(:disabled),
+#voices-open-btn:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
 }
 #multivoice-btn:disabled {
   opacity: 0.55;
@@ -514,18 +555,32 @@ body {
   color: var(--accent);
 }
 
+/* Les deux menus : la voix du narrateur prend la place restante, la vitesse
+   garde sa taille naturelle. */
+#settings-menus {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 #voice-select, #speed-select {
-  flex: 1;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-size: 0.8rem;
-  padding: 6px 8px;
+  min-height: 30px;
+  padding: 5px 8px;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
 }
+/* La voix du narrateur prend la place restante ; la vitesse garde sa taille :
+   le nom de la voix peut etre long, la vitesse jamais. */
+#voice-select { flex: 1 1 auto; min-width: 0; }
+#speed-select { flex: 0 0 auto; }
 #voice-select:focus, #speed-select:focus {
   outline: 1px solid var(--accent-dim);
 }
@@ -1137,17 +1192,30 @@ body {
   white-space: nowrap;
   pointer-events: all;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Deux actions depuis le 15/09/2026 (demande de Laurent) : lire a partir
+   d'ici, ou voir / changer la voix de la phrase selectionnee. */
+#selection-tooltip-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
 }
 
 /* Sur mobile : le tooltip est desormais actif (selection longue + bouton
-   "Lire a partir d'ici", cf. selectionchange dans app.js). Le bouton est
-   agrandi pour rester facile a taper avec le doigt. */
+   "Lire a partir d'ici", cf. selectionchange dans app.js). Les boutons sont
+   agrandis pour rester faciles a taper avec le doigt. */
 @media (max-width: 640px) {
   #selection-tooltip { padding: 10px 16px; }
-  #read-from-here-btn { min-height: 44px; display: flex; align-items: center; gap: 6px; }
+  #read-from-here-btn,
+  #show-voice-btn { min-height: 44px; display: flex; align-items: center; gap: 6px; }
 }
 
-#read-from-here-btn {
+#read-from-here-btn,
+#show-voice-btn {
   background: none;
   border: none;
   color: var(--accent);
@@ -1159,7 +1227,135 @@ body {
   padding: 0;
   font-family: var(--font-ui);
 }
-#read-from-here-btn:hover { color: #d4b87a; }
+#read-from-here-btn:hover,
+#show-voice-btn:hover { color: #d4b87a; }
+
+/* ============================================================
+   PANNEAU « VOIX DE LA PHRASE » (tap mobile / bouton PC)
+   ============================================================
+   Feuille en bas d'ecran sur mobile, petite fenetre centree sur PC. Elle dit
+   qui parle dans la phrase tapee et avec quelle voix, et permet de la changer
+   pour tout le personnage (demande de Laurent, 15/09/2026). */
+
+#voice-phrase-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: flex-end;               /* mobile : feuille collee en bas */
+  background: rgba(0, 0, 0, 0.45);     /* taper a cote = fermer */
+}
+#voice-phrase-panel.hidden { display: none; }
+
+#voice-phrase-inner {
+  width: 100%;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 78vh;
+  overflow-y: auto;
+  animation: slide-up 0.2s ease;
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* PC : la meme fenetre, mais centree (la feuille pleine largeur serait
+   disproportionnee a la souris). */
+@media (min-width: 641px) {
+  #voice-phrase-panel { align-items: center; justify-content: center; }
+  #voice-phrase-inner {
+    max-width: 460px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    animation: none;
+  }
+}
+
+#voice-phrase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+#voice-phrase-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 8px;
+}
+
+#voice-phrase-extrait {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+}
+
+#voice-phrase-qui {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-left: 2px solid var(--accent-dim);
+  padding-left: 10px;
+}
+
+#voice-phrase-personnage {
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+
+#voice-phrase-voix { font-size: 0.82rem; color: var(--text-muted); }
+
+#voice-phrase-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#voice-phrase-select {
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+#voice-phrase-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+#voice-phrase-ecouter-btn {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 40px;
+}
+#voice-phrase-ecouter-btn:hover { border-color: var(--accent-dim); }
+#voice-phrase-ecouter-btn:disabled { opacity: 0.6; cursor: default; }
+
+#voice-phrase-note { font-size: 0.78rem; color: var(--text-muted); }
 
 /* ============================================================
    UTILITAIRES
@@ -1198,7 +1394,6 @@ select { font-family: var(--font-ui); }
 
 #para-prev-btn,
 #sent-prev-btn,
-#sent-next-btn,
 #para-next-btn {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -1216,13 +1411,13 @@ select { font-family: var(--font-ui); }
 }
 
 #para-prev-btn:hover, #sent-prev-btn:hover,
-#sent-next-btn:hover, #para-next-btn:hover {
+#para-next-btn:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
 
 #para-prev-btn:disabled, #sent-prev-btn:disabled,
-#sent-next-btn:disabled, #para-next-btn:disabled {
+#para-next-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }

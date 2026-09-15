@@ -1,5 +1,29 @@
 # Règles permanentes pour NIMM ePub
 
+## Esprit du projet — message de Laurent, à garder tel quel (15/09/2026)
+Laurent est **chauffeur poids lourd**. NIMM ePub, c'est son atelier personnel :
+il y travaille **pour le fun**, pas pour son métier — ici, il ne joue pas sa
+vie. Ce cadre compte autant que les règles techniques qui suivent.
+
+Ce qu'il veut y trouver :
+
+- **Un ton détendu** : tutoiement, humour, émojis, petites vannes. Il le dit
+  lui-même : « ça donne un mood relax, et j'aime bien ça ».
+- **Le droit de se tromper** : une annotation ratée, un mauvais choix de voix,
+  un test qui échoue ne sont pas graves — on corrige et on avance.
+- **De la rigueur là où elle compte vraiment** : dès qu'il s'agit de
+  **sécurité**, de **données personnelles**, de **clés / secrets d'API**, de
+  **fichiers irremplaçables** (livres, base de données, sauvegardes) ou
+  d'**infrastructure sensible** (base SQLite, moteurs de voix, dépôt Git,
+  réseau), le sérieux reprend la main sans discussion : on vérifie, on
+  sauvegarde, on annonce les risques, et on demande avant d'agir (niveau 3).
+
+*Pourquoi c'est écrit ici* : Laurent a longtemps fait passer ses idées par
+Claude.AI, avant d'oser parler directement ici. Aujourd'hui il aime ce
+fonctionnement direct et veut le garder tel quel : franc, simple, détendu —
+avec une exigence technique qui ne se relâche jamais sur ce qui touche à
+l'essentiel. « Si on peut graver ça dans le marbre, ça serait cool. »
+
 ## Gouvernance — modèle à 3 niveaux (validé avec Laurent le 08/09/2026)
 Travailler par petites étapes : 1 à 2 items du BACKLOG.md par session, jamais
 plusieurs chantiers d'un coup. Avant chaque action, se demander dans quel
@@ -28,6 +52,11 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
 ## Profil de l'utilisateur — communication
 - **Tutoiement** : toujours tutoyer Laurent, jamais « vous » (demandé par
   Laurent le 14/09/2026).
+- **Émojis et humour** : bienvenus dans la conversation, les questions, les
+  récaps et les explications — ils font partie du « mood relax » voulu par
+  Laurent (voir « Esprit du projet » en tête de ce fichier). En revanche,
+  **jamais** dans le code, les commentaires techniques, les scripts, la
+  documentation ou les messages de commit : là, on reste sobre.
 - Laurent est un utilisateur NON développeur : le code est un outil, pas
   un sujet de conversation. Ne jamais lui parler en "pair" développeur.
 - Toujours parler en langage naturel et simple ; si un terme technique est

@@ -93,6 +93,23 @@ SILENCE_PHRASE_S = 0.35
 # Sortie native du moteur : WAV mono 24 000 Hz.
 FREQUENCE = 24000
 
+# --- Rognage du silence de QUEUE (decision de Laurent, 15/09/2026) ---
+# Constat d'ecoute de Laurent (une heure du Comte de Monte-Cristo) : « les
+# points marquent une pause plus longue qu'avec Kokoro ou Edge », et des
+# respirations / sons etranges trainaient en fin de phrase. Mesure d'atelier
+# (outil _mesurer_bords_xtts.py, 19 fichiers du lot) : chaque phrase XTTS se
+# termine par un silence de 0,54 a 0,91 s -- long ET variable d'une phrase a
+# l'autre, ce qui rendait l'espacement irregulier sur les dialogues.
+# Edge est deja rogne de cette facon dans le lecteur (0,25 s, voir
+# modules/audio_trim.py) ; XTTS ne l'etait pas. On applique donc ICI la meme
+# marge, apres le dernier son audible : la parole n'est jamais touchee.
+SILENCE_QUEUE_S = 0.25
+# Seuil d'amplitude au-dessous duquel on considere qu'il n'y a pas de parole
+# (meme seuil que les mesures d'atelier).
+SEUIL_SON = 0.012
+# Duree du bloc d'analyse : 20 ms, comme la mesure d'atelier.
+BLOC_ANALYSE_S = 0.02
+
 # Abreviations qui finissent par un point mais ne terminent PAS une phrase.
 ABREVIATIONS = ('M.', 'MM.', 'Mme', 'Mlle', 'Dr', 'St', 'Ste', 'av.', 'cf.',
                 'etc.', 'p.', 'pp.', 'art.', 'fig.', 'tel.')
@@ -360,6 +377,44 @@ def _lire_un_morceau(morceau, chemin_reference):
     return np.asarray(audio, dtype=np.float32)
 
 
+def rogner_queue(sons, frequence=FREQUENCE):
+    """Ne garde que SILENCE_QUEUE_S de silence apres le dernier son audible.
+
+    Pourquoi (ecoute de Laurent, 15/09/2026) : chaque phrase produite par le
+    moteur se terminait par un silence long ET VARIABLE (0,54 a 0,91 s mesures
+    sur 19 fichiers). En lecture phrase par phrase, cela s'entendait de deux
+    facons : un espacement irregulier d'une phrase a l'autre (surtout dans les
+    dialogues, ou les repliques s'enchainent) et des respirations du moteur qui
+    trainaient dans ce silence. La marge retenue est celle d'Edge dans le
+    lecteur (0,25 s), pour que tous les moteurs sonnent pareil.
+
+    La PAROLE n'est jamais touchee : on ne retire que ce qui suit le dernier
+    son audible. Si rien n'est audible, si l'audio est vide ou si le calcul
+    echoue, l'audio est renvoye tel quel -- on ne casse jamais la lecture.
+    """
+    import numpy as np
+
+    try:
+        donnees = np.asarray(sons, dtype=np.float32)
+        if donnees.size == 0:
+            return donnees
+
+        pas = max(1, int(BLOC_ANALYSE_S * frequence))
+        dernier = -1
+        for debut in range(0, donnees.size, pas):
+            bloc = donnees[debut:debut + pas]
+            if bloc.size and float(np.max(np.abs(bloc))) >= SEUIL_SON:
+                dernier = debut
+        if dernier < 0:
+            return donnees                     # aucun son : rien a rogner
+
+        # On conserve la fin du dernier bloc audible, plus la marge.
+        fin = dernier + pas + int(SILENCE_QUEUE_S * frequence)
+        return donnees[:min(donnees.size, fin)]
+    except Exception:
+        return sons
+
+
 def generer_wav(texte, identifiant_voix):
     """Genere le WAV d'un texte, avec une voix. Renvoie les octets du WAV.
 
@@ -368,7 +423,10 @@ def generer_wav(texte, identifiant_voix):
 
     Les morceaux d'une meme phrase sont recolles SANS silence ; un silence
     court est pose entre deux vraies phrases -- c'est ce qui donne un rythme
-    naturel a l'ecoute (meme regle que celle validee a l'atelier).
+    naturel a l'ecoute (meme regle que celle validee a l'atelier). Le silence
+    de QUEUE est ensuite ramene a SILENCE_QUEUE_S (decision de Laurent,
+    15/09/2026) : avant ce rognage, il variait de 0,54 a 0,91 s d'une phrase a
+    l'autre, ce qui rendait l'enchainement irregulier.
     """
     import numpy as np
 
@@ -392,7 +450,7 @@ def generer_wav(texte, identifiant_voix):
             for morceau in morceaux:
                 sons.append(_lire_un_morceau(morceau, reference))
 
-    return _wav_depuis_pcm(np.concatenate(sons))
+    return _wav_depuis_pcm(rogner_queue(np.concatenate(sons), FREQUENCE))
 
 
 # ==============================================================

@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260915-3" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260915-5" />
 </head>
 <body>
   <div id="app">
@@ -128,7 +128,6 @@
               </button>
             </div>
 
-            <button id="sent-next-btn" aria-label="Phrase suivante">⏩</button>
             <button id="para-next-btn" aria-label="Paragraphe suivant">⏭</button>
           </div>
 
@@ -150,20 +149,25 @@
 
         <div id="reader-settings">
           <button id="multivoice-btn" aria-label="Activer les voix multiples par personnage">
-            🎭 Activer voix multiples
+            🎭 Voix multiples
           </button>
           <button id="voices-open-btn" aria-label="Ecouter les voix"
                   title="Ecouter les voix disponibles et les annoter">
-            🎧 Ecouter les voix
+            🎧 Écouter les voix
           </button>
-          <select id="voice-select" aria-label="Choix de la voix"></select>
-          <select id="speed-select" aria-label="Vitesse de lecture">
-            <option value="-20%">Lente</option>
-            <option value="-10%">Moderee</option>
-            <option value="+0%"  selected>Normale</option>
-            <option value="+10%">Rapide</option>
-            <option value="+25%">Tres rapide</option>
-          </select>
+          <!-- Les deux menus sont groupes sur leur propre rangee (15/09/2026,
+               demande de Laurent : agencement plus compact) : la voix du
+               narrateur prend la place restante, la vitesse garde sa taille. -->
+          <div id="settings-menus">
+            <select id="voice-select" aria-label="Choix de la voix"></select>
+            <select id="speed-select" aria-label="Vitesse de lecture">
+              <option value="-20%">Lente</option>
+              <option value="-10%">Moderee</option>
+              <option value="+0%"  selected>Normale</option>
+              <option value="+10%">Rapide</option>
+              <option value="+25%">Tres rapide</option>
+            </select>
+          </div>
           <!-- Etat des moteurs de voix lourds (Kyutai, XTTS v2), rempli par
                app.js : dit pourquoi les voix d'un moteur eteint ne sont pas
                proposees, au lieu de laisser croire a un bug. -->
@@ -175,6 +179,9 @@
     </div>
 
     <!-- ===================== TOOLTIP SELECTION ===================== -->
+    <!-- PC : selectionner du texte propose DEUX actions -- lire a partir d'ici,
+         ou voir/ changer la voix (personnage) de la phrase selectionnee
+         (demande de Laurent, 15/09/2026). -->
     <div id="selection-tooltip" class="hidden" role="tooltip">
       <button id="read-from-here-btn" aria-label="Lire a partir d'ici">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -182,6 +189,36 @@
         </svg>
         Lire à partir d'ici
       </button>
+      <span id="selection-tooltip-sep"></span>
+      <button id="show-voice-btn" aria-label="Voir la voix de cette phrase">
+        🎭 Voir la voix
+      </button>
+    </div>
+
+    <!-- ============ PANNEAU VOIX DE LA PHRASE (tap mobile / PC) ============ -->
+    <!-- Ouvre une feuille en bas d'ecran (mobile) ou une petite fenetre (PC) :
+         dit QUI parle dans la phrase tapee et avec quelle voix, et permet de
+         changer cette voix. Sur mobile, le tap sur une phrase n'entraine donc
+         plus la lecture (demande de Laurent, 15/09/2026). -->
+    <div id="voice-phrase-panel" class="hidden" role="dialog"
+         aria-modal="true" aria-label="Voix de la phrase">
+      <div id="voice-phrase-inner">
+        <div id="voice-phrase-header">
+          <span>Voix de cette phrase</span>
+          <button id="voice-phrase-close-btn" aria-label="Fermer">✕</button>
+        </div>
+        <p id="voice-phrase-extrait"></p>
+        <div id="voice-phrase-qui">
+          <span id="voice-phrase-personnage"></span>
+          <span id="voice-phrase-voix"></span>
+        </div>
+        <label id="voice-phrase-label" for="voice-phrase-select">Changer la voix</label>
+        <select id="voice-phrase-select" aria-label="Choix de la voix"></select>
+        <div id="voice-phrase-actions">
+          <button id="voice-phrase-ecouter-btn" type="button">▶ Écouter</button>
+          <span id="voice-phrase-note"></span>
+        </div>
+      </div>
     </div>
 
     <!-- ===================== PANNEAU CHAPITRES ===================== -->
@@ -367,6 +404,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260915-3"></script>
+  <script src="/static/app.js?v=20260915-5"></script>
 </body>
 </html>

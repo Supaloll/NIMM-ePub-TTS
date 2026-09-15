@@ -526,6 +526,21 @@ function _construireMenuVoix(voiceIdActuelle) {
   const select = document.createElement('select');
   select.className = 'cast-voice-select';
 
+  // Personnage SANS voix dediee (petit role, < 8 repliques depuis le
+  // 15/09/2026) : ses repliques sont lues par le NARRATEUR. On l'affiche
+  // clairement, sinon le menu montrerait la premiere voix du catalogue comme
+  // si elle lui etait attribuee. Choisir cette entree redonne au personnage
+  // la voix du narrateur (voice_id vide) ; choisir une voix l'en detache.
+  if (!voiceIdActuelle) {
+    const groupe = document.createElement('optgroup');
+    groupe.label = '\uD83D\uDDE3\uFE0F Sans voix dediee';
+    const opt = document.createElement('option');
+    opt.value       = '';
+    opt.textContent = '(lu par le narrateur)';
+    groupe.appendChild(opt);
+    select.appendChild(groupe);
+  }
+
   // Pourquoi une voix attribuee peut manquer au catalogue : soit son moteur
   // n'est pas pret (ses voix ne sont alors pas proposees), soit elle n'existe
   // plus. Les deux cas sont distingues a l'affichage, jamais confondus. Le
@@ -877,12 +892,23 @@ async function _updateCharacterVoice(characterName, voiceId, rate, pitch) {
       _stopTTS();
       _startTTS();
     }
+    // true / false : le panneau « voix de la phrase » s'en sert pour dire si le
+    // changement a bien ete enregistre (15/09/2026). Les autres appels
+    // (fenetre du casting) ignorent simplement cette valeur.
+    return true;
   } catch (e) {
     console.error('Erreur mise a jour voix personnage:', e);
+    return false;
   }
 }
 
 async function _previewCharacterVoice(characterName, voiceId, rate, pitch, btn) {
+  // Personnage sans voix dediee (petit role lu par le narrateur) : l'apercu
+  // utilise alors la voix du lecteur, plutot que d'echouer.
+  if (!voiceId) {
+    const choix = document.getElementById('voice-select');
+    voiceId = choix ? choix.value : voiceId;
+  }
   btn.disabled = true;
   const original = btn.textContent;
   btn.textContent = '\u23F3';
@@ -1571,7 +1597,7 @@ function _updateMultivoiceBtn() {
     btn.disabled = false;
     btn.classList.remove('active');
   } else {
-    btn.textContent = '🎭 Activer voix multiples';
+    btn.textContent = '🎭 Voix multiples';
     btn.disabled = false;
     btn.classList.remove('active');
   }
@@ -1729,6 +1755,9 @@ document.getElementById('provider-modal').addEventListener('click', (e) => {
 
 async function loadChapter(index, scrollTo, cursorTo = 0, autoPlay = false) {
   _stopTTS();
+  // Les phrases du nouveau chapitre ont d'autres index : un panneau « voix de
+  // la phrase » reste ouvert pointerait sur la mauvaise phrase (15/09/2026).
+  _closeVoicePanel();
   if (index < 0 || index >= _totalChapters) return;
   _currentChapter = index;
 
@@ -1953,7 +1982,11 @@ function _updateMediaSession() {
   navigator.mediaSession.setActionHandler('play',  () => toggleTTS());
   navigator.mediaSession.setActionHandler('pause', () => toggleTTS());
   navigator.mediaSession.setActionHandler('previoustrack', () => document.getElementById('sent-prev-btn').click());
-  navigator.mediaSession.setActionHandler('nexttrack', () => document.getElementById('sent-next-btn').click());
+  // Le bouton ⏩ de la barre a ete retire le 15/09/2026 (doublon avec ⏭ ;
+  // demande de Laurent) : les commandes du casque et de l'ecran verrouille
+  // continuent d'avancer d'UNE PHRASE, comme avant, en appelant directement la
+  // fonction au lieu de cliquer sur un bouton qui n'existe plus.
+  navigator.mediaSession.setActionHandler('nexttrack', () => _cursorSentNext());
 }
 
 function _startTTS() {
@@ -2059,7 +2092,10 @@ function _voiceForSentence(idx) {
   const speaker = _chapterSpeakers[idx];
   if (speaker && speaker !== 'narration' && _currentBookData && _currentBookData.voices) {
     const v = _currentBookData.voices[speaker];
-    if (v) return { voice: v.voice_id, pitch: v.pitch };
+    // v.voice_id VIDE = personnage sans voix dediee : les petits roles
+    // (< 8 repliques) depuis le 15/09/2026. Ils sont lus par le NARRATEUR,
+    // c'est-a-dire par la voix choisie dans le lecteur (defaultVoice).
+    if (v && v.voice_id) return { voice: v.voice_id, pitch: v.pitch };
   }
   return { voice: defaultVoice, pitch: '+0Hz' };
 }
@@ -2429,10 +2465,15 @@ async function _playBlob(blob, signal) {
 }
 
 // Pause silencieuse entre deux paragraphes (ex: apres un titre).
-// 300ms (au lieu de 500) : combinee aux silences de debut/fin propres au
-// moteur Edge, une pause trop longue entre deux paragraphes de dialogue
-// se fait entendre comme une coupure nette. Interrompue immediatement si
-// le TTS est stoppe/aborte.
+// Elle valait 300 ms. Decision de Laurent (15/09/2026, ecoute du Comte de
+// Monte-Cristo) : dans un dialogue, CHAQUE replique est un paragraphe, donc
+// cette pause s'ajoutait a chaque echange et coupait le rythme -- d'autant
+// plus qu'elle s'additionnait au silence de fin de phrase du moteur. Le
+// silence de fin de phrase etant desormais rogne a 0,25 s cote XTTS (et a
+// 0,25 s pour Edge depuis le 08/09/2026), la pause ajoutee ici devient
+// inutile : la respiration naturelle de la phrase suffit. Mettre une valeur
+// > 0 la retablit (300 = ancien reglage). Interrompue immediatement si le
+// TTS est stoppe/aborte.
 function _pause(ms, signal) {
   return new Promise(resolve => {
     const timer = setTimeout(resolve, ms);
@@ -2440,7 +2481,7 @@ function _pause(ms, signal) {
   });
 }
 
-const PARAGRAPH_PAUSE_MS = 300;
+const PARAGRAPH_PAUSE_MS = 0;
 
 // ============================================================
 // SELECTION DE TEXTE — "Lire à partir d'ici" (desktop uniquement)
@@ -2509,19 +2550,25 @@ document.getElementById('reader-content').addEventListener('mouseup', () => {
 });
 
 // Sur mobile, la selection de texte est interceptee par le navigateur
-// (long press -> menu natif copier/coller). Un tap simple sur une phrase
-// joue donc le role de "Lire a partir d'ici" : le curseur se positionne
-// sur la phrase et la lecture (continue) repart de la. Les clics souris
-// sont ignores (desktop) pour garder la selection de texte native.
+// (long press -> menu natif copier/coller).
+// Le TAP SIMPLE ne declenche PLUS la lecture (demande de Laurent, 15/09/2026) :
+// il ouvre le panneau « voix de cette phrase », qui dit a qui appartient la
+// voix et permet de la changer. Pour lire a partir d'une phrase, la selection
+// longue + bouton « Lire a partir d'ici » reste disponible (voir plus haut).
+// Les clics souris sont ignores (desktop) pour garder la selection de texte.
 document.getElementById('reader-content').addEventListener('click', (e) => {
   if (!_isTouchDevice || e.pointerType === 'mouse') return;
   const span = e.target.closest('.sentence-span');
   if (!span) return;
   const idx = parseInt(span.dataset.idx, 10);
   if (Number.isNaN(idx)) return;
-  _stopTTS();
-  _setCursor(idx);
-  _startTTS();
+
+  // Fin d'une selection (longue pression) : le tap ne doit pas ouvrir le
+  // panneau par-dessus, l'utilisateur visait le bouton du tooltip.
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed && sel.toString().trim().length >= 2) return;
+
+  _openVoicePanel(idx);
 });
 
 // Sur mobile, le tooltip "Lire a partir d'ici" s'affiche aussi au-dessus
@@ -2570,6 +2617,246 @@ document.getElementById('read-from-here-btn').addEventListener('click', () => {
   } else {
     _startTTS();
   }
+});
+
+// ============================================================
+// PANNEAU « VOIX DE LA PHRASE » (tap mobile / bouton du tooltip PC)
+// ============================================================
+// Demande de Laurent (15/09/2026) : sur mobile, un tap sur une phrase doit
+// d'abord MONTRER a qui appartient la voix, et permettre de la changer -- il
+// n'entraine donc plus la lecture. Sur PC, le meme panneau s'ouvre avec le
+// bouton « Voir la voix » du tooltip de selection (a cote de « Lire a partir
+// d'ici »), pour la phrase touchee par la selection.
+//
+// Le panneau ne fait que deux choses : dire qui parle, et changer SA voix. Il
+// s'appuie sur ce qui existe deja : PUT /cast/voice via _updateCharacterVoice()
+// (qui relance la lecture si elle tournait), le catalogue pour NOMMER la voix
+// et la liste des voix proposees (_allVoices) pour la changer. Pour une phrase
+// de NARRATION, il n'y a pas de personnage : c'est la voix du lecteur (menu du
+// haut) qui est affichee et modifiee.
+
+let _voicePhraseIdx = -1;      // phrase ouverte dans le panneau (-1 = ferme)
+let _apercuVoixAudio = null;   // apercu sonore en cours (pour le couper au besoin)
+
+// Coupe l'apercu en cours (comme _couperMessageHorsLigne pour le message
+// « pas de reseau ») : deux apercus ne doivent jamais se superposer.
+function _couperApercuVoix() {
+  if (_apercuVoixAudio) {
+    try { _apercuVoixAudio.pause(); } catch (e) { /* deja termine */ }
+    _apercuVoixAudio = null;
+  }
+}
+
+// Personnage d'une phrase : null quand c'est le narrateur (la phrase n'a pas de
+// personnage attribue, elle est lue avec la voix du lecteur).
+function _personnageDePhrase(idx) {
+  const nom = _chapterSpeakers ? _chapterSpeakers[idx] : null;
+  if (!nom || nom === 'narration') return null;
+  return nom;
+}
+
+// Fiche de casting d'un personnage : { voice_id, rate, pitch, genre, ... }.
+function _fichePersonnage(nom) {
+  if (!nom || !_currentBookData || !_currentBookData.voices) return null;
+  return _currentBookData.voices[nom] || null;
+}
+
+// Voix reellement utilisee pour une phrase (meme regle que _voiceForSentence).
+function _voixDePhrase(idx) {
+  const nom = _personnageDePhrase(idx);
+  if (nom) {
+    const fiche = _fichePersonnage(nom);
+    if (fiche && fiche.voice_id) return fiche.voice_id;
+  }
+  const choix = document.getElementById('voice-select');
+  return choix ? choix.value : '';
+}
+
+// Menu des voix : memes groupes que la fenetre du casting (Femmes / Hommes /
+// Autres), pour retrouver ses reperes.
+function _remplirMenuVoixPhrase(select, voixId) {
+  select.innerHTML = '';
+  const groupe = (etiquette, liste) => {
+    if (!liste.length) return;
+    const g = document.createElement('optgroup');
+    g.label = etiquette;
+    liste.forEach(v => {
+      const o = document.createElement('option');
+      o.value       = v.id;
+      o.textContent = v.name + ' \u2014 ' + v.region;
+      g.appendChild(o);
+    });
+    select.appendChild(g);
+  };
+  const parGenre = g => _allVoices
+    .filter(v => (v.gender || '') === g)
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
+  groupe('\uD83D\uDC69 Femmes', parGenre('F'));
+  groupe('\uD83D\uDC68 Hommes', parGenre('M'));
+  groupe('Autres', _allVoices.filter(v => !v.gender));
+
+  // Une voix attribuee mais NON proposee (moteur eteint) doit quand meme
+  // s'afficher : sinon le menu montrerait l'air de rien une autre voix.
+  if (voixId && !_allVoices.some(v => v.id === voixId)) {
+    const g = document.createElement('optgroup');
+    g.label = '\u26A0\uFE0F Voix actuelle';
+    const o = document.createElement('option');
+    o.value       = voixId;
+    o.textContent = _libelleCatalogue(voixId) || voixId;
+    g.appendChild(o);
+    select.appendChild(g);
+  }
+  select.value = voixId || '';
+}
+
+function _openVoicePanel(sentIdx) {
+  if (sentIdx < 0 || sentIdx >= _sentences.length) return;
+  _voicePhraseIdx = sentIdx;
+
+  const nom    = _personnageDePhrase(sentIdx);
+  const fiche  = _fichePersonnage(nom);
+  const voixId = _voixDePhrase(sentIdx);
+
+  const texte = _sentences[sentIdx].text || '';
+  document.getElementById('voice-phrase-extrait').textContent =
+    (texte.length > 150 ? texte.slice(0, 147) + '...' : texte);
+
+  document.getElementById('voice-phrase-personnage').textContent =
+    nom ? nom : 'Narration';
+
+  // La voix, nommee comme partout ailleurs (jamais un identifiant technique),
+  // avec les reglages du personnage quand ils ne sont pas neutres.
+  let info = _libelleCatalogue(voixId) || voixId;
+  if (nom && fiche) {
+    const reglages = [];
+    if (fiche.rate  && fiche.rate  !== '+0%')  reglages.push('vitesse ' + fiche.rate);
+    if (fiche.pitch && fiche.pitch !== '+0Hz') reglages.push('hauteur ' + fiche.pitch);
+    if (reglages.length) info += ' (' + reglages.join(', ') + ')';
+  }
+  document.getElementById('voice-phrase-voix').textContent = info;
+
+  document.getElementById('voice-phrase-label').textContent = nom
+    ? 'Changer la voix de ' + nom + ' (toutes ses phrases)'
+    : 'Changer la voix du lecteur';
+  document.getElementById('voice-phrase-note').textContent = '';
+
+  _remplirMenuVoixPhrase(document.getElementById('voice-phrase-select'), voixId);
+  document.getElementById('voice-phrase-panel').classList.remove('hidden');
+}
+
+function _closeVoicePanel() {
+  _voicePhraseIdx = -1;
+  _couperApercuVoix();
+  document.getElementById('voice-phrase-panel').classList.add('hidden');
+}
+
+// Apercu : la voix choisie dit un extrait de LA phrase ouverte, avec les
+// reglages du personnage (ou la vitesse du lecteur pour la narration).
+async function _apercuVoixPhrase() {
+  if (_voicePhraseIdx < 0) return;
+  const idx   = _voicePhraseIdx;
+  const btn   = document.getElementById('voice-phrase-ecouter-btn');
+  const note  = document.getElementById('voice-phrase-note');
+  const voix  = document.getElementById('voice-phrase-select').value;
+  const nom   = _personnageDePhrase(idx);
+  const fiche = _fichePersonnage(nom);
+  const vitesse = document.getElementById('speed-select');
+  const rate  = (nom && fiche && fiche.rate)  ? fiche.rate
+              : (vitesse ? vitesse.value : '+0%');
+  const pitch = (nom && fiche && fiche.pitch) ? fiche.pitch : '+0Hz';
+  const texte = (((_sentences[idx] || {}).text) || 'Bonjour.').slice(0, 120);
+
+  btn.disabled = true;
+  const avant = btn.textContent;
+  btn.textContent = '\u23F3';
+  note.textContent = '';
+  _couperApercuVoix();
+  try {
+    const res = await fetch('/api/tts', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ text: texte, voice: voix, rate: rate, pitch: pitch })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const url   = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url);
+    _apercuVoixAudio = audio;
+    audio.addEventListener('ended', () => {
+      _apercuVoixAudio = null;
+      URL.revokeObjectURL(url);
+    });
+    audio.play().catch(() => {});
+  } catch (e) {
+    // Moteur eteint, voix indisponible... : on le dit sans bloquer le panneau.
+    note.textContent = 'Aperçu indisponible pour cette voix.';
+    console.error('Erreur apercu voix phrase:', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = avant;
+  }
+}
+
+document.getElementById('voice-phrase-ecouter-btn')
+  .addEventListener('click', _apercuVoixPhrase);
+
+document.getElementById('voice-phrase-close-btn')
+  .addEventListener('click', _closeVoicePanel);
+
+// Taper a cote de la feuille ferme le panneau (le fond couvre l'ecran).
+document.getElementById('voice-phrase-panel').addEventListener('click', (e) => {
+  if (e.target.id === 'voice-phrase-panel') _closeVoicePanel();
+});
+
+// Changement de voix : applique tout de suite. Pour un personnage, c'est sa
+// voix dans TOUT le livre (comme la fenetre du casting) -- et
+// _updateCharacterVoice relance la lecture si elle tournait ; pour la
+// narration, c'est la voix du lecteur (le menu du haut).
+document.getElementById('voice-phrase-select').addEventListener('change', async (e) => {
+  if (_voicePhraseIdx < 0) return;
+  const idx  = _voicePhraseIdx;
+  const voix = e.target.value;
+  const nom  = _personnageDePhrase(idx);
+  const note = document.getElementById('voice-phrase-note');
+
+  if (nom) {
+    const fiche = _fichePersonnage(nom);
+    const rate  = (fiche && fiche.rate)  || '+0%';
+    const pitch = (fiche && fiche.pitch) || '+0Hz';
+    note.textContent = 'Enregistrement...';
+    const ok = await _updateCharacterVoice(nom, voix, rate, pitch);
+    note.textContent = ok
+      ? 'Voix changée pour ' + nom + ' (toutes ses phrases).'
+      : 'Le changement n\'a pas pu être enregistré.';
+  } else {
+    const sel = document.getElementById('voice-select');
+    if (sel) sel.value = voix;
+    // La playlist de lecture est construite au lancement : sans ce qui suit,
+    // la suite du chapitre garderait l'ancienne voix (meme regle que pour un
+    // personnage, decision du 15/09/2026).
+    if (_ttsState === 'playing' || _ttsState === 'loading') {
+      _stopTTS();
+      _startTTS();
+    }
+    note.textContent = 'Voix du lecteur changée.';
+  }
+
+  document.getElementById('voice-phrase-voix').textContent =
+    _libelleCatalogue(voix) || voix;
+});
+
+// PC : bouton « Voir la voix » du tooltip de selection -- ouvre le panneau sur
+// la premiere phrase couverte par la selection (comme « Lire a partir d'ici »).
+document.getElementById('show-voice-btn').addEventListener('click', () => {
+  const sel   = window.getSelection();
+  const range = sel ? _selectionSentenceRange(sel) : null;
+  _hideSelectionTooltip();
+  if (sel) sel.removeAllRanges();
+  if (range) _openVoicePanel(range.startIdx);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') _closeVoicePanel();
 });
 
 function setTTSUI(state) {
@@ -3020,10 +3307,11 @@ function bindEvents() {
   document.getElementById('tts-play-btn').addEventListener('click', () => toggleTTS());
 
   // Curseur glitch — navigation
+  // (le bouton « phrase suivante » ⏩ a ete retire le 15/09/2026 : il faisait
+  // doublon avec ⏭, le paragraphe suivant, demande de Laurent.)
   document.getElementById('para-prev-btn').addEventListener('click', _cursorParaPrev);
   document.getElementById('para-next-btn').addEventListener('click', _cursorParaNext);
   document.getElementById('sent-prev-btn').addEventListener('click', _cursorSentPrev);
-  document.getElementById('sent-next-btn').addEventListener('click', _cursorSentNext);
 
   document.getElementById('chapters-btn').addEventListener('click', openChaptersPanel);
   document.getElementById('chapters-close-btn').addEventListener('click', closeChaptersPanel);

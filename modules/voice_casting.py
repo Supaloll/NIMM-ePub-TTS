@@ -1311,6 +1311,13 @@ _recalculer_pools()
 # depuis le 14/09/2026 (decision de Laurent : Siwis/Tom remplacent
 # Eloise/Fabrice). Piper reste par ailleurs hors du pool automatique
 # ci-dessus, uniquement utilise ici pour les petits roles.
+#
+# ATTENTION (15/09/2026) : ces deux voix ne sont PLUS attribuees par defaut.
+# A l'ecoute de Shantaram, Laurent les a trouvees « inaudibles, vraiment
+# moches » : les petits roles (< MINOR_THRESHOLD repliques) sont desormais lus
+# par le NARRATEUR (voir assign_voices). Ces deux constantes restent donc
+# comme EMPLACEMENT des deux voix neutres que Laurent choisira plus tard
+# (une femme, un homme) : il suffira de les y mettre, puis de re-caster.
 GENERIC_VOICE_F = "piper:siwis:0"
 GENERIC_VOICE_M = "piper:tom:0"
 
@@ -1463,8 +1470,19 @@ def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: d
             continue
 
         if count < MINOR_THRESHOLD:
-            voice_id = GENERIC_VOICE_F if genre == "F" else GENERIC_VOICE_M
-            pitch = pitch_base
+            # PETIT ROLE (< 8 repliques) : aucune voix dediee depuis le
+            # 15/09/2026 (decision de Laurent a l'ecoute de Shantaram : les
+            # voix generiques Piper etaient « inaudibles, vraiment moches »).
+            # Ses repliques sont lues par le NARRATEUR -- la voix choisie dans
+            # le lecteur -- ce qui est coherent : c'est bien le narrateur qui
+            # rapporte ce que dit le personnage.
+            # La ligne est CONSERVEE avec un voice_id VIDE : le personnage reste
+            # visible dans la fenetre du casting, avec la mention « lu par le
+            # narrateur », et on peut lui redonner une voix a la main. Le jour
+            # ou Laurent aura choisi deux voix neutres, il suffira de definir
+            # GENERIC_VOICE_F/M ci-dessus (un re-cast recreera tout).
+            voice_id = ""
+            pitch = "+0Hz"
         else:
             pool = DEDICATED_VOICES_F if genre == "F" else DEDICATED_VOICES_M
             idx = idx_f if genre == "F" else idx_m

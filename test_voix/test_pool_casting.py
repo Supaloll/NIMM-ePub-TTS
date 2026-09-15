@@ -125,17 +125,27 @@ def main_test():
     assert voix["Alice"]["voice_id"] == "fr-FR-DeniseNeural"
     assert voix["Daniel"]["voice_id"] == "fr-FR-HenriNeural"
 
-    print("6) petit role (2 repliques) -> voix Piper generique")
+    print("6) petit role (2 repliques) -> AUCUNE voix dediee (lu par le narrateur)")
     fiche2 = fiche + [{"nom": "Petit", "genre": "H", "age": "adulte"},
                       {"nom": "Petite", "genre": "F", "age": "adulte"}]
     compte2 = dict(compte)
     compte2["Petit"] = 2
     compte2["Petite"] = 2
     voix2 = vc.assign_voices(fiche2, compte2)
-    print("   Petit  -> %s" % voix2["Petit"]["voice_id"])
-    print("   Petite -> %s" % voix2["Petite"]["voice_id"])
-    assert voix2["Petit"]["voice_id"] == "piper:tom:0"
-    assert voix2["Petite"]["voice_id"] == "piper:siwis:0"
+    print("   Petit  -> %r" % voix2["Petit"]["voice_id"])
+    print("   Petite -> %r" % voix2["Petite"]["voice_id"])
+    # Regle du 15/09/2026 (decision de Laurent apres l'ecoute de Shantaram) :
+    # les petits roles n'ont plus de voix dediee NI de voix generique Piper
+    # (« inaudibles, vraiment moches »). Leur voice_id est VIDE : le lecteur
+    # les lit avec la voix du NARRATEUR, et la ligne reste visible dans la
+    # fenetre du casting sous la mention « (lu par le narrateur) ».
+    assert voix2["Petit"]["voice_id"] == "", voix2["Petit"]["voice_id"]
+    assert voix2["Petite"]["voice_id"] == "", voix2["Petite"]["voice_id"]
+    assert voix2["Petit"]["pitch"] == "+0Hz", voix2["Petit"]["pitch"]
+    # ...et un petit role ne consomme PAS une voix du pool dedie.
+    dediees_utilisees = [v["voice_id"] for n, v in voix2.items()
+                         if n not in ("Petit", "Petite")]
+    assert "" not in dediees_utilisees
 
     print("7) seuil des petits roles : le client et le serveur doivent dire pareil")
     with open(os.path.join(RACINE, "frontend", "app.js"), encoding="utf-8") as f:

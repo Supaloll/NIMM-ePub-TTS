@@ -678,7 +678,7 @@ KYUTAI_VOICES = [
     {"id": "kyutai:7400_2928_000100-0001", "name": "Renée", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},       # etait Kyutai 29
     {"id": "kyutai:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},     # etait Kyutai 30
     {"id": "kyutai:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 31
-    {"id": "kyutai:7762_8734_000048-0002", "name": "Prosper", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},     # etait Kyutai 32
+    {"id": "kyutai:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},     # etait Kyutai 32
     {"id": "kyutai:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 0},     # etait Kyutai 33, NON retenue a l'ecoute
     {"id": "kyutai:928_486_000075-0001", "name": "Raymond", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 34
     {"id": "kyutai:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 35
@@ -794,21 +794,21 @@ XTTS_VOICES = [
     {"id": "xtts:10087_11650_000028-0002", "name": "Adèle", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
     {"id": "xtts:10177_10625_000134-0003", "name": "Blanche", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
     {"id": "xtts:10179_11051_000005-0001", "name": "Céleste", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
-    {"id": "xtts:12080_11650_000047-0001", "name": "Diane", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
-    {"id": "xtts:12205_11650_000004-0002", "name": "Éléonore", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:12080_11650_000047-0001", "name": "Diane", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:12205_11650_000004-0002", "name": "Éléonore", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
     {"id": "xtts:12977_10625_000037-0001", "name": "Fanny", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
-    {"id": "xtts:1406_1028_000009-0003", "name": "Augustin", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
+    {"id": "xtts:1406_1028_000009-0003", "name": "Augustin", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:1591_1028_000108-0004", "name": "Geneviève", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
     {"id": "xtts:1770_1028_000036-0002", "name": "Bertrand", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:2114_1656_000053-0001", "name": "Claude", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
-    {"id": "xtts:2154_2576_000020-0003", "name": "Hélène", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
+    {"id": "xtts:2154_2576_000020-0003", "name": "Hélène", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
     {"id": "xtts:2216_1745_000007-0001", "name": "Damien", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
-    {"id": "xtts:2223_1745_000009-0002", "name": "Edmond", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
+    {"id": "xtts:2223_1745_000009-0002", "name": "Edmond", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
     {"id": "xtts:2465_1943_000152-0002", "name": "Irène", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
-    {"id": "xtts:296_1028_000022-0001", "name": "Fernand", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
+    {"id": "xtts:296_1028_000022-0001", "name": "Fernand", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
     {"id": "xtts:3267_1902_000075-0001", "name": "Jeanne", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
     {"id": "xtts:4193_3103_000004-0001", "name": "Gaston", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
-    {"id": "xtts:4482_3103_000063-0001", "name": "Hubert", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
+    {"id": "xtts:4482_3103_000063-0001", "name": "Hubert", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:4724_3731_000031-0001", "name": "Isidore", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
     {"id": "xtts:4937_3731_000004-0001", "name": "Julien", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:5207_3078_000031-0002", "name": "Victoire", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
@@ -816,47 +816,77 @@ XTTS_VOICES = [
     {"id": "xtts:577_394_000070-0001", "name": "Ninon", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
     {"id": "xtts:5790_4893_000052-0001", "name": "Léon", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:579_2548_000015-0001", "name": "Odette", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
-    {"id": "xtts:5830_4703_000037-0001", "name": "Perrine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
-    {"id": "xtts:6318_7016_000027-0002", "name": "Marcel", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:7142_2432_000124-0003", "name": "Norbert", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
+    {"id": "xtts:5830_4703_000037-0001", "name": "Perrine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:6318_7016_000027-0002", "name": "Marcel", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
+    {"id": "xtts:7142_2432_000124-0003", "name": "Norbert", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:7400_2928_000100-0001", "name": "Renée", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
-    {"id": "xtts:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
-    {"id": "xtts:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:7762_8734_000048-0002", "name": "Prosper", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 0},
+    {"id": "xtts:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
+    {"id": "xtts:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
+    {"id": "xtts:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
     {"id": "xtts:928_486_000075-0001", "name": "Raymond", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
-    {"id": "xtts:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
+    {"id": "xtts:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     # --- Voix CML-TTS versees le 14/09/2026 (lot d'ecoute de Laurent) ---
     # 25 voix de plus, tirees du MEME jeu public CML-TTS que les 35 ci-dessus
     # (CC BY 4.0 : lecture de livres classiques par des volontaires). Genre et
     # etoiles releves par Laurent a l'ecoute ; l'accent qu'il a entendu est
     # rappele dans le libelle, pour retrouver ces voix quand un personnage
     # etranger se presente. Les 7 voix qu'il a notees 0 ne sont pas versees.
-    {"id": "xtts:cml1840", "name": "Achille", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:cml1840", "name": "Achille", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
     {"id": "xtts:cml3344", "name": "Honoré", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
-    {"id": "xtts:cml6249", "name": "Célestin", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent paysan", "gender": "M", "stars": 3},
+    {"id": "xtts:cml6249", "name": "Célestin", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent paysan", "gender": "M", "stars": 2},
     {"id": "xtts:cml9804", "name": "Alphonse", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:cml10065", "name": "Auguste", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
-    {"id": "xtts:cml1649", "name": "Berthe", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent allemand", "gender": "F", "stars": 2},
-    {"id": "xtts:cml2033", "name": "Lucie", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent anglais", "gender": "F", "stars": 2},
+    {"id": "xtts:cml1649", "name": "Berthe", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent allemand", "gender": "F", "stars": 0},
+    {"id": "xtts:cml2033", "name": "Lucie", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent anglais", "gender": "F", "stars": 3},
     {"id": "xtts:cml3060", "name": "Armand", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:cml3182", "name": "Maurice", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:cml5525", "name": "Émile", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:cml6348", "name": "Hortense", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent espagnol/italien", "gender": "F", "stars": 2},
+    {"id": "xtts:cml3182", "name": "Maurice", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:cml5525", "name": "Émile", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:cml6348", "name": "Hortense", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent espagnol/italien", "gender": "F", "stars": 3},
     {"id": "xtts:cml6381", "name": "Gabrielle", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
     {"id": "xtts:cml7614", "name": "Gustave", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:cml12501", "name": "Charles", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
+    {"id": "xtts:cml12501", "name": "Charles", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:cml12512", "name": "Eugène", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
-    {"id": "xtts:cml12823", "name": "Agathe", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
-    {"id": "xtts:cml1869", "name": "Cécile", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
-    {"id": "xtts:cml2316", "name": "Joséphine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
+    {"id": "xtts:cml12823", "name": "Agathe", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:cml1869", "name": "Cécile", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 0},
+    {"id": "xtts:cml2316", "name": "Joséphine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 0},
     {"id": "xtts:cml2771", "name": "Lucien", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
-    {"id": "xtts:cml3503", "name": "Félix", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
+    {"id": "xtts:cml3503", "name": "Félix", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:cml5526", "name": "Hippolyte", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
-    {"id": "xtts:cml6070", "name": "Estelle", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
+    {"id": "xtts:cml6070", "name": "Estelle", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
     {"id": "xtts:cml7239", "name": "Hector", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
-    {"id": "xtts:cml7377", "name": "Ernest", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
-    {"id": "xtts:cml7423", "name": "Basile", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent canadien", "gender": "M", "stars": 1},
+    {"id": "xtts:cml7377", "name": "Ernest", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 0},
+    {"id": "xtts:cml7423", "name": "Basile", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent canadien", "gender": "M", "stars": 2},
+    # --- Voix issues d'extraits LIBRES DE DROITS (domaine public), versees le
+    # 15/09/2026 (chantier de Laurent) ---
+    # Extraits reunis et nettoyes par Laurent dans Audacity, convertis par
+    # xtts_service/_preparer_extraits.py (WAV mono 24 kHz 16 bits, silences de
+    # bord rognes) puis verses dans la banque du moteur. Liste de suivi
+    # (identifiant, prenom, duree, fichier source) :
+    # xtts_service/VOIX_LIBRES.txt.
+    # Etoiles PROVISOIRES (2) : a ajuster apres ecoute dans le lecteur.
+    # LOT 1 (7 voix, validees a l'oreille par Laurent le 15/09/2026) :
+    {"id": "xtts:dp_femme001", "name": "Marthe", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme002", "name": "Solange", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme003", "name": "Yvette", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme004", "name": "Henriette", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_homme001", "name": "Marius", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:dp_homme002", "name": "Théodore", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:dp_homme004", "name": "Édouard", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    # LOT 2 (12 voix, mises a l'ecoute le 15/09/2026 ; Laurent a demande de les
+    # verser sans attendre son verdict -- retrait possible a tout moment) :
+    {"id": "xtts:dp_femme121235456", "name": "Rose", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 0},
+    {"id": "xtts:dp_femme32321312445", "name": "Georgette", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme48897", "name": "Thérèse", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme65465464", "name": "Colette", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme6566554478", "name": "Juliette", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_femme65699878", "name": "Madeleine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
+    {"id": "xtts:dp_homme1122544987", "name": "Victor", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:dp_homme1122545656487", "name": "Robert", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:dp_homme313213265", "name": "Paul", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:dp_homme45788656512", "name": "Albert", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 0},
+    {"id": "xtts:dp_homme65462104", "name": "Jules", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
+    {"id": "xtts:dp_homme87976454321", "name": "Arthur", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
 ]
 
 

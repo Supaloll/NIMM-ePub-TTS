@@ -69,6 +69,26 @@ kyutai_service/_tmp_wheel/
 kyutai_service/journal_installation.txt
 kyutai_service/journal_ecoute_cc0*.txt
 
+# Extraits de voix du DOMAINE PUBLIC : travail personnel de Laurent (15/09/2026)
+# -- enregistrements sources, versions nettoyees dans Audacity, brouillons de
+# montage. Ces fichiers restent sur ce PC : jamais sur le depot, ni dans son
+# historique (meme regle que les livres). Les voix REELLEMENT utilisees par les
+# moteurs vivent dans xtts_service/voix_fr/ et kyutai_service/voix_fr/, deja
+# ignores ci-dessus.
+Extraits de voix/
+extraits_voix/
+dossier_voix/
+# Tout format audio d'extrait : Audacity exporte en WAV (ou AIFF), les sources
+# sont souvent en MP3, FLAC ou OGG. Aucun audio n'a sa place dans le depot.
+*.mp3
+*.flac
+*.ogg
+*.opus
+*.m4a
+*.aif
+*.aiff
+*.wav
+
 # Moteur XTTS v2 (environnement Python 3.12 + extraits de voix + poids, non
 # versionnes : voir xtts_service/LIRE_MOI.md pour les recreer)
 xtts_service/.venv/
@@ -79,6 +99,10 @@ xtts_service/sortie_ecoute_cml/
 xtts_service/sortie_ecoute_guillemets/
 xtts_service/journal_installation.txt
 xtts_service/journal_cml*.txt
+
+# Lots d'ecoute des voix XTTS issues d'extraits libres de droits (outil
+# _ecouter_extraits_dp.py) : audio produit par le moteur, jamais versionne.
+xtts_service/sortie_ecoute_dp/
 
 # Livres audio exportes en MP3 (idee de Laurent, 15/09/2026 : exporter un livre
 # avec son casting pour l'ecouter comme un vrai livre audio). Ce sont des

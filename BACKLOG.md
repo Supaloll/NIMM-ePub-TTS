@@ -100,8 +100,153 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   une **erreur 503 explicite**, et les données de casting ne sont **jamais**
   servies périmées.
 
+- [x] **Voir et changer la voix d'une phrase (tap mobile + bouton PC)** — livré
+  le **15/09/2026** (demande de Laurent). Sur **mobile**, un tap sur une phrase
+  ouvrait la lecture à partir de là ; il ouvre désormais un **panneau « voix de
+  cette phrase »** qui dit **qui parle** (personnage, ou *Narration*) et avec
+  **quelle voix** (nommée comme partout : « Alphonse — 🇫🇷 France (XTTS) », avec
+  vitesse et hauteur si elles ne sont pas neutres), et permet de **changer
+  cette voix** — menu par groupes Femmes / Hommes / Autres + bouton
+  **▶ Écouter** un aperçu de la phrase. **Le tap ne lance plus la lecture** ;
+  lire à partir d'une phrase reste possible par **sélection longue** (bouton
+  « Lire à partir d'ici »), qui n'a pas bougé. Sur **PC**, le tooltip de
+  sélection gagne un second bouton **« 🎭 Voir la voix »**, qui ouvre le même
+  panneau pour la phrase touchée par la sélection.
+  *Effets à connaître* : changer la voix d'un personnage s'applique à
+  **toutes ses phrases du livre** (c'est le casting, comme la fenêtre dédiée)
+  et se propage aux autres tomes de la saga ; pour *Narration*, c'est la voix
+  du lecteur qui change. Le changement **s'entend tout de suite** : la lecture
+  en cours est relancée (même règle que le 15/09/2026 pour le casting).
+  *Technique* : `frontend/app.js` — `_personnageDePhrase()`, `_fichePersonnage()`,
+  `_voixDePhrase()`, `_remplirMenuVoixPhrase()`, `_openVoicePanel()`,
+  `_closeVoicePanel()`, `_apercuVoixPhrase()` ; `_updateCharacterVoice()`
+  renvoie désormais **`true`/`false`** (réussite de l'enregistrement) ; le
+  panneau est **fermé au changement de chapitre**. `frontend/index.html`
+  (`#voice-phrase-panel`, bouton du tooltip), `frontend/styles.css` (feuille en
+  bas d'écran sur mobile, petite fenêtre centrée sur PC).
+  *Vérification* : `test_voix/test_voix_phrase.js` (**24 contrôles**, sans
+  navigateur : identifiants page/code, à qui appartient une phrase, quelle voix
+  est utilisée, et que le menu **n'efface jamais** une voix en place).
+
+- [x] **Bibliothèque mobile : le titre du livre en entier sous la couverture**
+  — livré le **15/09/2026** (demande de Laurent). Sur mobile, les couvertures
+  restent **recadrées** au format 2/3 (la grille reste bien régulière) mais le
+  **titre n'est plus coupé** : plus de limitation à deux lignes, taille un peu
+  augmentée, et le nom de l'auteur passe à la ligne au lieu d'être tronqué.
+  Comme le titre est rogné sur l'image de couverture elle-même, c'est ce texte
+  qui dit de quel livre il s'agit. *Technique* : `frontend/styles.css`, règles
+  mobiles `.book-title` / `.book-author` (`@media (max-width: 640px)`).
+
+- [x] **Barre de lecture : suppression du bouton ⏩ (phrase suivante)** — livré le
+  **15/09/2026** (demande de Laurent : il faisait doublon avec ⏭, le paragraphe
+  suivant — dans un dialogue, un paragraphe fait souvent une seule phrase).
+  Les commandes du **casque et de l'écran verrouillé** (`navigator.mediaSession`,
+  action `nexttrack`) continuent d'avancer **d'une phrase** : elles appellent
+  directement `_cursorSentNext()` au lieu de cliquer sur le bouton retiré.
+  **⏪ (phrase précédente) reste** : reculer d'une phrase reste utile quand ⏮
+  saute tout le paragraphe. *Fichiers* : `frontend/index.html` (bouton retiré),
+  `frontend/app.js` (MediaSession + listener du bouton), `frontend/styles.css`
+  (règles du bouton).
+
+- [x] **Barre de réglages du lecteur : boutons compacts et thème sombre
+  cohérent** — livré le **15/09/2026** (demande de Laurent : « moins gros, plus
+  esthétique »). Le bouton **« 🎧 Écouter les voix » n'avait aucun style** : il
+  affichait l'apparence native du navigateur (fond clair, grande taille) au
+  milieu du thème sombre — c'est lui qui « faisait blanc ». Les deux boutons
+  (« 🎭 Voix multiples », libellé raccourci, et « 🎧 Écouter les voix »)
+  partagent maintenant le **même look compact**, et les **deux menus** (voix du
+  narrateur + vitesse) sont groupés dans `#settings-menus`, sur leur propre
+  rangée : la voix prend la place restante, la vitesse sa taille naturelle.
+  En complément, `color-scheme: dark` est déclaré dans `:root` : les **listes
+  déroulantes** des menus (voix, casting, notes…) et les **barres de défilement**
+  s'affichent en sombre au lieu de blanc.
+  *Technique* : `frontend/index.html` (`#settings-menus`, libellés),
+  `frontend/styles.css` (`:root`, `#reader-settings`, `#multivoice-btn`,
+  `#voices-open-btn`, `#voice-select`, `#speed-select`), `frontend/app.js`
+  (libellés du bouton multi-voix).
+  *Vérification* : `node --check frontend/app.js` ; **tous** les identifiants
+  utilisés par `app.js` existent encore dans la page (contrôle passé : 84/84) ;
+  `test_voix/test_ids_ecran.py` et les autres tests JS → **tout OK**.
+
 
 ## 🟠 Priorité 2 — Voix & casting
+- [ ] **Voix XTTS créées à partir d'extraits LIBRES DE DROITS (chantier de
+  Laurent, ouvert le 15/09/2026)** — *en cours, décision de Laurent : ajout au
+  catalogue **groupé à la fin***.
+  Laurent récupère des extraits de voix du **domaine public**, les nettoie dans
+  **Audacity**, et les dépose en **MP3** dans `Extraits de voix\` (dossier
+  ignoré par Git, comme tout l'audio — voir `.gitignore`).
+  *Méthode retenue* (reprise de l'atelier NIMM Voix,
+  `G:\NIMM Voix\outils\xtts_tts\_preparer_reference.py`) : conversion en **WAV
+  mono 24 000 Hz 16 bits** (format natif du moteur) + **rognage des silences de
+  bord** (ffmpeg -45 dB, marge 0,10 s), puis versement dans
+  `xtts_service\voix_fr\` sous `<identifiant>_enhanced.wav`.
+  *Repères de durée* (valeurs de l'atelier, confirmées par la config du modèle
+  installé : `max_ref_len = 30 s`) : **idéal 10-20 s** ; **6 s = minimum** ;
+  au-delà de 30 s le moteur ne garde rien de plus.
+  *Outils créés pour ce chantier* :
+  - `xtts_service/_preparer_extraits.py` — conversion + mesures (durée, silence
+    de tête, silence de queue) + verdict, **refus d'écraser** une voix en
+    place, mode `--verser` qui écrit dans la banque **et recharge le moteur à
+    chaud** (`POST /recharger`, aucun redémarrage) ;
+  - `xtts_service/_ecouter_extraits_dp.py` — fabrique le **lot d'écoute**
+    comparatif : pour chaque voix, `..._reference.wav` (l'extrait entendu par
+    le moteur) puis `..._clone.wav` (le même passage lu par le clone), plus
+    `index_ecoute.txt` et `ECOUTER_LE_LOT.cmd` (lecture à la suite) ;
+  - `xtts_service/sortie_ecoute_dp/` (sortie, ignorée par Git) ;
+  - `xtts_service/VOIX_LIBRES.txt` — **tableau de suivi** : identifiant ↔ prénom
+    ↔ genre ↔ durée ↔ fichier source, plus la réserve de prénoms et les étapes
+    finales. C'est le document à relire pour l'ajout groupé.
+  **État au 15/09/2026** : **19 voix préparées et versées dans le moteur (79
+  voix au total**, 60 CML + 19 libres) **et AJOUTÉES AU CATALOGUE le même
+  jour** — Laurent a choisi de les verser **sans attendre son verdict sur le
+  lot 2** (option : « je te dirai après écoute dans le lecteur si l'une
+  m'énerve ») ; le retrait d'une voix est possible à tout moment (une entrée à
+  retirer de `XTTS_VOICES` + son WAV à retirer de la banque). **Lot 1 (7 voix)
+  VALIDÉ À L'OREILLE** par Laurent (« elles sont top ») ; **lot 2 (12 voix)** en
+  écoute. Identifiants et prénoms **attribués** (détail complet
+  dans `xtts_service/VOIX_LIBRES.txt`) —
+  **lot 1** : `dp_femme001` → **Marthe**, `dp_femme002` → **Solange**,
+  `dp_femme003` → **Yvette**, `dp_femme004` → **Henriette**, `dp_homme001` →
+  **Marius**, `dp_homme002` → **Théodore**, `dp_homme004` → **Édouard** ;
+  **lot 2** : `dp_femme121235456` → **Rose**, `dp_femme32321312445` →
+  **Georgette**, `dp_femme48897` → **Thérèse**, `dp_femme65465464` →
+  **Colette**, `dp_femme6566554478` → **Juliette**, `dp_femme65699878` →
+  **Madeleine**, `dp_homme1122544987` → **Victor**,
+  `dp_homme1122545656487` → **Robert**, `dp_homme313213265` → **Paul**,
+  `dp_homme45788656512` → **Albert**, `dp_homme65462104` → **Jules**,
+  `dp_homme87976454321` → **Arthur**.
+  *Nomenclature* : Laurent a nommé ses fichiers avec **des numéros « au
+  hasard »** (`Femme121235456.mp3`…) — les identifiants de voix reprennent donc
+  ces numéros (peu importe : seul le **prénom** est visible dans le lecteur).
+  Les anciens extraits sont rangés dans `Extraits de voix\Découpage OK\`.
+  *Réserve de prénoms vérifiée libre* (aucun doublon avec les 151 voix de toutes
+  les familles) : femmes — Yvonne, Angèle, Clémence, Germaine, Sidonie,
+  Bertille, Adeline, Lucile, Nadine, Virginie, Élise, Fernande, Martine,
+  Simone, Odile, Pascale, Brigitte, Monique ; hommes — Raoul, René, Roger,
+  André, Casimir, Théophile, Anatole, Barnabé, Firmin, Gédéon, Ismaël, Joachim,
+  Léandre, Narcisse, Ovide, Pamphile.
+  *Ajout au catalogue : **FAIT** le 15/09/2026.* Les 19 entrées ont été
+  ajoutées à **`XTTS_VOICES`** (`modules/tts.py`, bloc commenté « Voix issues
+  d'extraits LIBRES DE DROITS »), avec le format habituel
+  `{"id": "xtts:dp_xxx", "name": …, "region": "🇫🇷 France (XTTS)",
+  "gender": "F"/"M", "stars": 2}` — cette liste alimente **à la fois** les
+  **menus** du lecteur **et** le **pool du casting automatique**. Vérifié :
+  **79 voix XTTS** au catalogue, **10 femmes + 9 hommes** libres, **aucun
+  doublon de prénom**, et **chacune des 19 est présente dans la banque du
+  moteur**. *Vérification* : `modules/tts.py` compile ; `test_libelles_voix.py`,
+  `test_ids_ecran.py`, `test_pool_casting.py`, `test_voix_ecoutables.py`/`.js`,
+  `test_etat_casting.js`, `test_filtre_genre.js` → **tous OK**.
+  *Reste à faire* : **relancer le lecteur** (la liste est lue au démarrage :
+  avant relance, il annonce encore 60 voix XTTS) ; puis écouter dans la fenêtre
+  « Écouter les voix » et **fixer les étoiles** définitives (2 partout pour
+  l'instant) ; le tableau de suivi `VOIX_LIBRES.txt` reste la référence pour les
+  prochains lots (34 prénoms encore libres).
+  *Rappel licence* : XTTS v2 est en CPML (usage **non commercial**), donc
+  l'audio produit ne se partage pas — voir `xtts_service/ATTRIBUTION.md`.
+
+
+
 
 
 - [x] **Nouvel ordre du pool automatique de casting, avec XTTS v2** — livré
@@ -336,16 +481,33 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   --par-famille 10` (moteur allumé ; sortie dans `sortie_ecoute_etrangeres/`,
   avec index à annoter). Licence **CC BY 4.0** (partageable).
 
-- [ ] **Distribution fine des petits rôles** (suite de la décision Kyutai du
-  12/09/2026). **Mis à jour le 14/09/2026** : les personnages de moins de
-  8 répliques reçoivent désormais une voix générique **Piper** partagée par
-  genre (`GENERIC_VOICE_F/M` = `piper:siwis:0` / `piper:tom:0`, décision de
-  Laurent) — les voix Edge Éloise/Fabrice ne servent plus à cela. Le reste de
-  l'item reste ouvert : Laurent avait soulevé le risque qu'un petit rôle se
-  retrouve avec une voix se confondant avec celle du **narrateur** (Ariane,
-  Suisse, qui reste la voix du narrateur sur tous les livres). Pistes à
-  trancher : un seuil à ajuster, ou l'usage de quelques voix du pool pour les
-  petits rôles.
+- [x] **Distribution fine des petits rôles** (suite de la décision Kyutai du
+  12/09/2026) — **TRANCHÉ et LIVRÉ le 15/09/2026**. Historique : les
+  personnages de moins de 8 répliques ont d'abord reçu les voix Edge
+  Éloise/Fabrice, puis (14/09/2026) une voix générique **Piper** partagée par
+  genre (`GENERIC_VOICE_F/M` = `piper:siwis:0` / `piper:tom:0`).
+  **Décision finale de Laurent** (à l'écoute de *Shantaram*, où **52 des 125
+  personnages** étaient dans ce cas) : les Piper sont « **inaudibles, vraiment
+  moches** » → **un petit rôle n'a plus AUCUNE voix dédiée : ses répliques sont
+  lues par le NARRATEUR** (la voix choisie dans le lecteur), ce qui est
+  cohérent puisque c'est bien le narrateur qui rapporte ce qu'il dit.
+  *Technique* : `modules/voice_casting.py` — dans `assign_voices()`, un rôle
+  sous `MINOR_THRESHOLD` reçoit un **`voice_id` VIDE** (au lieu d'une voix
+  Piper) et un pitch neutre ; la **ligne est conservée** en base, donc le
+  personnage reste **visible dans la fenêtre du casting** sous la mention
+  « **Sans voix dédiée — (lu par le narrateur)** » et on peut lui redonner une
+  voix à la main. `frontend/app.js` : `_voiceForSentence()` retombe sur la voix
+  du lecteur quand `voice_id` est vide, `_construireMenuVoix()` affiche
+  l'entrée « (lu par le narrateur) », `_previewCharacterVoice()` utilise la voix
+  du lecteur pour l'aperçu. Les constantes `GENERIC_VOICE_F/M` **restent en
+  place** : elles serviront d'emplacement pour les **deux voix neutres** que
+  Laurent choisira (une femme, un homme) s'il préfère un jour donner aux petits
+  rôles une voix distincte de celle du narrateur — il suffira de les y mettre
+  et de re-caster.
+  *Vérification* : `test_voix/test_pool_casting.py` (§ 6 mis à jour : voix vide
+  au lieu de Piper, et un petit rôle ne consomme plus une voix du pool) + toute
+  la batterie de tests (ids écran, libellés, état casting, filtre genre, voix de
+  phrase, message réseau, import main) → **tout OK**.
 
 - [ ] **Réécouter et ajuster les notes « stars » Kokoro** au fil de l'usage
   (elles sont indicatives) — utile car le pool automatique du casting pioche
@@ -415,8 +577,9 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   Les défauts qui restent sont d'une autre nature (bords de phrase) : voir les
   deux items suivants.
 
-- [ ] **XTTS : rogner les silences de bord des fichiers générés** ⏸ *EN
-  ATTENTE — décision de Laurent du 15/09/2026*. Découvert le 15/09/2026 en vérifiant les
+- [x] **XTTS : rogner les silences de bord des fichiers générés** ✅ *LIVRÉ le
+  15/09/2026 — décision de Laurent : on y touche (détail dans l'item « XTTS :
+  retours d'écoute de Laurent »)*. Découvert le 15/09/2026 en vérifiant les
   observations d'écoute de Laurent : **chaque fichier XTTS se termine par un
   long silence** — de **0,54 à 0,91 s** de queue (moyenne 0,6 s), mesuré sur
   les 9 fichiers du lot, tandis que le silence de tête est négligeable
@@ -439,6 +602,64 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   relever que ce qui gêne vraiment, plutôt que de viser la perfection sur des
   détails : « on a retiré le plus pénible à l'oreille ». À ne reprendre que si
   une écoute prolongée le justifie.
+
+- [ ] **XTTS : retours d'écoute de Laurent (une heure du Comte de
+  Monte-Cristo, 15/09/2026)** — deux constats, chiffrés à l'atelier le même
+  jour, *en attente de décision*.
+  **(1) « Changements de rythme » sur les successions de petites phrases**
+  (échanges courts entre deux interlocuteurs) ; Laurent soupçonnait le
+  préchargement du lecteur. **La mesure dément : ce n'est pas le débit du
+  moteur.** Nouvel outil `xtts_service/_mesurer_debit_xtts.py` (mesure sur le
+  moteur allumé, RTX 4060) : répliques courtes **0,47 s de calcul pour 1,4 s
+  d'audio** (facteur 0,32) et phrase longue **4,78 s pour 15,7 s** (facteur
+  0,30) → le moteur produit **environ 3 fois plus vite que la lecture**, et le
+  coût est **proportionnel à la durée** (rapport longue/courte = 1,0 : aucun
+  coût fixe par phrase qui pénaliserait les dialogues). **Élargir la fenêtre de
+  préchargement ne changerait donc rien** : la file n'est pas vide par manque
+  de débit. Ce qu'il reste à regarder, ce sont les **intervalles** entre les
+  phrases : un silence de queue **variable** (0,54 à 0,91 s) donne un
+  espacement irrégulier d'une réplique à l'autre — auquel s'ajoute la **pause
+  de 300 ms** appliquée à chaque changement de paragraphe
+  (`PARAGRAPH_PAUSE_MS`, `frontend/app.js`), donc **à chaque réplique** dans un
+  dialogue. Voir le constat (2).
+  **(2) Les points marquent une pause plus longue qu'avec Kokoro ou Edge**, et
+  il reste **quelques sons étranges** (respirations, artefacts) en fin de
+  phrase ; Laurent propose de **couper net après le point**, ou du moins plus
+  tôt qu'aujourd'hui. Mesure : nouvel outil
+  `xtts_service/_mesurer_bords_xtts.py` (sans moteur, sur les 19 WAV du lot
+  d'écoute) → **silence de queue moyen 0,59 s (0,54 à 0,91 s)**, silence de
+  tête négligeable (0,00 à 0,02 s), et des **pauses internes de 0,30 à 0,35 s**
+  un peu partout. Rappel : Edge est **déjà rogné** (`modules/audio_trim.py`,
+  0,25 s de queue) mais **XTTS ne l'est pas** — c'est exactement l'item
+  « XTTS : rogner les silences de bord » ci-dessus, **remis sur la table par
+  cette écoute**.
+  *Décisions possibles* — **✅ DÉCISION DE LAURENT le 15/09/2026 : les DEUX
+  remèdes, faits le jour même.**
+  **(1) Rognage** du silence de queue XTTS à **0,25 s** (même marge qu'Edge),
+  dans `servir_xtts.py` : constante `SILENCE_QUEUE_S`, fonction `rogner_queue()`
+  appelée à la fin de `generer_wav()`. En numpy (déjà utilisé là-bas), aucune
+  dépendance ajoutée ; la **parole n'est jamais touchée** ; en cas de doute
+  (audio vide, silence total, erreur) l'audio est renvoyé tel quel.
+  **(2) Pause entre paragraphes supprimée** : `PARAGRAPH_PAUSE_MS`
+  (`frontend/app.js`) passe de **300 ms à 0** — dans un dialogue, chaque
+  réplique est un paragraphe, la pause s'ajoutait donc à chaque échange.
+  Remettre 300 la rétablit.
+  *Vérification faite* : `test_voix/test_rogner_queue_xtts.py` (14 contrôles,
+  **sans moteur** : queue d'origine 0,54 / 0,60 / 0,91 / 2,00 s → 0,25 s ;
+  parole intacte avant le dernier son ; rien de rallongé ; aucun plantage) et
+  mesure sur les **19 vrais WAV du lot** via la nouvelle option
+  `_mesurer_bords_xtts.py --rogner` : queue **0,54-0,91 s → 0,26 s partout**
+  (0,25 s + arrondi du bloc d'analyse de 20 ms). `node --check` OK sur
+  `app.js`.
+  ⚠ Deux points pour l'écoute de Laurent : **fermer puis relancer la fenêtre du
+  moteur XTTS** (le service allumé tourne encore avec l'ancien code en
+  mémoire), et écouter un passage **pas encore lu** (les phrases déjà écoutées
+  gardent l'ancien son, elles sont dans le cache du lecteur).
+  *À savoir* : le rognage se ferait **dans le service** (`servir_xtts.py`, en
+  numpy, comme prévu dans l'item ci-dessus), jamais dans `modules/tts.py` qui
+  est partagé par tous les moteurs ; et il **change la clé du cache audio**
+  côté lecteur — les phrases déjà lues gardent l'ancien rendu jusqu'à purge de
+  `data/tts_cache/`.
 
 - [ ] **XTTS : défauts résiduels entendus le 15/09/2026** (après le
   remède sur les guillemets, donc à reprendre séparément). Tous se situent aux
@@ -628,6 +849,25 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   M/F). La **remarque libre** n'est pas reportée (les catalogues n'ont pas de
   champ pour elle). Premier report réel le 15/09/2026 : Antoine, Jean et
   Fabrice à 0★, Ariane à 3★.
+  **Report complet du 15/09/2026 (soir)** — Laurent a annoté **72 voix** dans la
+  fenêtre « Écouter les voix » (genre, étoiles, remarque) ; le report a été
+  appliqué en **deux passes : 49 changements** dans `modules/tts.py` (les notes
+  Edge, elles, étaient déjà à jour). Résultat côté **XTTS** : **45 voix à 3★**,
+  17 à 2★, 11 à 1★, **6 écartées (0★)** — Berthe, Cécile, Joséphine, Ernest,
+  Rose et Albert. Les **19 voix libres** (lots 1 et 2) passent presque toutes à
+  **3★**.
+  *Deux corrections au passage* :
+  - **« Prosper » est une voix de FEMME** (constat de Laurent) : genre corrigé en
+    **F** côté **XTTS et Kyutai** (c'est le même extrait) et prénom remplacé par
+    **Monique** — un prénom masculin sur une voix féminine est un piège dans le
+    casting ;
+  - les **5 voix laissées en « – »** par Laurent avec une remarque de défaut
+    (« probleme timbre », « probleme de souffle », « souffle ») devaient en fait
+    être **écartées** : ses annotations ont été passées à **0★** (elles sont la
+    source : on corrige l'annotation, puis on reporte).
+  *Convention rappelée* : dans la fenêtre d'écoute, **« – » = pas d'avis** et
+  **« ☆ » = à écarter**. Une **0★** reste **sélectionnable à la main** dans les
+  menus : elle n'est simplement plus proposée par le **casting automatique**.
 
 - [x] **Badges d'état dans la fenêtre du casting** — livré le 15/09/2026
   (demande de Laurent : voir les personnages sans voix et les voix encore
