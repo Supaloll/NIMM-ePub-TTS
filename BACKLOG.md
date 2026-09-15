@@ -1614,6 +1614,49 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   soundfile, pedalboard, imageio-ffmpeg, httpx et pydantic, plus
   l'environnement séparé du moteur Kyutai. Reste à vérifier au fil de l'eau.
 
+## ♿ Accessibilité — chantier ouvert le 15/09/2026 (avec Nando)
+
+**Pourquoi maintenant** : Nando rejoint le projet comme relecteur (invitation
+envoyée le 15/09/2026). Il est **aveugle** et travaille au **lecteur d'écran**.
+Il peut déjà lire le code et juger l'architecture, mais il ne pourra pas
+**utiliser** NIMM ePub tant que ce chantier n'est pas fait — et c'est lui qui
+saura le mieux dire ce qui manque. À mener **par petites étapes, avec lui**.
+
+**État des lieux, mesuré le 15/09/2026** (il y a déjà un début, ce n'est pas un
+désert) :
+- `frontend/index.html` : `<html lang="fr">` ✓, **34 `aria-label`**,
+  **5 `aria-modal`**, **13 `role`** (dont les fenêtres en `role="dialog"`) ;
+- **36 boutons**, dont la plupart portent un **texte visible** (donc lus) — le
+  seul à surveiller est la croix de la recherche (`#search-clear-btn`) ;
+- **manques identifiés** : aucune **alternative textuelle** sur les couvertures
+  de livres (elles sont créées par `app.js`, aucun `alt=`) ; **aucun `aria-live`**
+  (le changement de chapitre, l'état de lecture, la coupure réseau, les erreurs
+  ne sont **jamais annoncés**) ; **structure de titres très pauvre** (2 titres
+  seulement) alors que la navigation par titres est le premier outil d'un
+  lecteur d'écran ; **aucun piège de focus** dans les 5 fenêtres modales ;
+  **focus visible** peu travaillé (3 règles `:focus`) ; pas de
+  `prefers-reduced-motion` (l'animation « glitch » du curseur) ;
+  **0 `tabindex`**.
+- Ce que Laurent dit bien : **rien de tout cela n'est nécessaire pour lire et
+  comprendre le code** — c'est un chantier d'interface, à faire à part.
+
+**Pistes, par ordre d'utilité** (à discuter avec Nando avant de commencer) :
+1. **Annonces (`aria-live`)** : dire à voix haute le chapitre en cours, l'état
+   de la lecture (chargement / lecture / pause), la reprise après coupure
+   réseau, et les erreurs ;
+2. **Alternatives textuelles** des couvertures (« Couverture de <titre>, de
+   <auteur> ») ;
+3. **Structure de titres** (`h1` de page, `h2` par section, `h3` par fenêtre)
+   pour permettre la navigation rapide ;
+4. **Fenêtres modales** : piège de focus, retour du focus au bouton d'origine,
+   fermeture au clavier (`Échap`) ;
+5. **Labels** des rares boutons-icônes, **focus visible** net partout,
+   `prefers-reduced-motion` pour l'animation du curseur ;
+6. Le **test de référence** : NVDA (gratuit, Windows) — et, si possible, un
+   parcours complet « ouvrir un livre, lancer la lecture, changer de chapitre,
+   changer une voix ».
+
+
 ## 🟢 Priorité 4 — Produit
 
 - [ ] **Exporter un livre en MP3 (livre audio figé, avec le casting validé)** —
