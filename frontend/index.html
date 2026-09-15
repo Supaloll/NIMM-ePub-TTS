@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+  <title>NIMM ePub</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20260915-3" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===================== VUE CHOIX PROFIL ===================== -->
+    <div id="view-profile" class="view active">
+      <div id="profile-header">
+        <span id="profile-title">Qui lit ?</span>
+      </div>
+      <div id="profile-grid" role="list" aria-label="Choix du profil">
+        <!-- Les boutons profil sont injectes par app.js -->
+      </div>
+    </div>
+
+    <!-- ===================== VUE BIBLIOTHEQUE ===================== -->
+    <div id="view-library" class="view hidden">
+
+      <header id="library-header">
+        <span id="app-title">NIMM <span class="accent">ePub</span></span>
+        <label id="upload-btn" title="Ajouter un livre" aria-label="Ajouter un livre EPUB">
+          <input type="file" id="upload-input" accept=".epub" hidden />
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12l7-7 7 7"/>
+          </svg>
+          Ajouter
+        </label>
+      </header>
+
+      <div id="upload-progress" class="hidden">
+        <div id="upload-bar"></div>
+        <span id="upload-label">Envoi en cours...</span>
+      </div>
+
+      <div id="book-grid" role="list" aria-label="Bibliotheque">
+        <!-- Les cartes livres sont injectees par app.js -->
+      </div>
+
+      <div id="library-empty" class="hidden">
+        <p>Votre bibliotheque est vide.</p>
+        <p>Ajoutez un fichier <strong>.epub</strong> pour commencer.</p>
+      </div>
+
+    </div>
+
+    <!-- ===================== VUE LECTEUR ===================== -->
+    <div id="view-reader" class="view hidden">
+
+      <header id="reader-header">
+        <button id="back-btn" aria-label="Retour a la bibliotheque">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <div id="reader-book-title"></div>
+        <button id="chapters-btn" aria-label="Liste des chapitres">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6"  x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="14" y2="18"/>
+          </svg>
+        </button>
+      </header>
+
+      <div id="chapter-info">
+        <span id="chapter-title-display"></span>
+        <span id="chapter-counter"></span>
+      </div>
+
+      <div id="reader-content" role="main" aria-label="Texte du chapitre">
+        <!-- Le texte du chapitre est injecte par app.js -->
+      </div>
+
+      <footer id="reader-footer">
+        <audio id="tts-audio-player" playsinline></audio>
+
+        <div id="tts-progress-row">
+          <div id="tts-progress">
+            <div id="tts-progress-fill"></div>
+          </div>
+          <span id="tts-time-remaining"></span>
+        </div>
+
+        <div id="reader-nav">
+          <button id="prev-btn" aria-label="Chapitre precedent">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+
+          <div id="tts-nav">
+            <button id="para-prev-btn" aria-label="Paragraphe precedent">⏮</button>
+            <button id="sent-prev-btn" aria-label="Phrase precedente">⏪</button>
+
+            <div id="tts-controls">
+              <button id="tts-play-btn" aria-label="Lecture / Pause">
+                <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     class="hidden">
+                  <line x1="10" y1="6" x2="10" y2="18"/>
+                  <line x1="14" y1="6" x2="14" y2="18"/>
+                </svg>
+                <svg id="icon-spin" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                     class="hidden">
+                  <path d="M12 2a10 10 0 0 1 10 10"/>
+                </svg>
+              </button>
+            </div>
+
+            <button id="sent-next-btn" aria-label="Phrase suivante">⏩</button>
+            <button id="para-next-btn" aria-label="Paragraphe suivant">⏭</button>
+          </div>
+
+          <button id="next-btn" aria-label="Chapitre suivant">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+
+          <button id="rsvp-open-btn" aria-label="Mode lecture RSVP" title="Mode RSVP">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="reader-settings">
+          <button id="multivoice-btn" aria-label="Activer les voix multiples par personnage">
+            🎭 Activer voix multiples
+          </button>
+          <button id="voices-open-btn" aria-label="Ecouter les voix"
+                  title="Ecouter les voix disponibles et les annoter">
+            🎧 Ecouter les voix
+          </button>
+          <select id="voice-select" aria-label="Choix de la voix"></select>
+          <select id="speed-select" aria-label="Vitesse de lecture">
+            <option value="-20%">Lente</option>
+            <option value="-10%">Moderee</option>
+            <option value="+0%"  selected>Normale</option>
+            <option value="+10%">Rapide</option>
+            <option value="+25%">Tres rapide</option>
+          </select>
+          <!-- Etat des moteurs de voix lourds (Kyutai, XTTS v2), rempli par
+               app.js : dit pourquoi les voix d'un moteur eteint ne sont pas
+               proposees, au lieu de laisser croire a un bug. -->
+          <span id="moteur-etat"></span>
+        </div>
+
+      </footer>
+
+    </div>
+
+    <!-- ===================== TOOLTIP SELECTION ===================== -->
+    <div id="selection-tooltip" class="hidden" role="tooltip">
+      <button id="read-from-here-btn" aria-label="Lire a partir d'ici">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Lire à partir d'ici
+      </button>
+    </div>
+
+    <!-- ===================== PANNEAU CHAPITRES ===================== -->
+    <div id="chapters-panel" class="panel hidden" role="dialog"
+         aria-modal="true" aria-label="Liste des chapitres">
+      <div id="chapters-panel-inner">
+        <div id="chapters-panel-header">
+          <span>Chapitres</span>
+          <button id="chapters-close-btn" aria-label="Fermer">✕</button>
+        </div>
+
+        <div id="search-box">
+          <input type="text" id="search-input" placeholder="Rechercher dans le livre..." aria-label="Rechercher dans le livre" />
+          <button id="search-btn" aria-label="Lancer la recherche">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="search-results-info" class="hidden">
+          <span id="search-results-count"></span>
+          <button id="search-clear-btn">✕ Effacer</button>
+        </div>
+
+        <ul id="chapters-list" role="list"></ul>
+        <ul id="search-results-list" role="list" class="hidden"></ul>
+      </div>
+      <div id="chapters-backdrop"></div>
+    </div>
+
+    <!-- ===================== VUE RSVP ===================== -->
+    <div id="view-rsvp" class="view hidden">
+      <button id="rsvp-close-btn" aria-label="Fermer le mode RSVP">✕</button>
+
+      <div id="rsvp-fade-text"></div>
+
+      <div id="rsvp-word-zone">
+        <div id="rsvp-fixed-marker"></div>
+        <div id="rsvp-word"></div>
+      </div>
+
+      <div id="rsvp-controls">
+        <div id="rsvp-speed-row">
+          <span id="rsvp-speed-label">160 mots/min</span>
+          <input type="range" id="rsvp-speed-slider" min="100" max="250" step="10" value="160" aria-label="Vitesse RSVP" />
+        </div>
+        <button id="rsvp-push-btn" aria-label="Lancer ou arreter la lecture mot a mot">
+          Lancer la lecture
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================== MODALE CHOIX MOTEUR ===================== -->
+    <div id="provider-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Choix du moteur d'analyse">
+      <div class="modal-box">
+        <p>Quel moteur utiliser pour analyser ce livre ?</p>
+        <div class="provider-choices">
+          <button class="provider-btn provider-recommended" data-provider="gemini">
+            <span class="provider-name">Gemini <span class="provider-tag">recommande</span></span>
+            <span class="provider-estimate">estimation...</span>
+          </button>
+          <button class="provider-btn" data-provider="deepseek">
+            <span class="provider-name">DeepSeek</span>
+            <span class="provider-estimate"></span>
+          </button>
+          <button class="provider-btn" data-provider="mistral">
+            <span class="provider-name">Mistral</span>
+            <span class="provider-estimate"></span>
+          </button>
+          <!-- Moteur local (Ollama) : gratuit et sans filtre de contenu, mais
+               qualite moindre. Le bouton est grise automatiquement si Ollama
+               n'est pas demarre ou si le modele n'est pas installe. -->
+          <button class="provider-btn" data-provider="local">
+            <span class="provider-name">🖥️ Modèle local <span class="provider-tag">gratuit</span></span>
+            <span class="provider-estimate"></span>
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button id="provider-cancel-btn" class="btn-secondary">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="cast-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Casting des voix">
+      <div class="modal-box cast-box">
+        <div id="cast-modal-header">
+          <h3>Casting des voix</h3>
+          <button id="cast-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+        <div id="cast-saga-bar">
+          <input type="text" id="cast-saga-input" list="cast-saga-list"
+                 placeholder="Nom de la saga (optionnel)" />
+          <datalist id="cast-saga-list"></datalist>
+          <button id="cast-propagate-btn" title="Pousser ce casting vers tous les tomes de la saga">
+            Appliquer à toute la saga
+          </button>
+        </div>
+        <div id="cast-gender-bar">
+          <span>Voix proposées :</span>
+          <div id="cast-gender-actions">
+            <button type="button" data-genre="T" class="actif">Toutes</button>
+            <button type="button" data-genre="F">Femmes</button>
+            <button type="button" data-genre="M">Hommes</button>
+          </div>
+        </div>
+        <!-- Etat des PERSONNAGES (a ne pas confondre avec la barre ci-dessus,
+             qui ne filtre que les voix proposees dans les menus) :
+             « a caster » = ce personnage parle souvent mais porte encore la
+             voix generique ; « voix partagee » = plusieurs personnages ont le
+             meme timbre, a differencier par la hauteur. -->
+        <div id="cast-etat-bar">
+          <span>Personnages :</span>
+          <div id="cast-etat-actions">
+            <button type="button" data-etat="T" class="actif">Tous</button>
+            <button type="button" data-etat="caster">&#x26A0; À caster</button>
+            <button type="button" data-etat="partagee">&#x29C9; Voix partagée</button>
+          </div>
+          <span id="cast-etat-resume"></span>
+        </div>
+        <ul id="cast-list" role="list"></ul>
+        <div id="cast-recast-bar">
+          <span id="cast-recast-hint">&#x1F512; = garder cette voix au re-cast</span>
+          <div id="cast-recast-actions">
+            <button id="cast-autogroup-btn"
+                    title="Regroupe les personnages ecrits de plusieurs facons (accents, tirets, article en trop). Gratuit et reversible.">
+              Regrouper doublons
+            </button>
+            <button id="cast-recast-btn"
+                    title="Redistribuer les voix non verrouillees dans le catalogue actuel (gratuit, sans appel IA)">
+              Re-caster (gratuit)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================== MODALE ECOUTER LES VOIX (listener) ================== -->
+    <div id="voices-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Ecouter les voix">
+      <div class="modal-box voices-box">
+        <div id="voices-modal-header">
+          <h3>&#x1F3A7; Ecouter les voix</h3>
+          <button id="voices-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+        <div id="voices-tools">
+          <input type="search" id="voices-search"
+                 placeholder="Rechercher un prenom..." aria-label="Rechercher une voix">
+          <select id="voices-famille" aria-label="Filtrer par moteur">
+            <option value="T">Tous les moteurs</option>
+            <option value="edge">Edge (en ligne)</option>
+            <option value="kokoro">Kokoro</option>
+            <option value="piper">Piper</option>
+            <option value="kyutai">Kyutai</option>
+            <option value="xtts">XTTS v2</option>
+          </select>
+          <span id="voices-recap"></span>
+        </div>
+        <ul id="voices-list" role="list"></ul>
+        <div id="voices-bottom-bar">
+          <span id="voices-hint">
+            &#x1F4BE; Les notes restent sur cet ordinateur : elles ne modifient pas le
+            catalogue des voix.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div id="delete-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Confirmer la suppression">
+      <div class="modal-box">
+        <p id="delete-modal-text">Supprimer ce livre ?</p>
+        <div class="modal-actions">
+          <button id="delete-cancel-btn" class="btn-secondary">Annuler</button>
+          <button id="delete-confirm-btn" class="btn-danger">Supprimer</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- #app -->
+
+  <script src="/static/app.js?v=20260915-3"></script>
+</body>
+</html>

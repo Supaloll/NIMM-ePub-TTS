@@ -1,0 +1,15 @@
+{
+  "exclude": [
+    ".venv",
+    "__pycache__",
+    "voix_fr",
+    "voix_autres",
+    "modele",
+    "sortie_ecoute",
+    "sortie_ecoute_toutes",
+    "sortie_ecoute_etrangeres",
+    "_tmp_wheel"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

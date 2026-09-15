@@ -1,0 +1,1642 @@
+/* ============================================================
+   NIMM ePub — Styles
+   Mobile-first, theme sombre par defaut
+   ============================================================ */
+
+/* --- Variables --- */
+:root {
+  --bg:           #0d0d0d;
+  --bg-surface:   #161616;
+  --bg-card:      #1c1c1c;
+  --bg-hover:     #242424;
+  --border:       #2a2a2a;
+  --accent:       #c8a96e;
+  --accent-dim:   #8a7048;
+  --text:         #e8e3da;
+  --text-muted:   #7a7570;
+  --text-dim:     #4a4540;
+  --danger:       #c0392b;
+  --danger-hover: #a93226;
+  --radius:       10px;
+  --radius-sm:    6px;
+  --shadow:       0 4px 24px rgba(0,0,0,0.5);
+  --font-read:    Georgia, 'Times New Roman', serif;
+  --font-ui:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* --- Reset --- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+body {
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+}
+
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* --- Vues --- */
+.view {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+.view.hidden { display: none; }
+
+/* ============================================================
+   CHOIX DU PROFIL
+   ============================================================ */
+
+#view-profile {
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+}
+
+#profile-header {
+  text-align: center;
+}
+
+#profile-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
+#profile-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 320px;
+  padding: 0 24px;
+}
+
+.profile-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.profile-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-dim);
+}
+.profile-card:active {
+  transform: scale(0.97);
+}
+
+/* ============================================================
+   BIBLIOTHEQUE
+   ============================================================ */
+
+#library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+#app-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#app-title .accent { color: var(--accent); }
+
+#upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#upload-btn:hover { background: var(--bg-hover); }
+
+/* Barre de progression upload */
+#upload-progress {
+  padding: 10px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#upload-progress.hidden { display: none; }
+
+#upload-bar {
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s;
+  animation: pulse-bar 1.2s ease-in-out infinite;
+}
+@keyframes pulse-bar {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+#upload-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  display: block;
+}
+
+/* Grille livres */
+#book-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  align-content: start;
+}
+
+/* Carte livre */
+.book-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.book-card:hover { transform: translateY(-2px); border-color: var(--accent-dim); }
+.book-card:active { transform: scale(0.97); }
+
+.book-cover {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  display: block;
+  background: var(--bg-surface);
+}
+
+.book-cover-placeholder {
+  width: 100%;
+  aspect-ratio: 2/3;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 2rem;
+}
+
+.book-info {
+  padding: 8px 10px 10px;
+  flex: 1;
+}
+
+.book-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.book-author {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.book-progress-bar {
+  height: 2px;
+  background: var(--border);
+  margin-top: 6px;
+  border-radius: 1px;
+}
+.book-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 1px;
+  transition: width 0.3s;
+}
+
+.book-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  background: rgba(0,0,0,0.65);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.book-card:hover .book-delete-btn { opacity: 1; }
+
+/* Mobile : bouton suppression toujours visible */
+@media (max-width: 640px) {
+  .book-delete-btn { opacity: 1; }
+  #book-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+}
+
+/* Bibliotheque vide */
+#library-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 32px;
+}
+#library-empty strong { color: var(--text); }
+
+/* ============================================================
+   LECTEUR
+   ============================================================ */
+
+#reader-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+#back-btn, #chapters-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+#back-btn:hover, #chapters-btn:hover { color: var(--text); }
+
+#reader-book-title {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+#chapter-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#chapter-counter {
+  color: var(--accent-dim);
+  font-size: 0.72rem;
+}
+
+/* Zone de texte */
+#reader-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 18px 16px;
+  font-family: var(--font-read);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  color: var(--text);
+  white-space: normal;
+  word-break: break-word;
+}
+
+#reader-content p {
+  margin-bottom: 1.2em;
+}
+
+@media (min-width: 641px) {
+  #reader-content {
+    max-width: 680px;
+    margin: 0 auto;
+    font-size: 1.1rem;
+  }
+}
+
+/* Pied du lecteur */
+#reader-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  padding: 10px 14px calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#reader-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#prev-btn, #next-btn, #rsvp-open-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+#prev-btn:hover, #next-btn:hover, #rsvp-open-btn:hover { background: var(--bg-hover); color: var(--text); }
+#prev-btn:disabled, #next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+#tts-controls { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; }
+
+#tts-play-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  color: #000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+#tts-play-btn:hover  { background: #d4b87a; }
+#tts-play-btn:active { transform: scale(0.94); }
+#tts-play-btn.playing { background: #c8843a; }
+#tts-play-btn.playing:hover { background: #d4924a; }
+#tts-play-btn.paused  { background: var(--accent-dim); }
+#tts-play-btn.loading { background: var(--accent-dim); cursor: wait; }
+
+#icon-spin { animation: tts-spin 0.75s linear infinite; }
+@keyframes tts-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+#tts-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+#tts-progress {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+#tts-time-remaining {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 52px;
+  text-align: right;
+}
+#tts-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+#reader-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Voyant de l'etat des moteurs de voix lourds (Kyutai, XTTS v2) : sur sa
+   propre ligne, sous les trois reglages. Sans lui, l'absence des voix d'un
+   moteur eteint ressemblerait a un bug. */
+#moteur-etat {
+  flex-basis: 100%;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.2;
+}
+#moteur-etat:empty { display: none; }
+#moteur-etat.moteur-etat-off { opacity: 0.7; }
+
+#multivoice-btn {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#multivoice-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+#multivoice-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#voice-select, #speed-select {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+#voice-select:focus, #speed-select:focus {
+  outline: 1px solid var(--accent-dim);
+}
+
+/* ============================================================
+   PANNEAU CHAPITRES
+   ============================================================ */
+
+#chapters-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+}
+#chapters-panel.hidden { display: none; }
+
+#chapters-panel-inner {
+  width: min(320px, 85vw);
+  height: 100%;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  animation: slide-in-left 0.2s ease;
+  z-index: 1;
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+#chapters-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+#chapters-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+#chapters-close-btn:hover { color: var(--text); }
+
+#chapters-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+
+.chapter-item {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s, color 0.12s;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.chapter-item:hover { background: var(--bg-hover); color: var(--text); }
+.chapter-item.active { color: var(--accent); font-weight: 600; }
+
+.chapter-num {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  min-width: 24px;
+  padding-top: 1px;
+}
+
+.chapter-label {
+  flex: 1;
+}
+
+.chapter-dur {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+#chapters-backdrop {
+  flex: 1;
+  background: rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+
+/* ============================================================
+   MODALE SUPPRESSION
+   ============================================================ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.hidden { display: none; }
+
+.modal-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: var(--shadow);
+}
+
+.cast-box {
+  max-width: 440px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#cast-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+#cast-modal-header h3 { font-size: 1rem; margin: 0; }
+#cast-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+#cast-close-btn:hover { color: var(--text); }
+
+#cast-saga-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+#cast-saga-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+}
+#cast-propagate-btn {
+  flex-shrink: 0;
+  background: var(--accent-dim);
+  color: var(--text);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#cast-propagate-btn:hover:not(:disabled) { background: var(--accent); }
+#cast-propagate-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Filtre par genre des voix proposees dans le casting (Toutes / Femmes /
+   Hommes). Avec 135 voix au catalogue, cela evite de chercher une voix
+   feminine au milieu de tout le reste.
+   La barre d'ETAT DES PERSONNAGES (session du 15/09/2026) reprend exactement
+   le meme look, pour la meme raison : sur un livre a 175 personnages, il faut
+   pouvoir isoler d'un clic ceux qui n'ont pas de voix (« a caster ») et ceux
+   qui partagent un timbre (« voix partagee »). Les deux barres ne font pas la
+   meme chose : la premiere filtre les voix proposees dans les menus, la
+   seconde filtre les lignes de personnages. */
+#cast-gender-bar,
+#cast-etat-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+#cast-etat-bar { flex-wrap: wrap; }
+#cast-etat-resume { font-size: 0.7rem; color: var(--text-muted); }
+#cast-gender-actions,
+#cast-etat-actions { display: flex; gap: 6px; }
+#cast-gender-actions button,
+#cast-etat-actions button {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+#cast-gender-actions button:hover,
+#cast-etat-actions button:hover { color: var(--text); }
+#cast-gender-actions button.actif,
+#cast-etat-actions button.actif {
+  background: var(--accent-dim);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Badges d'etat d'une ligne de personnage (15/09/2026) : ils ne s'affichent
+   que dans les deux cas qui demandent une decision -- un personnage qui parle
+   beaucoup sans voix a lui, ou un timbre partage entre plusieurs personnages.
+   Un petit role garde sa voix generique sans badge : c'est voulu. */
+.cast-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+.cast-badge-caster {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.cast-badge-partagee {
+  color: var(--text-muted);
+  background: var(--bg-card);
+}
+
+#cast-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+#cast-recast-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#cast-recast-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+#cast-recast-actions {
+  display: flex;
+  gap: 6px;
+}
+#cast-recast-actions button {
+  flex: 1;
+  background: var(--accent-dim);
+  color: var(--text);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#cast-recast-actions button:hover:not(:disabled) { background: var(--accent); }
+#cast-recast-actions button:disabled { opacity: 0.5; cursor: default; }
+
+.cast-lock-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.cast-lock-btn:hover { color: var(--text); }
+.cast-lock-btn.locked {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Ligne d'alias : rattachee visuellement au personnage principal par un
+   trait vertical continu façon arborescence (retouche esthetique du
+   13/09/2026), mais garde sa propre voix, modifiable independamment. */
+.cast-row-alias {
+  padding-left: 22px;
+  margin-left: 6px;
+  border-left: 2px solid var(--border);
+  border-bottom: 1px dashed var(--border);
+}
+.cast-row-alias .cast-name::before {
+  content: "\21B3  ";
+  color: var(--text-muted);
+}
+
+/* Les lignes d'un meme groupe (principal + ses alias) sont collees entre
+   elles : pas d'espace, pas de trait, pour bien montrer qu'elles
+   appartiennent au meme personnage. L'espace et le trait ne reviennent
+   qu'a la fin du groupe, avant le personnage suivant. */
+.cast-row:not(.cast-row-alias):has(+ .cast-row-alias),
+.cast-row-alias:has(+ .cast-row-alias) {
+  margin-bottom: 0;
+  border-bottom-color: transparent;
+}
+.cast-detach-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.cast-detach-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Bouton « rattacher a un personnage » (pseudonymes : Monte-Cristo, Edmond
+   Dantes, abbe Busoni...) et le petit panneau qu'il ouvre : liste deroulante
+   des personnages (les plus presents d'abord) + Rattacher / Annuler. */
+.cast-link-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.cast-link-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.cast-link-panel {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cast-link-info {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.cast-link-select {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  font-size: 0.8rem;
+}
+.cast-link-actions { display: flex; gap: 8px; }
+.cast-link-ok,
+.cast-link-cancel {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.cast-link-ok { background: var(--accent-dim); color: var(--text); }
+.cast-link-ok:hover { background: var(--accent); }
+.cast-link-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.cast-link-cancel:hover { color: var(--text); }
+
+/* Sur mobile : les trois icones du casting (rattacher, verrou, detachement)
+   etaient trop petites pour etre visees avec le pouce (retour de Laurent,
+   12/09/2026). Elles passent a 44 px, la taille recommandee pour le doigt,
+   avec une icone plus grande. La ligne peut passer a la ligne au besoin,
+   pour que les elements ne se serrent pas. */
+@media (max-width: 640px) {
+  .cast-row-top { flex-wrap: wrap; }
+  .cast-lock-btn,
+  .cast-detach-btn,
+  .cast-link-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.15rem;
+  }
+  /* Les boutons du filtre par genre doivent aussi etre faciles a taper. */
+  #cast-gender-actions button,
+  #cast-etat-actions button { min-height: 38px; padding: 8px 12px; }
+}
+
+.cast-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cast-row-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.cast-row-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.cast-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.cast-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cast-voice-select {
+  flex-shrink: 0;
+  max-width: 45%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 5px 6px;
+}
+
+.cast-row-sliders {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.cast-play-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cast-play-btn:hover:not(:disabled) { background: var(--accent); }
+.cast-play-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cast-slider-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.cast-slider-group label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.cast-slider-group input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 16px;
+}
+
+.cast-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 20px 0;
+}
+
+.provider-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.provider-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.provider-btn:hover { border-color: var(--accent); }
+
+.provider-recommended {
+  border-color: var(--accent);
+}
+
+.provider-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.provider-estimate {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.provider-tag {
+  font-size: 0.7rem;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.modal-box p { font-size: 0.95rem; margin-bottom: 20px; text-align: center; }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.btn-secondary {
+  padding: 9px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: var(--bg-hover); }
+
+.btn-danger {
+  padding: 9px 20px;
+  background: var(--danger);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+.btn-danger:hover { background: var(--danger-hover); }
+
+/* ============================================================
+   TOOLTIP SELECTION
+   ============================================================ */
+
+#selection-tooltip {
+  position: fixed;
+  z-index: 150;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding: 7px 13px;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  pointer-events: all;
+  transform: translateX(-50%);
+}
+
+/* Sur mobile : le tooltip est desormais actif (selection longue + bouton
+   "Lire a partir d'ici", cf. selectionchange dans app.js). Le bouton est
+   agrandi pour rester facile a taper avec le doigt. */
+@media (max-width: 640px) {
+  #selection-tooltip { padding: 10px 16px; }
+  #read-from-here-btn { min-height: 44px; display: flex; align-items: center; gap: 6px; }
+}
+
+#read-from-here-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  font-family: var(--font-ui);
+}
+#read-from-here-btn:hover { color: #d4b87a; }
+
+/* ============================================================
+   UTILITAIRES
+   ============================================================ */
+
+.hidden { display: none !important; }
+
+button { font-family: var(--font-ui); }
+select { font-family: var(--font-ui); }
+
+/* Scrollbars discretes */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+/* ============================================================
+   GLITCH CURSOR
+   ============================================================ */
+
+.sentence-span { display: inline; }
+
+.glitch-active {
+  position: relative;
+  color: var(--accent);
+}
+
+/* Boutons navigation TTS */
+#tts-nav {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  justify-content: center;
+}
+
+#para-prev-btn,
+#sent-prev-btn,
+#sent-next-btn,
+#para-next-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+#para-prev-btn:hover, #sent-prev-btn:hover,
+#sent-next-btn:hover, #para-next-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+#para-prev-btn:disabled, #sent-prev-btn:disabled,
+#sent-next-btn:disabled, #para-next-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   RECHERCHE — Panneau chapitres
+   ============================================================ */
+
+#search-box {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#search-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  font-family: var(--font-ui);
+}
+#search-input:focus { outline: 1px solid var(--accent-dim); }
+
+#search-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 38px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+#search-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+#search-results-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#search-results-info.hidden { display: none; }
+
+#search-clear-btn {
+  background: none;
+  border: none;
+  color: var(--accent-dim);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+}
+#search-clear-btn:hover { color: var(--accent); }
+
+#search-results-list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+}
+#search-results-list.hidden { display: none; }
+
+.search-result-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+.search-result-item:hover { background: var(--bg-hover); }
+
+.search-result-chapter {
+  font-size: 0.7rem;
+  color: var(--accent-dim);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.search-result-context {
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.search-result-context mark {
+  background: var(--accent-dim);
+  color: #0d0d0d;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.search-empty-state {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* ============================================================
+   MODE RSVP
+   ============================================================ */
+
+#view-rsvp {
+  background: var(--bg);
+  position: relative;
+  align-items: center;
+  justify-content: center;
+}
+
+#rsvp-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  z-index: 10;
+}
+#rsvp-close-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+#rsvp-fade-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38%;
+  display: block;
+  padding: 24px 28px;
+  font-family: var(--font-read);
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--text);
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 2.5s ease;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+#rsvp-fade-text.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#rsvp-fade-pivot {
+  color: #ff3b3b;
+  font-weight: 700;
+}
+
+#rsvp-word-zone {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+}
+
+#rsvp-fixed-marker {
+  position: absolute;
+  left: 15%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-dim);
+  opacity: 0.4;
+}
+
+#rsvp-word {
+  position: absolute;
+  left: 15%;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-family: var(--font-read);
+  font-size: 2.6rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#rsvp-word .rsvp-pivot {
+  color: #ff3b3b;
+}
+
+#rsvp-controls {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px;
+  z-index: 2;
+}
+
+#rsvp-speed-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+}
+
+#rsvp-speed-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+#rsvp-speed-slider {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+#rsvp-push-btn {
+  width: 100%;
+  max-width: 320px;
+  padding: 18px;
+  background: var(--bg-card);
+  border: 2px solid var(--accent-dim);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+#rsvp-push-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+
+/* ============================================================
+   ECOUTER LES VOIX (listener) -- session du 14/09/2026
+   ============================================================ */
+
+.voices-box {
+  max-width: 640px;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+}
+#voices-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+#voices-modal-header h3 { font-size: 1rem; margin: 0; }
+#voices-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+}
+#voices-close-btn:hover { color: var(--text); }
+
+/* Barre d'outils : recherche + moteur + compteur. */
+#voices-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+#voices-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+}
+#voices-famille {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.78rem;
+  padding: 6px 8px;
+}
+#voices-recap {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+#voices-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Titre de moteur (Edge, Kokoro, XTTS...). */
+.voice-group {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 10px 2px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+/* Une voix : bouton d'ecoute, identite, puis les champs de note. Passe a la
+   ligne sur petit ecran (flex-wrap), comme les lignes du casting. */
+.voice-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+}
+/* Une voix annotee est legerement mise en valeur : on voit d'un coup d'oeil
+   ce qui a deja ete ecoute et note. */
+.voice-row-annotee { background: rgba(255, 255, 255, 0.035); }
+
+.voice-play-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.voice-play-btn:hover:not(:disabled) { background: var(--accent-dim); }
+.voice-play-btn:disabled { opacity: 0.6; cursor: default; }
+
+.voice-info {
+  flex: 1 1 140px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.voice-name {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voice-meta {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-notes {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.voice-notes select,
+.voice-notes input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.72rem;
+  padding: 3px 4px;
+}
+.voice-genre { width: 40px; }
+.voice-stars { width: 62px; }
+.voice-note  { width: 132px; }
+
+#voices-bottom-bar {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#voices-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}

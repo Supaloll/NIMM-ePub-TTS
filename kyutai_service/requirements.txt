@@ -1,0 +1,28 @@
+# MOTEUR DE VOIX KYUTAI -- environnement SEPARE du lecteur
+# ======================================================================
+# Ce moteur exige Python 3.12 et PyTorch : il ne peut PAS cohabiter avec le
+# lecteur (Python 3.14). Il vit donc dans son propre environnement :
+#     kyutai_service/.venv      (non versionne, ~4,5 Go)
+#
+# Installation normale : double-clic sur INSTALLER_KYUTAI.bat
+# (l'installateur s'occupe de tout, y compris les voix et le modele).
+#
+# Installation manuelle, pour reference :
+#     py -3.12 -m venv .venv
+#     .venv\Scripts\python.exe -m pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu128
+#     .venv\Scripts\python.exe -m pip install moshi==0.2.13
+#     .venv\Scripts\python.exe _telecharger.py
+#
+# Versions figees le 12/09/2026 (environnement valide en service).
+
+torch==2.9.1+cu128       # build CUDA 12.8 (voir l'index PyTorch ci-dessus)
+moshi==0.2.13            # code d'inference de Kyutai (poids tts-1.6b-en_fr)
+huggingface-hub==0.36.2  # telechargement des voix et du modele
+sentencepiece==0.2.2     # tokeniseur de texte
+safetensors==0.7.0       # lecture des empreintes de voix
+numpy==2.2.6             # moshi exige numpy<2.3 (d'ou un environnement a part)
+sounddevice==0.5.0
+sphn==0.2.1
+einops==0.8.2
+aiohttp==3.11.18
+tqdm==4.70.1

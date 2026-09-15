@@ -1,0 +1,42 @@
+# NIMM ePub -- dependances du LECTEUR
+# ======================================================================
+# Environnement qui fonctionne : Python 3.14 (installation globale Windows).
+# Versions figees le 12/09/2026, relevees sur l'environnement en service.
+#
+# Installation : python -m pip install -r requirements.txt
+#
+# A NE PAS CONFONDRE avec le MOTEUR DE VOIX KYUTAI, qui a son PROPRE
+# environnement (Python 3.12 + PyTorch) : voir kyutai_service/requirements.txt
+# et kyutai_service/LIRE_MOI.md.
+
+# --- serveur web et validation ---
+fastapi==0.135.1
+uvicorn==0.41.0
+pydantic==2.12.5
+
+# --- lecture des EPUB ---
+EbookLib==0.20
+beautifulsoup4==4.14.3
+
+# --- moteurs de voix ---
+edge-tts==7.2.8          # Edge TTS (en ligne)
+kokoro-onnx==0.4.7       # Kokoro (local, ONNX)
+onnxruntime==1.24.4      # execution des modeles Kokoro et Piper
+piper-tts==1.4.1         # Piper (local, ONNX)
+
+# --- audio : ecriture, hauteur, rognage des silences, vitesse ---
+soundfile==0.13.1
+numpy==2.4.3
+pedalboard==0.9.24       # hauteur (Rubber Band) pour Kokoro, Piper et Kyutai
+imageio-ffmpeg==0.6.0    # binaire ffmpeg embarque (rognage, vitesse)
+
+# --- appels reseau : casting IA + service Kyutai local ---
+httpx==0.28.1
+
+# ----------------------------------------------------------------------
+# OUTILS DE DEVELOPPEMENT (facultatifs) -- scripts de test_voix/ et
+# verification de la syntaxe JavaScript. Inutiles pour faire tourner le
+# lecteur ; a installer a la main si besoin.
+#   requests==2.32.5
+#   esprima==4.0.1
+# ----------------------------------------------------------------------

@@ -1,0 +1,104 @@
+# Règles permanentes pour NIMM ePub
+
+## Gouvernance — modèle à 3 niveaux (validé avec Laurent le 08/09/2026)
+Travailler par petites étapes : 1 à 2 items du BACKLOG.md par session, jamais
+plusieurs chantiers d'un coup. Avant chaque action, se demander dans quel
+niveau on se trouve :
+
+1. **Lire, analyser, proposer** — toujours libre (sans risque).
+   Explorer le code, poser des questions, présenter un plan, donner un avis.
+
+2. **Petites modifications sûres et réversibles** — exécuter directement,
+   puis expliquer clairement en français ce qui a changé et pourquoi.
+   Exemples : typo, commentaire, constante, ajout au BACKLOG.md,
+   vérification de syntaxe, script de test jetable.
+
+3. **Changements structurants ou à risque** — expliquer en français
+   QUOI + POURQUOI + RISQUES, puis ATTENDRE la validation explicite de
+   Laurent avant d'agir.
+   Exemples : refonte d'un module, comportement audio/lecture, suppression
+   de code ou de fichiers, installation d'une dépendance, `git push`,
+   modification des règles ou de l'architecture, changement de base.
+
+En cas de doute sur le niveau → demander plutôt que supposer.
+
+La validation ne porte JAMAIS sur des blocs de code bruts : elle se fait en
+français (décision + risques). Le test terrain de Laurent est le filet final.
+
+## Profil de l'utilisateur — communication
+- **Tutoiement** : toujours tutoyer Laurent, jamais « vous » (demandé par
+  Laurent le 14/09/2026).
+- Laurent est un utilisateur NON développeur : le code est un outil, pas
+  un sujet de conversation. Ne jamais lui parler en "pair" développeur.
+- Toujours parler en langage naturel et simple ; si un terme technique est
+  nécessaire, le définir en une phrase.
+- Expliquer les changements par leurs conséquences visibles à l'usage,
+  pas par leur mécanique interne.
+- Laurent exprime ses idées en langage naturel : reformuler en français
+  pour confirmer la compréhension, puis traduire en code si l'idée est
+  bonne.
+- Proposer des choix simples et concrets (options A/B en français), jamais
+  des décisions techniques à prendre.
+
+## Comportement général
+- Toujours choisir "proceed" quand une commande est EN COURS d'exécution — ne pas attendre confirmation
+- Ne jamais interrompre l'exécution d'un script en cours
+- Une commande terminée depuis longtemps, ou une commande destructrice / à
+  risque (suppression, installation, push), relève du niveau 3 : confirmation
+  avant d'agir
+
+## Environnement
+- OS : Windows 11
+- Utiliser les commandes Windows : `del` pas `rm`, `copy` pas `cp`, `move` pas `mv`
+- Terminal : PowerShell ou CMD — jamais de commandes Unix/Linux
+- Python : toujours lancer avec `python` (pas `python3`)
+- Jamais utiliser `grep` — utiliser `findstr` à la place
+- Jamais utiliser `cat` — utiliser `type` à la place
+- Jamais utiliser `which` — utiliser `where` à la place
+- Jamais utiliser `touch` — utiliser `echo. >` à la place
+- Commandes Windows manquantes : `findstr`, `type`, `where` — toujours utiliser ces équivalents Windows
+
+## Scripts Python — exécution
+- Toujours exécuter les scripts Python avec : `python script.py 2>&1`
+- Si la sortie est vide, utiliser cette commande alternative :
+  `python -c "import subprocess; r = subprocess.run(['python', 'script.py'], capture_output=True, text=True, encoding='utf-8'); print(r.stdout); print(r.stderr)"`
+- Toujours capturer stderr avec `2>&1` pour voir les erreurs
+- Ne jamais supposer qu'un script a échoué si la sortie est vide — toujours relancer avec capture explicite
+
+## Encodage
+- Tous les scripts Python doivent commencer par : # -*- coding: utf-8 -*-
+- Toujours ajouter `encoding='utf-8'` dans open()
+- Toujours ajouter `sys.stdout.reconfigure(encoding='utf-8')` en début de script
+- Jamais de caractères Unicode dans les print() de debug — utiliser ASCII simple
+  - Pas de → ← ✅ ❌ dans les scripts de vérification
+  - Utiliser -> <- OK ERR à la place
+
+## Base de données
+- La base SQLite est : data/nimm_epub.db
+- Les tables sont : books et progress
+- Jamais supposer le nom d'une table — toujours vérifier avec sqlite_master
+
+## Architecture
+- Architecture : main.py orchestre tout — epub_parser.py et tts.py sont appelés depuis main.py uniquement
+
+## Scripts de vérification
+- Toujours tester l'encodage avant de lancer un script sur la base
+- Toujours vérifier la structure de la table avant d'écrire une requête SQL
+
+## Mise à jour documentation (CDC.md, CONTEXT.md)
+- Ne jamais réécrire un fichier de documentation entièrement sans instruction explicite
+- Toujours faire des FIND/REPLACE ciblés sur les sections concernées
+- Ne jamais inventer ou enrichir — coller exactement au récap fourni
+- Si une section n'existe pas, l'ajouter à la fin du fichier
+- Confirmer avec le numéro de bloc mis à jour
+
+## Modifications de fichiers
+- Toujours utiliser `str_replace_editor` pour modifier un fichier existant
+- Ne jamais utiliser `write_to_file` sur un fichier existant, quelle que soit sa taille
+- Si un fichier est "trop grand" : c'est la preuve qu'il faut `str_replace_editor`, pas `write_to_file`
+
+## Validation après modification
+- Après chaque modification : vérifier la syntaxe (ex: `node --check`,
+  `python -m py_compile`), les imports, et relancer les vérifications légères existantes
+- Proposer à Laurent un test simple et concret pour valider le changement à l'usage
+- Ne jamais considérer un travail terminé sans l'avoir vérifié

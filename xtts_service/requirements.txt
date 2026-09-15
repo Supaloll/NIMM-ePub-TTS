@@ -1,0 +1,33 @@
+# MOTEUR DE VOIX XTTS v2 -- environnement SEPARE du lecteur
+# ======================================================================
+# Ce moteur exige Python 3.12 et PyTorch : il ne peut PAS cohabiter avec le
+# lecteur (Python 3.14). Il vit donc dans son propre environnement :
+#     xtts_service/.venv      (non versionne, ~7,7 Go mesure le 14/09/2026)
+#
+# Installation normale : double-clic sur INSTALLER_XTTS.bat
+# (l'installateur s'occupe de tout, y compris les voix et le modele).
+#
+# Installation manuelle, pour reference :
+#     py -3.12 -m venv .venv
+#     .venv\Scripts\python.exe -m pip install "torch==2.8.*" "torchaudio==2.8.*" --index-url https://download.pytorch.org/whl/cu128
+#     .venv\Scripts\python.exe -m pip install coqui-tts "transformers>=4.57,<5"
+#     .venv\Scripts\python.exe _telecharger.py
+#
+# Versions figees le 14/09/2026 (atelier NIMM Voix, ecoute et validee par
+# Laurent sur 9 minutes de texte).
+#
+# DEUX PIEGES, mesures a l'atelier -- ne pas les « moderniser » :
+#   1. PyTorch 2.8 et PAS plus recent. A partir de 2.9, coqui-tts reclame la
+#      bibliotheque torchcodec, qui reclame les DLL FFmpeg « partagees »
+#      (avcodec-*.dll) absentes de l'installation ffmpeg de cette machine :
+#      erreur « Could not load libtorchcodec ». Avec 2.8, coqui-tts passe par
+#      torchaudio et tout fonctionne.
+#   2. transformers borne a la branche 4.x. coqui-tts 0.27.5 exige
+#      « transformers >= 4.57 » SANS borne haute ; or transformers 5.x a
+#      supprime la fonction isin_mps_friendly utilisee par coqui-tts, et
+#      l'import de TTS echoue.
+
+torch==2.8.0+cu128       # build CUDA 12.8 (voir l'index PyTorch ci-dessus)
+torchaudio==2.8.0+cu128  # lecture audio par PyTorch (remplace torchcodec ici)
+coqui-tts==0.27.5        # fork maintenu par le laboratoire Idiap
+transformers==4.57.6     # borne 4.x : voir le piege 2 ci-dessus

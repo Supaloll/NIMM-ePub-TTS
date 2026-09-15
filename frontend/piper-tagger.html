@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Tagging voix Piper</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#1a1a2e; color:#eee; display:flex; flex-direction:column; align-items:center; padding:40px 20px; }
+  h1 { font-size:1.4em; margin-bottom:4px; }
+  #progress { color:#aaa; margin-bottom:30px; }
+  #voice-label { font-size:2em; margin:20px 0; font-weight:bold; }
+  button { font-size:1.1em; padding:14px 28px; margin:8px; border:none; border-radius:8px; cursor:pointer; }
+  #play-btn { background:#4a4a6a; color:#fff; }
+  #homme-btn { background:#3a6ea5; color:#fff; }
+  #femme-btn { background:#c2508c; color:#fff; }
+  #skip-btn { background:#333; color:#aaa; font-size:0.9em; }
+  #done { font-size:1.3em; text-align:center; margin-top:60px; }
+</style>
+</head>
+<body>
+  <h1>🎙️ Tagging voix Piper</h1>
+  <div id="progress">Chargement…</div>
+  <div id="voice-label"></div>
+  <div>
+    <button id="play-btn">▶️ Écouter</button>
+  </div>
+  <div>
+    <button id="homme-btn">🚹 Homme</button>
+    <button id="femme-btn">🚺 Femme</button>
+  </div>
+  <div>
+    <button id="skip-btn">Passer (revoir plus tard)</button>
+  </div>
+  <audio id="player"></audio>
+  <div id="done" style="display:none;">✅ Toutes les voix sont taguées !</div>
+
+<script>
+let queue = [];
+let skipped = [];
+let tags = {};
+let current = null;
+
+async function init() {
+  const [modelsRes, tagsRes] = await Promise.all([
+    fetch('/api/piper/models').then(r => r.json()),
+    fetch('/api/piper/tags').then(r => r.json())
+  ]);
+  tags = tagsRes;
+
+  const order = ['tom', 'siwis', 'upmc', 'mls'];
+  for (const model of order) {
+    const count = modelsRes[model] || 0;
+    for (let i = 0; i < count; i++) {
+      const key = model + ':' + i;
+      if (!(key in tags)) {
+        queue.push({ model, speaker_id: i });
+      }
+    }
+  }
+  next();
+}
+
+function updateProgress() {
+  const total = Object.keys(tags).length + queue.length + skipped.length;
+  document.getElementById('progress').textContent =
+    Object.keys(tags).length + ' taguées / ' + total + ' au total (' + queue.length + ' restantes)';
+}
+
+function next() {
+  updateProgress();
+  if (queue.length === 0) {
+    if (skipped.length > 0) {
+      queue = skipped;
+      skipped = [];
+    } else {
+      document.getElementById('voice-label').style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+      return;
+    }
+  }
+  current = queue.shift();
+  document.getElementById('voice-label').textContent =
+    current.model + ' — locuteur ' + current.speaker_id;
+  play();
+}
+
+function play() {
+  const player = document.getElementById('player');
+  player.src = '/api/piper/preview?model=' + current.model + '&speaker_id=' + current.speaker_id;
+  player.play();
+}
+
+async function tag(gender) {
+  await fetch('/api/piper/tags', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: current.model, speaker_id: current.speaker_id, gender })
+  });
+  tags[current.model + ':' + current.speaker_id] = gender;
+  next();
+}
+
+document.getElementById('play-btn').addEventListener('click', play);
+document.getElementById('homme-btn').addEventListener('click', () => tag('H'));
+document.getElementById('femme-btn').addEventListener('click', () => tag('F'));
+document.getElementById('skip-btn').addEventListener('click', () => {
+  skipped.push(current);
+  next();
+});
+
+init();
+</script>
+</body>
+</html>

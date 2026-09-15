@@ -1,0 +1,92 @@
+# Secrets / clés API
+test_voix/cles_api.txt
+data/config.json
+# Quel moteur de voix lourd relancer au démarrage (START.bat) : reglage
+# propre a CHAQUE machine, ecrit tout seul par DEMARRER_XTTS.bat ou
+# DEMARRER_KYUTAI.bat -- il ne doit pas voyager dans le depot.
+data/moteur_voix.txt
+# Notes prises en ecoutant les voix dans le lecteur (fenetre « Ecouter les
+# voix ») : observations personnelles de Laurent sur SA machine.
+data/annotations_voix.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Base de données / logs locaux
+data/nimm_epub.db
+*.db-journal
+*.log
+data/tts_cache/
+
+# Résultats de test (contiennent des extraits du livre, pas à versionner)
+test_voix/resultat_*.txt
+test_voix/chapitre_test.txt
+
+# Modèles Kokoro (trop volumineux pour Git, ~350 Mo à eux deux --
+# à copier manuellement d'une machine à l'autre si besoin)
+kokoro-v1.0.onnx
+voices-v1.0.bin
+
+# Modeles Piper (60-75 Mo chacun -- idem, copie manuelle entre machines)
+fr_FR-*.onnx
+fr_FR-*.onnx.json
+
+# Livres et couvertures : JAMAIS dans Git. Fichiers volumineux, et certains
+# sont sous droits d'auteur : les EPUB de Laurent ne doivent pas sortir du PC.
+data/library/
+
+# Fichiers de travail et residus de test : extraits de livres, audio de test,
+# binaires, sauvegardes locales. Rien de tout cela n'a sa place sur le depot.
+data/_tts_req.json
+data/journal_tokens.csv
+data/journal_erreurs_gemini.log
+data/journal_erreurs_casting.log
+data/rapport_modeles_locaux.txt
+data/rapport_modeles_locaux*.txt
+data/point_*.txt
+# Fichiers de travail et sorties de mes analyses/outils (toujours prefixes
+# d'un souligne) : jamais a versionner.
+data/_*.txt
+test_voix/*.json
+test_voix/*.wav
+test_voix/test_pid.txt
+test_voix_nimm.wav
+server_pid.txt
+*.bak_*
+
+# Moteur Kyutai TTS (environnement Python 3.12 + voix + poids, non
+# versionnes : voir kyutai_service/LIRE_MOI.md pour les recreer)
+kyutai_service/.venv/
+kyutai_service/voix_fr/
+kyutai_service/modele/
+kyutai_service/sortie_ecoute/
+kyutai_service/sortie_ecoute_toutes/
+kyutai_service/sortie_ecoute_etrangeres/
+kyutai_service/sortie_ecoute_cc0/
+kyutai_service/voix_autres/
+kyutai_service/_tmp_wheel/
+kyutai_service/journal_installation.txt
+kyutai_service/journal_ecoute_cc0*.txt
+
+# Moteur XTTS v2 (environnement Python 3.12 + extraits de voix + poids, non
+# versionnes : voir xtts_service/LIRE_MOI.md pour les recreer)
+xtts_service/.venv/
+xtts_service/voix_fr/
+xtts_service/_tmp_wheel/
+xtts_service/sortie_ecoute/
+xtts_service/sortie_ecoute_cml/
+xtts_service/sortie_ecoute_guillemets/
+xtts_service/journal_installation.txt
+xtts_service/journal_cml*.txt
+
+# Livres audio exportes en MP3 (idee de Laurent, 15/09/2026 : exporter un livre
+# avec son casting pour l'ecouter comme un vrai livre audio). Ce sont des
+# OEUVRES et de l'audio produit par les moteurs de voix : ils ne doivent jamais
+# entrer dans le depot, ni dans son historique.
+data/exports/
+
+# Ancien historique Git, mis de cote le 15/09/2026 quand le depot a ete reparti
+# de zero (l'ancien historique contient des livres) : jamais versionne.
+.git_ancien_*/
+

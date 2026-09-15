@@ -1,0 +1,27 @@
+{
+  "name": "NIMM ePub",
+  "short_name": "NIMM ePub",
+  "description": "Lecteur EPUB avec synthese vocale Edge TTS",
+  "start_url": "/?v=20260819-4",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon.png",
+      "sizes": "2048x2048",
+      "type": "image/png"
+    }
+  ]
+}

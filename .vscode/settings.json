@@ -1,0 +1,12 @@
+{
+  // NIMM ePub tourne avec Python 3.14 (C:\Python314\python.exe) : c'est le
+  // SEUL interpreteur de la machine ou fastapi, pydantic, uvicorn et httpx
+  // sont installes (Python 3.12 et 3.13 ne les ont pas).
+  // Sans cette ligne, l'analyseur de VS Code (Pylance) peut choisir un autre
+  // Python et signaler a tort des "Import could not be resolved", alors que
+  // le programme fonctionne parfaitement (constat du 13/09/2026).
+  //
+  // Si les avertissements persistent : Ctrl+Shift+P ->
+  // "Python: Select Interpreter" -> choisir C:\Python314\python.exe.
+  "python.defaultInterpreterPath": "C:\\Python314\\python.exe"
+}
