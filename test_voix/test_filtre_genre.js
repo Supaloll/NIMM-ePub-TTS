@@ -125,7 +125,7 @@ verifier('elle reste accessible (pas de substitution silencieuse)',
   optionsDe(sansGenre, 'Autres').indexOf('x1') !== -1,
   groupes(sansGenre).join(' | '));
 
-// Cas REEL (Laurent, 15/09/2026, apres un re-cast de Shantaram) : le livre est
+// Cas REEL (Laurent, 15/09/2026, apres un re-cast d'un roman contemporain) : le livre est
 // caste avec une voix XTTS, mais la liste des voix proposees ne contient pas
 // les XTTS (moteur pas encore pret, ou liste chargee avant son allumage). Le
 // menu doit afficher le PRENOM de la voix, jamais son identifiant technique.

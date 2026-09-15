@@ -44,7 +44,7 @@ ce qui est déjà installé ou déjà allumé n'est pas refait.
 L'appareil allumé, on peut juger la qualité **sans toucher au lecteur** :
 
 ```cmd
-cd "G:\NIMM ePub\kyutai_service"
+cd "<dossier du projet>\kyutai_service"
 .venv\Scripts\python.exe tester_service.py
 ```
 

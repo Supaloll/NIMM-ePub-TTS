@@ -300,7 +300,7 @@ async def get_voix_catalogue():
     une voix deja attribuee a un personnage doit s'afficher
     « Alphonse — France (XTTS) », jamais « xtts:cml9804 ».
 
-    Pourquoi (constat de Laurent, 15/09/2026, apres un re-cast de Shantaram) :
+    Pourquoi (constat de Laurent, 15/09/2026, apres un re-cast d'un roman contemporain) :
     la fenetre du casting affichait l'identifiant brut des voix XTTS. Cause :
     la liste des voix proposees ne contient les XTTS que si LEUR MOTEUR EST
     PRET, et cette liste peut dater d'avant l'allumage du moteur. Le catalogue

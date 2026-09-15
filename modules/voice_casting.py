@@ -149,7 +149,7 @@ class BlocageContenu(RuntimeError):
     Le fournisseur d'IA a refuse de TRAITER le texte envoye (filtre de
     securite), au lieu de mal repondre.
 
-    Verifie le 13/09/2026 sur "22/11/63" : Google a renvoye
+    Verifie le 13/09/2026 sur "un roman de 38 chapitres" : Google a renvoye
     promptFeedback.blockReason = PROHIBITED_CONTENT sur un lot de 150
     phrases, puis a ACCEPTE exactement le meme lot 20 minutes plus tard,
     sans aucune modification. Ce filtre est donc INTERMITTENT -- d'ou deux
@@ -208,7 +208,7 @@ def _journaliser_reponse_gemini(data: dict, raison: str) -> str:
 # MESURE DU COUT REEL (session du 13/09/2026)
 # ==============================================================
 # L'estimation affichee avant lancement s'est revelee 2,5 a 3 fois trop
-# basse sur "22/11/63" : ~1,48 $ annonces pour les 22 derniers chapitres,
+# basse sur "un roman de 38 chapitres" : ~1,48 $ annonces pour les 22 derniers chapitres,
 # alors que la facture Google est passee de 14,96 € a 9,32 € (~4,24 € pour
 # cette reprise seule, 5,64 € en tout). Cause principale presumee : les
 # tokens de REFLEXION du modele, factures au tarif de sortie, que rien ne
@@ -417,7 +417,7 @@ async def _call_openai_compatible(prompt: str, url: str, api_key: str, model: st
 # poste : aucun euro, aucun texte envoye a l'exterieur, et AUCUN filtre de
 # contenu -- un modele local accepte une scene violente que Google refuse.
 # Contrepartie : qualite inferieure (mesuree : precision 34-46 % sur
-# "22/11/63") et traitement plus lent (~1 h pour un livre entier).
+# "un roman de 38 chapitres") et traitement plus lent (~1 h pour un livre entier).
 
 def _modele_local_lourd(modele: str) -> bool:
     """Un modele de ~8B (5 Go) PLUS un contexte de 16 384 mots ne tient pas
@@ -776,7 +776,7 @@ async def _analyser_lot(fiche: list, batch: list, provider: str, refusees: set,
     Analyse un lot de phrases, en se protegeant de deux facons differentes de
     mal se passer cote fournisseur :
       1. REFUS DE TRAITER LE TEXTE (filtre de securite, verifie le 13/09/2026
-         sur "22/11/63") : _call_gemini reessaie deja un refus passager, car ce
+         sur "un roman de 38 chapitres") : _call_gemini reessaie deja un refus passager, car ce
          filtre est intermittent ;
       2. REPONSE ILLISIBLE (JSON malforme -- verifie le 14/09/2026 : DeepSeek a
          produit une accolade au lieu d'un crochet, ce qui faisait echouer TOUT
@@ -894,7 +894,7 @@ async def _rattraper_refusees(sentences: list, phrases: list, refusees: set,
 # ==============================================================
 # CONTROLE DE VRAISEMBLANCE DES REPLIQUES (moteur local uniquement)
 # ==============================================================
-# Mesure du 14/09/2026 sur un chapitre de "22/11/63" : le moteur local avait
+# Mesure du 14/09/2026 sur un chapitre de "un roman de 38 chapitres" : le moteur local avait
 # invente 180 dialogues, et 152 d'entre eux ne portaient AUCUN signe de
 # dialogue (ni guillemet, ni tiret cadratin, ni verbe de parole).
 #
@@ -1541,7 +1541,7 @@ async def consolidate_book(resultats: list, provider: str = "gemini", voix_figee
 # ==============================================================
 # Tarifs en USD par million de tokens (entree/sortie).
 # CALIBRES LE 14/09/2026 sur une facture Google REELLE : le casting de
-# "Shantaram" (30 293 phrases, 211 appels, 1 617 072 tokens d'entree et
+# "un roman contemporain" (30 293 phrases, 211 appels, 1 617 072 tokens d'entree et
 # 110 892 de sortie) a ete facture 0,98 EUR, alors que les tarifs precedents
 # (0,30 / 2,50 $) ne donnaient que 0,76 $ -- soit 40 % de moins.
 # Les deux tarifs Gemini ont donc ete releves proportionnellement, ce qui

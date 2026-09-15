@@ -779,9 +779,9 @@ phrase pendant le chargement reçoit un message clair (« moteur en cours de
 chargement ») plutôt qu'une erreur de connexion.
 
 **Lancement depuis le téléphone** : il passe par un petit programme séparé,
-`G:\NIMM_LAUNCHER\launcher.py` (lancé au démarrage de Windows par
+`<dossier du lanceur>\launcher.py` (lancé au démarrage de Windows par
 `START_LAUNCHER.bat`, page web sur le port 8765). C'est lui qui appelle
-`G:\NIMM ePub\START.bat` — donc rien à modifier de son côté : l'allumage du
+`<dossier du projet>\START.bat` — donc rien à modifier de son côté : l'allumage du
 moteur de voix en profite automatiquement, quel que soit celui choisi dans
 `data\moteur_voix.txt`.
 
@@ -1186,7 +1186,7 @@ et badges `.cast-badge-caster` / `.cast-badge-partagee`). *Vérifications* :
 les badges).
 
 **Noms des voix : jamais d'identifiant technique dans les menus**
-(15/09/2026, constat de Laurent après un re-cast de « Shantaram »). La fenêtre
+(15/09/2026, constat de Laurent après un re-cast d'un roman contemporain). La fenêtre
 du casting affichait « `xtts:cml9804` » là où elle devait écrire
 « **Alphonse** ». Cause exacte : `/api/voices` ne contient les voix XTTS (et
 Kyutai) que si **leur moteur est prêt** — décision du 14/09/2026 — et cette
@@ -1211,7 +1211,7 @@ l'identifiant brut. Trois correctifs :
 `_openCastModal(rafraichirVoix)`). *Vérifications* :
 `test_voix/test_libelles_voix.py` (catalogue complet, « Alphonse » pour
 `xtts:cml9804`, `dispo` comparé à `/api/moteurs`, et contrôle sur un vrai livre
-casté — les 125 personnages de Shantaram ont tous un nom au catalogue) et
+casté — les 125 personnages d'un roman contemporain ont tous un nom au catalogue) et
 `test_voix/test_filtre_genre.js` (cas 7 et 8 : prénom affiché, identifiant
 absent).
 
@@ -1260,7 +1260,7 @@ donc le moteur — sinon le lecteur affiche le message clair prévu. Les
 
 **🎨 NIMM Voix — fournisseur de voix externes (session du 11/09/2026)**
 
-NIMM Voix est un projet séparé (dossier G:\NIMM Voix\) qui fabrique des voix
+NIMM Voix est un projet séparé (dossier <atelier NIMM Voix>\) qui fabrique des voix
 Kokoro supplémentaires par mélange de timbres. Il produit un fichier
 voix_generees/voices-nimm.bin qui contient les 54 voix officielles de Kokoro
 + 24 voix créées (78 au total), au même format que voices-v1.0.bin (NpzFile
@@ -1828,7 +1828,7 @@ pas aux voix Kokoro.
   (`BATCH_SIZE`, découpage par paquets de 150 phrases), `frontend/app.js`
   (affichage compact `🎭 X/N` du bouton pendant l'analyse), `main.py`
   (profil Nadia, bloc #79) et `frontend/styles.css` (safe-area mobile,
-  blocs #80-81). Un nouveau livre (Marathoniens) a aussi été importé
+  blocs #80-81). Un nouveau livre a aussi été importé
   dans la bibliothèque.
 - Nettoyage de `test_voix/` (scripts de dev devenus obsolètes,
   protégés par `.gitignore`, aucune urgence)

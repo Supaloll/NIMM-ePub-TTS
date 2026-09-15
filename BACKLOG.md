@@ -646,7 +646,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 - [x] **Noms des voix dans la fenêtre du casting (identifiants au lieu des
   prénoms)** — livré le 15/09/2026, constat de Laurent après un re-cast de
-  « Shantaram » : les voix XTTS s'affichaient « xtts:cml9804 » au lieu
+  un roman contemporain : les voix XTTS s'affichaient « xtts:cml9804 » au lieu
   d'« Alphonse ». Cause : la liste des voix proposées (`/api/voices`) ne
   contient les voix XTTS que si **leur moteur est prêt**, et elle pouvait
   dater d'avant l'allumage du moteur — le menu retombait alors sur
@@ -660,7 +660,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   que si la voix est **vraiment** absente du catalogue.
   *Vérifications* : `test_voix/test_libelles_voix.py` (catalogue complet,
   « Alphonse » pour `xtts:cml9804`, `dispo` comparé à `/api/moteurs`, et
-  contrôle sur un vrai livre casté — les 125 personnages de Shantaram) et
+  contrôle sur un vrai livre casté — les 125 personnages d'un roman contemporain) et
   `test_voix/test_filtre_genre.js` (cas « voix absente de la liste » : prénom
   affiché, identifiant absent).
 
@@ -716,7 +716,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 - [ ] **Ce que fait NIMM (le projet de Nando) sur l'audio — relevé du
   14/09/2026**, à la demande de Laurent (« voir comment il s'y est pris »).
-  Lecture seule de `G:\NIMM` (projet distinct, rien modifié). Deux
+  Lecture seule de `<projet NIMM>` (projet distinct, rien modifié). Deux
   fonctionnalités **différentes**, qu'il ne faut pas confondre :
   1. **Livre audio DAISY** (`nimm_make_daisy`, `daisy_audio`, `mp3` dans
      `hub.py`/`coanimm.py`) : un texte → des **MP3 par chapitre** + un **index
@@ -794,7 +794,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Réalité mesurée (atelier NIMM Voix, 12/09/2026)* : 115 s d'audio calculées
   en **50 s** (2,3× le temps réel), **1 s** avant le premier son, délai
   acoustique interne **1,28 s**. Fichiers d'écoute prêts :
-  `G:\NIMM Voix\sorties\test_kyutai_20260912\`.
+  `<atelier NIMM Voix>\sorties\test_kyutai_20260912\`.
   *Licence* : attribution obligatoire (Kyutai + jeu de données CML-TTS) ; dans
   la même banque de voix, `expresso/` et `ears/` sont en **CC BY-NC** (usage
   privé seulement).
@@ -845,7 +845,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 - [x] **Reprise d'une analyse voix multiples interrompue** — livré le 13/09/2026.
   Une analyse qui s'arrêtait en cours de route (erreur IA, coupure) repartait
   **du premier chapitre** et refaisait donc payer tous les chapitres déjà
-  analysés. Vécu sur « 22/11/63 » (Stephen King, 38 chapitres) : arrêt au
+  analysés. Vécu sur un roman de 38 chapitres : arrêt au
   chapitre 17 après 16 chapitres payés (~1,40 €), sans aucun moyen de
   reprendre sans repayer. Désormais : les chapitres déjà enregistrés sont
   **relus en base** et jamais refacturés, la reprise part du premier chapitre
@@ -890,8 +890,8 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   toujours la mesure réelle sur les deux livres mesurés (grand et petit).
   *Rappel* : le coût réel est désormais journalisé automatiquement dans
   `data/journal_tokens.csv` et affiché en fin de traitement.
-  **Mesure du 13/09/2026 sur « 22/11/63 » (Stephen King, 38 chapitres,
-  24 966 phrases)** : facture Google passée de 14,96 € à 9,32 €, soit
+  **Mesure du 13/09/2026 sur un roman de 38 chapitres (24 966 phrases)** :
+  facture Google passée de 14,96 € à 9,32 €, soit
   **5,64 € au total** (dont ~1,40 € pour la première tentative arrêtée au
   chapitre 17, et ~4,24 € pour la reprise des 22 chapitres restants).
   Or l'app annonçait **~2,47 $ pour le livre entier** et **~1,48 $ pour les
@@ -918,7 +918,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   `modules/voice_casting.py` (`estimate_cast_cost`, `COST_SAFETY_MARGIN`).
 
 - [x] **Parade aux filtres de l'IA (refus de traiter un passage)** — livré le 13/09/2026.
-  Constat du 13/09/2026 sur « 22/11/63 » : Google a refusé le chapitre 17
+  Constat du 13/09/2026 sur un roman de 38 chapitres : Google a refusé le chapitre 17
   (`promptFeedback.blockReason = PROHIBITED_CONTENT`), puis a **accepté
   exactement le même lot de 150 phrases 20 minutes plus tard**, sans aucune
   modification. Ce filtre est donc **intermittent** — et ce n'était PAS un
@@ -955,7 +955,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   ### Mesures du 13/09/2026 (matériel : RTX 4060 8 Go, i5-12400F, 32 Go de RAM)
   Ollama était **déjà installé** (Qwen2.5 7,6B, Qwen3-abliterated 8,2B,
   DeepSeek-R1 8,2B, Gemma4 8B). Référence de comparaison : le casting Gemini
-  du livre « 22/11/63 », chapitre par chapitre, phrase par phrase.
+  du livre, chapitre par chapitre, phrase par phrase.
 
   **Piège décisif trouvé et corrigé** : Ollama bride le contexte à **4 096
   mots** par défaut, alors que le prompt en fait ~7 800 — le modèle ne voyait
@@ -966,7 +966,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   20 à 50 fois plus lent) → 8 192 de contexte et `think: false` pour ces
   modèles (→ 100 % sur la carte, 11 s par lot).
 
-  **Résultats mesurés** sur 3 chapitres de « 22/11/63 » (2 356 phrases),
+  **Résultats mesurés** sur 3 chapitres d'un roman de 38 chapitres (2 356 phrases),
   comparés phrase par phrase au casting Gemini de référence.
   *Rappel* = part des vraies répliques trouvées ; *précision* = part de ses
   attributions qui sont de vraies répliques ; *accord* = phrases avec le même
@@ -1182,7 +1182,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   taille de son prompt, affichée par NIMM ePub dans la fenêtre de la console.
 
 - [x] **Optimisation du coût : format de réponse compact** — livré le 13/09/2026.
-  Après la facture de 5,64 € pour « 22/11/63 », deux gaspillages ont été
+  Après la facture de 5,64 € pour un roman de 38 chapitres, deux gaspillages ont été
   identifiés dans ce qui était demandé à l'IA :
   1. **la fiche entière devait être recopiée dans chaque réponse** (jusqu'à
      175 personnages en fin de livre) — alors que le code Python l'accumule
@@ -1219,7 +1219,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   (`_buildPlaylist`, `app.js`) — sans toucher au LLM, au serveur ni à la base.
   Techniquement faisable et léger : les sous-segments d'une phrase partagent déjà
   le même numéro de phrase, donc la surbrillance resterait posée au bon endroit.
-  **Mesure du 13/09/2026 sur « 22/11/63 » : 90 phrases concernées sur 11 086
+  **Mesure du 13/09/2026 sur un roman de 38 chapitres : 90 phrases concernées sur 11 086
   répliques, soit 0,8 %** (30 incises après guillemet, 60 après un tiret de
   dialogue), environ 3 800 caractères sur un million : **inaudible**.
   Raison : les incises sont rares dans ce roman, et lorsqu'elles forment une phrase
@@ -1299,22 +1299,22 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   pour 0,0101 $ réels**.
   *Vérifier de temps à autre* : comparer l'estimation et le coût mesuré
   (`data/journal_tokens.csv`) sur un nouveau livre, grand et petit.
-  **Confirmation sur un GROS livre (14/09/2026, « Shantaram », 30 293 phrases,
+  **Confirmation sur un GROS livre (14/09/2026, un roman contemporain, 30 293 phrases,
   211 appels, Gemini)** : notre comptage donnait **0,7624 $ (environ 0,70 €)**,
   mais la **facture Google réelle** s'élevait à **0,98 €** (solde passé de
   8,72 à 7,74 €) : nos tarifs internes sous-estimaient donc de **40 %**.
   **Calibrage effectué** : tarifs Gemini relevés proportionnellement à
   **0,42 $/M en entrée** et **3,50 $/M en sortie**, ce qui redonne exactement la
   facture (1,617 M × 0,42 + 0,111 M × 3,50 = 1,068 $ ≈ 0,98 €). Après
-  calibrage, l'estimation brute de Shantaram est de **1,01 $** : elle colle
+  calibrage, l'estimation brute d'un roman contemporain est de **1,01 $** : elle colle
   désormais à la réalité (l'affichage garde sa marge de prudence ×1,5, soit
   ~1,52 $ — à réévaluer après deux ou trois autres castings réels).
   *À retenir* : le **comptage des tokens était juste**, ce sont les **prix
   unitaires** qui étaient approximatifs — ils venaient d'ordres de grandeur,
   jamais d'une facture. DeepSeek et Mistral restent dans ce cas : à calibrer de
   la même façon le jour où Laurent donnera le montant réel.
-  *Toujours 8 fois moins cher qu'hier* : 0,98 € pour Shantaram (30 293 phrases)
-  contre 5,64 € pour « 22/11/63 » (24 966 phrases, donc plus petit).
+  *Toujours 8 fois moins cher qu'hier* : 0,98 € pour un roman contemporain (30 293 phrases)
+  contre 5,64 € pour un roman de 38 chapitres (24 966 phrases, donc plus petit).
 
 - [x] **La saga transmet désormais aussi la FICHE des personnages** — livré le 14/09/2026.
   Défaut découvert en castant le tome 5 de Monte-Cristo : la saga partageait
@@ -1553,7 +1553,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   2. le lecteur lui-même sait **rallumer Kyutai** (`_relancer_moteur_kyutai()`,
      écrit pour libérer la carte pendant une analyse locale en repli) : il
      pourrait le faire sans qu'on l'ait demandé ;
-  3. le **lanceur du téléphone** (`G:\NIMM_LAUNCHER\launcher.py`) appelle
+  3. le **lanceur du téléphone** (`<dossier du lanceur>\launcher.py`) appelle
      `START.bat` : vérifier qu'il n'impose pas, lui, un moteur ;
   4. le double démarrage *du même* moteur est déjà bloqué (par le port), mais
      **rien n'empêche deux moteurs différents** de tourner ensemble : c'est
@@ -1591,7 +1591,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   l'historique) ; les **valeurs réelles** des 3 clés ont été cherchées dans tous
   les fichiers suivis → **aucune correspondance**. Le dépôt GitHub est **privé**,
   ce qui protège aussi le reste. **Trous colmatés le même jour** : les EPUB
-  étaient **suivis par Git** (13 livres + couvertures, dont « Marathoniens »,
+  étaient **suivis par Git** (13 livres + couvertures, dont un roman contemporain,
   sous droits) → **retirés du suivi** (fichiers conservés sur le disque) et
   `data/library/` désormais **ignoré** ; idem pour les extraits de livres
   (`test_voix/resultat_*.json`), les .wav de test, les `*.bak_*` et
@@ -1677,7 +1677,7 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 2. **Les livres audio produits** : eux dépendent du **texte source**.
    - Œuvre du **domaine public** (Monte-Cristo, Notre-Dame de Paris, Gide,
      Verne, Hugo…) → diffusion libre, sans problème.
-   - Œuvre **sous droits** (Shantaram, 22/11/63, Nothomb…) → **diffusion
+   - Œuvre **sous droits** (des romans contemporains sous droits…) → **diffusion
      impossible**, même en possédant l'ouvrage : posséder un exemplaire autorise
      un usage privé, pas une mise à disposition du public.
    → Le partage public ne portera donc que sur des œuvres libres de droits — ce
@@ -1749,9 +1749,10 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 - [x] **Vérification « aucun livre dans le dépôt »** — faite le 14/09/2026 :
   l'état **actuel** du dépôt ne contient aucun EPUB (ni aucun fichier suivi de
   plus de 2 Mo). **En revanche, 22 EPUB déposés aux débuts sont présents dans
-  l'HISTORIQUE** (Monte-Cristo et Robinson Crusoé, mais aussi King, Nabokov,
-  Cellard, Naulleau, un « Marathoniens », un Latude venant de z-library). Le
-  dépôt GitHub (`Supaloll/NIMM-ePub`) étant **privé**, ils ne sont pas exposés
+  l'HISTORIQUE** (des classiques du domaine public comme Monte-Cristo et
+  Robinson Crusoé, mais aussi des romans contemporains sous droits, dont des
+  fichiers téléchargés sur des sites douteux). Le
+  dépôt GitHub étant **privé**, ils ne sont pas exposés
   aujourd'hui — mais ils ressortiraient tels quels le jour d'une mise en
   public. Décision de Laurent (14/09/2026) : **partager le programme, jamais
   les livres**. Reste à trancher la méthode (item suivant).
@@ -1808,7 +1809,7 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 - **Lancement groupé lecteur + moteur Kyutai** (12/09/2026) : `START.bat`
   allume désormais le moteur de voix **en même temps que le lecteur** — un
   seul lancement, y compris depuis l'application du téléphone (via
-  `G:\NIMM_LAUNCHER\launcher.py`, qui appelle `START.bat`). Trois protections
+  `<dossier du lanceur>\launcher.py`, qui appelle `START.bat`). Trois protections
   contre les lancements en double, et un bug corrigé au passage : sous
   Windows, Python laissait deux moteurs ouvrir le **même port**
   (`SO_REUSEADDR`) → deux modèles chargés, **7,7 Go de carte graphique sur 8**.

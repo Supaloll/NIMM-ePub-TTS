@@ -19,9 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.epub_parser import get_chapters
 from modules.voice_casting import analyze_chapters
 
-# Adapte ce chemin vers le fichier EPUB du Comte de Monte-Cristo
-# present dans data/library/
-EPUB_PATH = r"G:\NIMM ePub\data\library\DUMAS_T1 - Le Comte de Monte-Cristo.epub"
+# Chemin RELATIF du fichier EPUB a tester : placez le livre dans
+# data/library/ et indiquez son nom ici (le script se lance depuis la racine
+# du projet).
+EPUB_PATH = r"data\library\DUMAS_T1 - Le Comte de Monte-Cristo.epub"
 NB_CHAPITRES_TEST = 3
 
 

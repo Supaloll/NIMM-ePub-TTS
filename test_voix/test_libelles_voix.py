@@ -4,7 +4,7 @@
 A lancer avec le Python du LECTEUR :
     python test_voix/test_libelles_voix.py
 
-Pourquoi ce test (constat de Laurent, apres un re-cast de Shantaram) : la
+Pourquoi ce test (constat de Laurent, apres un re-cast d'un roman contemporain) : la
 fenetre du casting affichait l'IDENTIFIANT technique des voix XTTS
 (« xtts:cml9804 ») au lieu du prenom donne a la voix (« Alphonse »). Cause :
 la liste des voix proposees (/api/voices) ne contient les voix XTTS que si
@@ -67,7 +67,7 @@ def main_test():
              not sans_region, sans_region)
 
     print('')
-    print('3) le cas signale par Laurent : la voix XTTS de Shantaram')
+    print('3) le cas qui a motive ce test : une voix XTTS doit avoir un prenom')
     alphonse = next((v for v in catalogue if v['id'] == 'xtts:cml9804'), None)
     verifier('xtts:cml9804 est au catalogue', alphonse is not None)
     verifier('elle s appelle « Alphonse »',
@@ -108,13 +108,12 @@ def main_test():
     else:
         conn = sqlite3.connect(base)
         conn.row_factory = sqlite3.Row
+        # On prend le DERNIER livre caste de la base, quel qu'il soit : le test
+        # n'a pas a nommer un livre precis (et la base locale de l'auteur n'a
+        # rien a faire dans un depot partage).
         livre = conn.execute(
-            "SELECT id, title FROM books WHERE title LIKE '%Shantaram%' "
-            "AND cast_status = 'done' ORDER BY id DESC LIMIT 1").fetchone()
-        if not livre:
-            livre = conn.execute(
-                "SELECT id, title FROM books WHERE cast_status = 'done' "
-                "ORDER BY id DESC LIMIT 1").fetchone()
+            "SELECT id, title FROM books WHERE cast_status = 'done' "
+            "ORDER BY id DESC LIMIT 1").fetchone()
         if not livre:
             print('   (aucun livre caste en base : controle ignore)')
         else:

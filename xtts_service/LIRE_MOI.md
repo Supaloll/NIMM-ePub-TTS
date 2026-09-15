@@ -54,7 +54,7 @@ est déjà installé n'est pas refait.
 L'appareil allumé, on juge la qualité **sans toucher au lecteur** :
 
 ```cmd
-cd "G:\NIMM ePub\xtts_service"
+cd "<dossier du projet>\xtts_service"
 .venv\Scripts\python.exe tester_service.py
 ```
 

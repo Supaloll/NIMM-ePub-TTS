@@ -1,7 +1,7 @@
 # Mémo — XTTS v2 (clonage de voix française) : installation, voix, cohabitation avec Kyutai
 
 _Écrit le 14/09/2026 par la session Cline de l'atelier **NIMM Voix**
-(`G:\NIMM Voix`), à la demande de Laurent. L'atelier NIMM Voix est un dossier
+(`<atelier NIMM Voix>`), à la demande de Laurent. L'atelier NIMM Voix est un dossier
 **séparé** : il sert à essayer les moteurs de voix avant de les intégrer ici.
 **Rien n'a été modifié dans NIMM ePub** — ce mémo est la seule chose déposée
 (il n'est pas branché au programme)._
@@ -22,14 +22,14 @@ des deux à la fois : les deux ne tiennent pas ensemble sur la carte graphique).
 Tout est écrit et commenté dans un seul fichier, à lire **avant** de refaire
 l'installation :
 
-    G:\NIMM Voix\outils\xtts_tts\_install_xtts.cmd
+    <atelier NIMM Voix>\outils\xtts_tts\_install_xtts.cmd
 
 Le principe est **exactement celui de `kyutai_service`** : un environnement
 Python 3.12 séparé, à côté du lecteur (qui tourne en 3.14), plus un service qui
 répond en HTTP. Étapes :
 
 1. créer le bac à sable avec **Python 3.12**
-   (`C:\Users\Supalol\AppData\Local\Programs\Python\Python312\python.exe`,
+   (`<python 3.12>`,
    le même que `kyutai_service\.venv`) ;
 2. `python -m pip install --upgrade pip` ;
 3. **PyTorch 2.8 en CUDA 12.8** :
@@ -93,7 +93,7 @@ conséquences pratiques :
 
 ### Vérifier que le bac à sable est bon (sans rien télécharger)
 
-    G:\NIMM Voix\outils\xtts_tts\.venv\Scripts\python.exe G:\NIMM Voix\outils\xtts_tts\_verifier_installation.py
+    <atelier NIMM Voix>\outils\xtts_tts\.venv\Scripts\python.exe <atelier NIMM Voix>\outils\xtts_tts\_verifier_installation.py
 
 Affiche Python, PyTorch + CUDA, transformers et l'import de `coqui-tts`. À
 reprendre/adapter pour un vérificateur maison de l'installation XTTS ici.
@@ -106,7 +106,7 @@ C'est la bonne nouvelle de ce mémo. **Les 35 voix françaises que Laurent
 utilise avec Kyutai sont déjà présentes dans NIMM ePub**, et se trouvent être
 **exactement le format dont XTTS a besoin** comme référence de clonage :
 
-    G:\NIMM ePub\kyutai_service\voix_fr\cml-tts\fr\<identifiant>_enhanced.wav
+    <dossier du projet>\kyutai_service\voix_fr\cml-tts\fr\<identifiant>_enhanced.wav
 
 - **35 fichiers WAV** (≈ 450 à 550 Ko chacun, soit ≈ 9 à 10 s de parole) ;
 - une seule voix par fichier, propre, déjà nettoyée par Kyutai ;
@@ -206,7 +206,7 @@ communiquent par le réseau — c'est la règle déjà posée avec Kyutai, ce m�
 fait que la répéter pour XTTS.
 
 - Kyutai : `kyutai_service\.venv` (Python 3.12) + `servir_kyutai.py`, port 8082 ;
-- XTTS v2 : pour l'instant `G:\NIMM Voix\outils\xtts_tts\.venv` (Python 3.12)
+- XTTS v2 : pour l'instant `<atelier NIMM Voix>\outils\xtts_tts\.venv` (Python 3.12)
   dans l'atelier → **à installer ici** (par exemple `xtts_service\.venv`), port
   8083, avec son `INSTALLER_XTTS.bat`, son `DEMARRER_XTTS.bat` et son
   `LIRE_MOI.md`, exactement comme pour Kyutai.
@@ -292,7 +292,7 @@ fait que la répéter pour XTTS.
 - **Première mise en route : 2,09 Go à télécharger.** Prévenir Laurent, ou
   faire comme pour Kyutai (un `_telecharger.py` dédié à l'installation, qui
   affiche une barre de progression).
-- **Ne rien modifier dans l'atelier `G:\NIMM Voix`** : il est là comme
+- **Ne rien modifier dans l'atelier `<atelier NIMM Voix>`** : il est là comme
   référence (lecture seule pour cette session).
 
 ---
@@ -333,7 +333,7 @@ fait que la répéter pour XTTS.
 
 ---
 
-## Annexe A — Où sont les fichiers (atelier `G:\NIMM Voix`, en lecture seule)
+## Annexe A — Où sont les fichiers (atelier `<atelier NIMM Voix>`, en lecture seule)
 
 | Fichier | Ce qu'on y trouve |
 |---|---|
