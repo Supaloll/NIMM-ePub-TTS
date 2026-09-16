@@ -64,6 +64,10 @@ la racine du dépôt.
 python test_voix/test_pool_casting.py        # le pool de voix du casting
 python test_voix/test_ids_ecran.py           # l'écran et le code restent d'accord
 python test_voix/test_annotations_voix.py    # les notes d'écoute (sauve/restaure)
+python test_voix/test_attribution_criteres.py # l'attribution des voix par critères
+python test_voix/test_borne_babil_xtts.py    # garde-fou anti-babil (XTTS)
+python test_voix/test_rogner_babil_xtts.py   # coupure du babil après un silence
+python test_voix/test_lire_moi.py            # le mode d'emploi de test_voix/ est à jour
 python test_voix/test_libelles_voix.py       # les voix ont toujours un prénom
 python test_voix/test_nettoyage_xtts.py      # ponctuation retirée avant XTTS
 python test_voix/test_reprise_casting.py     # reprise d'une analyse interrompue
@@ -83,9 +87,19 @@ node test_voix/test_voix_ecoutables.js       # voix d'un moteur éteint
 node test_voix/test_message_reseau.js        # quand le lecteur annonce une coupure
 ```
 
-**À éviter sans le vouloir** : `test_voix/test_attribution.py` et les scripts
-`_*.py` de `test_voix/` **appellent réellement les API d'IA** (donc facturent).
-Ce sont des outils d'atelier, pas des tests de non-régression.
+**À éviter sans le vouloir** : `test_voix/_PAYANT_test_attribution_api.py` et son
+lanceur `_PAYANT_lancer_test_attribution.bat` **appellent réellement les API d'IA**
+(donc facturent). Ils sont **protégés depuis le 16/09/2026** : sans l'option
+`--je-paie`, le script affiche un avertissement et **s'arrête sans rien
+envoyer** (l'ancien nom, `test_attribution.py`, ressemblait à un test — un
+double-clic sur son lanceur suffisait à partir, et donc à payer).
+Trois autres scripts appellent une IA **locale** (Ollama), donc **gratuite**,
+mais ils font travailler la carte graphique : `_test_local_ollama.py`,
+`_test_local_variantes.py`, `_test_nuit_modeles.py`.
+
+**Le reste du dossier** : `test_voix/LIRE_MOI.md` dit en une page quels fichiers
+sont des tests (sans risque), quels sont des outils de diagnostic (lecture
+seule) et quelles données ne doivent pas être supprimées.
 
 ## Les conventions du projet
 

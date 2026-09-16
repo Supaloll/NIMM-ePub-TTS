@@ -110,6 +110,49 @@ SEUIL_SON = 0.012
 # Duree du bloc d'analyse : 20 ms, comme la mesure d'atelier.
 BLOC_ANALYSE_S = 0.02
 
+# ---- Garde-fou contre le BABIL de XTTS sur les textes courts (16/09/2026) --
+# Constat de Laurent : « Que preferez-vous ? » (19 caracteres) ressortait en
+# 9,11 s, dont pres de 4 s de bouillie inintelligible, a la fin d'une replique
+# d'auberge. Cause : le moteur est auto-regressif -- sur un texte court il n'a
+# pas assez de matiere pour s'arreter et CONTINUE d'inventer.
+# Verifie sur le livre 35 : les 3 seules phrases fautives du livre sont aussi
+# les plus courtes (10, 19 et 28 caracteres) et les 8 autres livres castes sont
+# propres : c'est propre au clonage XTTS, jamais aux autres moteurs.
+#
+# Remede : on BORNE la longueur de generation d'apres le texte, et on rogne en
+# dernier recours. Les phrases normales ne sont pas touchees : la borne d'un
+# morceau de 250 caracteres vaut environ 33 s, bien au-dela de son rythme
+# naturel.
+CARACTERES_PAR_SECONDE = 14.0    # debit moyen observe en francais
+MARGE_LONGUEUR = 1.8             # marge de securite sur la duree estimee
+MARGE_LONGUEUR_S = 0.6           # plus une petite marge fixe, en secondes
+# Un jeton audio de XTTS couvre 1024 echantillons a 24 kHz.
+SECONDES_PAR_TOKEN = 1024.0 / 24000.0
+TOKENS_MINIMUM = 24              # ~1 s : un mot isole reste lisible
+TOKENS_PLAFOND = 900             # ~38 s : au-dela, c'est de la derive
+
+# ---- Reglages de generation, exposables a la demande (16/09/2026) ----------
+# Constat de Laurent : « XTTS est tres inegal -- 3 phrases excellentes, puis il
+# hachure, bafouille, traine, monte dans les aigus... alors que Kokoro redit la
+# meme phrase 50 fois de la meme facon ». C'est la nature du moteur : XTTS
+# ECHANTILLONNE (temperature 0,75 par defaut), Kokoro non.
+# On expose donc les reglages classiques du modele, pour pouvoir mesurer
+# l'effet d'une generation plus SAGE (temperature basse) sans toucher au
+# comportement par defaut : le lecteur envoie simplement
+#     {"texte": ..., "voix": ..., "reglages": {"temperature": 0.6}}
+# Liste blanche volontaire : un nom inconnu ferait echouer l'appel au moteur.
+REGLAGES_ACCEPTES = ("temperature", "top_k", "top_p", "repetition_penalty",
+                     "length_penalty")
+
+
+def reglages_valides(bruts):
+    """Ne garde que les reglages connus du moteur, en nombres."""
+    propres = {}
+    for cle, valeur in (bruts or {}).items():
+        if cle in REGLAGES_ACCEPTES and isinstance(valeur, (int, float)):
+            propres[cle] = float(valeur)
+    return propres
+
 # Abreviations qui finissent par un point mais ne terminent PAS une phrase.
 ABREVIATIONS = ('M.', 'MM.', 'Mme', 'Mlle', 'Dr', 'St', 'Ste', 'av.', 'cf.',
                 'etc.', 'p.', 'pp.', 'art.', 'fig.', 'tel.')
@@ -356,11 +399,107 @@ def _wav_depuis_pcm(echantillons, frequence=FREQUENCE):
     return tampon.getvalue()
 
 
-def _lire_un_morceau(morceau, chemin_reference):
+def duree_max_morceau(texte):
+    """Duree plausible maximale d'un morceau, d'apres son texte (secondes).
+
+    Large par construction (debit moyen x 1,8 + 0,6 s) : elle ne sert qu'a
+    arreter une DERIVE, jamais a raccourcir une phrase lue normalement.
+    """
+    return (len(texte) / CARACTERES_PAR_SECONDE) * MARGE_LONGUEUR + MARGE_LONGUEUR_S
+
+
+def tokens_max_morceau(texte):
+    """Longueur maximale de generation, en jetons audio du modele.
+
+    C'est la borne demandee au moteur (max_new_tokens, transmis a la generation
+    HuggingFace) : elle empeche la derive a la source. Si la version de
+    coqui-tts ignore ce parametre, rogner_a_duree() rattrape le coup apres.
+    """
+    jetons = int(duree_max_morceau(texte) / SECONDES_PAR_TOKEN)
+    return max(TOKENS_MINIMUM, min(TOKENS_PLAFOND, jetons))
+
+
+def rogner_a_duree(sons, duree_max, frequence=FREQUENCE):
+    """Coupe la fin d'un audio qui depasse la duree plausible (babil).
+
+    Dernier filet seulement : si le moteur a respecte la borne demandee, cette
+    fonction ne change rien. Elle ne touche jamais une phrase de longueur
+    normale (voir duree_max_morceau).
+    """
+    import numpy as np
+
+    try:
+        donnees = np.asarray(sons, dtype=np.float32)
+        maximum = int(duree_max * frequence)
+        if donnees.size <= maximum:
+            return donnees
+        return donnees[:maximum]
+    except Exception:
+        return sons
+
+
+# ---- Deuxieme filet : le RESIDU apres un long silence (16/09/2026) --------
+# Mesure sur le moteur en marche (test_voix/_mesurer_phrases_courtes.py) :
+#   « Non. »              -> parole 0,02-0,28 s | SILENCE 0,34 s | residu 0,62-0,80
+#   « ...pour la nuit ? » -> parole 0,00-1,82 s | SILENCE 0,36 s | residu 2,18-2,24
+# Le babil est donc SEPARE de la phrase par un silence franc : on le coupe
+# proprement, DANS le silence. Les vraies pauses internes d'une phrase sont
+# beaucoup plus courtes (0,04 s mesurees entre groupes de mots) et ne sont pas
+# touchees ; un silence long suivi d'une vraie fin de phrase (plus de
+# RESIDU_MAX_S) ne l'est pas non plus.
+SEUIL_SILENCE_LONG_S = 0.30      # duree de silence qui separe un residu
+RESIDU_MAX_S = 0.35              # parole restante apres ce silence = babil
+
+
+def rogner_babil_apres_silence(sons, frequence=FREQUENCE):
+    """Coupe un COURT residu de parole isole par un long silence (babil).
+
+    Renvoie l'audio inchange si le motif n'est pas reconnu : on ne touche
+    jamais a une phrase lue normalement.
+    """
+    import numpy as np
+
+    try:
+        donnees = np.asarray(sons, dtype=np.float32)
+        if donnees.size == 0:
+            return donnees
+        pas = max(1, int(BLOC_ANALYSE_S * frequence))
+        blocs_parles = []
+        for debut in range(0, donnees.size, pas):
+            bloc = donnees[debut:debut + pas]
+            if bloc.size and float(np.max(np.abs(bloc))) >= SEUIL_SON:
+                blocs_parles.append((debut, debut + bloc.size))
+        if not blocs_parles:
+            return donnees
+
+        # Du dernier bloc parle vers le premier : on cherche le DERNIER long
+        # silence qui precede de la parole.
+        for rang in range(len(blocs_parles) - 1, 0, -1):
+            fin_avant = blocs_parles[rang - 1][1]
+            debut_apres = blocs_parles[rang][0]
+            silence = (debut_apres - fin_avant) / float(frequence)
+            if silence >= SEUIL_SILENCE_LONG_S:
+                reste = (blocs_parles[-1][1] - debut_apres) / float(frequence)
+                if reste <= RESIDU_MAX_S:
+                    fin = min(donnees.size,
+                              fin_avant + int(SILENCE_QUEUE_S * frequence))
+                    return donnees[:fin]
+                return donnees       # silence en pleine phrase : on n'y touche pas
+        return donnees
+    except Exception:
+        return sons
+
+
+def _lire_un_morceau(morceau, chemin_reference, reglages=None):
     """Fait lire UN morceau (250 caracteres au plus) avec la voix donnee.
 
     Le morceau passe d'abord par nettoyer_pour_xtts() : XTTS PRONONCE les
     guillemets et bute sur le tiret cadratin (ecoute de Laurent, 15/09/2026).
+    La longueur de generation est BORNEE d'apres le texte (garde-fou babil,
+    16/09/2026) : sur une phrase courte, le moteur partait sinon en bouillie.
+    `reglages` (optionnel) : parametres de generation du modele (temperature,
+    top_k...), pour tester une generation plus stable. Vide par defaut : le
+    comportement ne change pas tant que personne ne demande rien.
     """
     import numpy as np
     morceau = nettoyer_pour_xtts(morceau)
@@ -368,13 +507,19 @@ def _lire_un_morceau(morceau, chemin_reference):
         # Le morceau ne contenait que des signes retires : il n'y a rien a
         # dire -- et surtout rien a envoyer au moteur.
         return np.zeros(0, dtype=np.float32)
+    borne = tokens_max_morceau(morceau)
     try:
         audio = _moteur.tts(text=morceau, speaker_wav=chemin_reference,
-                            language=LANGUE, split_sentences=False)
-    except TypeError:          # version de coqui-tts sans ce parametre
+                            language=LANGUE, split_sentences=False,
+                            max_new_tokens=borne, **(reglages or {}))
+    except TypeError:          # version de coqui-tts sans ces parametres
         audio = _moteur.tts(text=morceau, speaker_wav=chemin_reference,
                             language=LANGUE)
-    return np.asarray(audio, dtype=np.float32)
+    audio = np.asarray(audio, dtype=np.float32)
+    # Deux filets, dans cet ordre : la borne de longueur (derives longues),
+    # puis la coupure du petit residu isole par un silence (babil court).
+    audio = rogner_a_duree(audio, duree_max_morceau(morceau))
+    return rogner_babil_apres_silence(audio)
 
 
 def rogner_queue(sons, frequence=FREQUENCE):
@@ -415,7 +560,7 @@ def rogner_queue(sons, frequence=FREQUENCE):
         return sons
 
 
-def generer_wav(texte, identifiant_voix):
+def generer_wav(texte, identifiant_voix, reglages=None):
     """Genere le WAV d'un texte, avec une voix. Renvoie les octets du WAV.
 
     Leve une exception si la voix est inconnue ou si la generation echoue :
@@ -448,7 +593,7 @@ def generer_wav(texte, identifiant_voix):
             if rang:
                 sons.append(silence)
             for morceau in morceaux:
-                sons.append(_lire_un_morceau(morceau, reference))
+                sons.append(_lire_un_morceau(morceau, reference, reglages))
 
     return _wav_depuis_pcm(rogner_queue(np.concatenate(sons), FREQUENCE))
 
@@ -539,7 +684,7 @@ class Repondeur(BaseHTTPRequestHandler):
 
         t0 = time.time()
         try:
-            wav = generer_wav(texte, voix)
+            wav = generer_wav(texte, voix, reglages_valides(demande.get("reglages")))
         except ValueError as erreur:
             self._envoyer_json(400, {"erreur": str(erreur)})
             return

@@ -64,6 +64,15 @@ let _moteursEtat  = {};
 let _moteursQuand = 0;      // horodatage du dernier chargement reussi
 const MOTEURS_TTL_MS = 5000;
 
+// Changement de moteur (bouton de bascule, 15/09/2026) : un moteur met 10 a
+// 20 secondes a charger son modele. Apres un clic, on interroge donc le serveur
+// toutes les 3 s jusqu'a ce qu'il soit pret -- sans cela le bouton resterait
+// sur « moteur eteint » et on croirait que le clic n'a rien fait.
+let _moteurPollTimer = null;
+let _moteurMessage   = '';   // message d'echec a afficher a la place du libelle
+const MOTEUR_POLL_MS        = 3000;
+const MOTEUR_ATTENTE_MAX_MS = 180000;   // 3 min : au-dela, on le dit
+
 // Sur mobile, la sélection de texte est interceptée par le navigateur
 // (menu natif copier/coller) : un tap simple sur une phrase remplace
 // donc "Lire à partir d'ici" (voir la section SELECTION DE TEXTE).
@@ -176,31 +185,148 @@ async function loadMoteurs(force) {
   _afficherEtatMoteurs();
 }
 
-// Voyant discret sous les reglages du lecteur. Sans lui, l'absence des voix
-// d'un moteur eteint ressemblerait a un bug, et un moteur en cours de
-// chargement (10 a 12 s pour Kyutai) ressemblerait a une panne.
+// Texte du bouton de bascule selon l'etat des moteurs. Fonction PURE (aucun
+// acces au DOM, aucun appel reseau) : c'est elle que le test extrait du fichier
+// reel (test_voix/test_bouton_moteur.js).
+function _libelleMoteur(etat) {
+  const prets = [], chargements = [];
+  Object.keys(etat || {}).forEach((prefixe) => {
+    const info = (etat || {})[prefixe] || {};
+    const nom  = info.nom || prefixe;
+    if (info.pret)       prets.push(nom);
+    else if (info.actif) chargements.push(nom);
+  });
+
+  if (prets.length) {
+    return { texte: '\uD83C\uDF99\uFE0F Voix de personnages : ' + prets.join(' + ')
+                    + (prets.length > 1 ? ' prets' : ' pret') + ' \u2014 changer',
+             eteint: false };
+  }
+  if (chargements.length) {
+    return { texte: '\u23F3 ' + chargements.join(' + ') + ' : chargement en cours...',
+             eteint: false };
+  }
+  return { texte: '\uD83C\uDF99\uFE0F Voix de personnages : moteur eteint '
+                  + '\u2014 en allumer un',
+           eteint: true };
+}
+
+// Bouton sous les reglages du lecteur. Sans lui, l'absence des voix d'un
+// moteur eteint ressemblerait a un bug, et un moteur en cours de chargement
+// (10 a 20 s) ressemblerait a une panne. Depuis le 15/09/2026 il sert aussi a
+// CHANGER de moteur (demande de Laurent : un seul a la fois).
 function _afficherEtatMoteurs() {
   const el = document.getElementById('moteur-etat');
   if (!el) return;
 
-  const prets = [], chargement = [];
-  Object.keys(_moteursEtat).forEach((prefixe) => {
-    const info = _moteursEtat[prefixe] || {};
-    const nom  = info.nom || prefixe;
-    if (info.pret)          prets.push(nom);
-    else if (info.actif)    chargement.push(nom);
-  });
-
-  if (prets.length) {
-    el.textContent = '\uD83C\uDF99\uFE0F Voix de personnages : ' + prets.join(' + ') + ' pret';
+  if (_moteurMessage) {
+    el.textContent = _moteurMessage;
     el.classList.remove('moteur-etat-off');
-  } else if (chargement.length) {
-    el.textContent = '\u23F3 ' + chargement.join(' + ') + ' : chargement en cours...';
-    el.classList.remove('moteur-etat-off');
-  } else {
-    el.textContent = '\uD83C\uDF99\uFE0F Voix de personnages : moteur eteint';
-    el.classList.add('moteur-etat-off');
+    return;
   }
+
+  const libelle = _libelleMoteur(_moteursEtat);
+  el.textContent = libelle.texte;
+  el.classList.toggle('moteur-etat-off', libelle.eteint);
+  el.title = 'Changer de moteur de voix (un seul a la fois)';
+}
+
+// ---- Changement de moteur : fenetre de choix ----
+
+async function _ouvrirMoteurModal() {
+  // Etat frais : on ne propose pas a l'aveugle (le moteur a pu etre allume ou
+  // eteint depuis l'affichage de la page, par exemple par un lanceur a la main).
+  await loadMoteurs(true);
+  _remplirMoteurModal();
+  document.getElementById('moteur-modal').classList.remove('hidden');
+}
+
+function _fermerMoteurModal() {
+  document.getElementById('moteur-modal').classList.add('hidden');
+}
+
+// Detail affiche sous chaque moteur : allume et pret, en chargement, ou eteint.
+function _detailMoteur(prefixe) {
+  const info = (_moteursEtat || {})[prefixe] || {};
+  if (info.pret)  return 'allum\u00E9 et pr\u00EAt';
+  if (info.actif) return 'chargement en cours...';
+  return '\u00E9teint';
+}
+
+function _remplirMoteurModal() {
+  ['xtts', 'kyutai'].forEach((prefixe) => {
+    const el = document.getElementById('moteur-detail-' + prefixe);
+    if (el) el.textContent = _detailMoteur(prefixe);
+  });
+  const note = document.getElementById('moteur-modal-note');
+  if (!note) return;
+  // Pendant une ecoute, changer de moteur arrete la lecture : la suite des
+  // phrases appartenait a l'autre moteur. On le dit AVANT le clic.
+  note.textContent = (_ttsState === 'playing' || _ttsState === 'paused')
+    ? 'Changer de moteur arr\u00EAte la lecture en cours.'
+    : '';
+}
+
+// Bascule d'un moteur a l'autre : le SERVEUR eteint l'autre AVANT d'allumer
+// celui-ci, et attend qu'il ait rendu la carte graphique. Les deux ne tiennent
+// pas ensemble (environ 3,8 Go chacun sur une carte de 8 Go).
+async function _basculerMoteur(cible) {
+  _fermerMoteurModal();
+  _moteurMessage = '';
+  _afficherEtatMoteurs();
+
+  try {
+    const res = await fetch('/api/moteur/basculer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moteur: cible }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      _moteurMessage = '\u26A0\uFE0F ' + (data.detail || 'changement impossible');
+      _afficherEtatMoteurs();
+      return;
+    }
+
+    _moteursEtat  = data.etat || _moteursEtat;
+    _moteursQuand = Date.now();
+    if (data.demarre && _moteursEtat[cible]) {
+      // Il vient d'etre lance : son modele charge encore.
+      _moteursEtat[cible] = Object.assign({}, _moteursEtat[cible],
+                                          { actif: true, pret: false });
+    }
+    _afficherEtatMoteurs();
+    await loadVoices();             // les voix de l'autre moteur disparaissent
+    if (cible === 'aucun') return;
+    _surveillerMoteur(cible);
+  } catch (e) {
+    console.error('Erreur changement de moteur de voix:', e);
+    _moteurMessage = '\u26A0\uFE0F serveur injoignable';
+    _afficherEtatMoteurs();
+  }
+}
+
+// Surveille le chargement du moteur, puis recharge les voix : elles viennent
+// d'apparaitre dans les menus (un moteur non pret n'en propose aucune).
+function _surveillerMoteur(cible) {
+  if (_moteurPollTimer) clearInterval(_moteurPollTimer);
+  const fin = Date.now() + MOTEUR_ATTENTE_MAX_MS;
+  _moteurPollTimer = setInterval(async () => {
+    await loadMoteurs(true);
+    const info = (_moteursEtat || {})[cible] || {};
+    if (info.pret) {
+      clearInterval(_moteurPollTimer);
+      _moteurPollTimer = null;
+      _moteurMessage = '';
+      _afficherEtatMoteurs();
+      await loadVoices();
+    } else if (Date.now() > fin) {
+      clearInterval(_moteurPollTimer);
+      _moteurPollTimer = null;
+      _moteurMessage = '\u26A0\uFE0F le moteur ne r\u00E9pond pas';
+      _afficherEtatMoteurs();
+    }
+  }, MOTEUR_POLL_MS);
 }
 
 // Catalogue COMPLET des voix : toutes les familles, moteurs eteints compris.
@@ -956,6 +1082,7 @@ const FAMILLES_VOIX = [
 ];
 
 let _annotationsVoix = {};                       // { voiceId: {genre, stars, note} }
+let _criteresVoix   = [];                        // listes FERMEES (voir /api/annotations_voix/criteres)
 let _ecouteurFiltre = { recherche: '', famille: 'T' };
 let _ecouteurAudio = null;                       // l'audio en cours d'ecoute
 
@@ -980,7 +1107,20 @@ async function _chargerAnnotationsVoix() {
   }
 }
 
-// Enregistre l'etat COMPLET d'une ligne (les 3 champs d'un coup) : plus simple
+// Les criteres fixes d'annotation (age, timbre, debit, accent, registre, role)
+// viennent du SERVEUR : une seule liste a maintenir (main.py, CRITERES_VOIX),
+// donc les menus du lecteur ne peuvent pas deriver de ce que le serveur accepte.
+async function _chargerCriteresVoix() {
+  try {
+    const res = await fetch('/api/annotations_voix/criteres');
+    if (res.ok) _criteresVoix = (await res.json()) || [];
+  } catch (e) {
+    console.error('Erreur chargement criteres voix:', e);
+    _criteresVoix = [];
+  }
+}
+
+// Enregistre l'etat COMPLET d'une ligne (tous les champs d'un coup) : plus simple
 // et plus sur qu'un enregistrement champ par champ.
 async function _sauverAnnotationVoix(voiceId, ligne) {
   const corps = {
@@ -989,6 +1129,11 @@ async function _sauverAnnotationVoix(voiceId, ligne) {
     stars:    parseInt(ligne.querySelector('.voice-stars').value, 10),
     note:     ligne.querySelector('.voice-note').value,
   };
+  // Les criteres fixes : un menu deroulant par critere (classe .voice-critere,
+  // avec son critere dans data-critere). Une valeur vide = non renseigne.
+  ligne.querySelectorAll('.voice-critere').forEach(sel => {
+    corps[sel.dataset.critere] = sel.value;
+  });
   try {
     const res = await fetch('/api/annotations_voix', {
       method:  'POST',
@@ -1051,8 +1196,16 @@ function _listeOptions(select, valeurs, valeurChoisie) {
   select.value = valeurChoisie;
 }
 
+// Un critere renseigne se voit d'un coup d'oeil (bordure accentuee) : sans
+// cela, six menus ou presque tous affichent leur libelle se ressemblent.
+function _majStyleCritere(sel) {
+  if (sel.value) sel.classList.add('renseigne');
+  else sel.classList.remove('renseigne');
+}
+
 // Une ligne de l'ecouteur : bouton d'ecoute, identite de la voix, puis les
-// trois champs de note (genre, etoiles, remarque).
+// notes rapides (genre, etoiles, remarque) et, sur une seconde ligne, les
+// criteres fixes (age, timbre, debit, accent, registre, role).
 function _construireLigneVoix(voix) {
   const li = document.createElement('li');
   li.className = 'voice-row';
@@ -1110,6 +1263,30 @@ function _construireLigneVoix(voix) {
   remarque.title = 'Remarque libre (accent, defaut entendu...)';
   remarque.value = annot.note || '';
 
+  // Criteres FIXES (demande de Laurent, 16/09/2026) : une 2e ligne de menus
+  // deroulants, sous les notes. On SELECTIONNE au lieu de noter, et les listes
+  // viennent du serveur : les annotations sont donc calibrees, et
+  // l'attribution automatique des voix pourra les lire plus tard.
+  const criteres = document.createElement('div');
+  criteres.className = 'voice-criteres';
+  const champsCriteres = [];
+  _criteresVoix.forEach(critere => {
+    const sel = document.createElement('select');
+    sel.className = 'voice-critere';
+    sel.dataset.critere = critere.cle;
+    sel.title = critere.libelle;
+    const options = [['', critere.libelle]];   // etat vide : le menu s'annonce
+    (critere.valeurs || []).forEach(v => options.push([v.valeur, v.libelle]));
+    _listeOptions(sel, options, annot[critere.cle] || '');
+    _majStyleCritere(sel);
+    sel.addEventListener('change', () => {
+      _majStyleCritere(sel);
+      _sauverAnnotationVoix(voix.id, li);
+    });
+    champsCriteres.push(sel);
+    criteres.appendChild(sel);
+  });
+
   // On n'enregistre qu'a la sortie du champ : eviter un appel reseau a chaque
   // frappe. Les listes deroulantes, elles, partent tout de suite.
   [genre, etoiles].forEach(champ => champ.addEventListener('change',
@@ -1124,6 +1301,7 @@ function _construireLigneVoix(voix) {
   li.appendChild(btn);
   li.appendChild(info);
   li.appendChild(notes);
+  if (champsCriteres.length) li.appendChild(criteres);
   return li;
 }
 
@@ -1178,6 +1356,7 @@ async function _ouvrirEcouteurVoix() {
   await loadMoteurs();
   await loadVoices();
   await _chargerAnnotationsVoix();
+  await _chargerCriteresVoix();
 
   _ecouteurFiltre.recherche = '';
   _ecouteurFiltre.famille   = 'T';
@@ -3326,6 +3505,7 @@ function bindEvents() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     closeChaptersPanel();
+    _fermerMoteurModal();
     document.getElementById('delete-modal').classList.add('hidden');
   });
 
@@ -3345,5 +3525,17 @@ function bindEvents() {
   const speedSlider = document.getElementById('rsvp-speed-slider');
   speedSlider.addEventListener('input', () => {
     document.getElementById('rsvp-speed-label').textContent = speedSlider.value + ' mots/min';
+  });
+
+  // --- Bouton de bascule des moteurs de voix (Kyutai / XTTS v2) ---
+  // Le voyant du bas de la fenetre de lecture est le bouton : il ouvre le
+  // choix, et le serveur eteint l'autre moteur avant d'allumer celui-ci.
+  document.getElementById('moteur-etat').addEventListener('click', _ouvrirMoteurModal);
+  document.getElementById('moteur-cancel-btn').addEventListener('click', _fermerMoteurModal);
+  document.getElementById('moteur-modal').addEventListener('click', e => {
+    if (e.target.id === 'moteur-modal') _fermerMoteurModal();   // clic a cote
+  });
+  document.querySelectorAll('#moteur-modal .provider-btn').forEach(btn => {
+    btn.addEventListener('click', () => _basculerMoteur(btn.dataset.moteur));
   });
 }

@@ -1,5 +1,31 @@
 # Règles permanentes pour NIMM ePub
 
+Ce fichier a **deux parties**, et c'est voulu :
+
+- **PARTIE A — Collaboration** : la façon de travailler avec Laurent. Elle est
+  la **même dans tous ses ateliers** (NIMM ePub, NIMM Voix), **aux mentions du
+  projet près** (nom de l'atelier, outils cités en exemple). Si on en change le
+  **fond**, il faut la répercuter dans l'autre fichier (voir la ligne de
+  version ci-dessous).
+- **PARTIE B — Technique de ce projet** : les règles propres à NIMM ePub
+  (environnement, architecture, base de données, sauvegardes, outils). Chaque
+  atelier a la sienne, elle ne se copie pas telle quelle.
+
+---
+
+# PARTIE A — Collaboration
+
+_Partie A — version du 16/09/2026._
+
+## Deux maximes de Laurent, pour lire ce fichier
+
+> **« L'esprit plutôt que la lettre, toujours. »**
+> Ces règles disent une intention, pas un règlement à appliquer à la virgule.
+> Quand un cas n'est pas prévu, ou quand la règle écrite donnerait un résultat
+> absurde, c'est **l'esprit** qui tranche — et on explique pourquoi on s'est
+> écarté. **Sauf pour les garde-fous** (secrets d'API, données irremplaçables,
+> sauvegardes) : là, la lettre reste, on ne l'interprète pas.
+
 ## Esprit du projet — message de Laurent, à garder tel quel (15/09/2026)
 Laurent est **chauffeur poids lourd**. NIMM ePub, c'est son atelier personnel :
 il y travaille **pour le fun**, pas pour son métier — ici, il ne joue pas sa
@@ -11,6 +37,13 @@ Ce qu'il veut y trouver :
   lui-même : « ça donne un mood relax, et j'aime bien ça ».
 - **Le droit de se tromper** : une annotation ratée, un mauvais choix de voix,
   un test qui échoue ne sont pas graves — on corrige et on avance.
+- **« Je ne sais pas que c'est impossible, alors je le fais. »** (maxime de
+  Laurent) — on ne répond pas « impossible » par réflexe : une idée trop
+  ambitieuse, on regarde d'abord si elle est faisable, on l'essaie sur un petit
+  cas, et on mesure. Ce qui semble impossible devient souvent « possible, mais
+  pas ce soir » — et c'est déjà une réponse utile. **Limite** : ce réflexe vaut
+  pour l'exploration et les essais sans risque — jamais pour les données, les
+  sauvegardes ou les clés.
 - **De la rigueur là où elle compte vraiment** : dès qu'il s'agit de
   **sécurité**, de **données personnelles**, de **clés / secrets d'API**, de
   **fichiers irremplaçables** (livres, base de données, sauvegardes) ou
@@ -52,11 +85,16 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
 ## Profil de l'utilisateur — communication
 - **Tutoiement** : toujours tutoyer Laurent, jamais « vous » (demandé par
   Laurent le 14/09/2026).
-- **Émojis et humour** : bienvenus dans la conversation, les questions, les
-  récaps et les explications — ils font partie du « mood relax » voulu par
-  Laurent (voir « Esprit du projet » en tête de ce fichier). En revanche,
-  **jamais** dans le code, les commentaires techniques, les scripts, la
-  documentation ou les messages de commit : là, on reste sobre.
+- **Émojis et humour** : ils font partie du « mood relax » voulu par Laurent
+  (voir « Esprit du projet » en tête de ce fichier).
+- **Émojis : où exactement (précision de Laurent, 16/09/2026).** Il les aime
+  dans les **messages de fin de tâche** — « c'est là que j'aime bien les voir :
+  ça me donne un petit retour visuel sur les moments plus détendus, ça illustre
+  le propos ». Donc : **oui** dans les récaps, les questions, les explications,
+  et les **titres de sections des documents** (la convention existante du
+  BACKLOG : 🔴 🟠 🟡, qui sert de repère visuel). **Non** dans le code, les
+  commentaires techniques, les scripts, les messages de commit, ni dans le
+  **corps** de la documentation : là, on reste sobre.
 - Laurent est un utilisateur NON développeur : le code est un outil, pas
   un sujet de conversation. Ne jamais lui parler en "pair" développeur.
 - Toujours parler en langage naturel et simple ; si un terme technique est
@@ -76,6 +114,40 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
   risque (suppression, installation, push), relève du niveau 3 : confirmation
   avant d'agir
 
+## Livrer un travail à Laurent
+- **Toute commande destinée à Laurent existe en LANCEUR DOUBLE-CLIC** (un
+  `.bat`) : titre clair, vérification de ce qui doit être allumé, pause à la fin
+  pour qu'il lise le résultat. Ne jamais lui donner une commande à taper — il
+  n'est pas développeur (« je ne sais toujours pas lancer un fichier .py »,
+  16/09/2026).
+- Le lanceur dit ce qu'il fait et ce qu'il attend, en français, sans jargon.
+
+## Début et fin de session
+- **Début** : un état des lieux court (ce qui est fait / ce qui reste) —
+  `test_voix/_lister_backlog.py` liste les items ouverts par section. Laurent se
+  perd vite dans l'historique : c'est à Cline de replacer le contexte, pas à lui
+  de le retrouver.
+- **Fin** : le récap dit toujours (1) ce qui a changé, (2) comment le vérifier,
+  (3) ce qui reste à faire — avec des émojis, puisqu'il les aime là.
+
+## Honnêteté technique
+- **Quand un test dément une hypothèse, le dire franchement** et l'écrire dans
+  la documentation. Exemple du 16/09/2026 : l'hypothèse « le point final bride
+  la prosodie d'XTTS » a été **démentie** par un second test à l'aveugle — c'est
+  noté au BACKLOG, sinon la croyance reviendrait.
+- **Toute réponse technique donnée à une question de Laurent est consignée** au
+  BACKLOG, une fois pour toutes. Exemple : « déterministe (Edge, Kokoro) contre
+  génératif (XTTS, Gemini TTS) ».
+- Ne jamais présenter comme acquise une amélioration qui n'a pas été mesurée.
+- Ne pas poser à Laurent une question dont la réponse est déjà dans les règles
+  ou dans le BACKLOG : chercher d'abord, demander ensuite.
+
+---
+
+# PARTIE B — Technique de ce projet
+
+_Ces règles sont propres à NIMM ePub ; l'atelier NIMM Voix a les siennes._
+
 ## Environnement
 - OS : Windows 11
 - Utiliser les commandes Windows : `del` pas `rm`, `copy` pas `cp`, `move` pas `mv`
@@ -86,6 +158,16 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
 - Jamais utiliser `which` — utiliser `where` à la place
 - Jamais utiliser `touch` — utiliser `echo. >` à la place
 - Commandes Windows manquantes : `findstr`, `type`, `where` — toujours utiliser ces équivalents Windows
+- **Pièges constatés le 16/09/2026** (chacun a coûté du temps) :
+  - `findstr` n'accepte pas l'alternance `\|` : enchaîner plusieurs `findstr`
+    séparés, ou passer par Python pour une recherche multi-motifs ;
+  - `del` (PowerShell) n'accepte **qu'un seul chemin** : utiliser
+    `Remove-Item -Path a,b,c` pour en supprimer plusieurs ;
+  - dans un `python -c`, les guillemets, les accents et les `backticks` sont un
+    piège de quoting : **écrire un petit script** dès que la commande devient
+    compliquée — plus long à écrire, mais juste du premier coup ;
+  - `cmd /c "chemin avec des espaces"` échoue : lancer le `.cmd` directement
+    (`Start-Process -FilePath '...\script.cmd' -RedirectStandardOutput log`).
 
 ## Scripts Python — exécution
 - Toujours exécuter les scripts Python avec : `python script.py 2>&1`
@@ -93,6 +175,18 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
   `python -c "import subprocess; r = subprocess.run(['python', 'script.py'], capture_output=True, text=True, encoding='utf-8'); print(r.stdout); print(r.stderr)"`
 - Toujours capturer stderr avec `2>&1` pour voir les erreurs
 - Ne jamais supposer qu'un script a échoué si la sortie est vide — toujours relancer avec capture explicite
+
+## Traitements longs (leçon du 16/09/2026)
+- Une commande qui prend **plus de ~25 secondes** (synthèse d'un lot de
+  phrases, suppression massive, calcul) se lance **en tâche de fond**, avec sa
+  sortie dans un journal, puis on lit le journal :
+  `Start-Process -FilePath python -ArgumentList 'script.py' -RedirectStandardOutput sortie.txt -RedirectStandardError err.txt -NoNewWindow`
+- Sinon la commande expire et on croit à un échec, alors que le travail a
+  peut-être abouti — c'est arrivé plusieurs fois le 16/09/2026.
+- Les avertissements de bibliothèques écrits sur `stderr` font croire à
+  PowerShell qu'une commande a échoué : vérifier le **code de sortie** réel, et
+  pour les cas douteux préférer une capture par Python
+  (`subprocess.run(..., capture_output=True, text=True, encoding='utf-8')`).
 
 ## Encodage
 - Tous les scripts Python doivent commencer par : # -*- coding: utf-8 -*-
@@ -103,9 +197,32 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
   - Utiliser -> <- OK ERR à la place
 
 ## Base de données
-- La base SQLite est : data/nimm_epub.db
-- Les tables sont : books et progress
-- Jamais supposer le nom d'une table — toujours vérifier avec sqlite_master
+- La base SQLite est : `data/nimm_epub.db`.
+- Tables principales : `books`, `progress`, `users`, `voices` (voix attribuée à
+  chaque personnage), `cast_fiche` (nom, genre, âge déduits par le casting),
+  `speaker_attribution` (qui parle, phrase par phrase), `character_aliases`
+  (variantes d'un même nom).
+- Jamais supposer le nom d'une table ni la liste de ses colonnes — toujours
+  vérifier avec `sqlite_master` et `PRAGMA table_info(...)`.
+
+## Sauvegarde avant toute opération sensible
+- **Avant** une opération qui modifie des données ou du code de référence :
+  faire une **copie datée** (`.bak_avant_<quoi>_<AAAAMMJJ>`) et le dire à
+  Laurent. Exemples du 16/09/2026 : `data/nimm_epub.db` avant un re-cast ;
+  `main.py` et `modules/tts.py` avant le report des annotations d'écoute.
+- Le **re-cast est irréversible dans l'application** : la copie de la base est
+  le seul retour arrière. Idem pour les catalogues de voix.
+- Ne jamais supprimer un fichier de données (livres, base, extraits de voix,
+  cache audio) sans avoir vérifié qu'il est **regénérable** — et le dire.
+
+## Outils d'atelier (dossier `test_voix/`)
+- **Tout nouvel outil y est référencé dans `test_voix/LIRE_MOI.md`**, sinon le
+  dossier redevient illisible (constat du 16/09/2026 : 106 fichiers, Laurent ne
+  savait plus quoi lancer).
+- `test_voix/test_lire_moi.py` vérifie que le mode d'emploi ne cite que des
+  fichiers qui existent : le relancer après tout renommage.
+- Tout script qui **appelle une API facturée** porte `PAYANT` dans son nom **et**
+  un garde-fou qui refuse de partir sans option explicite (`--je-paie`).
 
 ## Architecture
 - Architecture : main.py orchestre tout — epub_parser.py et tts.py sont appelés depuis main.py uniquement

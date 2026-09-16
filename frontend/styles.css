@@ -188,6 +188,15 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 16px;
   align-content: start;
+  /* Les lignes prennent la hauteur REELLE de leur contenu.
+     Sans cette regle, le navigateur peut comprimer les pistes "auto" a la
+     hauteur minimale de la carte : la vignette ayant un ratio qui depend de
+     la largeur, sa hauteur minimale est vue comme nulle. Consequence constatee
+     par Laurent le 16/09/2026 (18 livres, mobile Firefox) : toutes les
+     couvertures reduites a une bande du tiers haut, les cartes se chevauchant
+     comme un jeu de cartes qu'on fait glisser. Avec peu de livres (1 a 3),
+     le phenomene ne se voyait pas. */
+  grid-auto-rows: max-content;
 }
 
 /* Carte livre */
@@ -509,18 +518,40 @@ body {
   align-items: center;
 }
 
-/* Voyant de l'etat des moteurs de voix lourds (Kyutai, XTTS v2) : sur sa
-   propre ligne, sous les trois reglages. Sans lui, l'absence des voix d'un
-   moteur eteint ressemblerait a un bug. */
+/* Etat des moteurs de voix lourds (Kyutai, XTTS v2) : sur sa propre ligne, sous
+   les reglages. Sans lui, l'absence des voix d'un moteur eteint ressemblerait a
+   un bug. Depuis le 15/09/2026 c'est aussi un BOUTON : il ouvre le choix du
+   moteur (un seul a la fois), d'ou le contour au survol. */
 #moteur-etat {
   flex-basis: 100%;
+  width: 100%;
+  font-family: inherit;
   font-size: 0.72rem;
   color: var(--text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
   text-align: right;
-  line-height: 1.2;
+  line-height: 1.3;
+  cursor: pointer;
 }
 #moteur-etat:empty { display: none; }
-#moteur-etat.moteur-etat-off { opacity: 0.7; }
+#moteur-etat:hover { border-color: var(--accent); color: var(--text); }
+#moteur-etat:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#moteur-etat.moteur-etat-off { opacity: 0.8; }
+
+/* Sur mobile : cible tactile confortable (44 px) pour le bouton de bascule. Il
+   occupe sa propre ligne, donc l'agrandir ne serre aucun autre reglage. */
+@media (max-width: 640px) {
+  #moteur-etat {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
 
 /* Boutons d'action de la barre : le MEME look pour les deux, compact.
    « Ecouter les voix » n'avait aucun style : il gardait l'apparence native du
@@ -1823,6 +1854,30 @@ select { font-family: var(--font-ui); }
 .voice-genre { width: 40px; }
 .voice-stars { width: 62px; }
 .voice-note  { width: 132px; }
+
+/* Criteres FIXES d'une voix (16/09/2026) : une 2e ligne de menus deroulants,
+   sous les notes rapides. On selectionne au lieu de noter, et les valeurs
+   viennent du serveur : des annotations calibrees, lisibles par la machine. */
+.voice-criteres {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.voice-criteres select {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 3px 4px;
+  max-width: 140px;
+}
+/* Un critere renseigne se distingue : bordure accentuee et texte clair. */
+.voice-criteres select.renseigne {
+  border-color: var(--accent-dim);
+  color: var(--text);
+}
 
 #voices-bottom-bar {
   margin-top: 10px;

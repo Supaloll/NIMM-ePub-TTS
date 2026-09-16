@@ -60,6 +60,17 @@ goto lecteur
 
 :moteur_xtts
 echo  Moteur de voix : XTTS v2 (le dernier utilise).
+rem -- L'AUTRE moteur (Kyutai) est-il deja allume ? Les deux ne tiennent pas
+rem    ensemble sur la carte graphique (constat de Laurent, 15/09/2026 :
+rem    7,6 Go de memoire video sur 8). On ne lance donc rien du tout, et on
+rem    le dit. Changer de moteur se fait par le bouton en bas du lecteur.
+curl -s -o NUL --max-time 2 http://127.0.0.1:8082/sante >nul 2>&1
+if not errorlevel 1 (
+    echo  Moteur de voix Kyutai : deja en marche.
+    echo  Un seul moteur de voix a la fois : XTTS v2 n'est pas lance.
+    echo  Pour changer de moteur : bouton en bas de la fenetre du lecteur.
+    goto lecteur
+)
 rem -- Le port est ouvert des les premieres secondes du chargement,
 rem    donc ce seul test suffit a ne jamais lancer un second moteur.
 curl -s -o NUL --max-time 2 http://127.0.0.1:8083/sante >nul 2>&1
@@ -78,6 +89,15 @@ goto lecteur
 
 :moteur_kyutai
 echo  Moteur de voix : Kyutai (le dernier utilise).
+rem -- L'AUTRE moteur (XTTS v2) est-il deja allume ? Meme regle que dans la
+rem    branche XTTS : un seul moteur de voix a la fois.
+curl -s -o NUL --max-time 2 http://127.0.0.1:8083/sante >nul 2>&1
+if not errorlevel 1 (
+    echo  Moteur de voix XTTS v2 : deja en marche.
+    echo  Un seul moteur de voix a la fois : Kyutai n'est pas lance.
+    echo  Pour changer de moteur : bouton en bas de la fenetre du lecteur.
+    goto lecteur
+)
 curl -s -o NUL --max-time 2 http://127.0.0.1:8082/sante >nul 2>&1
 if not errorlevel 1 (
     echo  Moteur de voix Kyutai : deja en marche.

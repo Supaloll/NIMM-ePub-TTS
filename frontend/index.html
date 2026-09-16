@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260915-5" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260916-2" />
 </head>
 <body>
   <div id="app">
@@ -168,10 +168,13 @@
               <option value="+25%">Tres rapide</option>
             </select>
           </div>
-          <!-- Etat des moteurs de voix lourds (Kyutai, XTTS v2), rempli par
-               app.js : dit pourquoi les voix d'un moteur eteint ne sont pas
-               proposees, au lieu de laisser croire a un bug. -->
-          <span id="moteur-etat"></span>
+          <!-- Bouton de bascule des moteurs de voix lourds (Kyutai, XTTS v2),
+               rempli par app.js : il dit pourquoi les voix d'un moteur eteint
+               ne sont pas proposees, et il permet de passer d'un moteur a
+               l'autre (demande de Laurent, 15/09/2026 : un seul a la fois,
+               allumer l'un eteint l'autre). -->
+          <button type="button" id="moteur-etat"
+                  aria-label="Changer de moteur de voix des personnages"></button>
         </div>
 
       </footer>
@@ -306,6 +309,39 @@
       </div>
     </div>
 
+    <!-- ============ MODALE CHANGEMENT DE MOTEUR DE VOIX ============ -->
+    <!-- Ouverte par le bouton du bas de la fenetre de lecture. Un seul moteur
+         lourd a la fois : allumer l'un eteint l'autre (les deux ne tiennent pas
+         ensemble sur la carte graphique). Le moteur choisi est aussi note pour
+         le prochain demarrage de NIMM ePub. -->
+    <div id="moteur-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Changer de moteur de voix">
+      <div class="modal-box">
+        <p>Quel moteur de voix pour les personnages ?</p>
+        <div class="provider-choices">
+          <button class="provider-btn" data-moteur="xtts">
+            <span class="provider-name">XTTS v2</span>
+            <span class="provider-estimate" id="moteur-detail-xtts"></span>
+          </button>
+          <button class="provider-btn" data-moteur="kyutai">
+            <span class="provider-name">Kyutai</span>
+            <span class="provider-estimate" id="moteur-detail-kyutai"></span>
+          </button>
+          <button class="provider-btn" data-moteur="aucun">
+            <span class="provider-name">Aucun moteur</span>
+            <span class="provider-estimate">voix Edge, Kokoro et Piper seulement</span>
+          </button>
+        </div>
+        <!-- Rappel affiche au moment du choix : changer de moteur pendant une
+             ecoute arrete la lecture en cours (la suite depend de l'autre
+             moteur). -->
+        <p id="moteur-modal-note"></p>
+        <div class="modal-actions">
+          <button id="moteur-cancel-btn" class="btn-secondary">Fermer</button>
+        </div>
+      </div>
+    </div>
+
     <div id="cast-modal" class="modal-overlay hidden" role="dialog"
          aria-modal="true" aria-label="Casting des voix">
       <div class="modal-box cast-box">
@@ -404,6 +440,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260915-5"></script>
+  <script src="/static/app.js?v=20260916-2"></script>
 </body>
 </html>

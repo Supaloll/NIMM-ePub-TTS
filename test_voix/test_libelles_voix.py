@@ -121,7 +121,14 @@ def main_test():
                 'SELECT character_name, voice_id FROM voices WHERE book_id = ?',
                 (livre['id'],)).fetchall()
             print('   livre : %s (%d personnages)' % (livre['title'], len(voix)))
-            orphelines = [r['voice_id'] for r in voix if r['voice_id'] not in noms]
+            # Une voix VIDE est NORMALE depuis le 15/09/2026 : les petits roles
+            # (moins de 8 repliques) n'ont plus de voix dediee, ils sont lus par
+            # le NARRATEUR. Ce ne sont donc pas des voix orphelines.
+            sans_voix = sum(1 for r in voix if not r['voice_id'])
+            print('   dont %d personnage(s) sans voix dediee (lus par le narrateur)'
+                  % sans_voix)
+            orphelines = [r['voice_id'] for r in voix
+                          if r['voice_id'] and r['voice_id'] not in noms]
             verifier('chaque voix attribuee existe au catalogue',
                      not orphelines, sorted(set(orphelines))[:5])
             xtts_livre = [r for r in voix if r['voice_id'].startswith('xtts:')]

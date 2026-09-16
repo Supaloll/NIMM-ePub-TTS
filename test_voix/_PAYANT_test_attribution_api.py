@@ -240,6 +240,29 @@ def main():
     print("Termine. Regarde les fichiers resultat_*.txt dans ce dossier.")
 
 
+# ==============================================================
+# GARDE-FOU : ce script DEPENSE DE L'ARGENT (16/09/2026)
+# ==============================================================
+# Il envoie un VRAI chapitre aux API d'IA (Gemini, Mistral, DeepSeek) et chaque
+# appel est FACTURE sur la cle de Laurent. Il est conserve comme outil d'atelier
+# (comparaison des modeles, sessions des 12 et 13/09/2026) -- ce n'est PAS un
+# test de non-regression, malgre son ancien nom « test_attribution.py ».
+# Constat du 16/09/2026 : un simple double-clic sur son lanceur suffisait a le
+# faire partir (et donc a payer). D'ou ce garde-fou, qui exige une option
+# explicite : sans elle, le script explique et s'arrete.
 if __name__ == "__main__":
+    if "--je-paie" not in sys.argv:
+        print("=" * 72)
+        print("ATTENTION : ce script appelle de VRAIES API d'IA PAYANTES.")
+        print("Chaque appel est facture sur ta cle (Gemini, Mistral, DeepSeek).")
+        print("")
+        print("Ce n'est PAS un test de non-regression : c'est un outil d'atelier.")
+        print("Pour verifier le projet, utilise plutot les scripts « test_*.py »")
+        print("qui sont sans danger (aucune API, aucun moteur).")
+        print("")
+        print("Si tu veux vraiment lancer la comparaison des modeles :")
+        print("    python test_voix/%s --je-paie" % Path(__file__).name)
+        print("=" * 72)
+        sys.exit(2)
     main()
 

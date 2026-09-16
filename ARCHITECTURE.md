@@ -78,6 +78,7 @@ Aucun module ne parle directement à un autre. main.py orchestre tout.
 | `/api/voices` | GET | Liste des voix **écoutables tout de suite** (les voix d'un moteur éteint ne sont pas proposées) |
 | `/api/voix_catalogue` | GET | **Toutes** les voix du catalogue (moteurs éteints compris) : sert à **nommer** une voix déjà attribuée, avec sa famille et un drapeau `dispo` |
 | `/api/moteurs` | GET | État des moteurs de voix lourds : Kyutai (8082), XTTS v2 (8083) → `{actif, pret, nom}` |
+| `/api/moteur/basculer` | POST | **Change de moteur de voix** (`xtts`, `kyutai` ou `aucun`) : éteint l'autre **avant** d'allumer, note le choix pour le prochain démarrage, renvoie l'état frais. Appelée par le bouton en bas de la fenêtre de lecture |
 | `/api/annotations_voix` | GET | Notes d'écoute prises dans la fenêtre « Écouter les voix » (genre, étoiles, remarque) |
 | `/api/annotations_voix` | POST | Enregistre — ou **efface** si la note est vide — la note d'une voix |
 | `/api/books/{id}/search` | GET | Recherche d'un mot exact dans tout le livre |
@@ -326,6 +327,24 @@ l'information — sur mobile, `.book-title` ne se limite plus à 2 lignes :
 il s'affiche **en entier**, un peu plus grand, et `.book-author` passe à la
 ligne au lieu d'être tronqué (`@media (max-width: 640px)`,
 `frontend/styles.css`).
+
+### Grille de la bibliothèque — hauteur des lignes (16/09/2026)
+Constat de Laurent sur mobile : les couvertures n'apparaissaient plus que sur
+une bande du tiers haut, largeur intacte, les cartes se chevauchant « comme un
+jeu de cartes qu'on fait glisser ». Cause : avec assez de livres pour remplir
+plusieurs lignes, le navigateur dimensionnait les pistes `auto` de `#book-grid`
+sur la hauteur **minimale** d'une carte. Or cette hauteur minimale est vue
+comme **nulle** : le ratio 2/3 de la vignette dépend de la largeur, qui
+dépend de la colonne (référence circulaire). Les données, elles, étaient
+saines (18 couvertures valides en base et sur le disque). Correctif :
+`grid-auto-rows: max-content` sur `#book-grid` — chaque ligne prend la hauteur
+réelle de son contenu, les vignettes conservent leur ratio 2/3.
+Sur PC, l'effet est le même dès qu'il y a beaucoup de livres (titres limités à
+3 lignes, donc moins de hauteur de texte, mais la grille reste concernée).
+Vérification : `test_voix/test_couverture_mobile.py` (Playwright/Chromium, sans
+serveur : injecte le vrai `frontend/styles.css`, 12 livres, texte normal puis
+agrandi à 130 % et 200 %). Avant correctif : 12/12 cartes écrasées (115 px de
+haut pour 340 à 414 px de contenu). Après : 0/12, vignette au ratio attendu.
 
 ### Pas de framework
 HTML/CSS/JS vanilla. Même approche que NIMM.
@@ -1997,6 +2016,80 @@ les moteurs. Mesure après rognage sur les mêmes fichiers : **0,26 s partout**
 change la **clé du cache audio** côté lecteur — les phrases déjà générées
 gardent l'ancien rendu jusqu'à purge de `data/tts_cache/`.
 
+**Complément du 16/09/2026 — le BABIL sur les phrases courtes (corrigé).**
+Constat de Laurent, chapitre 2 du *Chevalier Errant* : après la réplique
+« Il y a un bon agneau rôti aux herbes… Que préférez-vous ? », l'Aubergiste
+« parle » près de **4 secondes** de bouillie inintelligible. Le texte reçu par
+le moteur était **propre** (vérifié : `test_voix/_inspecter_phrase_xtts.py`
+montre le découpage et le nettoyage, guillemet fermant retiré) : la cause est le
+**moteur lui-même**. XTTS est **auto-régressif** : sur un texte court, il n'a
+pas assez de matière pour s'arrêter et **continue d'inventer**.
+
+Mesures (`test_voix/_tracer_phrase_cache.py` et `_chercher_babil_cache.py`,
+qui retrouvent l'audio en cache d'une phrase à partir de sa clé SHA-256) :
+
+| Phrase | Texte | Rendu | Attendu |
+|---|---|---|---|
+| « Que préférez-vous ? » | 19 car. | **9,11 s** | ~1,4 s |
+| « — Manger ? » | 10 car. | **8,49 s** | ~0,8 s |
+| « Elles sont toutes à Sorbier. » | 28 car. | **6,27 s** | ~2,0 s |
+
+Les **3 seules** phrases fautives du livre sont les plus **courtes**, et le
+balayage des **8 autres livres castés** ne trouve **rien** : le défaut est
+propre au **clonage XTTS**, jamais aux moteurs Edge/Kokoro/Piper ni à Kyutai.
+
+**Correction** (dans le service, comme le rognage des silences) : la longueur
+de génération est **bornée d'après le texte** — `max_new_tokens` calculé par
+`tokens_max_morceau()` (14 car./s × 1,8 + 0,6 s de marge, plancher 24 jetons
+≈ 1 s, plafond 900 jetons ≈ 38 s) et transmis à la génération HuggingFace par
+`inference(**hf_generate_kwargs)`. Un **rognage de secours**
+(`rogner_a_duree()`) coupe la fin si le moteur ignore la borne. Bornes obtenues :
+19 car. → **3,04 s**, 28 car. → 4,20 s, 250 car. → **32,7 s** : les phrases de
+longueur normale ne sont donc jamais contraintes (leur rythme naturel reste
+très en deçà).
+
+*À savoir* : les phrases déjà générées **restent baveuses** tant que leur
+fichier de cache existe — les 3 fautives du livre 35 ont été **purgées**
+(copies d'écoute conservées dans `test_voix/ecoute_babil/`) et seront
+régénérées proprement. Le **service doit être redémarré** (le code vit en
+mémoire).
+
+*Vérification sans moteur* : `test_voix/test_borne_babil_xtts.py` (**16
+contrôles** : bornes, plancher/plafond de jetons, rognage de secours, cas
+limites). *Diagnostic* : `_inspecter_phrase_xtts.py` (texte exact envoyé),
+`_tracer_phrase_cache.py` (fichier de cache et durée), `_chercher_babil_cache.py`
+(balayage d'un livre, avec `--purger` pour supprimer les audios fautifs).
+
+**Second filet le même jour — le petit résidu après un silence.** Deuxième
+constat de Laurent : sur `— Non.`, une pause puis un court « babile ». Comme le
+moteur était cette fois **allumé**, la mesure est directe :
+`test_voix/_mesurer_phrases_courtes.py` demande de **vraies synthèses** au
+service et découpe l'audio en segments de parole (blocs de 20 ms, seuil
+`SEUIL_SON`). Résultat, motif identique sur les deux cas gênants :
+
+| Phrase | Parole | Silence | Résidu |
+|---|---|---|---|
+| `Non.` | 0,02-0,28 s | **0,34 s** | 0,62-0,80 s (babil) |
+| `…pour la nuit ?` | 0,00-1,82 s | **0,36 s** | 2,18-2,24 s (micro-résidu) |
+
+Le babil est donc **séparé de la phrase par un silence franc** — on peut le
+couper **dans le silence**, sans jamais toucher à la parole. C'est le rôle de
+`rogner_babil_apres_silence()` (appelée après `rogner_a_duree()` dans
+`_lire_un_morceau()`) : s'il existe un silence ≥ `SEUIL_SILENCE_LONG_S`
+(0,30 s) suivi d'au plus `RESIDU_MAX_S` (0,35 s) de parole, on coupe à la fin
+du segment précédent + la marge de queue habituelle.
+
+Garde-fous : les pauses **internes** d'une phrase sont bien plus courtes
+(0,04 s mesurées) et un long silence suivi d'une **vraie** suite de phrase
+(> 0,35 s) ne déclenche rien ; audio vide et silence total sont renvoyés tels
+quels. *Vérification* : `test_voix/test_rogner_babil_xtts.py` (**12 contrôles**,
+sans moteur, sur les motifs mesurés).
+
+*À savoir* : le moteur est **stochastique** — la même phrase donne des durées
+différentes d'une synthèse à l'autre (0,93 / 1,07 / 1,11 s observées pour
+`Non.`). C'est précisément pourquoi il y a **deux** filets : la borne de
+longueur (dérives longues) et la coupure après silence (petits résidus).
+
 
 ### 🎙️ Voix « écoutables » selon le moteur allumé — session du 14/09/2026
 
@@ -2016,7 +2109,9 @@ c'est seulement une fois prêt que le moteur sait vraiment parler.
 
 **Côté serveur (`main.py`)** :
 - `MOTEURS_VOIX` : table des moteurs lourds (`kyutai`, `xtts`) avec leur nom
-  lisible (affiché à l'écran) et l'URL de leur `/sante` ;
+  lisible (affiché à l'écran), l'URL de leur `/sante`, et — depuis le
+  15/09/2026 — leur **dossier, leur lanceur et les motifs de leur ligne de
+  commande** (voir « Changer de moteur » plus bas) ;
 - `_sante_moteur(url)` → `{actif, pret}` : `actif` = le service répond,
   `pret` = le modèle est chargé ;
 - `etat_moteurs_voix(force=False)` : état des deux moteurs, **gardé 5 s en
@@ -2035,6 +2130,8 @@ c'est seulement une fois prêt que le moteur sait vraiment parler.
   avec la même mémoire de 5 s côté navigateur ;
 - **voyant** `#moteur-etat` sous les réglages du lecteur : « Voix de
   personnages : Kyutai pret » / « chargement en cours… » / « moteur eteint » ;
+  depuis le 15/09/2026 c'est un **bouton** qui ouvre le choix du moteur
+  (voir « Changer de moteur » plus bas) ;
 - dans la fenêtre du casting, `_construireMenuVoix()` distingue désormais
   **trois** cas au lieu de deux : la voix est proposée normalement ; la voix
   appartient à un moteur **non prêt** → groupe « ⚠️ Pas de voix (Kyutai
@@ -2056,11 +2153,11 @@ personnage n'est jamais modifiée ni effacée. Un chapitre **déjà écouté** s
 réécoute donc même moteur éteint (le cache disque répond avant tout appel au
 moteur), et un choix de voix fait à l'oreille n'est jamais écrasé en douce.
 
-**Reste à faire** (voir BACKLOG) : aligner le **pool automatique du casting**
-(`voice_casting.py` attribue les voix Kyutai en priorité — moteur éteint, il
-produirait encore des voix inutilisables) ; installer **XTTS v2 ici** (service
-séparé, port 8083, voir `MEMO_XTTS_v2_pour_Cline.md`) ; puis le **bouton de
-bascule** entre les deux moteurs, qui s'appuiera sur `etat_moteurs_voix()`.
+**Reste à faire** (voir BACKLOG) : le **pool automatique** suit désormais les
+paliers d'étoiles (Edge, puis XTTS v2, puis Kokoro) et **XTTS v2 est installé
+ici** (service séparé, port 8083, voir `MEMO_XTTS_v2_pour_Cline.md`) ; le
+**bouton de bascule** entre les deux moteurs est livré (voir ci-dessous). En
+revanche, rien ne **remplace en silence** la voix d'un personnage.
 
 **Vérifications livrées** : `test_voix/test_voix_ecoutables.py` (12 contrôles
 côté serveur, sans navigateur) et `test_voix/test_voix_ecoutables.js`
@@ -2068,6 +2165,60 @@ côté serveur, sans navigateur) et `test_voix/test_voix_ecoutables.js`
 `/api/moteurs`). Contrôle de bout en bout effectué le 14/09/2026, moteur
 éteint : `/api/moteurs` → les deux moteurs « eteint », `/api/voices` → 100 voix
 dont **0 Kyutai**, Ariane (narrateur) toujours proposée.
+
+### 🎛️ Changer de moteur de voix : un seul à la fois — session du 15/09/2026
+
+Demande de Laurent : « un bouton sur le message qui est aujourd'hui en bas de la
+fenêtre, qui ferait office de switch sur un moteur ou l'autre ». Raison
+technique : les deux moteurs lourds occupent chacun environ 3,8 Go de carte
+graphique (**7,6 Go sur 8** mesurés le 15/09/2026 quand les deux tournaient
+ensemble). Le bouton répond aussi au constat du même jour — **le mauvais moteur
+s'était lancé tout seul** au démarrage.
+
+**Ce que fait le bouton** (il remplace le voyant, au même endroit) :
+1. il affiche l'état — « Voix de personnages : XTTS v2 pret — changer »,
+   « ⏳ … : chargement en cours… », « … moteur eteint — en allumer un » ;
+2. au clic, trois choix : **XTTS v2**, **Kyutai**, **Aucun moteur** ;
+3. pendant le chargement (10 à 20 s), il se rafraîchit **tout seul** toutes les
+   3 s jusqu'à « pret », puis les voix du moteur apparaissent dans les menus.
+   Si une écoute est en cours, la fenêtre prévient qu'elle sera arrêtée.
+
+**Côté serveur — `POST /api/moteur/basculer`** (`basculer_moteur_voix()`) :
+1. **éteint l'autre moteur** s'il tourne, et **attend** que son port soit fermé
+   (`_attendre_extinction`, 20 s au maximum) avant d'aller plus loin ;
+2. **allume** celui qui est demandé (`_relancer_moteur_voix` : même dossier,
+   même lanceur et même titre de fenêtre que `START.bat`) ; un moteur **déjà
+   prêt** ou **en cours de chargement** n'est **pas relancé** ;
+3. **note le choix** dans `data/moteur_voix.txt` — c'est ce fichier que
+   `START.bat` relit au prochain démarrage ;
+4. renvoie l'**état frais** (sans la mémoire de 5 s), pour que le bouton se
+   mette à jour immédiatement.
+
+**Les refus, volontairement bruyants** (le bouton affiche le message) : un
+moteur **non installé** (`_moteur_voix_installe`, même contrôle que `START.bat`)
+n'est pas lancé ; et si l'**autre refuse de s'éteindre**, **rien n'est allumé**
+et le choix n'est pas noté — on ne prend jamais le risque des deux moteurs
+ensemble.
+
+**Pilotage des processus** : `_pids_moteur_voix()`, `_arreter_moteur_voix()` et
+`_relancer_moteur_voix()` ont remplacé les trois fonctions qui ne connaissaient
+que Kyutai — celles-ci restent, sous forme d'enveloppes, pour l'analyse locale
+en repli. On **cible la ligne de commande** (`servir_xtts` / `DEMARRER_XTTS`,
+`servir_kyutai` / `DEMARRER_KYUTAI`) : jamais un python au hasard, et la fenêtre
+du moteur est fermée avec ses enfants (`taskkill /F /T`).
+
+**Garde-fou au démarrage (`START.bat`)** : chaque branche teste d'abord le port
+de **l'AUTRE** moteur. S'il tourne déjà, **rien n'est lancé** et la fenêtre le
+dit (« pour changer de moteur : bouton en bas de la fenêtre du lecteur »). Le
+test `test_voix/test_start_moteur.py` a été complété en conséquence : il vérifie
+que chaque branche teste bien les **deux** ports, **l'autre avant le sien**.
+
+**Vérifications livrées** : `test_voix/test_bascule_moteur.py` (50 contrôles,
+**sans rien lancer** — les deux moteurs sont simulés en mémoire et le fichier de
+réglage est redirigé vers un témoin, remis en place à la fin) et
+`test_voix/test_bouton_moteur.js` (31 contrôles : libellé extrait du **vrai**
+`app.js`, présence du bouton et de la fenêtre de choix dans `index.html`,
+branchements).
 
 ### 🎙️ Moteur XTTS v2 installé comme service séparé — session du 14/09/2026
 
@@ -2327,5 +2478,118 @@ travail d'écoute) et `test_voix/test_ids_ecran.py` (21 contrôles : chaque
 élément cherché par le code existe bien dans la page — l'erreur la plus facile
 à commettre en ajoutant une fenêtre, et la plus pénible à diagnostiquer,
 puisqu'un identifiant manquant tue **tout** le script sans message clair).
+
+### Critères FIXES d'annotation (16/09/2026)
+Demande de Laurent : au lieu d'écrire une note en texte libre (« grave »,
+« cristalline », « nazillarde »…), **on sélectionne dans des listes fermées**.
+Motif : une note libre est illisible par la machine ; des annotations calibrées
+pourront alimenter plus tard l'**attribution assistée des voix** (voir BACKLOG,
+« Attribution des voix assistée »).
+
+Six critères, définis dans `main.py` (**`CRITERES_VOIX`**, seule source de
+vérité) : `age` (enfant / jeune / adulte / mûr / vieux), `timbre` (grave /
+médium / aigu / rocailleux / cristallin / voilé), `debit` (lent / posé /
+normal / vif), `accent` (neutre / paysan / canadien / anglais / allemand /
+espagnol / italien / autre), `registre` (noble / neutre / populaire / savant),
+`role` (narrateur / enfant / vieux / étranger / secondaire). Le **genre H/F**,
+les **étoiles** et la **remarque libre** restent à part : les étoiles restent le
+critère de qualité, la remarque garde les nuances que les listes ne couvrent
+pas.
+
+`GET /api/annotations_voix/criteres` sert ces listes à la page, qui construit
+ses menus avec : le lecteur ne peut donc pas proposer une valeur que le serveur
+refuserait. Le `POST` **refuse (400)** toute valeur hors liste — les
+annotations restent exploitables par la machine. Une annotation **entièrement
+vide** reste supprimée, et une annotation **d'avant** ces critères (14/09) se
+relit sans erreur (critères absents = non renseignés). Le fichier
+`data/annotations_voix.json` a été **sauvegardé avant** la mise en place
+(`.bak_avant_criteres_20260916`).
+
+**Fichiers touchés** : `main.py` (`CRITERES_VOIX`, route `/criteres`, modèle,
+validation), `frontend/app.js` (`_chargerCriteresVoix`, `_construireLigneVoix`,
+`_sauverAnnotationVoix`, `_majStyleCritere`), `frontend/styles.css`
+(`.voice-criteres`).
+
+**Vérifications** : `test_voix/test_annotations_voix.py` (**29 contrôles** :
+listes annoncées, enregistrement, refus des valeurs inconnues, annotation
+remise à zéro, annotation ancienne, redémarrage) et
+`test_voix/test_criteres_voix.js` (**20 contrôles**, sans navigateur) : ce
+dernier **lit les critères dans `main.py`** et vérifie que la page construit
+exactement ces menus et envoie exactement ces clés — une valeur ajoutée d'un
+côté sans l'autre fait échouer le test.
+
+### Attribution des voix par critères (16/09/2026)
+Suite directe des annotations d'écoute : le **re-cast gratuit** (bouton
+« Re-caster », `POST /api/books/{id}/cast/reassign`) ne se contente plus des
+paliers d'étoiles — il **classe les voix selon les annotations de Laurent**.
+
+Classement d'une voix pour un personnage (`_classement_voix`) : **âge** (une
+voix « vieux » pour un personnage âgé, une voix « jeune » pour un jeune), puis
+**timbre** attendu (grave pour les hommes âgés, cristallin/aigu pour les jeunes
+femmes…), puis **étoiles**, puis **débit** ; l'identifiant départage les ex
+æquo, ce qui rend le résultat **déterministe et testable**.
+
+Règles appliquées :
+- les voix notées **0 étoile** sont écartées ;
+- une voix dont le **rôle** est annoté est **réservée** (narrateur, étranger,
+  secondaire → hors pool automatique, comme les voix de rôle NIMM) ; « vieux »
+  et « enfant » restent utilisables quand l'âge du personnage correspond ;
+- **verrous** (case « garder ») et **voix figées de saga** restent
+  prioritaires : ils sont passés en `voix_figees`, comme au casting, et
+  comptent comme voix déjà prises ;
+- les **petits rôles** (< 8 répliques) gardent une voix vide (lus par le
+  narrateur) : seuls les grands rôles consomment une voix dédiée ;
+- si le pool du genre est épuisé, on reprend la mieux classée et on **décale la
+  hauteur** (même mécanisme que l'ancien tri).
+
+**Ignorés volontairement** : le **registre** (137 voix « neutre » pour 1
+« noble ») et l'**accent paysan** (0 voix) — trop peu renseignés pour classer.
+À revoir quand ces critères seront mieux annotés, ou déduits par l'IA (voir
+BACKLOG, « Étape 2 — bouton Re-caster avec l'IA »).
+
+**Correction trouvée en chemin** : l'ancien re-cast forçait l'âge **« adulte »
+en dur** pour tous les personnages ; il relit désormais la table `cast_fiche`,
+sans quoi un classement par âge n'aurait rien pu faire.
+
+**Repli** : `?par_criteres=false` sur la route redonne **exactement** l'ancien
+tri par paliers — pratique pour comparer les deux sur un même livre.
+
+**Aperçu avant application** : `test_voix/_apercu_recaste_criteres.py <book_id>`
+montre, personnage par personnage, l'ancienne et la nouvelle voix (avec leurs
+critères) **sans rien écrire**. Sur « Le Chevalier Errant » : **30 voix
+changeraient sur 59**, et les incohérences disparaissent (Eustace Osgris, âgé,
+passe sur *Victor — vieux/grave/lent* ; l'Œuf, jeune, quitte une voix grave
+d'ancien).
+
+**Fichiers touchés** : `modules/voice_casting.py` (`lire_annotations_voix`,
+`_index_voix`, `_voix_reservee`, `_classement_voix`, `AGES_PAR_PERSONNAGE`,
+`TIMBRES_ATTENDUS`, `DEBITS_ATTENDUS`, `assign_voices(..., par_criteres=True)`)
+et `main.py` (`reassign_voices`).
+
+**Vérifications** : `test_voix/test_attribution_criteres.py` (**27 contrôles**,
+sans écriture en base : classement, rôles réservés, profils types, verrous,
+déterminisme, repli, relecture de `cast_fiche`, cohérence de saga).
+
+**Complément du 16/09/2026 — la cohérence de SAGA au re-cast.** Trouvé en
+préparant le re-cast de la saga Monte-Cristo : `_fetch_saga_voix_figees()` (qui
+reprend les voix des **autres tomes**, le plus ancien ajouté faisant référence)
+n'était appelée que par le **casting complet** (`start_casting`). Le **re-cast
+gratuit** ne reprenait que les **verrous du livre courant** : re-caster le tome 4
+aurait donc donné à Monte-Cristo, Danglars ou Villefort une voix **différente**
+de celle de leur tome 2 — alors que la cohérence entre tomes est protégée depuis
+le 22/08/2026. `reassign_voices` reprend désormais ces voix, exactement comme le
+casting complet ; les **verrous locaux restent prioritaires** (fusion en
+`setdefault` : un verrou du livre re-casté n'est jamais écrasé). À savoir :
+la fiche de saga est lue **avant** la fermeture de la connexion, avec la même
+requête que le casting.
+
+**Ce que le re-cast ne sait PAS faire (constat du même jour)** : deviner qu'un
+personnage est **étranger**. L'attribution ne connaît que le **genre**, l'**âge**
+et les **annotations d'écoute** ; `cast_fiche` n'a aucun champ de nationalité ou
+d'accent. C'est pourquoi les voix dont le **rôle = étranger** sont annotées :
+elles sortent du pool automatique et restent à assigner **à la main**. Pistes
+étudiées (voir BACKLOG) : reléguer les voix accentuées en fin de classement, ou
+laisser l'IA déduire l'accent du texte (étape 2 « Re-caster avec l'IA »).
+
 
 

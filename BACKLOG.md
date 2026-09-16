@@ -11,6 +11,45 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
+- [x] **Babil du moteur XTTS sur les phrases courtes — corrigé** — livré le
+  **16/09/2026**. Constat de Laurent (chapitre 2 du *Chevalier Errant*) : après
+  une réplique de l'aubergiste, près de **4 secondes** de bouillie
+  inintelligible. Le texte envoyé au moteur était **propre** : la cause est le
+  moteur lui-même, **auto-régressif**, qui sur un texte court n'a pas assez de
+  matière pour s'arrêter et **continue d'inventer**.
+  *Mesures* : « Que préférez-vous ? » (19 car.) rendait **9,11 s** au lieu de
+  ~1,4 s ; « — Manger ? » (10 car.) 8,49 s ; « Elles sont toutes à Sorbier. »
+  (28 car.) 6,27 s. Les 3 seules phrases fautives du livre sont les plus
+  **courtes**, et le balayage des **8 autres livres castés** ne trouve **rien** :
+  c'est propre au **clonage XTTS**, jamais aux autres moteurs.
+  *Correction* : bornage de la génération d'après le texte (`max_new_tokens` :
+  19 car. → 3,04 s, 250 car. → 32,7 s) + rognage de secours. Les phrases de
+  longueur normale ne sont jamais contraintes.
+  *Technique* : `xtts_service/servir_xtts.py` (`duree_max_morceau`,
+  `tokens_max_morceau`, `rogner_a_duree`, `_lire_un_morceau`).
+  *Vérification* : `test_voix/test_borne_babil_xtts.py` (**16 contrôles**, sans
+  charger le moteur) ; outils de diagnostic : `test_voix/_inspecter_phrase_xtts.py`
+  (texte exact envoyé au moteur), `_tracer_phrase_cache.py` (fichier de cache
+  et durée réelle), `_chercher_babil_cache.py` (balayage d'un livre, `--purger`).
+  *Purge* : les 3 fichiers de cache fautifs ont été supprimés (copies d'écoute
+  gardées dans `test_voix/ecoute_babil/`) — **le service XTTS doit être
+  redémarré** pour appliquer la correction.
+  **Suite le même jour — il restait « ce genre de bizarreries »** (2ᵉ constat de
+  Laurent : une pause, puis un « babile » après `— Non.`). Mesure sur le moteur
+  **en marche** (`test_voix/_mesurer_phrases_courtes.py`, qui demande de vraies
+  synthèses au service) : `Non.` sort en 1,07 s dont **0,26 s de mot + 0,34 s de
+  silence + 0,18 s de babil**, et `…pour la nuit ?` en 2,51 s dont un
+  micro-résidu de 0,06 s après 0,36 s de silence. Le babil est donc **isolé par
+  un silence franc** : un **second filet** le coupe **dans le silence**
+  (`rogner_babil_apres_silence`, seuils `SEUIL_SILENCE_LONG_S = 0,30 s` et
+  `RESIDU_MAX_S = 0,35 s`). Une phrase normale n'est jamais coupée : ses pauses
+  internes font 0,04 s, et un long silence suivi d'une vraie suite de phrase
+  (plus de 0,35 s) n'est pas touché. *Vérification* :
+  `test_voix/test_rogner_babil_xtts.py` (**12 contrôles**, sans moteur, sur les
+  motifs mesurés). *À savoir* : le moteur est **stochastique** — deux synthèses
+  de la même phrase donnent des durées différentes (0,93 / 1,07 / 1,11 s
+  observées pour `Non.`) : c'est ce qui justifie d'avoir **deux** filets.
+
 - [x] **Rogner les silences de bord des fichiers TTS** — livré le 08/09/2026.
   Mesuré le 08/09/2026 sur les fichiers réels : chaque phrase Edge contient
   ~0,25 s de silence de tête et ~1,0 s de silence de queue. En lecture phrase
@@ -137,6 +176,22 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   qui dit de quel livre il s'agit. *Technique* : `frontend/styles.css`, règles
   mobiles `.book-title` / `.book-author` (`@media (max-width: 640px)`).
 
+- [x] **Couvertures écrasées sur mobile dès que la bibliothèque est remplie**
+  — livré le **16/09/2026** (constat de Laurent : « comme un jeu de cartes qu'on
+  ferait glisser »). Avec assez de livres pour remplir plusieurs lignes de la
+  grille (18 chez Laurent), le navigateur comprimait la hauteur des lignes :
+  chaque vignette était réduite à une bande du tiers haut, largeur intacte, et
+  les cartes se chevauchaient. Avec un ou deux livres, le phénomène était
+  invisible. Les fichiers eux-mêmes étaient sains (18 couvertures valides en
+  base et sur le disque, formats et dimensions normaux).
+  *Technique* : `frontend/styles.css` — `#book-grid` reçoit
+  **`grid-auto-rows: max-content`** : les lignes prennent la hauteur réelle de
+  leur contenu, au lieu de la hauteur minimale d'une carte (vue comme nulle,
+  la vignette ayant un ratio 2/3 qui dépend de la largeur de sa colonne).
+  *Vérification* : `test_voix/test_couverture_mobile.py` (Playwright, sans
+  serveur ni données : injecte le vrai `styles.css`, 12 livres, texte normal
+  puis agrandi) — avant correctif 12/12 cartes écrasées, après 0/12.
+
 - [x] **Barre de lecture : suppression du bouton ⏩ (phrase suivante)** — livré le
   **15/09/2026** (demande de Laurent : il faisait doublon avec ⏭, le paragraphe
   suivant — dans un dialogue, un paragraphe fait souvent une seule phrase).
@@ -170,6 +225,263 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 
 ## 🟠 Priorité 2 — Voix & casting
+
+- [ ] **XTTS : l'INÉGALITÉ du moteur — constat de Laurent, 16/09/2026**
+  Après une écoute longue de Monte-Cristo : « les voix XTTS sont très inégales,
+  même pour une même voix : 3 phrases excellentes, puis il hachure, bafouille,
+  traîne, monte dans les aigus, ou la prosodie part en vrille. Avec Kokoro, la
+  même phrase 50 fois de suite serait lue de la même façon — Kokoro tient mieux
+  la route sur le long terme, même si la qualité brute est discutable. »
+  *Cause, mesurée* : XTTS **échantillonne** (`temperature` 0,75 par défaut) :
+  chaque synthèse est un **nouveau tirage**. Kokoro est **déterministe** par
+  construction. Ce n'est pas une question de qualité, mais de **nature**.
+  Preuves du même jour : `Non.` a donné 0,53 / 0,79 / 1,03 / 1,11 s selon le
+  tirage ; sur 20 tirages de deux phrases, la prosodie jugée « vivante » a varié
+  de 2/6 à 8/10 ; et 5 segments de parole sur une phrase de 18 caractères (le
+  « hachurage » entendu).
+  *Levier jamais testé : la TEMPÉRATURE de génération.* Le service expose
+  désormais des **réglages optionnels** (`temperature`, `top_k`, `top_p`,
+  `repetition_penalty`, `length_penalty`) via `{"reglages": {...}}` dans POST
+  `/tts` — **sans réglage, le comportement ne change pas**. Banc de mesure :
+  `test_voix/_banc_stabilite_xtts.py` (même phrase 5 fois × 3 réglages :
+  défaut / 0,60 / 0,45), qui compare l'**écart de durée** et le nombre de
+  segments. Lanceur double-clic : `test_voix/LANCER_TEST_STABILITE.bat`.
+  **Verdict de Laurent après écoute (16/09/2026) : « c'est presque pire. »**
+  La série `tres_sage` (0,45) est la **plus mauvaise** : « il accélère, il
+  ralentit, les intonations sont étranges ». Et surtout : **à l'oreille, on ne
+  peut pas dire quel extrait a la température la plus haute ou la plus basse** —
+  le réglage n'apporte donc **rien de lisible**. *Conclusion : baisser la
+  température ne stabilise PAS XTTS ; la variabilité est structurelle, pas un
+  simple réglage.* Le moteur **reste en place** (avec ses 79 voix) mais ce n'est
+  pas la solution à long terme : il faudra expérimenter autre chose (voir les
+  pistes ci-dessous et l'item « État de l'art TTS français »).
+  *Note de fond (question de Laurent, 16/09/2026)* : « les voix Edge, c'est
+  comme Kokoro ? La même phrase sera toujours lue de la même façon ? » **Oui** —
+  et c'est la distinction qui explique tout : les moteurs **classiques**
+  (Edge, Kokoro, Piper, MMS, MeloTTS — réseaux non autorégressifs) sont
+  **déterministes** : un texte → un audio ; les moteurs **génératifs** (XTTS,
+  Gemini TTS, NeuTTS — modèles autorégressifs type LLM audio) **échantillonnent**
+  → chaque tirage diffère. Or **le clonage zero-shot vient de la famille
+  générative** : c'est pourquoi « clonage » et « stabilité » sont aujourd'hui en
+  **tension**. La sortie de cette tension passe par le **fine-tuning** d'un
+  moteur déterministe (Piper, par exemple) sur une voix donnée.
+
+- [ ] **Pistes de sortie : des voix personnalisées QUI NE VARIENT PAS**
+  (ouvert le 16/09/2026, après le verdict XTTS). Trois pistes, dans l'ordre de
+  simplicité ;
+  **(1) Entraîner une voix sur un moteur DÉTERMINISTE.** Kokoro est un modèle
+  de type StyleTTS2 : le fine-tuning existe mais **sans recette publique
+  simple** (plusieurs heures d'audio propre + GPU + risque d'abîmer le modèle).
+  **Piper** est la piste réaliste : entraînement **documenté**, résultat
+  **déterministe** et qui tourne **sur processeur**. C'est la seule voie connue
+  pour « ma voix, stable, hors ligne ».
+  **(2) Services Google — tarifs relevés le 16/09/2026**
+  (`cloud.google.com/text-to-speech/pricing` et la doc Gemini TTS) :
+  - **Gemini TTS** (modèles `gemini-2.5-flash-tts`, `-pro-tts`, `3.1-flash-tts`) :
+  voix **prédéfinies** (une trentaine, multi-locuteurs possible pour un
+  dialogue), mais **le style, l'accent, le rythme et le ton se pilotent en
+  langage naturel** — c'est exactement la piste « prosodie adaptée au
+  personnage » née le même jour. Tarif : entrée 0,50 $/M tokens texte,
+  sortie **10 $/M tokens audio** (25 tokens = 1 s d'audio) → environ
+  **0,015 $ la minute d'audio** (≈ 1,4 c€), soit **≈ 9 $ pour 10 heures**.
+  Limites annoncées par Google : qualité qui **dérive au-delà de quelques
+  minutes** (d'où un découpage), erreurs 500 aléatoires (prévoir des reprises)
+  et le modèle peut **lire les instructions** si le prompt est brouillon.
+  - **Cloud TTS classique** : Neural2 **16 $/M caractères**, Chirp 3: HD
+  **30 $/M**, Studio **160 $/M**, WaveNet / Standard **4 $/M**, avec 1 à 4 M de
+  caractères **gratuits** par mois selon la gamme.
+  - **Instant Custom Voice (CLONAGE Google)** : **60 $/M caractères**, à partir
+  d'un extrait de voix **avec consentement**. Le modèle de voix est **entraîné**
+  → clonage **stable**, contrairement à XTTS. Ordre de grandeur : un roman de
+  500 000 caractères ≈ **30 $** ; la saga Monte-Cristo entière (≈ 2,5 M
+  caractères) ≈ **150 $**.
+  **(3) Autres moteurs gratuits** : **NeuTTS-Nano-French** (clonage 3-15 s,
+  194 Mo, **sur processeur** — licence « gated » à accepter et dérive possible) ;
+  **Kyutai TTS 1.6B** (déjà installé, 35 voix françaises natives — stabilité à
+  mesurer).
+  *Fiche NeuTTS-Nano-French, relevée le 16/09/2026 sur le dépôt officiel*
+  (`github.com/neuphonic/neutts` + Hugging Face `neuphonic`) — **c'est la piste
+  retenue par Laurent** :
+  - modèles : `neuphonic/neutts-nano-french` (+ variantes **GGUF Q8/Q4**, plus
+    légères et plus rapides) ; 0,2 B de paramètres ; **tourne sur CPU en temps
+    réel, sans GPU** ; aussi en anglais, espagnol et allemand ;
+  - installation : **`pip install neutts`** (PyPI) — le dépôt fournit
+    `examples/` et un **`TRAINING.md`** (donc fine-tuning possible plus tard) ;
+  - **clonage** : il faut **deux fichiers** — un extrait **`.wav`** (mono,
+    16-44 kHz, **3 à 15 s**, propre, parole continue) **et le texte exact de cet
+    extrait** (contrairement à XTTS, qui n'a pas besoin du texte) ; le dépôt
+    fournit un exemple français : `samples/juliette.wav` ;
+  - ⭐ **POINT CAPITAL — la génération est ÉCHANTILLONNÉE mais avec une GRAINE
+    (seed)** : sans seed, chaque appel tire au hasard ; **avec un seed imposé,
+    mêmes entrées + même seed = audio IDENTIQUE**, sur les deux moteurs (PyTorch
+    et GGUF). C'est précisément « la stabilité de Kokoro avec le clonage »
+    recherchée le 16/09/2026 — **à vérifier à l'oreille** (le seed est imprimé à
+    chaque appel, donc une prise qu'on aime peut être rejouée à l'identique) ;
+  - chaque audio généré porte par défaut un **watermark Perth** (marque
+    inaudible) — bon à savoir avant tout partage.
+  *Reste à faire dans l'atelier NIMM Voix* : installer (`pip install neutts`
+  dans un petit venv), télécharger le modèle français, préparer une référence
+  (3-15 s + son texte), puis **mesurer la reproductibilité avec un seed fixe**
+  (même phrase × 5) et écouter.
+  *Reste à relever au moment du chantier* : la **liste exacte des voix
+  françaises** disponibles chez Google (doc « list-voices-and-types »), le
+  nombre de voix **Gemini TTS** et leur caractère (homme/femme/âge) — au doigt
+  mouillé, non.
+  *Si ça ne suffit pas* — pistes déjà recensées (voir « État de l'art TTS
+  français », priorité 2) : **Kyutai TTS 1.6B** (déjà installé, 35 voix
+  françaises **natives**, pas d'accent forcé → à tester pour la stabilité) ;
+  **NeuTTS-Nano-French** (clonage 3-15 s, 194 Mo, **tourne sur processeur**) ;
+  Piper / MMS-TTS / MeloTTS (déterministes, comme Kokoro, mais peu de voix).
+  ⚠️ **Le vrai choix à poser** : **aucun autre moteur ne sait cloner les voix de
+  Laurent** — Kokoro/Piper/MMS ont des voix figées, et Kyutai exige des
+  empreintes qu'on ne sait pas fabriquer. Abandonner XTTS, c'est abandonner le
+  clonage maison (sauf NeuTTS-Nano, ou un Piper entraîné sur sa voix).
+
+
+- [x] **Critères FIXES d'annotation des voix (listes déroulantes)** — livré le
+  **16/09/2026** (demande de Laurent : « au lieu de noter, je sélectionne les
+  catégories »). La fenêtre « Écouter les voix » gagne, sous chaque voix, une
+  **seconde ligne de menus déroulants** : **âge perçu** (enfant / jeune /
+  adulte / mûr / vieux), **timbre** (grave / médium / aigu / rocailleux /
+  cristallin / voilé), **débit** (lent / posé / normal / vif), **accent**
+  (neutre / paysan / canadien / anglais / allemand / espagnol / italien /
+  autre), **registre** (noble / neutre / populaire / savant) et **rôle réservé**
+  (narrateur / enfant / vieux / étranger / secondaire). Le genre H/F, les
+  étoiles et la remarque libre restent à part ; un critère renseigné se voit
+  (bordure accentuée).
+  *But* : des annotations **calibrées**, lisibles par la machine — c'est la
+  brique préalable à l'attribution assistée (item suivant).
+  *Technique* : listes fermées dans `main.py` (`CRITERES_VOIX`, **seule source
+  de vérité**, servies à la page par `GET /api/annotations_voix/criteres`) ;
+  toute valeur hors liste est **refusée (400)** ; `frontend/app.js`
+  (`_chargerCriteresVoix`, `_construireLigneVoix`, `_sauverAnnotationVoix`,
+  `_majStyleCritere`) et `frontend/styles.css` (`.voice-criteres`).
+  *Vérification* : `test_voix/test_criteres_voix.js` (**20 contrôles**, sans
+  navigateur : il **lit les critères dans main.py** et vérifie que la page
+  construit exactement ces menus et envoie exactement ces clés) et
+  `test_voix/test_annotations_voix.py` (**29 contrôles**, annotations de
+  Laurent sauvegardées puis restaurées). Les annotations d'avant (14/09) se
+  relisent sans erreur. *Sauvegarde faite avant* :
+  `data/annotations_voix.json.bak_avant_criteres_20260916`.
+
+- [x] **Re-cast par critères (gratuit) — étape 1 de l'attribution assistée**
+  — livré le **16/09/2026**. Le bouton « Re-caster » ne se contente plus des
+  étoiles : il classe les voix selon les **annotations d'écoute** de Laurent
+  (âge → timbre → étoiles → débit) et selon l'**âge réel** des personnages,
+  puis attribue la première voix encore libre.
+  *Gains constatés* (aperçu sur « Le Chevalier Errant », 59 personnages :
+  **30 voix changeraient**) : Eustace Osgris (362 répliques, âgé) passe de Rémy
+  à **Victor — vieux / grave / lent** ; Arlan de Pennytree (âgé) reçoit
+  **Papi — vieux / voilé / lent** ; l'Œuf (jeune) quitte une voix **grave**
+  d'ancien pour **Norbert — jeune** ; Rohanne Tyssier et Tanselle passent sur
+  des voix féminines jeunes.
+  *Règles* : aucune voix notée **0 étoile** n'est attribuée ; une voix dont le
+  **rôle** est annoté est **réservée** (narrateur, étranger, secondaire : hors
+  pool automatique), sauf « vieux » ou « enfant » quand l'âge correspond ;
+  **verrous et voix figées de saga** restent prioritaires ; les petits rôles
+  (< 8 répliques) gardent la voix vide (lus par le narrateur). **Registre et
+  accent « paysan »** sont volontairement ignorés : trop peu renseignés
+  (constat sur les 148 voix annotées).
+  *Correction au passage* : l'ancien re-cast forçait l'âge **« adulte » en
+  dur** pour tous les personnages ; il relit désormais la table `cast_fiche`.
+  *Technique* : `modules/voice_casting.py` (`lire_annotations_voix`,
+  `_index_voix`, `_voix_reservee`, `_classement_voix`, `AGES_PAR_PERSONNAGE`,
+  `TIMBRES_ATTENDUS`, `DEBITS_ATTENDUS`, `assign_voices(par_criteres=True)`),
+  `main.py` (`reassign_voices`, âge lu dans `cast_fiche`).
+  *Vérification* : `test_voix/test_attribution_criteres.py` (**27 contrôles**,
+  sans écriture en base) et `test_voix/_apercu_recaste_criteres.py` (aperçu
+  avant/après, lecture seule).
+  *Repli* : `?par_criteres=false` sur `/cast/reassign` redonne exactement
+  l'ancien tri — pratique pour comparer les deux sur un même livre.
+
+- [ ] **Étape 2 — bouton « Re-caster avec l'IA »** (validé le 16/09/2026)
+  À côté du re-cast gratuit (étape 1, ci-dessus), un second bouton
+  « Re-caster avec l'IA » : la fenêtre du casting proposerait donc les deux,
+  le mécanique et l'intelligent.
+  *Ce que l'IA apporte* : elle **comprend un personnage** en lisant le texte.
+  L'âge et le genre sont **déjà** déduits par le casting (table `cast_fiche`),
+  et elle sait déduire en plus la **position sociale**, le **registre de
+  langue**, le fait de **parler étranger** (titres, tournures, mots étrangers)
+  et le tempérament. Ce qu'elle ne peut PAS : entendre un timbre — elle choisit
+  sur **description**, d'où l'importance des critères d'écoute.
+  *Où l'insérer* : comme le re-cast par critères, **sans refaire le casting**
+  (« qui parle » est déjà en base) → ~2 centimes, aucun repaiement. Plus tard,
+  si le résultat plaît : une option au lancement du multi-voix, **greffée sur
+  la passe 2** (coût quasi nul : la fiche des personnages y part déjà). Dans
+  tous les cas : **verrous et voix figées de saga respectés**.
+  *Rappel de coût* : un casting complet d'un livre fait ~0,20 à 0,35 €
+  (mesuré : 0,33 € pour « Le Chevalier Errant », 16/09/2026) ; la passe
+  d'attribution seule est estimée à **1-3 centimes**.
+
+- [x] **Re-cast : la cohérence de SAGA est désormais préservée** — livré le
+  **16/09/2026** (trouvé en préparant le re-cast de Monte-Cristo par Laurent, qui
+  s'appuie sur son **tome 2** comme référence de la saga).
+  *Le problème* : `_fetch_saga_voix_figees()` (les voix des autres tomes, le plus
+  ancien ajouté faisant référence) n'était appelée que par le **casting complet**.
+  Le **re-cast gratuit** ne reprenait que les **verrous du livre courant** :
+  re-caster le tome 4 aurait donné à Monte-Cristo, Danglars ou Villefort une voix
+  **différente** de celle de leur tome 2 — la saga partait en morceaux, alors que
+  c'est justement ce que le projet protège depuis le 22/08/2026.
+  *Correction* : `reassign_voices` reprend maintenant les voix des autres tomes,
+  exactement comme le casting complet. Les **verrous locaux restent
+  prioritaires** : un personnage verrouillé dans le livre re-casté n'est jamais
+  écrasé par la fiche de saga (écriture en `setdefault`).
+  *Vérification* : `test_voix/test_attribution_criteres.py` vérifie désormais que
+  le re-cast appelle bien `_fetch_saga_voix_figees`.
+
+- [ ] **Re-cast : ne pas distribuer les voix à ACCENT au hasard** (constat de
+  Laurent, 16/09/2026). Question posée : « les Cavalcanti vont-ils recevoir une
+  voix italienne ? » Réponse : **non** — l'attribution des voix n'utilise jamais
+  l'IA (ni au casting, ni au re-cast) : elle ne connaît que le **genre**, l'**âge**
+  et les **étoiles/annotations**. La fiche des personnages (`cast_fiche`) ne
+  contient **aucune** information de nationalité ou d'accent.
+  *Ce qui se passe aujourd'hui* : les voix **étrangères** (Kokoro `im_`, `em_`,
+  `fm_`, `pm_`, `hm_`, `jm_`, et les voix Edge `fr-CA-*`) parlent français
+  **avec un accent**. Deux origines bien distinctes, à ne pas confondre :
+  (1) **le choix de Laurent** — c'est **lui** qui a assigné à la main les voix
+  italiennes et espagnoles aux personnages concernés (Cavalcanti, Bertuccio,
+  Haydée, Ali-Tebelin, Vampa, Peppino, l'abbé Faria…) : rien d'automatique, et
+  c'est du travail qu'il ne veut pas perdre ;
+  (2) les **attributions automatiques** — quand le pool neutre s'épuise (livres
+  à 60-175 personnages), les voix accentuées restantes sont distribuées sans que
+  personne ne l'ait demandé.
+  Mesure du 16/09/2026 sur la saga Monte-Cristo
+  (`test_voix/_personnages_a_accent.py`) : **307 personnages** portent une voix
+  accentuée, dont seulement **38 verrouillés**.
+  ⚠️ **Piège à connaître** : assigner une voix **à la main ne la protège pas** —
+  seul le **verrou** (case « garder ») survit à un re-cast.
+  *Risque* : un re-cast redistribue toutes les voix **non verrouillées** → ces
+  accents (justes ou non) seraient perdus, et l'accent pourrait tomber sur des
+  personnages français. À l'inverse, les voix dont le **rôle** est annoté
+  `étranger` (18 voix, dont `im_nicola`, `em_santa`) sont **exclues du pool
+  automatique** : elles ne partiront pas au hasard.
+  *Pistes, dans l'ordre de simplicité* : (1) **verrouiller** à la main les
+  personnages étrangers qui comptent (l'outil `_personnages_a_accent.py` les
+  liste livre par livre) ; (2) dans `_classement_voix`, **reléguer les voix
+  accentuées en fin de classement** pour les personnages dont on ne sait rien,
+  afin qu'un accent ne tombe pas sur un Français par épuisement du pool ;
+  (3) **étape 2 (« Re-caster avec l'IA »)** : le LLM lit le texte et peut
+  déduire qu'un personnage parle étranger — il faudrait alors ajouter un champ
+  d'accent à la fiche des personnages. À trancher avec Laurent.
+
+- [ ] **Piste : donner un caractère « chantant » ou « plat » à un personnage**
+  — idée de Laurent, 16/09/2026, née des tests sur le point final (« dans une
+  narration, parfois le côté plat fait partie de la prosodie adaptée » ; « on
+  pourrait forcer un peu le côté chantant d'un personnage… à voir »).
+  *Ce qui existe déjà, gratuitement* : le **re-cast par critères** choisit la
+  voix d'après les annotations d'écoute — un personnage qu'on veut vivant peut
+  déjà recevoir une voix notée `debit = vif` avec le timbre adapté.
+  *Ce qui manquerait pour aller plus loin* : l'expressivité **d'un tirage** ne se
+  règle pas aujourd'hui. Il faudrait exposer les paramètres de génération du
+  moteur XTTS (`temperature`, `length_penalty`), les faire passer du lecteur au
+  service, les stocker par personnage (table `voices`) et les rendre réglables
+  dans la fenêtre du casting. **Chantier complet** : à ouvrir seulement si le
+  besoin se confirme à l'usage.
+  *À savoir* : les deux tests à l'aveugle du 16/09/2026 montrent que la prosodie
+  d'un tirage **varie beaucoup** d'un essai à l'autre (moteur stochastique) — un
+  réglage par personnage agirait donc sur une **tendance**, jamais sur chaque
+  phrase. Et le côté plat n'est pas un défaut : c'est parfois la bonne couleur.
+
 - [ ] **Voix XTTS créées à partir d'extraits LIBRES DE DROITS (chantier de
   Laurent, ouvert le 15/09/2026)** — *en cours, décision de Laurent : ajout au
   catalogue **groupé à la fin***.
@@ -343,9 +655,10 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   lancé). Ce fichier de réglage servira aussi de socle au **bouton de
   bascule** (item suivant).
 
-- [ ] **Bouton de bascule entre les moteurs de voix (Kyutai ↔ XTTS v2)** —
-  idée de Laurent, 14/09/2026. Un seul moteur à la fois : **allumer l'un
-  éteint l'autre** (les deux ne tiennent pas ensemble sur la carte graphique).
+- [x] **Bouton de bascule entre les moteurs de voix (Kyutai ↔ XTTS v2)** —
+  **LIVRÉ le 15/09/2026** (récap en fin d'item). Idée de Laurent, 14/09/2026.
+  Un seul moteur à la fois : **allumer l'un éteint l'autre**
+  (les deux ne tiennent pas ensemble sur la carte graphique).
   **Quand lancer un moteur ? — réponse de Laurent (14/09/2026) : le DERNIER
   moteur utilisé se rallume au lancement de NIMM ePub.** Mise en œuvre
   retenue : un petit fichier de réglage `data\moteur_voix.txt` (valeurs
@@ -370,6 +683,30 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   `_pids_moteur_kyutai()`) ; **ne jamais interrompre une génération en cours**
   (les demandes sont mises en file une par une) ; prévenir que la lecture
   s'arrêtera si la voix en cours appartenait à l'autre moteur.
+  **Livré le 15/09/2026.** Le **voyant du bas de la fenêtre de lecture est
+  devenu le bouton** — idée de Laurent : « un bouton sur le message qui est
+  aujourd'hui en bas de la fenêtre, qui ferait office de switch ». Il affiche
+  l'état (« Voix de personnages : XTTS v2 prêt — changer »), et au clic propose
+  **XTTS v2**, **Kyutai** ou **aucun moteur** (le choix « aucun » permet de
+  démarrer sans moteur lourd, comme le prévoyait la conception). Le serveur
+  **éteint l'autre moteur** et **attend qu'il ait rendu la carte graphique**
+  (port fermé, 20 s au maximum) avant d'allumer le nouveau — donc plus jamais
+  7,6 Go sur 8. Un moteur **déjà prêt** ou **en cours de chargement** n'est pas
+  relancé. Le choix est **noté** dans `data\moteur_voix.txt` : c'est ce que
+  `START.bat` rallume au prochain démarrage. Un moteur **non installé** est
+  refusé avec un message à l'écran, et si l'autre **refuse de s'éteindre**,
+  **rien n'est allumé** (on ne tente jamais les deux ensemble). Pendant le
+  chargement (10 à 20 s), le bouton se rafraîchit **tout seul** jusqu'à
+  « prêt », puis les voix du moteur apparaissent dans les menus. Si une écoute
+  est en cours, la fenêtre **prévient avant** qu'elle sera arrêtée. *Technique* :
+  `POST /api/moteur/basculer` → `basculer_moteur_voix()` (main.py),
+  `_pids_moteur_voix()` / `_arreter_moteur_voix()` / `_relancer_moteur_voix()`
+  (les trois fonctions Kyutai restent, en enveloppes, pour l'analyse locale),
+  côté écran `_libelleMoteur()`, `_ouvrirMoteurModal()`, `_basculerMoteur()`,
+  `_surveillerMoteur()`, et la fenêtre `#moteur-modal`. *Vérification* :
+  `test_voix/test_bascule_moteur.py` (**50 contrôles, aucun moteur lancé** : les
+  deux sont simulés en mémoire) et `test_voix/test_bouton_moteur.js`
+  (31 contrôles). Détails dans ARCHITECTURE.md.
 
 - [ ] **Édition du pitch par personnage dans la fenêtre du casting**
   (Déjà listé dans ARCHITECTURE, « pistes ouvertes ».) La colonne `pitch`
@@ -675,13 +1012,118 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   pourtant 01 a un défaut d'attaque que 02 n'a pas — le moteur n'est pas
   parfaitement répétable. Conséquence : ne pas chercher à corriger un fichier
   précis, et ne pas confondre un défaut du code avec du bruit de génération.
+  **Reprise du 16/09/2026 — banc d'écoute prêt.** Depuis ce constat, deux
+  correctifs sont passés (bornage anti-babil + coupure du résidu après un
+  silence) : l'état réel n'est donc plus celui du 15/09. Un **banc d'écoute**
+  régénère les cas pièges **avec le code d'aujourd'hui**, sur **deux voix**
+  contrastées (une aiguë vive, une grave posée) :
+      python test_voix/_banc_ecoute_xtts.py      (moteur XTTS allumé)
+  Il écrit `test_voix/ecoute_xtts_<date>/` avec les WAV numérotés, un
+  `index.txt` (phrase + ce qu'on cherche à entendre) et un lanceur
+  `ECOUTER_LE_LOT.cmd` en double-clic. Les cas : **A** attaque après retrait
+  des guillemets, **B** incise avec tiret (remplacé par une virgule),
+  **C** tiret cadratin en tête, **D** `Non.` (ultra-court), **E** fin de phrase.
+  *Mesures du 16/09/2026* (à confronter à l'écoute) : **A** : 0,89 s propre avec
+  Yvette, mais **2,23 s et 5 segments** avec Augustin ; **C** : **résidu de
+  0,86 à 0,94 s** pour les deux voix (au-dessus du seuil de coupure de
+  0,35 s, donc conservé) ; **D** : propre avec Yvette, **4 segments** avec
+  Augustin ; **E** : 4,59 s avec Augustin (un peu long). **En attente** : le
+  verdict de Laurent sur les 10 fichiers — c'est lui qui décide quels cas
+  méritent un remède (le tiret d'incise conservé est la piste la plus simple).
+  *Banc régénéré le même jour après redémarrage du service* (donc avec les deux
+  correctifs actifs) : le gain est net — **A** avec Augustin passe de 2,23 s /
+  5 segments à **0,93 s / 1 segment**, **D** de 0,79 s à **0,53 s**, **E** de
+  4,59 s à **3,25 s**, et le résidu du **C** disparaît avec Augustin.
+  Restent deux résidus de **~0,8 s** (C avec Yvette, B avec Augustin), au-dessus
+  du seuil de coupure : à juger à l'oreille. *Rappel* : le moteur est
+  stochastique, deux tirages de la même phrase ne donnent pas le même résultat.
+  *Lanceur créé pour Laurent* : `test_voix/LANCER_BANC_ECOUTE_XTTS.bat`
+  (double-clic ; il vérifie que le moteur XTTS est allumé).
+  **Défaut supplémentaire trouvé le 16/09/2026 — le moteur PRONONCE le point
+  final.** Écoute de Laurent sur `B_incise_dp_femme003.wav` : « la voix lit
+  *point* à la fin de sa phrase : … au pied de la tour **[point]**, quasiment
+  pas de pause entre "tour" et "point" ». C'est le même travers que pour les
+  guillemets (XTTS ne sait pas *ignorer* la ponctuation, il essaie de la
+  prononcer) — et c'est **intermittent** (moteur stochastique).
+  *Comparaison A/B préparée* : `test_voix/_banc_point_final.py` envoie la même
+  phrase **avec** puis **sans** son point final, 3 fois chacune, sur deux fins
+  de phrase (12 fichiers dans `test_voix/point_final_<date>/`). **A** = avec le
+  point (ce que le lecteur envoie aujourd'hui), **B** = sans. *Mesures du
+  16/09/2026* : un tirage **A** (3ᵉ répétition de la phrase du constat) part en
+  **2,20 s** de résidu — le cas à écouter — tandis que la plupart des autres
+  tirages sont propres des deux côtés, ce qui confirme l'aspect aléatoire.
+  *Décision attendue* : si les **B** disent la phrase sans « point » **et**
+  gardent une vraie fin de phrase (pas d'intonation montée, pas de mot coupé),
+  alors on retire le **point final** dans `nettoyer_pour_xtts()` (une ligne,
+  avec un test) — les `?` et `!` sont conservés, ils portent l'intonation.
+  *Premier verdict de Laurent (banc A/B)* : **aucun « point » prononcé** dans
+  les 12 fichiers (donc Yvette ne le fait pas toujours : c'est bien
+  intermittent). Mais il a repéré autre chose, plus fin : la **prosodie**.
+  Sur `accuse_r1_A_avec_point` la voix « descend partout » (plate) alors que
+  `accuse_r1_B_sans_point` **bouge** (montées sur « enfin », « marche »).
+  *Test à l'aveugle pour trancher* (`test_voix/_banc_aveugle_point_final.py`,
+  12 échantillons mélangés, 6 avec le point, 6 sans, correspondance cachée) :
+  classement de Laurent — **vivants** = 01, 03, 05, 07, 08, 10 ;
+  **plats** = 02, 04, 06, 09, 11, 12.
+  *Croisement* : **sans le point → 4 vivants sur 6**, **avec le point →
+  2 sur 6**. Tendance en faveur du retrait, mais **insuffisante pour conclure**
+  (à 6 contre 6, un 4-2 peut venir du hasard). *Analyse plus parlante* : en
+  regroupant par PHRASE, la phrase du constat est jugée vivante 2 fois sur 6 et
+  la phrase témoin 4 fois sur 6 — **la variabilité entre phrases et entre
+  tirages pèse plus que la ponctuation finale**. Laurent précise que même les
+  tirages « plats » sont « d'une qualité remarquable » : l'écart ne porte que
+  sur une prosodie moins « chantante ».
+  *Ce qui reste acquis* : le point final peut être **prononcé** (« point ») de
+  façon intermittente — défaut réel, entendu une fois ; le retirer supprime ce
+  risque sans dégrader la prosodie (aucune perte constatée sur 12 échantillons).
+  *Verdict du test LARGE (20 tirages, phrases groupées — demande de Laurent)* :
+  même phrase 10 fois de suite, variantes toujours mélangées et cachées.
+  Classement de Laurent — **vivants** : A03, A06, A08, A10, B01, B03, B04, B05,
+  B07, B10 ; **plats** : A02, A04, A07, A09, B02, B06, B08, B09 ; deux cas
+  particuliers (**A01 et A04**) finissent « comme une interrogation ».
+  Croisement (outil `test_voix/_depouiller_point_final.py`) :
+  **AVEC le point → 7 vivants / 2 plats** ; **SANS le point → 3 vivants /
+  6 plats** — et la tendance tient **dans les deux séries séparément**.
+  **Conclusion : l'hypothèse « le point final bride la prosodie » est
+  DÉMENTIE.** Les deux tests se contredisent : aucun effet démontré, et si effet
+  il y a, il irait plutôt dans l'autre sens (le point aiderait).
+  *Décision : on NE retire PAS le point final.* Aucun bénéfice démontré, et le
+  risque associé (« point » prononcé) est **rare** : entendu une seule fois sur
+  une trentaine de tirages, et pas du tout dans le test large.
+  *Remarques de Laurent, à garder* : (1) le côté « plat » **n'est pas un défaut**
+  — « dans une narration, parfois le côté plat fait partie de la prosodie
+  adaptée » ; (2) deux tirages finissent « comme une interrogation » alors que la
+  phrase est déclarative (A01 avec le point, A04 sans) : défaut intermittent,
+  **indépendant du point final**, à surveiller ; (3) **piste à explorer un jour**
+  : « forcer un peu le côté chantant d'un personnage ». Les leviers réels sont
+  l'**extrait de référence** (XTTS imite son style : une référence vive donne un
+  clone vif — c'est déjà ce que font les critères `debit` et `timbre` du
+  re-cast) et les **paramètres de génération** du moteur (`temperature`,
+  `length_penalty`), aujourd'hui **non exposés**. À ouvrir comme un chantier à
+  part entière, pas à improviser.
 
-- [ ] **Notes « stars » définitives pour les 35 voix XTTS v2** (14/09/2026).
-  Les notes actuelles sont **provisoires** : elles ont été recopiées des voix
-  Kyutai correspondantes, puisque XTTS clone **les mêmes extraits** (mêmes
-  identifiants, mêmes prénoms, seul le libellé change : « 🇫🇷 France (XTTS) »).
-  Or le rendu du clonage peut différer de celui de Kyutai → à corriger après
-  le **lot d'écoute** des 35 voix (étape restante de l'item XTTS, plus haut).
+- [x] **Notes « stars » définitives pour les 35 voix XTTS v2** — livré le
+  **16/09/2026**, et bien au-delà : les notes **provisoires** (recopiées de
+  Kyutai le 14/09) sont remplacées par les **notes d'écoute réelles** de
+  Laurent, prises dans la fenêtre « Écouter les voix » (ce sont ses
+  **148 annotations**, dont 140 avec les six critères fixes).
+  *Report dans les catalogues* (outil existant
+  `test_voix/_appliquer_annotations_voix.py`, aperçu puis `--ecrire` suivis
+  d'une copie datée des deux fichiers) : **12 changements** appliqués —
+  `main.py` (1) et `modules/tts.py` (11). Les voix **écartées** (0 étoile)
+  passent de 0 à **4** : `kokoro:ff_pauline`, `kokoro:fm_camille`,
+  `kokoro:fm_hugo` et `piper:tom:0` — elles sortent du **pool automatique du
+  casting** (elles restent sélectionnables à la main). Deux voix montent à
+  3 étoiles (Gerard en Edge, Aurore et Lucas en Kokoro), et Célestin
+  (« accent paysan ») redescend à 1 étoile après réécoute.
+  *Piège évité au passage* : `piper:tom:0` sert de constante `GENERIC_VOICE_M`
+  dans `modules/voice_casting.py` — mais elle **n'est plus utilisée** depuis le
+  15/09/2026 (les petits rôles sont lus par le narrateur). Si un jour on
+  redonne une voix aux petits rôles, il faudra choisir une autre voix que Tom.
+  *Test remis à jour au passage* : `test_voix/test_libelles_voix.py` échouait
+  **depuis le 15/09** (il réclamait une voix non vide pour chaque personnage,
+  alors que les petits rôles ont une voix vide **par décision**) : il ignore
+  désormais ces lignes et les compte au lieu de les signaler comme orphelines.
   *Rappel licence* : le modèle XTTS v2 est en **CPML (usage non commercial)**,
   l'audio produit suit la même règle — voir `xtts_service/ATTRIBUTION.md`.
 
@@ -1645,6 +2087,34 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   (VoxPopuli CC0, domaine public) est partageable ; une voix clonée depuis un
   enregistrement sous droits ne l'est pas.
 
+  **Verdict de Laurent (15/09/2026) — le chantier Piper est CLOS.** Après avoir
+  écouté **plus de 100 voix Piper** : « lamentables, très très mauvais,
+  inutilisable pour NIMM ePub ». Décision : **on n'investit plus dans Piper**
+  (ni nouveaux modèles communautaires, ni entraînement) — le chantier
+  « fabriquer des voix » reste ouvert **sur Kokoro seulement**, « un jour »,
+  sans aucune urgence (« j'ai l'impression que le fine tuning est plus
+  accessible », et c'est exact : une voix Kokoro est un vecteur de 256 nombres,
+  le reste du modèle reste gelé).
+  *À savoir* : les **4 voix Piper** encore proposées dans les menus ne servent
+  plus à rien depuis le 15/09/2026 — les petits rôles sont désormais lus par le
+  narrateur (voir « Distribution fine des petits rôles ») et Piper est hors du
+  pool automatique. Les retirer des menus n'aurait donc **aucune conséquence**
+  sur le casting ; elles resteraient dans le **catalogue complet**, qui sert à
+  **nommer** les voix des livres déjà castés.
+  **Décision de Laurent (15/09/2026) : on les LAISSE dans les menus** (« elles
+  ne servent plus mais elles ne font pas de mal »). Le chantier Piper étant clos,
+  les retirer ne rapporterait rien. À reprendre seulement si un jour la liste
+  des voix devient pénible à parcourir sur mobile — cela relève alors de l'item
+  « Regroupement `<optgroup>` des voix par pays dans les menus ».
+
+  **Usage d'XTTS v2 : assumé, privé, et c'est le bon choix** (15/09/2026).
+  Verdict de Laurent : « mes livres, mes voix, et mes oreilles ». Sa licence
+  étant **non commerciale**, l'audio produit ne doit **jamais** être publié ni
+  partagé — mais tant que NIMM ePub reste **privé**, il n'y a **aucune**
+  conséquence, et c'est le moteur qui donne les meilleurs résultats à l'oreille.
+  À ne pas oublier le jour où le projet s'ouvrira : voir l'item « PARTAGE :
+  quelles voix peut-on laisser dans un dépôt public ? ».
+
 - [ ] **État de l'art TTS français — recherche du 14/09/2026** (pour sortir de
   l'accent des voix Kokoro). Constat de départ : Kokoro est un modèle
   **anglais** dont on force la prononciation ; seuls les timbres du pack
@@ -1779,7 +2249,31 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🟡 Priorité 3 — Robustesse & architecture
 
-- [ ] **Le mauvais moteur de voix peut se lancer tout seul** — constat de
+- [x] **Ménage : environnements de moteurs dupliqués retirés de l'atelier** —
+  livré le **16/09/2026**, à la demande de Laurent (« pour ne pas faire de
+  doublons partout, dans 2 dossiers différents »).
+  *Vérification préalable* : **aucun code de NIMM ePub ne dépend de l'atelier
+  NIMM Voix**. Les 6 fichiers qui citent « NIMM Voix » sont des **commentaires**
+  (méthode reprise, licences) et le **libellé** `France (NIMM Voix)` porté par
+  30 voix Kokoro. Les deux moteurs existaient en double, à la taille près :
+  `outils\xtts_tts\.venv` (7,7 Go) face à `xtts_service\.venv` (7,7 Go), et
+  `outils\kyutai_tts\.venv` (4,4 Go) face à `kyutai_service\.venv` (4,4 Go).
+  *Fait* : suppression des **deux seuls `.venv`** de l'atelier → **12,1 Go
+  libérés** (disque G: passé à 85,5 Go libres). Les **modèles** (XTTS 2 Go,
+  Kyutai 3,8 Go) vivent dans le **cache partagé** de Windows : rien à
+  re-télécharger. Le service XTTS de NIMM ePub a continué de tourner pendant
+  l'opération (vérifié après : 79 voix, toujours prêt).
+  *Conservé volontairement dans l'atelier* : les scripts d'atelier,
+  `reference` (extraits de voix), la banque Kyutai `voix_fr`,
+  **`whisper-large-v3`** (2,9 Go — indispensable pour préparer un dataset
+  d'entraînement), les corpus, `training`, `voicepack_train`, les voix générées
+  et validées.
+  *Trace* : un encadré en tête de `MEMO_XTTS_v2_pour_Cline.md` prévient que les
+  chemins vers les `.venv` de l'atelier **n'existent plus** (utiliser
+  `xtts_service\.venv`), pour qu'on ne cherche pas un environnement fantôme.
+
+- [x] **Le mauvais moteur de voix peut se lancer tout seul** — **RÉGLÉ le
+  15/09/2026** (récap en fin d'item). Constat de
   Laurent (15/09/2026) : au démarrage, **Kyutai** s'est lancé alors que le
   lecteur affichait « Voix de personnages : XTTS v2 prêt » — donc le réglage
   `data/moteur_voix.txt` (qui contenait bien `xtts`) n'a pas été suivi.
@@ -1799,6 +2293,20 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
      **rien n'empêche deux moteurs différents** de tourner ensemble : c'est
      peut-être le vrai garde-fou à ajouter (éteindre l'autre moteur, ou
      refuser de démarrer, avec un message clair).
+  **Traité le 15/09/2026, avec le bouton de bascule.** Les pistes 1 et 3 n'ont
+  pas été touchées (les lanceurs continuent d'écrire le réglage : c'est ce qui
+  fait revenir le DERNIER moteur utilisé, voulu par Laurent) ; c'est la piste 4
+  qui a été retenue, et appliquée **des deux côtés** :
+  **(a) au démarrage** — `START.bat` teste maintenant le port de **l'autre**
+  moteur **avant** de lancer le sien : si l'autre tourne déjà, il ne lance rien
+  et le dit. C'est exactement la situation du 15/09 : Kyutai allumé à la main
+  plus tôt dans la journée, puis choix « xtts » au démarrage suivant ;
+  **(b) à chaud** — le bouton de bascule **éteint toujours l'autre avant
+  d'allumer**, et refuse d'allumer quoi que ce soit si l'extinction échoue.
+  Conséquence attendue : plus jamais **7,6 Go de carte graphique sur 8** sans
+  que Laurent l'ait demandé. *Vérification* : `test_voix/test_start_moteur.py`
+  (chaque branche teste bien les deux ports, l'autre avant le sien) et
+  `test_voix/test_bascule_moteur.py` (50 contrôles, aucun moteur lancé).
 
 
 
@@ -1820,8 +2328,28 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   Petite vue/endpoint pour connaître la taille du cache et le vider
   manuellement si besoin.
 
-- [ ] **Nettoyage de `test_voix/`** (scripts de dev obsolètes, aucune
-  urgence).
+- [x] **Sécuriser et documenter `test_voix/`** — livré le **16/09/2026**
+  (demande de Laurent : « je me perds un peu » ; chantier choisi : rangement +
+  sécurisation). Constat : le dossier compte **106 fichiers** (52 tests, 41
+  outils d'atelier, des journaux), et surtout **un script appelait de vraies API
+  payantes sous un nom qui ressemblait à un test** (`test_attribution.py`) — avec
+  un **lanceur en double-clic** au titre anodin. Le guide le disait déjà
+  (`CONTRIBUER.md`) mais **rien ne l'appliquait techniquement**.
+  *Fait* : (1) renommé `_PAYANT_test_attribution_api.py` + lanceur
+  `_PAYANT_lancer_test_attribution.bat`, pour que le danger se voie dans
+  l'explorateur ; (2) le script **refuse de partir sans `--je-paie`** (message
+  clair, code de sortie 2) et le lanceur **demande confirmation** ; (3)
+  `test_voix/LIRE_MOI.md` : en une page, quels fichiers sont des tests (sans
+  risque), quels sont des outils de diagnostic (lecture seule), quelles données
+  ne pas supprimer — et la distinction entre le **seul script payant** et les
+  **3 scripts à IA locale** (Ollama, gratuits mais qui occupent la carte
+  graphique) ; (4) `CONTRIBUER.md` mis à jour (liste des vérifications enrichie
+  des 4 nouveaux tests).
+  *Vérification* : `test_voix/test_lire_moi.py` (**10 contrôles**) — aucun
+  fichier cité par le mode d'emploi n'a disparu, le script payant est bien
+  protégé, les anciens noms n'existent plus.
+  *Reste en option* : supprimer les scripts d'atelier vraiment obsolètes — rien
+  n'a été supprimé ici, la sécurisation suffisait.
 
 - [ ] **Hygiène du dépôt : clés d'API en clair, dépendances non figées, doc
   en retard** (constat de l'atelier NIMM Voix, 12/09/2026).
@@ -2077,6 +2605,11 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 ---
 
 ## ✅ Déjà livré (pour mémoire)
+
+- **Bouton de bascule des moteurs de voix** (15/09/2026) : le voyant du bas de
+  la fenêtre de lecture est devenu un bouton (XTTS v2 / Kyutai / aucun), avec
+  la règle « un seul moteur à la fois » appliquée côté serveur **et** dans
+  `START.bat`. Récap complet dans l'item du BACKLOG et dans ARCHITECTURE.md.
 
 - **Fenêtres des moteurs : journal allégé** (15/09/2026). Deux bruits voisins
   retirés des consoles de `servir_xtts.py` et `servir_kyutai.py` : l'alerte de

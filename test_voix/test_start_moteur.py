@@ -110,11 +110,27 @@ def test_garde_fou_deja_en_marche():
     for port in ('8083', '8082'):
         verifier('le port %s est teste avant tout lancement' % port,
                  ('127.0.0.1:%s/sante' % port) in source)
-    verifier('deux tests du port, un par moteur',
-             source.count('if not errorlevel 1 (') == 2,
+    # Depuis le 15/09/2026 chaque branche teste AUSSI l'autre moteur : sans
+    # cela, un moteur lance a la main plus tot dans la journee et le moteur
+    # choisi pouvaient tourner ensemble (7,6 Go de carte graphique sur 8).
+    verifier('quatre tests de port, deux par branche',
+             source.count('if not errorlevel 1 (') == 4,
              source.count('if not errorlevel 1 ('))
+    xtts   = source.split(':moteur_xtts', 1)[1].split(':moteur_kyutai', 1)[0]
+    kyutai = source.split(':moteur_kyutai', 1)[1].split(':lecteur', 1)[0]
+    for nom, moi, autre, bloc in (('XTTS v2', '8083', '8082', xtts),
+                                  ('Kyutai',  '8082', '8083', kyutai)):
+        verifier('%s : teste les deux ports' % nom,
+                 ('127.0.0.1:%s/sante' % moi) in bloc
+                 and ('127.0.0.1:%s/sante' % autre) in bloc)
+        verifier("%s : l'autre moteur est teste AVANT le sien" % nom,
+                 bloc.index('127.0.0.1:%s/sante' % autre)
+                 < bloc.index('127.0.0.1:%s/sante' % moi))
+        verifier('%s : rien n\'est lance si l\'autre tourne' % nom,
+                 'goto lecteur' in bloc)
     verifier('les deux environnements sont verifies avant de lancer',
              'xtts_service\\.venv' in source and 'kyutai_service\\.venv' in source)
+
 
 
 def test_parentheses_dans_les_blocs():

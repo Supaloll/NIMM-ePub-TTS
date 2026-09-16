@@ -4,17 +4,25 @@
 A lancer avec le Python du LECTEUR :
     python test_voix/test_annotations_voix.py
 
-Ce que le script verifie (session du 14/09/2026) :
+Ce que le script verifie (session du 14/09/2026, etendue le 16/09/2026) :
   1. la lecture des notes est vide tant que rien n'a ete annote ;
   2. une note s'enregistre et se relit ;
   3. une note entierement vide est SUPPRIMEE (le catalogue reprend la main) ;
   4. un appel sans identifiant de voix est refuse (400) ;
-  5. le fichier de notes survit a un redemarrage du serveur.
+  5. les criteres FIXES (age, timbre, debit, accent, registre, role) sont
+     annonces par le serveur -- c'est cette liste qui alimente les menus ;
+  6. les criteres s'enregistrent et se relisent, sans toucher aux etoiles ;
+  7. une valeur hors liste est REFUSEE (400) : les annotations restent
+     calibrees, lisibles par l'attribution automatique des voix ;
+  8. une annotation remise a zero disparait entierement ;
+  9. une annotation d'AVANT les criteres (14/09) reste lisible telle quelle ;
+ 10. le fichier de notes survit a un redemarrage du serveur.
 
 IMPORTANT : les notes de Laurent sont SAUVEGARDEES puis RESTAUREES a la fin.
 Ce test ne doit jamais effacer un travail d'ecoute.
 """
 
+import json
 import os
 import sys
 
@@ -85,7 +93,76 @@ def verifications():
                  reponse.status_code)
 
         print('')
-        print('5) les notes survivent a un redemarrage du serveur')
+        print('5) les criteres FIXES sont annonces par le serveur')
+        criteres = client.get('/api/annotations_voix/criteres').json()
+        cles = [c.get('cle') for c in criteres]
+        verifier('les 6 criteres, dans l ordre',
+                 cles == ['age', 'timbre', 'debit', 'accent', 'registre', 'role'],
+                 cles)
+        verifier('chaque critere a un libelle et des valeurs',
+                 all(c.get('libelle') and c.get('valeurs') for c in criteres),
+                 criteres)
+        verifier('chaque valeur a un libelle',
+                 all(v.get('valeur') and v.get('libelle')
+                     for c in criteres for v in c.get('valeurs', [])), criteres)
+        verifier('le genre H/F n est pas un critere de la liste (il reste a part)',
+                 'genre' not in cles, cles)
+
+        print('')
+        print('6) les criteres s enregistrent et se relisent')
+        reponse = client.post('/api/annotations_voix', json={
+            'voice_id': 'xtts:test_criteres', 'genre': 'H', 'stars': 3,
+            'note': 'grave top !', 'age': 'vieux', 'timbre': 'grave',
+            'debit': 'lent', 'accent': 'paysan', 'registre': 'populaire',
+            'role': 'vieux'})
+        verifier('enregistrement accepte', reponse.status_code == 200,
+                 reponse.status_code)
+        entree = client.get('/api/annotations_voix').json().get(
+            'xtts:test_criteres', {})
+        for cle, attendu in (('age', 'vieux'), ('timbre', 'grave'),
+                             ('debit', 'lent'), ('accent', 'paysan'),
+                             ('registre', 'populaire'), ('role', 'vieux'),
+                             ('note', 'grave top !')):
+            verifier('critere « %s » conserve' % cle,
+                     entree.get(cle) == attendu, entree)
+        verifier('les etoiles restent un nombre', entree.get('stars') == 3, entree)
+
+        print('')
+        print('7) une valeur hors liste est REFUSEE')
+        reponse = client.post('/api/annotations_voix', json={
+            'voice_id': 'xtts:test_criteres', 'timbre': 'rugueux'})
+        verifier('timbre inconnu -> 400', reponse.status_code == 400,
+                 reponse.status_code)
+        reponse = client.post('/api/annotations_voix', json={
+            'voice_id': 'xtts:test_criteres', 'age': 'Vieux'})
+        verifier('majuscule refusee (les valeurs sont fixes) -> 400',
+                 reponse.status_code == 400, reponse.status_code)
+        entree = client.get('/api/annotations_voix').json().get(
+            'xtts:test_criteres', {})
+        verifier('un refus n abime pas l annotation deja enregistree',
+                 entree.get('age') == 'vieux', entree)
+
+        print('')
+        print('8) une annotation remise a zero disparait')
+        reponse = client.post('/api/annotations_voix',
+                              json={'voice_id': 'xtts:test_criteres'})
+        verifier('entree retiree',
+                 'xtts:test_criteres' not in reponse.json().get('annotations', {}),
+                 reponse.json().get('annotations'))
+
+        print('')
+        print('9) une annotation d AVANT les criteres reste lisible')
+        chemin.write_text(json.dumps({
+            'fr-CH-ArianeNeural': {'genre': 'F', 'note': '', 'stars': 3}}),
+            encoding='utf-8')
+        ancienne = client.get('/api/annotations_voix').json().get(
+            'fr-CH-ArianeNeural', {})
+        verifier('ancienne annotation relue', ancienne.get('stars') == 3, ancienne)
+        verifier('absence de criteres = non renseigne (aucune erreur)',
+                 ancienne.get('age') is None, ancienne)
+
+        print('')
+        print('10) les notes survivent a un redemarrage du serveur')
         client.post('/api/annotations_voix', json={
             'voice_id': 'xtts:test_ecoute', 'genre': 'H', 'stars': 3,
             'note': 'relu apres redemarrage'})

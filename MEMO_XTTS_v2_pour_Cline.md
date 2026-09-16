@@ -1,5 +1,19 @@
 # Mémo — XTTS v2 (clonage de voix française) : installation, voix, cohabitation avec Kyutai
 
+> **⚠️ Mise à jour du 16/09/2026 — les environnements de l'atelier ont été
+> retirés.** Les `.venv` de `outils\xtts_tts` et `outils\kyutai_tts` (≈ 12 Go) ont
+> été **supprimés volontairement** : **NIMM ePub a désormais les siens**
+> (`xtts_service\.venv` et `kyutai_service\.venv`, mêmes tailles, vérifiés
+> complets), et **aucun code du lecteur ne dépendait de l'atelier** — vérifié :
+> les seules mentions de « NIMM Voix » dans NIMM ePub sont des **commentaires**
+> et le libellé `France (NIMM Voix)` de 30 voix Kokoro.
+> **Conservés** dans l'atelier : les scripts, `reference` (extraits), la banque
+> Kyutai (`voix_fr`), **`whisper-large-v3`**, les corpus et les recettes
+> d'entraînement (`training`, `voicepack_train`).
+> **Conséquence pratique** : les chemins cités plus bas qui pointent vers
+> `outils\xtts_tts\.venv\Scripts\python.exe` **n'existent plus**. Pour tester
+> XTTS, utiliser désormais `g:\NIMM ePub\xtts_service\.venv\Scripts\python.exe`.
+
 _Écrit le 14/09/2026 par la session Cline de l'atelier **NIMM Voix**
 (`<atelier NIMM Voix>`), à la demande de Laurent. L'atelier NIMM Voix est un dossier
 **séparé** : il sert à essayer les moteurs de voix avant de les intégrer ici.

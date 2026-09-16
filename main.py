@@ -58,7 +58,7 @@ FRENCH_VOICES = [
     {"id": "fr-FR-HenriNeural",                "name": "Henri",    "region": "France",   "gender": "M", "stars": 3},
     {"id": "fr-FR-RemyMultilingualNeural",      "name": "Remy",     "region": "France",   "gender": "M", "stars": 3},
     {"id": "fr-BE-CharlineNeural",             "name": "Charline", "region": "Belgique", "gender": "F", "stars": 2},
-    {"id": "fr-BE-GerardNeural",               "name": "Gerard",   "region": "Belgique", "gender": "M", "stars": 2},
+    {"id": "fr-BE-GerardNeural",               "name": "Gerard",   "region": "Belgique", "gender": "M", "stars": 3},
     {"id": "fr-CA-SylvieNeural",               "name": "Sylvie",   "region": "Canada",   "gender": "F", "stars": 2},
     {"id": "fr-CA-AntoineNeural",              "name": "Antoine",  "region": "Canada",   "gender": "M", "stars": 0},
     {"id": "fr-CA-JeanNeural",                 "name": "Jean",     "region": "Canada",   "gender": "M", "stars": 0},
@@ -332,10 +332,73 @@ async def get_moteurs():
     """
     return etat_moteurs_voix()
 
+
+class BasculeMoteurRequest(BaseModel):
+    moteur: str        # "xtts", "kyutai" ou "aucun"
+
+
+@app.post("/api/moteur/basculer")
+async def basculer_moteur(request: BasculeMoteurRequest):
+    """Allume UN moteur de voix et eteint l'AUTRE -- jamais les deux.
+
+    Appelee par le bouton de bascule du lecteur (le voyant « Voix de
+    personnages », sous les reglages). Elle note aussi le choix dans
+    data/moteur_voix.txt, pour que START.bat rallume le MEME moteur au prochain
+    demarrage. Renvoie l'etat frais des moteurs, pour que le voyant se mette a
+    jour tout de suite (sans attendre les 5 s de memoire du serveur).
+    """
+    resultat = basculer_moteur_voix(request.moteur)
+    if not resultat.get("ok"):
+        raise HTTPException(status_code=400, detail=resultat.get("message"))
+    return resultat
+
 # --- Annotations des voix (fenetre « Ecouter les voix », 14/09/2026) ---
 # Permet d'ecouter n'importe quelle voix disponible et de la noter SANS
 # toucher au catalogue : c'est ce qui remplace les lots d'ecoute par fichiers.
 # Le fichier de notes est local (data/annotations_voix.json, hors Git).
+#
+# Depuis le 16/09/2026 (demande de Laurent), les annotations ne sont plus
+# seulement du texte libre : elles comportent des CRITERES FIXES, choisis dans
+# des listes fermees (age, timbre, debit, accent, registre, role). Objectif :
+# des annotations calibrees, que l'attribution automatique des voix pourra lire
+# plus tard. La remarque libre reste disponible pour les nuances.
+#
+# Les listes ci-dessous sont la SEULE source de verite : elles sont servies a
+# la page par GET /api/annotations_voix/criteres, donc une valeur ajoutee ici
+# apparait aussitot dans les menus du lecteur (aucune liste a tenir en double).
+# Chaque entree : (cle technique, libelle affiche, [(valeur, libelle), ...]).
+CRITERES_VOIX = [
+    ("age", "Age percu", [
+        ("enfant", "enfant"), ("jeune", "jeune"), ("adulte", "adulte"),
+        ("mur", "mûr"), ("vieux", "vieux"),
+    ]),
+    ("timbre", "Timbre", [
+        ("grave", "grave"), ("medium", "médium"), ("aigu", "aigu"),
+        ("rocailleux", "rocailleux"), ("cristallin", "cristallin"),
+        ("voile", "voilé"),
+    ]),
+    ("debit", "Debit", [
+        ("lent", "lent"), ("pose", "posé"), ("normal", "normal"),
+        ("vif", "vif"),
+    ]),
+    ("accent", "Accent", [
+        ("neutre", "neutre"), ("paysan", "paysan"), ("canadien", "canadien"),
+        ("anglais", "anglais"), ("allemand", "allemand"),
+        ("espagnol", "espagnol"), ("italien", "italien"), ("autre", "autre"),
+    ]),
+    ("registre", "Registre", [
+        ("noble", "noble"), ("neutre", "neutre"), ("populaire", "populaire"),
+        ("savant", "savant"),
+    ]),
+    ("role", "Role reserve", [
+        ("narrateur", "narrateur"), ("enfant", "enfant"), ("vieux", "vieux"),
+        ("etranger", "étranger"), ("secondaire", "secondaire"),
+    ]),
+]
+CRITERES_VOIX_CLES = [cle for cle, _, _ in CRITERES_VOIX]
+CRITERES_VOIX_VALEURS = {cle: [v for v, _ in valeurs]
+                         for cle, _, valeurs in CRITERES_VOIX}
+
 
 def _lire_annotations_voix() -> dict:
     if ANNOTATIONS_VOIX_PATH.exists():
@@ -358,7 +421,14 @@ class AnnotationVoixRequest(BaseModel):
     voice_id: str
     genre: str = ""     # "H", "F" ou "" (non renseigne)
     stars: int = -1     # -1 = non renseigne ; 0 = a ecarter ; 1 a 3 = note
-    note: str = ""
+    note: str = ""      # remarque libre, en complement des criteres fixes
+    # Criteres FIXES (voir CRITERES_VOIX) : "" = non renseigne.
+    age: str = ""
+    timbre: str = ""
+    debit: str = ""
+    accent: str = ""
+    registre: str = ""
+    role: str = ""
 
 
 @app.get("/api/annotations_voix")
@@ -367,27 +437,63 @@ async def get_annotations_voix():
     return _lire_annotations_voix()
 
 
+@app.get("/api/annotations_voix/criteres")
+async def get_criteres_voix():
+    """Listes FERMEES des criteres d'annotation d'une voix.
+
+    Source de verite unique : la page construit ses menus deroulants a partir
+    de cette reponse, donc les valeurs proposees sont exactement celles que le
+    serveur accepte (aucune liste a tenir en double).
+    """
+    return [
+        {"cle": cle, "libelle": libelle,
+         "valeurs": [{"valeur": v, "libelle": l} for v, l in valeurs]}
+        for cle, libelle, valeurs in CRITERES_VOIX
+    ]
+
+
 @app.post("/api/annotations_voix")
 async def set_annotation_voix(request: AnnotationVoixRequest):
-    """Enregistre (ou efface) la note d'une voix.
+    """Enregistre (ou efface) l'annotation d'une voix.
 
-    Une note entierement vide est SUPPRIMEE : le catalogue reprend alors ses
-    propres valeurs, comme si rien n'avait ete annote.
+    Une annotation entierement vide est SUPPRIMEE : le catalogue reprend alors
+    ses propres valeurs, comme si rien n'avait ete annote.
+
+    Les criteres fixes sont VERIFIES : une valeur hors liste est refusee
+    (erreur 400), pour que le fichier de notes reste exploitable par la machine
+    (l'attribution automatique des voix lira ces criteres).
     """
     if not request.voice_id:
         raise HTTPException(status_code=400, detail="voice_id manquant")
 
+    criteres = {
+        "age": request.age.strip(),
+        "timbre": request.timbre.strip(),
+        "debit": request.debit.strip(),
+        "accent": request.accent.strip(),
+        "registre": request.registre.strip(),
+        "role": request.role.strip(),
+    }
+    for cle, valeur in criteres.items():
+        if valeur and valeur not in CRITERES_VOIX_VALEURS[cle]:
+            raise HTTPException(
+                status_code=400,
+                detail="valeur inconnue pour « %s » : %s" % (cle, valeur))
+
     annotations = _lire_annotations_voix()
     vide = (not request.genre.strip() and request.stars < 0
-            and not request.note.strip())
+            and not request.note.strip()
+            and not any(criteres.values()))
     if vide:
         annotations.pop(request.voice_id, None)
     else:
-        annotations[request.voice_id] = {
+        entree = {
             "genre": request.genre.strip(),
             "stars": int(request.stars),
             "note": request.note.strip(),
         }
+        entree.update(criteres)
+        annotations[request.voice_id] = entree
     _ecrire_annotations_voix(annotations)
     return {"ok": True, "annotations": annotations}
 
@@ -555,16 +661,22 @@ async def get_chapter(book_id: int, chapter_index: int, user_id: int):
 # part sur internet, la carte reste libre.
 
 KYUTAI_URL = "http://127.0.0.1:8082/sante"
+XTTS_URL = "http://127.0.0.1:8083/sante"
 _kyutai_coupe_pour_casting = False
+
+
+def _moteur_voix_actif(prefixe: str) -> bool:
+    """Le moteur repond-il ? (donc occupe-t-il deja la carte graphique ?)"""
+    try:
+        urllib.request.urlopen(MOTEURS_VOIX[prefixe]["sante"], timeout=2).read()
+        return True
+    except Exception:
+        return False
 
 
 def _moteur_kyutai_actif() -> bool:
     """Le moteur de voix Kyutai repond-il ? (donc occupe-t-il la carte ?)"""
-    try:
-        urllib.request.urlopen(KYUTAI_URL, timeout=2).read()
-        return True
-    except Exception:
-        return False
+    return _moteur_voix_actif("kyutai")
 
 
 # --- Quelles voix sont ECOUTABLES tout de suite ? (session du 14/09/2026) ---
@@ -579,12 +691,24 @@ def _moteur_kyutai_actif() -> bool:
 # /sante renvoie « pret: true ») : Kyutai sur le port 8082, XTTS v2 sur 8083.
 # Rappel : un seul des deux peut tourner a la fois (carte graphique).
 
-XTTS_URL = "http://127.0.0.1:8083/sante"
-
+# Fiche de chaque moteur de voix LOURD : nom affiche, adresse de sante, dossier
+# et lanceur (exactement ceux de START.bat), et les motifs qui permettent de
+# RETROUVER ses processus. On ne tue jamais un python au hasard : on cible la
+# ligne de commande (le serveur, ou la fenetre de console qui l'heberge).
 MOTEURS_VOIX = {
-    "kyutai": {"nom": "Kyutai",  "sante": KYUTAI_URL},
-    "xtts":   {"nom": "XTTS v2", "sante": XTTS_URL},
+    "kyutai": {"nom": "Kyutai",  "sante": KYUTAI_URL,
+               "dossier": "kyutai_service", "lanceur": "DEMARRER_KYUTAI.bat",
+               "motifs": ("servir_kyutai", "DEMARRER_KYUTAI")},
+    "xtts":   {"nom": "XTTS v2", "sante": XTTS_URL,
+               "dossier": "xtts_service", "lanceur": "DEMARRER_XTTS.bat",
+               "motifs": ("servir_xtts", "DEMARRER_XTTS")},
 }
+
+# Le pense-bete du DERNIER moteur utilise. Il est ecrit par les deux lanceurs de
+# moteur et relu par START.bat : c'est ce qui fait revenir le bon moteur au
+# prochain demarrage (demande de Laurent, 14/09/2026). Le bouton de bascule du
+# lecteur ecrit ici, lui aussi.
+MOTEUR_VOIX_PATH = DATA_DIR / "moteur_voix.txt"
 
 # Le resultat est garde 5 s en memoire : /api/voices et /api/moteurs sont
 # appeles a chaque affichage de menu, on ne va pas interroger les services
@@ -630,27 +754,29 @@ def _moteur_voix_pret(etat: dict, prefixe: str) -> bool:
     return bool((etat.get(prefixe) or {}).get("pret"))
 
 
-def _pids_moteur_kyutai() -> list:
-    """PIDs des processus du moteur Kyutai : le serveur lui-meme
-    (servir_kyutai.py) et la fenetre de console qui l'heberge
-    (DEMARRER_KYUTAI.bat). Les deux sont necessaires : tuer la fenetre avec
-    ses enfants ferme aussi le moteur proprement."""
+def _pids_moteur_voix(prefixe: str) -> list:
+    """PIDs des processus d'un moteur : le serveur lui-meme (servir_kyutai.py,
+    servir_xtts.py) et la fenetre de console qui l'heberge (DEMARRER_KYUTAI.bat,
+    DEMARRER_XTTS.bat). Les deux sont necessaires : tuer la fenetre avec ses
+    enfants ferme aussi le moteur proprement. On cible la LIGNE DE COMMANDE :
+    jamais un python au hasard."""
+    motifs = MOTEURS_VOIX[prefixe]["motifs"]
     cible = ("Get-CimInstance Win32_Process | Where-Object { "
-             "$_.CommandLine -like '*servir_kyutai*' -or "
-             "$_.CommandLine -like '*DEMARRER_KYUTAI*' } | "
-             "Select-Object -ExpandProperty ProcessId")
+             + " -or ".join("$_.CommandLine -like '*{}*'".format(m) for m in motifs)
+             + " } | Select-Object -ExpandProperty ProcessId")
     try:
         r = subprocess.run(['powershell', '-NoProfile', '-Command', cible],
                            capture_output=True, text=True, timeout=25)
         return [int(x) for x in r.stdout.split() if x.strip().isdigit()]
     except Exception as e:
-        print("   Impossible de reperer le moteur Kyutai : {}".format(str(e)[:120]))
+        print("   Impossible de reperer le moteur {} : {}".format(
+            MOTEURS_VOIX[prefixe]["nom"], str(e)[:120]))
         return []
 
 
-def _arreter_moteur_kyutai() -> bool:
-    """Eteint le moteur de voix Kyutai pour liberer la memoire video."""
-    pids = _pids_moteur_kyutai()
+def _arreter_moteur_voix(prefixe: str) -> bool:
+    """Eteint un moteur de voix pour liberer la memoire video."""
+    pids = _pids_moteur_voix(prefixe)
     if not pids:
         return False
     for pid in pids:
@@ -660,21 +786,142 @@ def _arreter_moteur_kyutai() -> bool:
     return True
 
 
-def _relancer_moteur_kyutai() -> bool:
-    """Rallume le moteur de voix Kyutai dans sa propre fenetre, exactement
-    comme le fait START.bat."""
-    dossier = BASE_DIR / "kyutai_service"
-    bat = dossier / "DEMARRER_KYUTAI.bat"
+def _relancer_moteur_voix(prefixe: str) -> bool:
+    """Rallume un moteur de voix dans sa propre fenetre, exactement comme le
+    fait START.bat (meme dossier, meme lanceur, meme titre de fenetre)."""
+    infos = MOTEURS_VOIX[prefixe]
+    dossier = BASE_DIR / infos["dossier"]
+    bat = dossier / infos["lanceur"]
     if not bat.exists():
         return False
     try:
         subprocess.Popen(
-            'start "NIMM ePub - moteur de voix Kyutai" /D "{}" cmd /k DEMARRER_KYUTAI.bat'.format(dossier),
+            'start "NIMM ePub - moteur de voix {}" /D "{}" cmd /k {}'.format(
+                infos["nom"], dossier, infos["lanceur"]),
             shell=True, cwd=str(dossier))
         return True
     except Exception as e:
-        print("   Impossible de relancer le moteur Kyutai : {}".format(str(e)[:120]))
+        print("   Impossible de relancer le moteur {} : {}".format(
+            infos["nom"], str(e)[:120]))
         return False
+
+
+# Noms historiques : le moteur Kyutai etait le seul pilotable a ses debuts
+# (analyse locale en repli). On les garde pour ne rien casser.
+def _pids_moteur_kyutai() -> list:
+    return _pids_moteur_voix("kyutai")
+
+
+def _arreter_moteur_kyutai() -> bool:
+    return _arreter_moteur_voix("kyutai")
+
+
+def _relancer_moteur_kyutai() -> bool:
+    return _relancer_moteur_voix("kyutai")
+# --- Changer de moteur de voix : UN SEUL a la fois (15/09/2026) ---
+# Demande de Laurent : un bouton sous les reglages du lecteur pour passer d'un
+# moteur a l'autre, « soit l'un, soit l'autre ». Raison technique : Kyutai et
+# XTTS v2 occupent chacun environ 3,8 Go de carte graphique, les deux ensemble
+# ne tiennent pas (mesure du 15/09/2026 : 7,6 Go sur 8). C'est aussi la reponse
+# au mauvais moteur qui se lancait tout seul : plus rien ne s'allume sans que
+# Laurent l'ait demande, et l'autre est TOUJOURS eteint avant.
+
+def _moteur_voix_installe(prefixe: str) -> bool:
+    """Le moteur est-il installe sur ce PC ? Meme controle que START.bat :
+    sans son environnement, son lanceur ne pourrait rien demarrer."""
+    return (BASE_DIR / MOTEURS_VOIX[prefixe]["dossier"] / ".venv" / "Scripts"
+            / "python.exe").exists()
+
+
+def _ecrire_moteur_retenu(valeur: str) -> None:
+    """Note le choix pour le PROCHAIN demarrage : c'est ce fichier que START.bat
+    relit (meme pense-bete que les deux lanceurs de moteur)."""
+    try:
+        MOTEUR_VOIX_PATH.write_text(valeur + "\n", encoding="utf-8")
+    except Exception as e:
+        print("   Impossible d'enregistrer le moteur de voix retenu : {}".format(
+            str(e)[:120]))
+
+
+def _attendre_extinction(prefixe: str, secondes: float = 20.0) -> bool:
+    """Attend qu'un moteur ait vraiment rendu la carte graphique.
+
+    Le port se ferme quand le processus est parti : on attend sa disparition
+    AVANT d'allumer l'autre, sinon les deux se croiseraient en memoire video.
+    """
+    fin = time.time() + secondes
+    while time.time() < fin:
+        if not _moteur_voix_actif(prefixe):
+            return True
+        time.sleep(0.5)
+    return not _moteur_voix_actif(prefixe)
+
+
+def basculer_moteur_voix(cible: str) -> dict:
+    """Allume UN moteur de voix et eteint l'AUTRE -- jamais les deux.
+
+    `cible` : "xtts", "kyutai" ou "aucun" (demarrer sans moteur lourd).
+    Renvoie toujours un compte rendu lisible, jamais une exception : c'est le
+    bouton de bascule du lecteur qui appelle cette fonction.
+    """
+    cible = (cible or "").strip().lower()
+    if cible != "aucun" and cible not in MOTEURS_VOIX:
+        return {"ok": False,
+                "message": "Moteur de voix inconnu : {}".format(cible or "(vide)")}
+
+    etat = etat_moteurs_voix(force=True)
+    messages = []
+
+    # 1. Eteindre ce qui doit l'etre : l'AUTRE moteur, ou les deux pour "aucun".
+    a_eteindre = (list(MOTEURS_VOIX) if cible == "aucun"
+                  else [p for p in MOTEURS_VOIX if p != cible])
+    eteints = []
+    for prefixe in a_eteindre:
+        if not (etat.get(prefixe) or {}).get("actif"):
+            continue
+        nom = MOTEURS_VOIX[prefixe]["nom"]
+        if _arreter_moteur_voix(prefixe) and _attendre_extinction(prefixe):
+            eteints.append(nom)
+        else:
+            # On refuse d'allumer quoi que ce soit : deux moteurs ne tiennent
+            # pas ensemble sur la carte graphique.
+            return {"ok": False, "moteur": cible,
+                    "message": ("{} tourne encore et n'a pas pu etre eteint : "
+                                "rien n'a ete allume".format(nom))}
+    if eteints:
+        messages.append(" et ".join(eteints) + " eteint")
+
+    # 2. Allumer le moteur demande... s'il ne tourne pas deja.
+    demarre = False
+    if cible in MOTEURS_VOIX:
+        infos = MOTEURS_VOIX[cible]
+        frais = (etat_moteurs_voix(force=True).get(cible) or {})
+        if frais.get("pret"):
+            messages.append(infos["nom"] + " etait deja pret")
+        elif frais.get("actif"):
+            messages.append(infos["nom"] + " finit de charger")
+        elif not _moteur_voix_installe(cible):
+            return {"ok": False, "moteur": cible,
+                    "message": "{} n'est pas installe sur ce PC".format(infos["nom"])}
+        elif _relancer_moteur_voix(cible):
+            demarre = True
+            messages.append(infos["nom"]
+                            + " demarre, pret dans une quinzaine de secondes")
+        else:
+            return {"ok": False, "moteur": cible,
+                    "message": "Impossible de demarrer {}".format(infos["nom"])}
+    elif cible == "aucun" and not eteints:
+        messages.append("aucun moteur ne tournait")
+
+    # 3. Noter le choix : c'est ce que START.bat relira au prochain demarrage.
+    _ecrire_moteur_retenu(cible)
+
+    return {"ok": True, "moteur": cible, "demarre": demarre,
+            "message": " ; ".join(messages) if messages else "rien a faire",
+            "etat": etat_moteurs_voix(force=True)}
+
+
+
 
 
 def _liberer_la_carte_pour_analyse_locale() -> None:
@@ -1273,7 +1520,7 @@ async def lock_character_voice(book_id: int, user_id: int, request: VoiceLockReq
 
 
 @app.post("/api/books/{book_id}/cast/reassign")
-async def reassign_voices(book_id: int, user_id: int):
+async def reassign_voices(book_id: int, user_id: int, par_criteres: bool = True):
     """
     Re-cast GRATUIT d'un livre deja caste : on garde l'attribution des
     locuteurs deja stockee (table speaker_attribution) et on redistribue
@@ -1284,10 +1531,19 @@ async def reassign_voices(book_id: int, user_id: int):
     conservent exactement leur voix ; les autres recoivent une nouvelle voix
     dediee ou generique selon leur nombre de repliques. Le pitch et la
     vitesse existants sont conserves : seule la voix change.
+
+    par_criteres (16/09/2026, actif par defaut) : les voix sont choisies
+    d'apres les ANNOTATIONS D'ECOUTE de Laurent (age, timbre, debit -- voir
+    voice_casting._classement_voix), et d'apres l'AGE reel des personnages
+    (table cast_fiche). Les personnages verrouilles et les voix figees de
+    saga restent prioritaires.
+    `?par_criteres=false` revient au tri precedent, par paliers d'etoiles :
+    utile pour comparer les deux attributions sur un meme livre.
     """
     conn = get_db()
     book = conn.execute(
-        "SELECT id, cast_status FROM books WHERE id = ? AND user_id = ?", (book_id, user_id)
+        "SELECT id, cast_status, saga FROM books WHERE id = ? AND user_id = ?",
+        (book_id, user_id)
     ).fetchone()
     if not book:
         conn.close()
@@ -1303,6 +1559,21 @@ async def reassign_voices(book_id: int, user_id: int):
     alias_rows = conn.execute(
         "SELECT alias_name, canonical_name FROM character_aliases WHERE book_id = ?", (book_id,)
     ).fetchall()
+    # L'AGE des personnages n'est pas dans la table voices (qui ne stocke que la
+    # voix attribuee) : il vient de la FICHE du casting. Sans lui, l'attribution
+    # par criteres traiterait tout le monde comme un adulte (constat du
+    # 16/09/2026 : l'ancien re-cast forcait "adulte" en dur).
+    fiche_rows = conn.execute(
+        "SELECT character_name, age FROM cast_fiche WHERE book_id = ?", (book_id,)
+    ).fetchall()
+    # Coherence de SAGA (16/09/2026, demande de Laurent) : les voix des AUTRES
+    # TOMES font reference, comme au casting complet. Sans cela, un re-cast sur
+    # un tome rendait a un personnage une voix DIFFERENTE de celle de son tome
+    # de reference (le plus ancien ajoute) -- la saga partait en morceaux.
+    # Le re-cast ne le faisait pas jusqu'ici : seul le casting complet appelait
+    # cette fonction. Les verrous locaux du livre re-caste restent prioritaires
+    # (voir plus bas : ils sont ecrits en premier dans voix_figees).
+    figees_saga = _fetch_saga_voix_figees(conn, book["saga"], user_id, book_id)
     conn.close()
     if not rows:
         raise HTTPException(400, "Aucun personnage a re-caster")
@@ -1327,9 +1598,11 @@ async def reassign_voices(book_id: int, user_id: int):
     personnages = []
     compte_phrases = {}
     voix_figees = {}
+    ages_fiche = {r["character_name"]: (r["age"] or "adulte") for r in fiche_rows}
     for canon, membres in groupes.items():
         head = by_name.get(canon, membres[0])
-        personnages.append({"nom": canon, "genre": head["genre"] or "H", "age": "adulte"})
+        personnages.append({"nom": canon, "genre": head["genre"] or "H",
+                            "age": ages_fiche.get(canon) or "adulte"})
         compte_phrases[canon] = sum((m["line_count"] or 0) for m in membres)
         if head["locked"]:
             voix_figees[canon] = {
@@ -1339,7 +1612,16 @@ async def reassign_voices(book_id: int, user_id: int):
                 "genre": head["genre"] or "H",
             }
 
-    nouvelles = voice_casting.assign_voices(personnages, compte_phrases, voix_figees=voix_figees)
+    # Les voix des AUTRES TOMES completent les verrous, sans les ecraser : un
+    # personnage deja caste dans la saga (voir le tome le plus ancien) garde sa
+    # voix, meme s'il n'est pas verrouille dans ce tome-ci. C'est ce qui preserve
+    # la coherence d'une saga lors d'un re-cast.
+    for nom, fiche in figees_saga.items():
+        voix_figees.setdefault(nom, fiche)
+
+    nouvelles = voice_casting.assign_voices(personnages, compte_phrases,
+                                            voix_figees=voix_figees,
+                                            par_criteres=par_criteres)
 
     conn = get_db()
     modifies = 0

@@ -1426,7 +1426,146 @@ def find_writing_duplicate_groups(items: list) -> list:
     return groupes
 
 
-def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: dict = None) -> dict:
+# ==============================================================
+# ATTRIBUTION PAR CRITERES (annotations d'ecoute) -- 16/09/2026
+# ==============================================================
+# Demande de Laurent : que le re-cast GRATUIT tienne compte des criteres
+# annotes a l'ecoute (age, timbre, debit, accent, registre, role -- voir
+# CRITERES_VOIX dans main.py), et pas seulement des etoiles. Les annotations
+# vivent dans data/annotations_voix.json (fenetre « Ecouter les voix »).
+#
+# Principe : pour chaque personnage on CLASSE les voix disponibles (les plus
+# adaptees d'abord), puis on prend la premiere encore libre. Aucun appel IA :
+# c'est deterministe, gratuit, et testable.
+#
+# Constat du 16/09/2026 sur les 148 voix annotees : le REGISTRE (137 voix
+# « neutre » pour 1 « noble ») et l'ACCENT « paysan » (aucune voix) ne portent
+# pas assez d'information -> ils sont volontairement IGNORES ici. Le ROLE, lui,
+# sert a RESERVER une voix : elle sort du pool automatique (comme les voix de
+# role NIMM), sauf quand le role correspond a l'age du personnage.
+#
+# Piper reste hors de ce pool : ses voix ont ete jugees inaudibles a l'ecoute
+# (decision de Laurent, 15/09/2026).
+
+ANNOTATIONS_VOIX_PATH = Path(__file__).parent.parent / "data" / "annotations_voix.json"
+
+_annotations_cache = {"mtime": None, "donnees": {}}
+
+
+def lire_annotations_voix() -> dict:
+    """Annotations d'ecoute, relues seulement si le fichier a change."""
+    try:
+        mtime = ANNOTATIONS_VOIX_PATH.stat().st_mtime
+    except OSError:
+        _annotations_cache["mtime"] = None
+        _annotations_cache["donnees"] = {}
+        return {}
+    if _annotations_cache["mtime"] != mtime:
+        try:
+            _annotations_cache["donnees"] = json.loads(
+                ANNOTATIONS_VOIX_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            _annotations_cache["donnees"] = {}
+        _annotations_cache["mtime"] = mtime
+    return _annotations_cache["donnees"]
+
+
+# Age de voix souhaite pour un age de personnage, du plus proche au plus
+# eloigne. Les fiches du casting n'ont que trois ages (jeune, adulte, age),
+# les voix en ont cinq.
+AGES_PAR_PERSONNAGE = {
+    "enfant": ["enfant", "jeune", "adulte"],
+    "jeune":  ["jeune", "enfant", "adulte"],
+    "adulte": ["adulte", "mur", "jeune"],
+    "age":    ["vieux", "mur", "adulte"],
+}
+
+# Timbre attendu par genre et age : sert a ORDONNER, jamais a exclure.
+TIMBRES_ATTENDUS = {
+    ("H", "age"):    ["grave", "rocailleux", "medium"],
+    ("H", "mur"):    ["grave", "medium", "rocailleux"],
+    ("H", "adulte"): ["medium", "grave", "aigu"],
+    ("H", "jeune"):  ["medium", "aigu", "grave"],
+    ("H", "enfant"): ["aigu", "medium"],
+    ("F", "age"):    ["medium", "grave", "voile"],
+    ("F", "mur"):    ["medium", "voile", "grave"],
+    ("F", "adulte"): ["medium", "aigu", "cristallin"],
+    ("F", "jeune"):  ["cristallin", "aigu", "medium"],
+    ("F", "enfant"): ["aigu", "cristallin", "medium"],
+}
+
+# Debit attendu par age : un vieux seigneur parle lentement, un gamin vite.
+DEBITS_ATTENDUS = {
+    "age":    ["lent", "pose", "normal", "vif"],
+    "mur":    ["pose", "lent", "normal", "vif"],
+    "adulte": ["normal", "pose", "vif", "lent"],
+    "jeune":  ["vif", "normal", "pose", "lent"],
+    "enfant": ["vif", "normal", "pose", "lent"],
+}
+
+
+def _index_voix() -> dict:
+    """{identifiant: {'genre', 'stars'}} pour les moteurs du pool automatique."""
+    index = {}
+    for ident in _EDGE_POOL_M:
+        index[ident] = {"genre": "H", "stars": int(_EDGE_STARS.get(ident, 0))}
+    for ident in _EDGE_POOL_F:
+        index[ident] = {"genre": "F", "stars": int(_EDGE_STARS.get(ident, 0))}
+    for liste in (XTTS_VOICES, KOKORO_VOICES, KYUTAI_VOICES):
+        for voix in liste:
+            index[voix["id"]] = {
+                "genre": "F" if voix.get("gender") == "F" else "H",
+                "stars": int(voix.get("stars", 0)),
+            }
+    return index
+
+
+def _voix_reservee(annotation: dict, ages: list) -> bool:
+    """Vrai si la voix est RESERVEE a la main (role annote hors de l'age vise).
+
+    Une voix « vieux » reste utilisable pour un personnage age, une voix
+    « enfant » pour un enfant ; « narrateur », « etranger » et « secondaire »
+    sortent du pool automatique, comme les voix de role NIMM.
+    """
+    role = (annotation or {}).get("role") or ""
+    return bool(role) and role not in ages
+
+
+def _classement_voix(genre: str, age: str) -> list:
+    """Voix dediees d'un personnage, de la plus adaptee a la moins adaptee."""
+    index = _index_voix()
+    annotations = lire_annotations_voix()
+    ages = AGES_PAR_PERSONNAGE.get(age, ["adulte", "mur", "jeune"])
+    timbres = TIMBRES_ATTENDUS.get((genre, age), [])
+    debits = DEBITS_ATTENDUS.get(age, [])
+
+    classement = []
+    for ident, fiche in index.items():
+        if fiche["genre"] != genre or fiche["stars"] <= 0:
+            continue                      # mauvais genre, ou voix ecartee
+        annotation = annotations.get(ident) or {}
+        if _voix_reservee(annotation, ages):
+            continue
+        age_voix = annotation.get("age") or ""
+        timbre = annotation.get("timbre") or ""
+        debit = annotation.get("debit") or ""
+        # Le plus important d'abord : l'age, puis le timbre, puis les etoiles,
+        # puis le debit. L'identifiant departage les ex aequo pour que le
+        # resultat soit TOUJOURS le meme (et donc testable).
+        note = (
+            ages.index(age_voix) if age_voix in ages else len(ages),
+            timbres.index(timbre) if timbre in timbres else len(timbres),
+            -fiche["stars"],
+            debits.index(debit) if debit in debits else len(debits),
+            ident,
+        )
+        classement.append((note, ident))
+    classement.sort()
+    return [ident for _, ident in classement]
+
+
+def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: dict = None,
+                  par_criteres: bool = False) -> dict:
     """
     Attribue voix + pitch a chaque personnage.
     Personnages deja presents dans voix_figees (autre tome de la meme
@@ -1436,8 +1575,17 @@ def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: d
     Les autres -> voix dediee piochee dans le pool, avec variation de
     pitch supplementaire si le pool est epuise (plus de personnages que
     de voix dediees disponibles pour ce genre).
+
+    par_criteres (16/09/2026) : au lieu de piocher dans le pool par paliers
+    d'etoiles, on CLASSE les voix selon les annotations d'ecoute (age, timbre,
+    debit -- voir _classement_voix) et on prend la premiere encore libre. Le
+    pool par paliers reste le repli quand aucune annotation n'existe.
     """
     voix_figees = voix_figees or {}
+    # Les voix deja figees (meme saga, autre tome) comptent comme prises : un
+    # personnage nouveau ne doit pas heriter de la voix d'un aine.
+    prises = set(fixe.get("voice_id") for fixe in voix_figees.values()
+                 if fixe.get("voice_id"))
 
     # Traite les personnages les plus presents en premier, pour que les
     # roles principaux aient la priorite sur le pool de voix dediees
@@ -1484,14 +1632,26 @@ def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: d
             voice_id = ""
             pitch = "+0Hz"
         else:
-            pool = DEDICATED_VOICES_F if genre == "F" else DEDICATED_VOICES_M
-            idx = idx_f if genre == "F" else idx_m
-            voice_id = pool[idx % len(pool)]
-            cycle = idx // len(pool)  # si on retombe sur une voix deja utilisee
-            if genre == "F":
-                idx_f += 1
+            if par_criteres:
+                # Classement par annotations d'ecoute : on prend la premiere
+                # voix encore libre. Si tout est pris (plus de personnages que
+                # de voix), on reprend la mieux classee et on decale le pitch,
+                # exactement comme le faisait le pool par paliers.
+                pool = _classement_voix(genre, age) or (
+                    DEDICATED_VOICES_F if genre == "F" else DEDICATED_VOICES_M)
+                libres = [v for v in pool if v not in prises]
+                voice_id = libres[0] if libres else pool[0]
+                cycle = 0 if libres else 1
+                prises.add(voice_id)
             else:
-                idx_m += 1
+                pool = DEDICATED_VOICES_F if genre == "F" else DEDICATED_VOICES_M
+                idx = idx_f if genre == "F" else idx_m
+                voice_id = pool[idx % len(pool)]
+                cycle = idx // len(pool)  # si on retombe sur une voix deja utilisee
+                if genre == "F":
+                    idx_f += 1
+                else:
+                    idx_m += 1
             # Decale le pitch de base si la voix est deja prise par un autre
             # personnage, pour les differencier malgre la voix identique
             base_hz = int(pitch_base.replace("Hz", "").replace("+", ""))

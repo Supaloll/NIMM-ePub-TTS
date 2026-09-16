@@ -39,4 +39,8 @@ httpx==0.28.1
 # lecteur ; a installer a la main si besoin.
 #   requests==2.32.5
 #   esprima==4.0.1
+#   playwright==1.60.0       # test_voix/test_couverture_mobile.py (rendu CSS
+#                            # sur un vrai moteur de navigateur)
+#   Pillow==12.2.0           # test_voix/_etat_couvertures.py (etat des
+#                            # couvertures : format, dimensions, fichiers)
 # ----------------------------------------------------------------------

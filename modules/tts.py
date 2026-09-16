@@ -80,7 +80,7 @@ KOKORO_VOICES = [
     {"id": "kokoro:fm_mystere",   "name": "Mystère",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 3},
     {"id": "kokoro:fm_jeune",     "name": "Jeune",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 3},
     {"id": "kokoro:ff_amelie",    "name": "Amélie",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
-    {"id": "kokoro:ff_aurore",    "name": "Aurore",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
+    {"id": "kokoro:ff_aurore",    "name": "Aurore",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 3},
     {"id": "kokoro:ff_chloe",     "name": "Chloé",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_clara",     "name": "Clara",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_delphine",  "name": "Delphine",  "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
@@ -91,17 +91,17 @@ KOKORO_VOICES = [
     {"id": "kokoro:ff_manon",     "name": "Manon",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_margaux",   "name": "Margaux",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_noemie",    "name": "Noémie",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
-    {"id": "kokoro:ff_pauline",   "name": "Pauline",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
+    {"id": "kokoro:ff_pauline",   "name": "Pauline",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 0},
     {"id": "kokoro:ff_romane",    "name": "Romane",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_sarah",     "name": "Sarah",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_solene",    "name": "Solène",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_zoe",       "name": "Zoé",       "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:fm_antoine",   "name": "Antoine",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
     {"id": "kokoro:fm_baptiste",  "name": "Baptiste",  "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
-    {"id": "kokoro:fm_camille",   "name": "Camille",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
+    {"id": "kokoro:fm_camille",   "name": "Camille",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 0},
     {"id": "kokoro:fm_etienne",   "name": "Étienne",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
-    {"id": "kokoro:fm_hugo",      "name": "Hugo",      "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
-    {"id": "kokoro:fm_lucas",     "name": "Lucas",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
+    {"id": "kokoro:fm_hugo",      "name": "Hugo",      "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 0},
+    {"id": "kokoro:fm_lucas",     "name": "Lucas",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 3},
     {"id": "kokoro:fm_vincent",   "name": "Vincent",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
     # --- Etats-Unis (americain) ---
     {"id": "kokoro:af_alloy",   "name": "Alloy",      "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
@@ -138,7 +138,7 @@ KOKORO_VOICES = [
     {"id": "kokoro:em_alex",  "name": "Alex",  "region": "\U0001F1EA\U0001F1F8 Espagne", "gender": "M", "stars": 2},
     {"id": "kokoro:em_santa", "name": "Santa", "region": "\U0001F1EA\U0001F1F8 Espagne", "gender": "M", "stars": 2},
     # --- France (timbre natif Kokoro, sans accent force) ---
-    {"id": "kokoro:ff_siwis", "name": "Siwis", "region": "\U0001F1EB\U0001F1F7 France (Kokoro)", "gender": "F", "stars": 3},
+    {"id": "kokoro:ff_siwis", "name": "Siwis", "region": "\U0001F1EB\U0001F1F7 France (Kokoro)", "gender": "F", "stars": 2},
     # --- Inde (hindi) ---
     {"id": "kokoro:hf_alpha", "name": "Alpha", "region": "\U0001F1EE\U0001F1F3 Inde (Hindi)", "gender": "F", "stars": 2},
     {"id": "kokoro:hf_beta",  "name": "Beta",  "region": "\U0001F1EE\U0001F1F3 Inde (Hindi)", "gender": "F", "stars": 2},
@@ -151,7 +151,7 @@ KOKORO_VOICES = [
     {"id": "kokoro:jf_alpha",      "name": "Alpha",      "region": "\U0001F1EF\U0001F1F5 Japon", "gender": "F", "stars": 2},
     {"id": "kokoro:jf_gongitsune", "name": "Gongitsune", "region": "\U0001F1EF\U0001F1F5 Japon", "gender": "F", "stars": 2},
     {"id": "kokoro:jf_nezumi",     "name": "Nezumi",     "region": "\U0001F1EF\U0001F1F5 Japon", "gender": "F", "stars": 2},
-    {"id": "kokoro:jf_tebukuro",   "name": "Tebukuro",   "region": "\U0001F1EF\U0001F1F5 Japon", "gender": "F", "stars": 2},
+    {"id": "kokoro:jf_tebukuro",   "name": "Tebukuro",   "region": "\U0001F1EF\U0001F1F5 Japon", "gender": "F", "stars": 1},
     {"id": "kokoro:jm_kumo",       "name": "Kumo",       "region": "\U0001F1EF\U0001F1F5 Japon", "gender": "M", "stars": 2},
     # --- Portugal / Bresil ---
     {"id": "kokoro:pf_dora",  "name": "Dora",  "region": "\U0001F1F5\U0001F1F9 Portugal/Bresil", "gender": "F", "stars": 2},
@@ -527,9 +527,9 @@ PIPER_MODEL_FILES = {
 # studio restent utilisables.
 PIPER_VOICES = [
     {"id": "piper:siwis:0", "name": "Siwis",   "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "F", "stars": 3},
-    {"id": "piper:tom:0",   "name": "Tom",     "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "M", "stars": 3},
+    {"id": "piper:tom:0",   "name": "Tom",     "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "M", "stars": 0},
     {"id": "piper:upmc:0",  "name": "Jessica", "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "F", "stars": 3},
-    {"id": "piper:upmc:1",  "name": "Pierre",  "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "M", "stars": 3},
+    {"id": "piper:upmc:1",  "name": "Pierre",  "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "M", "stars": 1},
 ]
 
 _piper_voices = {}
@@ -834,7 +834,7 @@ XTTS_VOICES = [
     # etranger se presente. Les 7 voix qu'il a notees 0 ne sont pas versees.
     {"id": "xtts:cml1840", "name": "Achille", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
     {"id": "xtts:cml3344", "name": "Honoré", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
-    {"id": "xtts:cml6249", "name": "Célestin", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent paysan", "gender": "M", "stars": 2},
+    {"id": "xtts:cml6249", "name": "Célestin", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent paysan", "gender": "M", "stars": 1},
     {"id": "xtts:cml9804", "name": "Alphonse", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:cml10065", "name": "Auguste", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:cml1649", "name": "Berthe", "region": "\U0001F1EB\U0001F1F7 France (XTTS) - accent allemand", "gender": "F", "stars": 0},
@@ -849,7 +849,7 @@ XTTS_VOICES = [
     {"id": "xtts:cml12512", "name": "Eugène", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 2},
     {"id": "xtts:cml12823", "name": "Agathe", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 3},
     {"id": "xtts:cml1869", "name": "Cécile", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 0},
-    {"id": "xtts:cml2316", "name": "Joséphine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 0},
+    {"id": "xtts:cml2316", "name": "Joséphine", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 1},
     {"id": "xtts:cml2771", "name": "Lucien", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
     {"id": "xtts:cml3503", "name": "Félix", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:cml5526", "name": "Hippolyte", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},

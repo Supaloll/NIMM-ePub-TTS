@@ -55,6 +55,21 @@ test_voix_nimm.wav
 server_pid.txt
 *.bak_*
 
+# Journaux des longs traitements lances en tache de fond (16/09/2026) et
+# captures d'ecran personnelles de Laurent : residus de session locaux.
+test_voix/*.out.txt
+test_voix/*.err.txt
+Screenshot_*.jpg
+
+# Lots d'ecoute regeneres par les outils de test_voix (16/09/2026) : les WAV
+# sont deja ignores plus haut, mais leurs index et leurs listes portent des
+# titres de livres et des observations personnelles -- on les garde sur le PC.
+test_voix/ecoute_*/
+test_voix/point_*/
+test_voix/point_large_*/
+test_voix/aveugle_*/
+test_voix/stabilite_*/
+
 # Moteur Kyutai TTS (environnement Python 3.12 + voix + poids, non
 # versionnes : voir kyutai_service/LIRE_MOI.md pour les recreer)
 kyutai_service/.venv/
