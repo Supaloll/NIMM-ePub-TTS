@@ -2591,5 +2591,72 @@ elles sortent du pool automatique et restent à assigner **à la main**. Pistes
 étudiées (voir BACKLOG) : reléguer les voix accentuées en fin de classement, ou
 laisser l'IA déduire l'accent du texte (étape 2 « Re-caster avec l'IA »).
 
+---
+
+## 🎙️ Moteur de voix NeuTTS (livré le 16/09/2026)
+
+**Ce que c'est** : un troisième moteur de voix « lourd », à côté de Kyutai
+(8082) et XTTS v2 (8083), dans son propre service HTTP —
+**`neutts_service\`, port 8084** (`/sante`, `/voix`, `/tts`, `/recharger`). Il
+vit dans un environnement Python 3.12 séparé, et le lecteur l'appelle **par le
+réseau**, exactement comme les deux autres.
+
+**Pourquoi il prend la place d'XTTS comme moteur par défaut** (mesures du
+16/09/2026 : atelier NIMM Voix, puis vérification ici) :
+
+- **stable** : à graine fixe, deux synthèses du même texte donnent le même
+  fichier **à l'octet près** (empreintes SHA-256 identiques, vérifié sur
+  processeur **et** sur la carte graphique) ;
+- **pas de babil** sur les phrases courtes (« Manger ? » 1,08 s, contre 8,49 s
+  pour XTTS) et **pas de dérive** sur deux minutes de lecture ;
+- **plus lent** : environ **×0,8 le temps réel** sur la RTX 4060 (XTTS : ×3),
+  d'où l'importance du **cache audio**, déjà en place ;
+- **3,50 Go de mémoire vidéo** au pic : il ne cohabite donc **pas** avec XTTS
+  ni Kyutai, et la règle « un seul moteur lourd à la fois » continue de
+  s'appliquer.
+
+**Les voix** : ce sont des **extraits** (3 à 15 s) **accompagnés du texte
+exact** dit dans l'extrait — contrairement à XTTS, le texte est **obligatoire**.
+Ils vivent dans `neutts_service\references\` (hors Git), par provenance :
+`cml_tts` (60 voix), `voix_libres_dp` (19), `kokoro` (30) — **109 voix** au
+16/09/2026. Les 30 voix Kokoro « dites par NeuTTS » gardent leur **timbre** et
+perdent leur **accent** (c'est le modèle français de NeuTTS qui réimpose la
+prononciation) : constat d'écoute de Laurent, « les accents Kokoro ont
+disparu, tout est lu en français très compréhensible ».
+
+**Côté lecteur** :
+
+- catalogue `NEUTTS_VOICES` dans `modules/tts.py`, **généré** par
+  `test_voix/_generer_catalogue_neutts.py` — mêmes identifiants, mêmes
+  prénoms, genres et étoiles que les voix déjà connues, avec la région
+  « France (NeuTTS) » pour ne pas les confondre avec celles d'XTTS ;
+- branche `neutts:` dans `POST /api/tts` (`main.py`) + fiche moteur dans
+  `MOTEURS_VOIX` (`NEUTTS_URL`, 8084) : le voyant et le bouton de bascule de la
+  page fonctionnent donc **sans code spécifique** (l'interface liste les
+  moteurs qu'on lui donne) ;
+- les voix ne sont proposées **que si le moteur est allumé et prêt**
+  (`/api/voices`) ; le catalogue complet (`/api/voix_catalogue`) les nomme
+  toujours, même moteur éteint ;
+- **pool automatique du casting** : les voix NeuTTS sont ajoutées **en
+  dernier** dans chaque palier d'étoiles — la raison est écrite dans
+  `voice_casting._pool_par_paliers` (le pool ne connaît pas l'état des
+  moteurs).
+
+**Lancement** : `neutts_service\INSTALLER_NEUTTS.bat` (une seule fois, tous les
+téléchargements étant déjà en cache), puis `DEMARRER_NEUTTS.bat`. Depuis le
+16/09/2026, **`START.bat` l'allume tout seul** et **ne lance plus XTTS ni
+Kyutai** : ces deux-là restent disponibles à la main, par leur lanceur ou par
+le bouton « Voix de personnages ».
+
+**Deux pièges d'installation** (chacun coûte une demi-journée) : torch
+**≥ 2.11** (imposé par `torchtune`) et **`torchao==0.16.0`** épinglée en
+`--no-deps`. Détail dans `neutts_service\requirements.txt` et
+`neutts_service\LIRE_MOI.md`.
+
+**Vérifications** : `test_voix/test_neutts_service.py` (39 contrôles, sans
+charger le moteur) et `test_voix/test_neutts_bout_en_bout.py` (11 contrôles,
+moteur allumé : stabilité bit à bit, phrases courtes, phrase longue).
+
+
 
 

@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
 """Script JETABLE -- verifie la logique de demarrage du moteur de voix.
 
+REGLE EN VIGUEUR DEPUIS LE 16/09/2026 : START.bat allume NeuTTS et ne lance
+plus XTTS ni Kyutai tout seul (demande de Laurent). Les deux autres moteurs
+restent lancables a la main, par leur propre lanceur.
+
 Ce que le script controle, sans RIEN lancer (ni moteur, ni lecteur) :
-  1. les deux lanceurs ecrivent bien leur nom dans data\\moteur_voix.txt ;
-  2. START.bat lit ce fichier et choisit le bon moteur ;
-  3. les cas limites : aucun fichier, "aucun", nom inconnu, espaces parasites.
+  1. les trois lanceurs ecrivent bien leur nom dans data\\moteur_voix.txt ;
+  2. START.bat lit ce fichier : « aucun » -> pas de moteur, toute autre valeur
+     (y compris vide ou inconnue) -> NeuTTS, et un message clair si le fichier
+     dit encore « xtts » ou « kyutai » ;
+  3. les garde-fous : le port 8084 est teste avant tout lancement, l'absence
+     d'environnement n'empeche pas le lecteur de demarrer, et les anciens
+     blocs (moteur_xtts / moteur_kyutai) ont bien disparu.
 
 Methode : une COPIE de START.bat est fabriquee avec les commandes qui
 lancent reellement quelque chose (start ... et python main.py) remplacees
@@ -39,10 +47,8 @@ def fabriquer_copie_neutre():
     """Copie de START.bat ou rien ne se lance vraiment."""
     source = (RACINE / "START.bat").read_text(encoding='utf-8', errors='replace')
     remplacements = [
-        ('start "NIMM ePub - moteur de voix XTTS v2" /D "%~dp0xtts_service" cmd /k DEMARRER_XTTS.bat',
-         'echo [NEUTRE] ici serait lance : XTTS v2'),
-        ('start "NIMM ePub - moteur de voix Kyutai" /D "%~dp0kyutai_service" cmd /k DEMARRER_KYUTAI.bat',
-         'echo [NEUTRE] ici serait lance : Kyutai'),
+        ('start "NIMM ePub - appareil de voix NeuTTS" /D "%~dp0neutts_service" cmd /k DEMARRER_NEUTTS.bat',
+         'echo [NEUTRE] ici serait lance : NeuTTS'),
         ('python main.py', 'echo [NEUTRE] ici le lecteur demarrerait'),
         ('pause', ''),
     ]
@@ -66,11 +72,13 @@ def lancer_start(contenu_regle):
 
 
 def test_ecriture_par_les_lanceurs():
-    """Les deux lignes ajoutees aux lanceurs ecrivent-elles le bon nom ?"""
+    """Les lignes ajoutees aux lanceurs ecrivent-elles le bon nom ?"""
     print('')
     print('1) ce que les lanceurs ecrivent dans data\\moteur_voix.txt')
     temoin = RACINE / "data" / "_test_ecriture.txt"
-    for dossier, attendu in (("xtts_service", "xtts"), ("kyutai_service", "kyutai")):
+    for dossier, attendu in (("neutts_service", "neutts"),
+                             ("xtts_service", "xtts"),
+                             ("kyutai_service", "kyutai")):
         if temoin.exists():
             temoin.unlink()
         commande = '> "..\\data\\_test_ecriture.txt" echo %s' % attendu
@@ -87,13 +95,14 @@ def test_choix_du_moteur():
     print('')
     print('2) ce que START.bat choisit selon le fichier de regle')
     cas = [
-        (None,           'XTTS v2 (le dernier utilise)'),   # pas de fichier -> defaut
-        ('xtts',         'XTTS v2 (le dernier utilise)'),
-        ('kyutai',       'Kyutai (le dernier utilise)'),
+        (None,           'Moteur de voix NeuTTS'),        # pas de fichier -> NeuTTS
+        ('neutts',       'Moteur de voix NeuTTS'),
+        ('xtts',         'allumage automatique est desactive'),
+        ('kyutai',       'allumage automatique est desactive'),
         ('aucun',        'AUCUN - choix enregistre'),
-        ('bidule',       "n'est pas un nom connu"),
-        ('xtts\r\n',     'XTTS v2 (le dernier utilise)'),   # saut de ligne final
-        ('  kyutai  \n', 'Kyutai (le dernier utilise)'),     # espaces parasites
+        ('bidule',       'Moteur de voix NeuTTS'),        # inconnu -> NeuTTS
+        ('xtts\r\n',     'allumage automatique est desactive'),  # saut de ligne final
+        ('  kyutai  \n', 'allumage automatique est desactive'),  # espaces parasites
     ]
     for contenu, attendu in cas:
         sortie = lancer_start(contenu)
@@ -105,31 +114,27 @@ def test_choix_du_moteur():
 
 def test_garde_fou_deja_en_marche():
     print('')
-    print('3) garde-fous presents dans les deux branches')
+    print('3) garde-fous presents dans la branche NeuTTS')
     source = COPIE.read_text(encoding='utf-8')
-    for port in ('8083', '8082'):
-        verifier('le port %s est teste avant tout lancement' % port,
-                 ('127.0.0.1:%s/sante' % port) in source)
-    # Depuis le 15/09/2026 chaque branche teste AUSSI l'autre moteur : sans
-    # cela, un moteur lance a la main plus tot dans la journee et le moteur
-    # choisi pouvaient tourner ensemble (7,6 Go de carte graphique sur 8).
-    verifier('quatre tests de port, deux par branche',
-             source.count('if not errorlevel 1 (') == 4,
-             source.count('if not errorlevel 1 ('))
-    xtts   = source.split(':moteur_xtts', 1)[1].split(':moteur_kyutai', 1)[0]
-    kyutai = source.split(':moteur_kyutai', 1)[1].split(':lecteur', 1)[0]
-    for nom, moi, autre, bloc in (('XTTS v2', '8083', '8082', xtts),
-                                  ('Kyutai',  '8082', '8083', kyutai)):
-        verifier('%s : teste les deux ports' % nom,
-                 ('127.0.0.1:%s/sante' % moi) in bloc
-                 and ('127.0.0.1:%s/sante' % autre) in bloc)
-        verifier("%s : l'autre moteur est teste AVANT le sien" % nom,
-                 bloc.index('127.0.0.1:%s/sante' % autre)
-                 < bloc.index('127.0.0.1:%s/sante' % moi))
-        verifier('%s : rien n\'est lance si l\'autre tourne' % nom,
-                 'goto lecteur' in bloc)
-    verifier('les deux environnements sont verifies avant de lancer',
-             'xtts_service\\.venv' in source and 'kyutai_service\\.venv' in source)
+    verifier('le port 8084 est teste avant tout lancement',
+             '127.0.0.1:8084/sante' in source)
+    verifier('le test de port precede le lancement du moteur',
+             source.index('127.0.0.1:8084/sante')
+             < source.index('ici serait lance : NeuTTS'))
+    verifier('un moteur deja en marche ne relance rien',
+             'deja en marche' in source)
+    verifier("l'environnement est verifie avant de lancer",
+             'neutts_service\\.venv' in source)
+    verifier('les anciens blocs :moteur_xtts / :moteur_kyutai ont disparu',
+             ':moteur_xtts' not in source and ':moteur_kyutai' not in source)
+    # Ce controle porte sur le VRAI START.bat : dans la copie neutre, la ligne
+    # de lancement a justement ete remplacee par un affichage.
+    original = (RACINE / "START.bat").read_text(encoding='utf-8', errors='replace')
+    verifier('plus AUCUN lancement automatique de XTTS ou de Kyutai',
+             original.count('start "') == 1
+             and 'cmd /k DEMARRER_XTTS' not in original
+             and 'cmd /k DEMARRER_KYUTAI' not in original,
+             'lignes start : %d' % original.count('start "'))
 
 
 

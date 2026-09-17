@@ -323,6 +323,206 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   dans un petit venv), télécharger le modèle français, préparer une référence
   (3-15 s + son texte), puis **mesurer la reproductibilité avec un seed fixe**
   (même phrase × 5) et écouter.
+  **Suite du 16/09/2026 (annonce de Laurent, atelier NIMM Voix) : NeuTTS est
+  installé.** Objectif visé par Laurent : un **moteur unique** qui reprendrait
+  les voix déjà construites — les voix Kokoro (dont les 30 « France (NIMM
+  Voix) » et leurs mélanges), les voix de la banque CML-TTS, et les 35 voix
+  clonées XTTS — donc « unifier Kokoro + XTTS dans le même moteur ». Il parle
+  d'un possible **moteur principal de NIMM ePub** « si la piste se confirme ».
+  Rien n'est mesuré à ce jour, et **rien n'est ajouté ici** : ce bloc fige les
+  questions à remonter à l'atelier NIMM Voix, toutes nées de ce qui a déjà
+  invalidé XTTS (cf. ci-dessus).
+  1. **Reproductibilité avec un seed fixe** : même phrase × 5, même seed →
+     audio identique ? C'est le point qui a fait condamner XTTS ici
+     (variabilité structurelle, insensible à la température). Sans cette
+     réponse, l'intérêt est limité.
+  2. **Babil sur les phrases courtes** : NeuTTS est **aussi autorégressif**.
+     Refaire les trois phrases témoins du 16/09/2026 (« Que préférez-vous ? »,
+     « Manger ? », « Non. ») et comparer au babil XTTS ; s'il apparaît, les
+     deux filets de `xtts_service` (bornage par `max_new_tokens` + rognage du
+     résidu après silence) devront être repris.
+  3. **Vitesse sur processeur** : temps de synthèse par phrase rapporté à la
+     durée audio. La lecture se fait **phrase par phrase avec cache** : un
+     moteur plus lent que le temps réel reste utilisable, mais pas agréable à
+     la **première** écoute d'un chapitre.
+  4. **Tenue sur un long texte** : un chapitre enchaîne 20 à 40 phrases (la
+     dérive du clonage instantané est le risque annoncé).
+  5. **Accent** : le français de `neutts-nano-french` est-il **natif** ? C'est
+     le reproche fait aux voix Kokoro qui a lancé toute cette recherche.
+  6. **Référence = wav + texte exact** : les 35 extraits
+     (`kyutai_service\voix_fr\cml-tts\fr\`) ont-ils leur transcription
+     disponible (CML-TTS en fournit peut-être) ? Sinon, à transcrire une fois.
+  7. **Réutilisation des voix Kokoro** : les 30 voix « France (NIMM Voix) »
+     sont des **mélanges de styles internes** au modèle Kokoro — on ne peut
+     pas en extraire un wav. Les « récupérer » dans NeuTTS suppose donc de les
+     **générer puis cloner**. **CORRECTION du 16/09/2026, le test ayant eu
+     lieu : l'hypothèse écrite ici est DÉMENTIE.** J'avais prévu que le clonage
+     reprendrait l'**accent forcé** du modèle anglais et ne ferait donc que
+     déplacer le défaut. Résultat inverse, au verdict d'écoute de Laurent sur
+     les 30 voix passées dans NeuTTS
+     (`sorties\test_neutts_lot30_20260916\`) : « les accents Kokoro ont
+     disparu, les voix ont du caractère (murmure, accent très très léger),
+     tout est lu en français très compréhensible ». *Explication retenue, à
+     confirmer* : l'extrait de référence ne porterait que le **timbre** — la
+     prononciation venant du modèle **français** de NeuTTS, pas de la source.
+     Si c'est confirmé, le procédé s'applique à **n'importe quel extrait**,
+     même synthétique. ⚠️ **Constat à l'oreille, pas mesure** : la comparaison
+     chiffrée de l'index (durée + hauteur face aux voix d'origine) reste à
+     regarder, et **la stabilité (point 1) n'est toujours pas tranchée**.
+  *Suite du chantier dans NIMM Voix (16/09/2026, annonce de Laurent)* :
+  **30 voix Kokoro sur 30** produites en `.wav` par NeuTTS ; chaîne en 3 étages
+  (lot Kokoro → **79 références** préparées + transcrites par Whisper → les
+  **19 voix libres de droits**) ; nouveaux outils `_preparer_references.py`
+  (conversion, rognage, recadrage à 12 s sur le passage le plus parlé,
+  transcription) et `tester_neutts.py --dossier-references` (clonage d'un
+  dossier entier, chaque référence avec son propre texte). Restent en attente :
+  les **60 voix CML-TTS** (préparées, non clonées), les **54 Kokoro
+  officielles** (WAV déjà disponibles dans NIMM Voix, texte connu), et le
+  **test de stabilité**. *Piste LibriVox évoquée par Laurent* : à vérifier
+  l'intérêt, puisque **CML-TTS est déjà du LibriVox** (lecteurs bénévoles de
+  livres du domaine public, CC BY 4.0) et que le gisement français y a déjà
+  été relevé comme **quasi épuisé** — ~67 lecteurs au total, 25 déjà versés
+  (voir l'item « Voix françaises supplémentaires : creuser CML-TTS »). Un
+  balayage LibriVox direct apporterait donc surtout des **lecteurs absents du
+  jeu**, à trier au cas par cas (audio plus bruité : c'est ce qui avait fait
+  écarter le jeu `mls`).
+  **Suite du 16/09/2026, fin de soirée (NIMM Voix)** : l'inventaire des
+  79 références est confirmé — **35 CML-Kyutai + 25 CML-XTTS + les 19 voix
+  libres de droits**. La préparation des **60 CML-TTS** est terminée
+  (**523,8 s** d'audio traitée en **114 s**, transcription à **1,4 s** par
+  extrait ; leurs extraits font **7 à 8 s**, donc **sans recadrage**), et leur
+  clonage a été lancé **automatiquement** par le veilleur 3.
+  **Décision de Laurent (16/09/2026), sur la crainte de perdre les accents des
+  54 voix Kokoro officielles si elles sont clonées** : « il me reste les voix
+  Kokoro, qui elles ont les accents, plus ou moins atténués. Donc je ne perds
+  rien, j'ai juste un peu plus de timbre, avec ou sans accents. » Autrement
+  dit : les voix Kokoro **restent en place** (moteur local, sans moteur à
+  allumer) et les clones NeuTTS ne les remplacent pas — ils les **doublent**
+  d'une version française. La question « que perd-on ? » est donc tranchée :
+  rien, au prix d'une **liste de voix plus longue** (et des étoiles / critères
+  d'écoute à renseigner pour les nouveaux timbres).
+  *Si la piste se confirme, l'intégration est déjà cadrée* : licence tranchée
+  le 14/09/2026 (composant **externe**, jamais embarqué — NIMM ePub reste
+  GPL-3.0 pur) ; le traiter **exactement comme `xtts_service`** (dossier
+  `neutts_service\`, port après 8082/8083, `/sante` + `/voix` + `/tts`,
+  `INSTALLER_` / `DEMARRER_` en double-clic, gardien de fenêtre) et branche
+  `neutts:` dans `/api/tts` (`main.py`).
+  **MESURES DU 16/09/2026** (mémo NIMM Voix,
+  `G:\NIMM Voix\MEMO_NeuTTS_pour_la_session_NIMM_ePub.md`) — dont une
+  **CORRECTION d'une affirmation écrite ici même** : le « modèle de 194 Mo qui
+  tourne sur processeur » laissait croire qu'il cohabiterait avec Kyutai ou
+  XTTS. **C'est faux** : au pic, NeuTTS occupe **3,50 Go de mémoire vidéo** (sur
+  8) — à comparer aux 3,8 Go de Kyutai et d'XTTS : **les trois ne cohabitent pas
+  sur la carte**. Sur processeur, en revanche, il cohabite (aucune mémoire
+  vidéo) mais il est **~6 fois plus lent**.
+  - **Pas de babil** : sur 8 phrases de 4 à 117 caractères, **aucun
+    débordement**, durée **proportionnelle au texte** — « Manger ? » **1,10 s**
+    (XTTS : 8,49 s), « Que préférez-vous ? » **1,40 s** (XTTS : 9,11 s),
+    « Non. » **1,10 s** (XTTS : un résidu de 0,26 s après silence). Les deux
+    filets d'`xtts_service` sont donc **inutiles au départ** — à garder
+    seulement en secours si une dérive apparaissait un jour.
+  - **Vitesse** : **×0,7 le temps réel** sur la RTX 4060 (33,4 s de calcul pour
+    25,0 s d'audio) ; **×3 à ×4 sur processeur**. Chargement **~10 s** à chaud.
+    Piste de vitesse **non essayée** : les backbones **GGUF Q8/Q4** (195-253 Mo
+    au lieu de 915 Mo), via `llama-cpp-python`.
+  - **Graine** : `neutts 1.4.1` exécute `torch.manual_seed(seed)` **à chaque
+    appel** de `infer` → avec un `seed` fixé dans le constructeur, la
+    reproductibilité est **structurelle**. Sans `seed`, le moteur **imprime**
+    celle qu'il a tirée (`Using seed N`, sur **stdout**) : une prise peut donc
+    être rejouée. L'épreuve d'identité **octet à octet** (SHA-256, 5 prises,
+    `seed=42`) est en cours côté NIMM Voix.
+  - **Fenêtre** : 2048 tokens ≈ **30 s d'audio, référence comprise** → découper
+    le texte à **200 caractères** et recadrer les références à **12 s**, sinon
+    **troncature silencieuse**.
+  - **Premier téléchargement : 4,2 Go** et non 2,6 — le codec tire en plus
+    `facebook/w2v-bert-2.0` (2,2 Go). **Ici, tout est déjà en cache**
+    (`C:\Users\Supalol\.cache\huggingface`, 5,3 Go) → installation **sans
+    téléchargement**.
+  - **Dépôts « gated »**, codec compris ; **`espeak-ng` inutile** (la roue
+    `neutts` embarque la DLL et les dictionnaires français) ; filigrane **PerTh**
+    invisible sur chaque audio.
+  - **Deux pièges d'installation** : torch **≥ 2.11** imposé par `torchtune`
+    (2.8 échoue : `cannot import name 'ScalingType'`) ; **`torchao==0.16.0`**
+    épinglée en `--no-deps` (la 0.18 a supprimé `torchao.dtypes.nf4tensor`,
+    réclamé par torchtune).
+  **FAIT le 16/09/2026 (soirée) — le service existe, et il est VÉRIFIÉ.**
+  `neutts_service\` est en place (port **8084**, sur le modèle d'`xtts_service`) :
+  installation réussie en quelques minutes (roues PyTorch et modèles **déjà en
+  cache** sur le PC), **109 voix** annoncées (60 CML-TTS + 19 voix libres +
+  30 Kokoro), et **essai de bout en bout réussi sur le processeur**
+  (`test_voix/test_neutts_bout_en_bout.py`, 11 contrôles) :
+  - **STABILITÉ PROUVÉE, AU BIT PRÈS** : deux synthèses de la même phrase
+    donnent exactement le même fichier (**empreintes SHA-256 identiques**).
+    C'est la réponse à la question qui avait fait condamner XTTS ici.
+  - phrases courtes : « Non. » **0,97 s**, « Manger ? » **1,10 s**,
+    « Que préférez-vous ? » **1,46 s** (XTTS : 1,07 / **8,49** / **9,11**) →
+    **aucun babil**, et des durées cohérentes avec les mesures de l'atelier
+    (1,10 / 1,40).
+  - phrase longue : 240 caractères → **12,8 s**, non tronquée.
+  **BRANCHEMENT FAIT le 16/09/2026 (soirée, sur le go de Laurent)** :
+  `modules/tts.py` (`NEUTTS_VOICES` **généré** par
+  `test_voix/_generer_catalogue_neutts.py`, plus `synthesize_neutts`) ;
+  `main.py` (branche `neutts:`, fiche moteur 8084 dans `MOTEURS_VOIX`,
+  `/api/voices`, `/api/voix_catalogue`) ; `voice_casting.py` (pool : NeuTTS
+  **en dernier** dans chaque palier d'étoiles, la raison est écrite dans
+  `_pool_par_paliers`) ; `START.bat` (**allume NeuTTS, ne lance plus XTTS ni
+  Kyutai** — les deux restent disponibles à la main) ; interface (entrée NeuTTS
+  dans la fenêtre de choix du moteur et dans le filtre des familles de voix).
+  *Vérifié le soir même* : **288 voix proposées au lecteur, dont 109 NeuTTS**,
+  moteur vu comme allumé et prêt, et toute la batterie de tests du projet au
+  vert (`test_pool_casting.py` étendu à la 4e famille, `test_import_main.py`,
+  `test_ids_ecran.py`, `test_libelles_voix.py`, les tests JavaScript, plus les
+  deux tests NeuTTS). Copies de sûreté : `*.bak_avant_neutts_20260916`
+  (`main.py`, `START.bat`, `modules/tts.py`, `modules/voice_casting.py`,
+  `frontend/app.js`).
+  **BASCULE DES VOIX DES LIVRES — FAITE le 16/09/2026 au soir** (objectif de
+  Laurent : remplacer les voix de NIMM ePub par NeuTTS à la place d'XTTS et/ou
+  Kyutai). **8 livres, 160 personnages** passés de `xtts:` à leur jumelle
+  `neutts:` (mêmes prénoms, mêmes timbres) par
+  `test_voix/_basculer_voix_xtts_vers_neutts.py` — rapport seul par défaut,
+  `--ecrire` copie la base **avant** d'écrire. Après bascule : **160 personnages
+  en NeuTTS, 0 en XTTS** (sur 1238 personnages en base). Copie de sûreté :
+  `data/nimm_epub.db.bak_avant_bascule_neutts_20260916_2103`.
+  *Le cache audio n'a PAS été purgé, et n'a pas besoin de l'être* : les clés de
+  cache sont un hachage de (texte + voix + vitesse + hauteur), donc les voix
+  NeuTTS ont de **nouvelles clés** et l'audio se régénère tout seul ; les
+  anciens fichiers XTTS deviennent simplement inutilisés. Purger ne libérerait
+  que **299 Mo** (1885 fichiers) et ferait perdre la relecture instantanée — et
+  hors ligne — de tout ce qui a déjà été écouté, tous moteurs confondus.
+  **BASCULE DES VOIX KYUTAI — FAITE le 17/09/2026** (demande de Laurent ce
+  jour-là : « remplacer les voix XTTS par celles de NeuTTS dans mes castings » —
+  or il ne restait **aucune** voix XTTS : c'est le **Kyutai** qui restait).
+  *Pourquoi ça comptait double* : `START.bat` n'allume plus Kyutai (seulement
+  NeuTTS) — les **63 personnages** concernés (livres 16, 17, 26, 30, 31, 32 et
+  **Notre-Dame de Paris**) s'appuyaient donc sur un moteur **éteint**, autrement
+  dit un audio injouable : la bascule **répare** ces livres en plus de
+  simplifier.
+  Outil : `test_voix/_basculer_voix_kyutai_vers_neutts.py` (nouveau, calqué sur
+  la version XTTS). Il **vérifie que chaque jumelle `neutts:` existe vraiment**
+  chez le moteur *et* dans le catalogue du lecteur, et **refuse d'écrire** si une
+  seule voix manque — on ne distribue jamais une voix inexistante.
+  *Résultat* : **223 personnages en NeuTTS** (160 + 63), **0 en XTTS, 0 en
+  Kyutai**. Copie de sûreté :
+  `data/nimm_epub.db.bak_avant_bascule_kyutai_20260917_0511`.
+  *Verrous* : les 63 personnages concernés n'étaient **pas** verrouillés, mais le
+  script bascule **aussi** les verrouillés — c'est voulu, et c'est la réponse à
+  la question de Laurent. Un **verrou protege du re-cast automatique** (il fige
+  la voix d'un personnage) ; il n'interdit pas de **corriger un moteur à la
+  main**, et il **suit le personnage** : un personnage verrouillé le reste, sur
+  sa voix NeuTTS. Les verrous de la base, en clair : **18 Edge, 36 Kokoro,
+  11 NeuTTS = 65 au total** (`voices.locked`).
+  *Nouvel outil de contrôle* : `test_voix/_etat_familles_voix.py` (lecture seule)
+  — combien de personnages par moteur, combien de verrous, et **santé** : chaque
+  voix attribuée existe-t-elle dans le catalogue du lecteur ? (état au
+  17/09/2026 : **323 voix au catalogue, aucune voix attribuée manquante**).
+  Lanceur double-clic : `test_voix\LANCER_OU_SONT_MES_VOIX.bat`.
+  *Ce qui reste hors NeuTTS* (sur 1238 personnages) : **470 Edge**, **371
+  Kokoro**, **93 Piper**, **81 sans voix**. Edge et Piper **n'ont pas de jumelle
+  NeuTTS** (ce sont d'autres voix, figées) ; Kokoro en a 30 — un choix à faire
+  plus tard, ce n'est pas une bascule automatique.
+  *Le cache audio, une fois de plus, n'a rien besoin de* : les clés sont un
+  hachage de (texte + voix + vitesse + hauteur), les voix NeuTTS ont de
+  nouvelles clés, l'audio se régénère.
   *Reste à relever au moment du chantier* : la **liste exacte des voix
   françaises** disponibles chez Google (doc « list-voices-and-types »), le
   nombre de voix **Gemini TTS** et leur caractère (homme/femme/âge) — au doigt
@@ -394,24 +594,41 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Repli* : `?par_criteres=false` sur `/cast/reassign` redonne exactement
   l'ancien tri — pratique pour comparer les deux sur un même livre.
 
-- [ ] **Étape 2 — bouton « Re-caster avec l'IA »** (validé le 16/09/2026)
-  À côté du re-cast gratuit (étape 1, ci-dessus), un second bouton
-  « Re-caster avec l'IA » : la fenêtre du casting proposerait donc les deux,
-  le mécanique et l'intelligent.
-  *Ce que l'IA apporte* : elle **comprend un personnage** en lisant le texte.
-  L'âge et le genre sont **déjà** déduits par le casting (table `cast_fiche`),
-  et elle sait déduire en plus la **position sociale**, le **registre de
-  langue**, le fait de **parler étranger** (titres, tournures, mots étrangers)
-  et le tempérament. Ce qu'elle ne peut PAS : entendre un timbre — elle choisit
-  sur **description**, d'où l'importance des critères d'écoute.
-  *Où l'insérer* : comme le re-cast par critères, **sans refaire le casting**
-  (« qui parle » est déjà en base) → ~2 centimes, aucun repaiement. Plus tard,
-  si le résultat plaît : une option au lancement du multi-voix, **greffée sur
-  la passe 2** (coût quasi nul : la fiche des personnages y part déjà). Dans
-  tous les cas : **verrous et voix figées de saga respectés**.
-  *Rappel de coût* : un casting complet d'un livre fait ~0,20 à 0,35 €
-  (mesuré : 0,33 € pour « Le Chevalier Errant », 16/09/2026) ; la passe
-  d'attribution seule est estimée à **1-3 centimes**.
+- [x] **Étape 2 — bouton « Re-caster avec l'IA »** (validé le 16/09/2026)
+  — **livré le 16/09/2026 au soir**. À côté du re-cast gratuit, un second
+  bouton « Re-caster avec l'IA » : l'IA **lit des répliques de chaque
+  personnage** (20 premiers chapitres, 3 répliques chacun) et en déduit ce
+  qu'aucune table ne contient — position sociale, registre de langue, parler
+  étranger, tempérament — puis choisit la voix dont la **description d'écoute**
+  correspond le mieux.
+  *Garde-fous de conception* : l'IA ne choisit **jamais** dans tout le
+  catalogue, seulement parmi les voix que le re-cast par critères autorise déjà
+  (même genre, plus de 0 étoile, rôle réservé écarté) ; les **verrous** et les
+  **voix figées de saga** sont respectés (même préparation partagée que le
+  re-cast gratuit : `_preparer_recaste`) ; les **petits rôles**
+  (< `MINOR_THRESHOLD` répliques) ne sont pas soumis à l'IA ; tout ce que l'IA
+  rend d'inutilisable — voix inventée, mauvais genre, doublon, personnage
+  inconnu — est **écarté en le disant**, et le personnage garde alors sa voix
+  par critères. **Rien n'est écrit avant que la réponse n'ait été vérifiée.**
+  *Coût* : « qui parle » n'est pas recalculé (aucun réabonnement) → quelques
+  centimes, comme prévu.
+  *Technique* : `modules/voice_casting.py` (`description_voix`,
+  `voix_proposees_pour`, `construire_prompt_recaste_ia`,
+  `lire_attributions_ia`, `attribuer_voix_avec_ia`) ; `main.py`
+  (`/cast/reassign_ia`, `_preparer_recaste`, `_repliques_des_personnages`,
+  `_decouper_phrases_du_chapitre`) ; `frontend/` (second bouton et fonction
+  `_recasterAvecIA`).
+  *Vérification* : `test_voix/test_recaste_ia.py` (**30 contrôles**, sans
+  appeler l'IA : cadre, prompt, lecture et validation des réponses, découpage
+  des phrases vérifié sur un vrai livre casté → **34/34 personnages** avec
+  leurs répliques, 0 chapitre écarté).
+  *Au passage* : les **109 voix NeuTTS** ont hérité des annotations d'écoute de
+  leurs jumelles XTTS et Kokoro (`_heriter_annotations_xtts_vers_neutts.py`,
+  accents remis à « neutre » — 257 voix annotées au total), sinon l'IA
+  n'aurait eu aucune description à lire.
+  *Reste possible plus tard* : la même attribution greffée sur la passe 2 du
+  casting complet (coût quasi nul : la fiche y part déjà), et l'usage du
+  **parler étranger** déduit par l'IA pour réserver les voix accentuées.
 
 - [x] **Re-cast : la cohérence de SAGA est désormais préservée** — livré le
   **16/09/2026** (trouvé en préparant le re-cast de Monte-Cristo par Laurent, qui
@@ -2368,6 +2585,15 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   il devient public, nettoyer l'historique **avant** (`git filter-repo`/BFG).
   *Reste optionnel* : lire les clés depuis des **variables d'environnement**
   dans `modules/config.py` (avec `data/config.json` en repli).
+  *Garde-fou automatique ajouté le 17/09/2026* : `test_voix/test_pas_de_secrets.py`
+  contrôle ce que Git emporterait (fichiers suivis **+** nouveaux non ignorés) :
+  clés d'API écrites en clair (`sk-`, `hf_`, `gsk_`, `AIza`, jeton `Bearer`),
+  fichiers sensibles suivis, audio / EPUB / base SQLite versionnés, environnements
+  Python des moteurs, extraits de référence NeuTTS. **Honnêteté** : sa première
+  version ne détectait rien — le motif cherchait `sk_` alors que les clés
+  s'écrivent `sk-` ; le trou a été trouvé en collant une **fausse clé** dans un
+  fichier d'essai (non détectée → motif corrigé → détectée, fichier supprimé).
+  Leçon : un garde-fou qui dit « OK » doit être **éprouvé par un cas faux**.
   (2) **Dépendances non figées — FAIT le 12/09/2026.** Deux fichiers créés :
   `requirements.txt` (racine : les 14 paquets du **lecteur**, Python 3.14) et
   `kyutai_service/requirements.txt` (les 11 paquets du **moteur**, Python 3.12 +

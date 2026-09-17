@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
-"""Verification du pool automatique du casting apres l'arrivee de XTTS v2.
+"""Verification du pool automatique du casting apres l'arrivee de XTTS v2,
+puis de NeuTTS (ajout du 16/09/2026).
 
 A lancer avec le Python du lecteur :
     python test_voix/test_pool_casting.py
 
 Ce que le script verifie (regle des paliers d'etoiles, decision de Laurent
-du 15/09/2026 -- elle remplace l'ordre du 14/09/2026) :
+du 15/09/2026, completee le 16/09/2026) :
   1. le pool se parcourt par PALIERS D'ETOILES (3, puis 2, puis 1) et, dans
-     chaque palier, Edge, puis XTTS v2, puis Kokoro ;
+     chaque palier, Edge, puis XTTS v2, puis Kokoro, puis NeuTTS ;
   2. les etoiles des voix Edge sont bien celles du catalogue FRENCH_VOICES
      de main.py (c'est lui qui les transmet au module au demarrage) ;
   3. une voix notee 0 etoile est ECARTEE du pool automatique, sur tous les
-     moteurs (Edge, Kokoro comme XTTS) -- c'est le moyen de retirer une voix
-     du casting automatique ;
+     moteurs (Edge, Kokoro, XTTS comme NeuTTS) -- c'est le moyen de retirer
+     une voix du casting automatique ;
   4. Kyutai est ABSENT du pool automatique (reste choisissable a la main) ;
   5. un personnage important recoit une voix du palier 3 etoiles ;
   6. un petit role (moins de 8 repliques) recoit la voix Piper generique
@@ -20,6 +21,11 @@ du 15/09/2026 -- elle remplace l'ordre du 14/09/2026) :
   7. le seuil des petits roles du client (frontend/app.js) est le meme que
      celui du serveur : sinon la fenetre du casting annoncerait « a caster »
      sur des personnages que le serveur traite comme normaux.
+
+POURQUOI NEUTTS EN DERNIER : le pool automatique ne connait pas l'etat des
+moteurs, et XTTS comme NeuTTS occupent la carte graphique (un seul a la fois).
+Mettre NeuTTS devant enverrait un nouveau casting vers des voix dont le moteur
+peut etre eteint. La raison complete est dans voice_casting._pool_par_paliers.
 """
 
 import os
@@ -31,7 +37,8 @@ sys.path.insert(0, RACINE)
 sys.stdout.reconfigure(encoding='utf-8')
 
 from modules import voice_casting as vc                    # noqa: E402
-from modules.tts import KOKORO_VOICES, KYUTAI_VOICES, XTTS_VOICES  # noqa: E402
+from modules.tts import (KOKORO_VOICES, KYUTAI_VOICES, XTTS_VOICES,  # noqa: E402
+                         NEUTTS_VOICES)
 
 # main.py porte le catalogue des voix Edge (FRENCH_VOICES) et appelle
 # vc.definir_voix_edge() au demarrage : c'est la chaine reelle du programme,
@@ -41,9 +48,12 @@ import main                                                # noqa: E402
 NOTES_EDGE   = {v["id"]: int(v.get("stars", 0)) for v in main.FRENCH_VOICES}
 NOTES_XTTS   = {v["id"]: int(v.get("stars", 0)) for v in XTTS_VOICES}
 NOTES_KOKORO = {v["id"]: int(v.get("stars", 0)) for v in KOKORO_VOICES}
+NOTES_NEUTTS = {v["id"]: int(v.get("stars", 0)) for v in NEUTTS_VOICES}
 
-# Ordre des moteurs DANS un palier d'etoiles (decision du 15/09/2026).
-RANG_FAMILLE = {"edge": 0, "xtts": 1, "kokoro": 2}
+# Ordre des moteurs DANS un palier d'etoiles (decision du 15/09/2026, NeuTTS
+# ajoute en dernier le 16/09/2026).
+RANG_FAMILLE = {"edge": 0, "xtts": 1, "kokoro": 2, "neutts": 3}
+FAMILLES_ORDRE = ("edge", "xtts", "kokoro", "neutts")
 
 
 def famille(identifiant):
@@ -51,11 +61,14 @@ def famille(identifiant):
         return "xtts"
     if identifiant.startswith("kokoro:"):
         return "kokoro"
+    if identifiant.startswith("neutts:"):
+        return "neutts"
     return "edge"
 
 
 def etoiles(identifiant):
-    return {"xtts": NOTES_XTTS, "kokoro": NOTES_KOKORO}.get(
+    return {"xtts": NOTES_XTTS, "kokoro": NOTES_KOKORO,
+            "neutts": NOTES_NEUTTS}.get(
         famille(identifiant), NOTES_EDGE).get(identifiant, 0)
 
 
@@ -64,13 +77,14 @@ def main_test():
     # complete, pas seulement le calcul interne du module.
     vc.definir_voix_edge(main.FRENCH_VOICES)
 
-    print("1) pool compose par paliers d'etoiles, Edge puis XTTS puis Kokoro")
+    print("1) pool compose par paliers d'etoiles, Edge puis XTTS puis Kokoro "
+          "puis NeuTTS")
     for genre, pool in (("F", vc.DEDICATED_VOICES_F), ("M", vc.DEDICATED_VOICES_M)):
         cles = [(-etoiles(v), RANG_FAMILLE[famille(v)]) for v in pool]
         assert cles == sorted(cles), "l'ordre des paliers est faux : %s" % cles
         details = []
         for palier in (3, 2, 1):
-            familles = [f for f in ("edge", "xtts", "kokoro")
+            familles = [f for f in FAMILLES_ORDRE
                         if any(etoiles(v) == palier and famille(v) == f for v in pool)]
             details.append("%d* %s" % (palier, "+".join(familles) or "-"))
         print("   %s : %d voix au total | %s" % (genre, len(pool), " ; ".join(details)))
@@ -90,7 +104,8 @@ def main_test():
         assert not nulles, "voix a 0 etoile encore dans le pool %s : %s" % (genre, nulles)
     ecartees = {"edge": [i for i, n in NOTES_EDGE.items() if n == 0],
                 "xtts": [i for i, n in NOTES_XTTS.items() if n == 0],
-                "kokoro": [i for i, n in NOTES_KOKORO.items() if n == 0]}
+                "kokoro": [i for i, n in NOTES_KOKORO.items() if n == 0],
+                "neutts": [i for i, n in NOTES_NEUTTS.items() if n == 0]}
     for moteur, identifiants in ecartees.items():
         for identifiant in identifiants:
             assert identifiant not in vc.DEDICATED_VOICES_F

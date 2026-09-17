@@ -254,7 +254,7 @@ function _detailMoteur(prefixe) {
 }
 
 function _remplirMoteurModal() {
-  ['xtts', 'kyutai'].forEach((prefixe) => {
+  ['neutts', 'xtts', 'kyutai'].forEach((prefixe) => {
     const el = document.getElementById('moteur-detail-' + prefixe);
     if (el) el.textContent = _detailMoteur(prefixe);
   });
@@ -1079,6 +1079,7 @@ const FAMILLES_VOIX = [
   ['piper',  'Piper'],
   ['kyutai', 'Kyutai'],
   ['xtts',   'XTTS v2'],
+  ['neutts', 'NeuTTS'],
 ];
 
 let _annotationsVoix = {};                       // { voiceId: {genre, stars, note} }
@@ -1466,6 +1467,84 @@ async function _recasterLivre() {
   }
 }
 
+// Re-cast AVEC l'IA (etape 2, 16/09/2026) : le second bouton, a cote du gratuit.
+// L'IA lit quelques repliques de chaque personnage et en deduit ce qu'aucune
+// table ne contient (position sociale, registre de langue, parler etranger,
+// temperament), puis choisit la voix dont la DESCRIPTION correspond le mieux.
+// Garde-fous : verrous et voix figees de saga respectes, petits roles non
+// soumis a l'IA, et tout ce que l'IA rend d'inutilisable est ecarte (le
+// personnage garde alors exactement la voix du re-cast par criteres).
+async function _recasterAvecIA() {
+  const voices = (_currentBookData && _currentBookData.voices) || {};
+  const verrouilles = Object.keys(voices).filter(n => voices[n].locked);
+
+  let msg = 'Re-caster ce livre AVEC l\'IA ?\n\n';
+  msg += 'L\'IA lit quelques repliques de chaque personnage et en deduit sa '
+       + 'position sociale, son registre de langue, s\'il parle etranger et son '
+       + 'temperament : elle choisit ensuite la voix qui correspond le mieux.\n\n';
+  msg += 'Quelques centimes (Gemini, le moteur par defaut). Les personnages '
+       + 'verrouilles et les voix figees de saga ne bougent pas ; les petits '
+       + 'roles (moins de 8 repliques) gardent leur voix actuelle.\n';
+  if (verrouilles.length > 0) {
+    msg += '\nVoix conservees (' + verrouilles.length + ') : '
+         + verrouilles.join(', ') + '\n';
+  }
+  if (!confirm(msg)) return;
+
+  const btn = document.getElementById('cast-recast-ia-btn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Re-cast IA en cours...';
+  try {
+    const res = await fetch(
+      '/api/books/' + _currentBookId + '/cast/reassign_ia?user_id='
+      + _currentUserId + '&provider=gemini',
+      { method: 'POST' }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Echec du re-cast IA');
+    }
+    const data = await res.json();
+
+    // Recharge le livre pour recuperer les nouvelles voix, puis reaffiche la
+    // fenetre du casting a jour (meme chose que le re-cast gratuit).
+    try {
+      const bookRes = await fetch('/api/books/' + _currentBookId + '?user_id=' + _currentUserId);
+      if (bookRes.ok) {
+        const freshBook = await bookRes.json();
+        _currentBookData.voices  = freshBook.voices || {};
+        _currentBookData.aliases = freshBook.aliases || {};
+      }
+    } catch (e) {
+      console.error('Erreur rechargement voix du livre:', e);
+    }
+    _openCastModal(true);
+
+    let bilan = 'Re-cast IA termine : ' + data.modifies + ' voix modifiee(s), dont '
+              + data.par_ia + ' choisie(s) par l\'IA, '
+              + data.gardes + ' conservee(s).\n';
+    bilan += '\n' + data.soumis + ' personnage(s) soumis a l\'IA ('
+           + data.extraits + ' avec leurs repliques) ; '
+           + data.petits_roles + ' petit(s) role(s) laisse(s) de cote.';
+    if (data.chapitres_ecartes && data.chapitres_ecartes.length) {
+      bilan += '\n\nChapitres ignores (decoupage inattendu) : '
+             + data.chapitres_ecartes.join(', ')
+             + ' -- l\'IA a decide sans leurs repliques.';
+    }
+    if (data.problemes && data.problemes.length) {
+      bilan += '\n\nReponses ecartees de l\'IA :\n- ' + data.problemes.join('\n- ');
+    }
+    alert(bilan);
+  } catch (e) {
+    console.error('Erreur re-cast IA:', e);
+    alert('Impossible de re-caster avec l\'IA : ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
 // Detache un alias : le nom redevient un personnage independant (il n'a
 // jamais ete supprime), avec sa propre voix.
 async function _detacherAlias(aliasName) {
@@ -1655,6 +1734,7 @@ document.getElementById('cast-modal').addEventListener('click', (e) => {
   if (e.target.id === 'cast-modal') _closeCastModal();
 });
 document.getElementById('cast-recast-btn').addEventListener('click', _recasterLivre);
+document.getElementById('cast-recast-ia-btn').addEventListener('click', _recasterAvecIA);
 document.getElementById('cast-autogroup-btn').addEventListener('click', _autogrouperDoublons);
 
 // --- Ecouter les voix (listener, 14/09/2026) ---

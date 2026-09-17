@@ -119,6 +119,16 @@ xtts_service/journal_cml*.txt
 # _ecouter_extraits_dp.py) : audio produit par le moteur, jamais versionne.
 xtts_service/sortie_ecoute_dp/
 
+# Moteur NeuTTS (environnement Python 3.12 + extraits de reference + modeles,
+# non versionnes : voir neutts_service/LIRE_MOI.md pour les recreer). Les
+# extraits de reference viennent de CML-TTS (CC BY 4.0, partageable) mais ce
+# sont des AUDIO : ils restent hors du depot, comme ceux des deux autres
+# moteurs. Les transcriptions (*.csv, *.txt) sont dans le meme dossier, donc
+# ignorees aussi -- leur provenance et leur licence sont dans ATTRIBUTION.md.
+neutts_service/.venv/
+neutts_service/references/
+neutts_service/journal_installation.txt
+
 # Livres audio exportes en MP3 (idee de Laurent, 15/09/2026 : exporter un livre
 # avec son casting pour l'ecouter comme un vrai livre audio). Ce sont des
 # OEUVRES et de l'audio produit par les moteurs de voix : ils ne doivent jamais
@@ -129,3 +139,4 @@ data/exports/
 # de zero (l'ancien historique contient des livres) : jamais versionne.
 .git_ancien_*/
 
+neutts_service/journal_*.txt

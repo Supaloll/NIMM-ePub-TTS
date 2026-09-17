@@ -3,6 +3,7 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
 import json
+import re
 import shutil
 import sqlite3
 import asyncio
@@ -277,18 +278,21 @@ async def service_worker():
 
 @app.get("/api/voices")
 async def get_voices():
-    from modules.tts import KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES, XTTS_VOICES
+    from modules.tts import (KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES,
+                             XTTS_VOICES, NEUTTS_VOICES)
     # Seules les voix ECOUTABLES TOUT DE SUITE sont proposees (14/09/2026,
     # demande de Laurent). Edge, Kokoro et Piper le sont toujours ; les voix
-    # Kyutai et XTTS v2 seulement si LEUR moteur est ALLUME ET PRET. Sinon on
-    # pouvait en choisir une moteur eteint et ne le decouvrir qu'en plein
-    # chapitre. Voir /api/moteurs pour l'etat affiche.
+    # Kyutai, XTTS v2 et NeuTTS seulement si LEUR moteur est ALLUME ET PRET.
+    # Sinon on pouvait en choisir une moteur eteint et ne le decouvrir qu'en
+    # plein chapitre. Voir /api/moteurs pour l'etat affiche.
     etat = etat_moteurs_voix()
     voix = FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES
     if _moteur_voix_pret(etat, "kyutai"):
         voix = voix + KYUTAI_VOICES
     if _moteur_voix_pret(etat, "xtts"):
         voix = voix + XTTS_VOICES
+    if _moteur_voix_pret(etat, "neutts"):
+        voix = voix + NEUTTS_VOICES
     return voix
 
 @app.get("/api/voix_catalogue")
@@ -309,15 +313,18 @@ async def get_voix_catalogue():
     Chaque voix porte `famille` (edge, kokoro, piper, kyutai, xtts) et `dispo`
     (lisible tout de suite, ou non).
     """
-    from modules.tts import KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES, XTTS_VOICES
+    from modules.tts import (KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES,
+                             XTTS_VOICES, NEUTTS_VOICES)
     etat = etat_moteurs_voix()
     dispo = {"kyutai": _moteur_voix_pret(etat, "kyutai"),
-             "xtts": _moteur_voix_pret(etat, "xtts")}
+             "xtts": _moteur_voix_pret(etat, "xtts"),
+             "neutts": _moteur_voix_pret(etat, "neutts")}
 
     def _famille(identifiant: str) -> str:
         return identifiant.split(":")[0] if ":" in identifiant else "edge"
 
-    voix = FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES + KYUTAI_VOICES + XTTS_VOICES
+    voix = (FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES + KYUTAI_VOICES
+            + XTTS_VOICES + NEUTTS_VOICES)
     return [{**v, "famille": _famille(v["id"]),
              "dispo": dispo.get(_famille(v["id"]), True)} for v in voix]
 
@@ -662,6 +669,7 @@ async def get_chapter(book_id: int, chapter_index: int, user_id: int):
 
 KYUTAI_URL = "http://127.0.0.1:8082/sante"
 XTTS_URL = "http://127.0.0.1:8083/sante"
+NEUTTS_URL = "http://127.0.0.1:8084/sante"
 _kyutai_coupe_pour_casting = False
 
 
@@ -702,6 +710,9 @@ MOTEURS_VOIX = {
     "xtts":   {"nom": "XTTS v2", "sante": XTTS_URL,
                "dossier": "xtts_service", "lanceur": "DEMARRER_XTTS.bat",
                "motifs": ("servir_xtts", "DEMARRER_XTTS")},
+    "neutts": {"nom": "NeuTTS", "sante": NEUTTS_URL,
+               "dossier": "neutts_service", "lanceur": "DEMARRER_NEUTTS.bat",
+               "motifs": ("servir_neutts", "DEMARRER_NEUTTS")},
 }
 
 # Le pense-bete du DERNIER moteur utilise. Il est ecrit par les deux lanceurs de
@@ -1519,6 +1530,58 @@ async def lock_character_voice(book_id: int, user_id: int, request: VoiceLockReq
     return {"ok": True, "locked": bool(request.locked)}
 
 
+def _preparer_recaste(rows, alias_rows, fiche_rows, figees_saga):
+    """Prepare un re-cast : groupes d'alias, personnages, voix figees.
+
+    PARTAGEE par les DEUX re-casts -- le gratuit (par criteres) et celui avec
+    l'IA -- pour qu'ils ne divergent jamais sur les verrous et la coherence de
+    saga. C'est la seule facon d'etre sur que « Re-caster » et « Re-caster avec
+    l'IA » respectent exactement les memes regles.
+
+    Renvoie (groupes, personnages, compte_phrases, voix_figees, by_name).
+    """
+    # Un personnage peut etre un GROUPE d'alias : on traite le groupe comme
+    # une seule fiche (repliques additionnees) et on applique la meme voix a
+    # tous ses membres, sauf ceux verrouilles individuellement.
+    alias_map = {r["alias_name"]: r["canonical_name"] for r in alias_rows}
+    by_name = {r["character_name"]: r for r in rows}
+    groupes = {}
+    for r in rows:
+        canon = alias_map.get(r["character_name"], r["character_name"])
+        if canon not in by_name:
+            canon = r["character_name"]
+        groupes.setdefault(canon, []).append(r)
+
+    # On rejoue la meme attribution que lors du casting initial, en passant
+    # les groupes verrouilles comme "voix figees" -- mecanisme deja utilise
+    # pour les sagas, donc comportement identique et eprouve.
+    personnages = []
+    compte_phrases = {}
+    voix_figees = {}
+    ages_fiche = {r["character_name"]: (r["age"] or "adulte") for r in fiche_rows}
+    for canon, membres in groupes.items():
+        head = by_name.get(canon, membres[0])
+        personnages.append({"nom": canon, "genre": head["genre"] or "H",
+                            "age": ages_fiche.get(canon) or "adulte"})
+        compte_phrases[canon] = sum((m["line_count"] or 0) for m in membres)
+        if head["locked"]:
+            voix_figees[canon] = {
+                "voice_id": head["voice_id"],
+                "pitch": head["pitch"],
+                "rate": head["rate"] or "+0%",
+                "genre": head["genre"] or "H",
+            }
+
+    # Les voix des AUTRES TOMES completent les verrous, sans les ecraser : un
+    # personnage deja caste dans la saga (voir le tome le plus ancien) garde sa
+    # voix, meme s'il n'est pas verrouille dans ce tome-ci. C'est ce qui preserve
+    # la coherence d'une saga lors d'un re-cast.
+    for nom, fiche in figees_saga.items():
+        voix_figees.setdefault(nom, fiche)
+
+    return groupes, personnages, compte_phrases, voix_figees, by_name
+
+
 @app.post("/api/books/{book_id}/cast/reassign")
 async def reassign_voices(book_id: int, user_id: int, par_criteres: bool = True):
     """
@@ -1580,44 +1643,10 @@ async def reassign_voices(book_id: int, user_id: int, par_criteres: bool = True)
 
     from modules import voice_casting
 
-    # Un personnage peut etre un GROUPE d'alias : on traite le groupe comme
-    # une seule fiche (repliques additionnees) et on applique la meme voix a
-    # tous ses membres, sauf ceux verrouilles individuellement.
-    alias_map = {r["alias_name"]: r["canonical_name"] for r in alias_rows}
-    by_name = {r["character_name"]: r for r in rows}
-    groupes = {}
-    for r in rows:
-        canon = alias_map.get(r["character_name"], r["character_name"])
-        if canon not in by_name:
-            canon = r["character_name"]
-        groupes.setdefault(canon, []).append(r)
-
-    # On rejoue la meme attribution que lors du casting initial, en passant
-    # les groupes verrouilles comme "voix figees" -- mecanisme deja utilise
-    # pour les sagas, donc comportement identique et eprouve.
-    personnages = []
-    compte_phrases = {}
-    voix_figees = {}
-    ages_fiche = {r["character_name"]: (r["age"] or "adulte") for r in fiche_rows}
-    for canon, membres in groupes.items():
-        head = by_name.get(canon, membres[0])
-        personnages.append({"nom": canon, "genre": head["genre"] or "H",
-                            "age": ages_fiche.get(canon) or "adulte"})
-        compte_phrases[canon] = sum((m["line_count"] or 0) for m in membres)
-        if head["locked"]:
-            voix_figees[canon] = {
-                "voice_id": head["voice_id"],
-                "pitch": head["pitch"],
-                "rate": head["rate"] or "+0%",
-                "genre": head["genre"] or "H",
-            }
-
-    # Les voix des AUTRES TOMES completent les verrous, sans les ecraser : un
-    # personnage deja caste dans la saga (voir le tome le plus ancien) garde sa
-    # voix, meme s'il n'est pas verrouille dans ce tome-ci. C'est ce qui preserve
-    # la coherence d'une saga lors d'un re-cast.
-    for nom, fiche in figees_saga.items():
-        voix_figees.setdefault(nom, fiche)
+    # Preparation PARTAGEE avec le re-cast par IA (voir _preparer_recaste) :
+    # groupes d'alias, ages lus dans cast_fiche, verrous, voix figees de saga.
+    groupes, personnages, compte_phrases, voix_figees, by_name = _preparer_recaste(
+        rows, alias_rows, fiche_rows, figees_saga)
 
     nouvelles = voice_casting.assign_voices(personnages, compte_phrases,
                                             voix_figees=voix_figees,
@@ -1648,6 +1677,203 @@ async def reassign_voices(book_id: int, user_id: int, par_criteres: bool = True)
     return {"ok": True, "modifies": modifies, "gardes": len(voix_figees)}
 
 
+def _decouper_phrases_du_chapitre(texte: str) -> list:
+    """Les phrases d'un chapitre, decoupees COMME LE FAIT LA PAGE.
+
+    C'est indispensable : `speaker_attribution.sentence_idx` est calcule sur ce
+    decoupage precis (frontend/app.js, `_buildSentences`) -- paragraphes
+    separes par une ligne vide, puis phrases coupees apres un point, un point
+    d'interrogation, d'exclamation, une ellipse ou un guillemet fermant, et
+    phrases de 4 caracteres ou plus conservees.
+
+    Si ce decoupage s'ecarte de celui de la page, l'appelant s'en apercoit (il
+    compare les indices au nombre de phrases) et se passe des repliques :
+    mieux vaut un re-cast sans extraits qu'un re-cast avec les repliques d'un
+    AUTRE personnage.
+    """
+    phrases = []
+    for paragraphe in re.split(r"\n\n+", texte or ""):
+        paragraphe = paragraphe.strip()
+        if len(paragraphe) <= 5:
+            continue
+        for brute in re.split(r"(?<=[.!?\u2026\u00bb])\s+", paragraphe):
+            morceau = brute.strip()
+            if len(morceau) > 3:
+                phrases.append(morceau)
+    return phrases
+
+
+def _repliques_des_personnages(conn, book, personnages, maximum=3,
+                               chapitres_max=20):
+    """{nom: [replique, ...]} : quelques repliques des premiers chapitres.
+
+    Le texte n'est pas en base (la table `speaker_attribution` ne garde que
+    « qui parle ») : il faut donc relire l'epub. On borne le travail -- on
+    s'arrete des que chaque personnage a ses repliques, et apres
+    `chapitres_max` chapitres. Un re-cast doit rester une operation de
+    quelques secondes, pas une relecture complete du livre.
+
+    Renvoie aussi les chapitres ECARTES (decoupage non aligne sur celui de la
+    page), pour pouvoir le dire a l'utilisateur plutot que de faire semblant.
+    """
+    from core.epub_parser import get_chapters
+
+    noms = {p["nom"] for p in personnages}
+    trouvees = {}
+    ecartes = set()
+    chemin = str(LIBRARY_DIR / book["filename"])
+
+    try:
+        chapitres = get_chapters(chemin)
+    except Exception:
+        return trouvees, ecartes
+
+    # Une SEULE lecture du livre (l'analyse est faite une fois), puis on
+    # parcourt les premiers chapitres : c'est la que les personnages se
+    # presentent, et cela suffit pour entendre leur facon de parler.
+    for position, chapitre in enumerate(chapitres[:chapitres_max]):
+        index = chapitre.get("index", position)
+        rows = conn.execute(
+            "SELECT sentence_idx, speaker FROM speaker_attribution "
+            "WHERE book_id = ? AND chapter_index = ?",
+            (book["id"], index)
+        ).fetchall()
+        if not rows:
+            continue
+        phrases = _decouper_phrases_du_chapitre(chapitre.get("text") or "")
+        if not phrases or max(r["sentence_idx"] for r in rows) >= len(phrases):
+            ecartes.add(index)
+            continue
+        for row in rows:
+            nom = row["speaker"]
+            if nom not in noms or len(trouvees.get(nom, [])) >= maximum:
+                continue
+            trouvailles = trouvees.setdefault(nom, [])
+            texte = phrases[row["sentence_idx"]]
+            if texte not in trouvailles:
+                trouvailles.append(texte)
+
+    return trouvees, ecartes
+
+
+@app.post("/api/books/{book_id}/cast/reassign_ia")
+async def reassign_voices_ia(book_id: int, user_id: int, provider: str = "gemini"):
+    """
+    Re-cast AVEC l'IA (etape 2, livree le 16/09/2026) -- le second bouton de la
+    fenetre du casting, a cote du re-cast gratuit.
+
+    Ce que l'IA apporte : elle LIT des repliques du personnage et en deduit sa
+    position sociale, son registre de langue, le fait de parler etranger et son
+    temperament -- ce qu'aucune table ne contient. Comme elle n'entend pas les
+    timbres, elle choisit sur DESCRIPTION (les annotations d'ecoute).
+
+    Garde-fous, identiques au re-cast gratuit :
+      - « qui parle » n'est PAS recalcule : seules les voix changent, donc
+        c'est rapide et sans reabonnement (quelques centimes) ;
+      - les personnages VERROUILLES et les voix FIGEES DE SAGA ne bougent pas ;
+      - les PETITS ROLES (< MINOR_THRESHOLD repliques) ne sont pas soumis a
+        l'IA : ils gardent la voix generique, comme aujourd'hui ;
+      - l'IA ne peut choisir que parmi les voix que le re-cast par criteres
+        autorise deja (voir voice_casting.voix_proposees_pour) ;
+      - tout ce que l'IA rend d'illisible ou d'interdit est ECARTE, et le
+        personnage garde alors sa voix par criteres (repli).
+    Rien n'est ecrit tant que la reponse de l'IA n'a pas ete verifiee.
+    """
+    from modules import voice_casting
+
+    conn = get_db()
+    book = conn.execute(
+        "SELECT id, filename, cast_status, saga FROM books WHERE id = ? AND user_id = ?",
+        (book_id, user_id)
+    ).fetchone()
+    if not book:
+        conn.close()
+        raise HTTPException(404, "Livre introuvable")
+    if (book["cast_status"] or "none") != "done":
+        conn.close()
+        raise HTTPException(400, "Ce livre n'est pas encore caste")
+
+    rows = conn.execute(
+        "SELECT character_name, voice_id, pitch, rate, genre, line_count, locked FROM voices WHERE book_id = ?",
+        (book_id,)
+    ).fetchall()
+    if not rows:
+        conn.close()
+        raise HTTPException(400, "Aucun personnage a re-caster")
+    alias_rows = conn.execute(
+        "SELECT alias_name, canonical_name FROM character_aliases WHERE book_id = ?",
+        (book_id,)
+    ).fetchall()
+    fiche_rows = conn.execute(
+        "SELECT character_name, age FROM cast_fiche WHERE book_id = ?", (book_id,)
+    ).fetchall()
+    figees_saga = _fetch_saga_voix_figees(conn, book["saga"], user_id, book_id)
+
+    groupes, personnages, compte_phrases, voix_figees, by_name = _preparer_recaste(
+        rows, alias_rows, fiche_rows, figees_saga)
+
+    # Seuls les roles qui comptent sont soumis a l'IA : les petits roles
+    # gardent leur voix generique (regle du 22/08/2026, inchangee).
+    soumis = [p for p in personnages
+              if compte_phrases.get(p["nom"], 0) >= voice_casting.MINOR_THRESHOLD]
+    repliques, ecartes = _repliques_des_personnages(conn, book, soumis)
+    conn.close()
+    for personnage in soumis:
+        personnage["repliques"] = compte_phrases.get(personnage["nom"], 0)
+        personnage["repliques_texte"] = repliques.get(personnage["nom"], [])
+
+    if not soumis:
+        raise HTTPException(400, "Aucun personnage assez present pour un re-cast IA")
+
+    exclues = {fiche["voice_id"] for fiche in voix_figees.values()}
+    try:
+        resultat = await voice_casting.attribuer_voix_avec_ia(
+            soumis, exclues=exclues, provider=provider)
+    except Exception as erreur:
+        raise HTTPException(
+            502, "L'IA n'a pas pu repondre ({}). RIEN n'a ete modifie.".format(
+                str(erreur)[:160]))
+    attributions = resultat.get("attributions") or {}
+
+    # Repli pour tout ce que l'IA n'a pas attribue (ou a attribue a tort) : le
+    # personnage garde alors exactement la voix du re-cast par criteres.
+    nouvelles = voice_casting.assign_voices(personnages, compte_phrases,
+                                            voix_figees=voix_figees,
+                                            par_criteres=True)
+
+    conn = get_db()
+    modifies = 0
+    par_ia = 0
+    for canon, membres in groupes.items():
+        head = by_name.get(canon, membres[0])
+        if head["locked"]:
+            voix_groupe = head["voice_id"]
+        elif canon in attributions:
+            voix_groupe = attributions[canon]
+            par_ia += 1
+        else:
+            cible = nouvelles.get(canon)
+            if not cible:
+                continue
+            voix_groupe = cible["voice_id"]
+        for membre in membres:
+            if membre["locked"] and membre["character_name"] != canon:
+                continue
+            conn.execute(
+                "UPDATE voices SET voice_id = ? WHERE book_id = ? AND character_name = ?",
+                (voix_groupe, book_id, membre["character_name"])
+            )
+            modifies += 1
+    conn.commit()
+    conn.close()
+
+    return {"ok": True, "modifies": modifies, "gardes": len(voix_figees),
+            "par_ia": par_ia, "soumis": len(soumis),
+            "petits_roles": len(personnages) - len(soumis),
+            "extraits": sum(1 for p in soumis if p["repliques_texte"]),
+            "chapitres_ecartes": sorted(ecartes),
+            "problemes": (resultat.get("problemes") or [])[:5],
+            "tokens": voice_casting.tokens_session(provider)}
 @app.post("/api/books/{book_id}/cast/autogroup")
 async def autogroup_voice_duplicates(book_id: int, user_id: int, apply: bool = False):
     """
@@ -2027,6 +2253,23 @@ async def tts(request: TTSRequest):
         async def generate_xtts():
             yield audio
         return StreamingResponse(generate_xtts(), media_type="audio/wav")
+
+    if request.voice.startswith("neutts:"):
+        # Le moteur NeuTTS tourne dans SON PROPRE service (Python 3.12 +
+        # PyTorch, lance par neutts_service/DEMARRER_NEUTTS.bat) : on l'appelle
+        # en HTTP local, exactement comme Kyutai et XTTS v2.
+        from modules.tts import synthesize_neutts, NeuttsIndisponible
+        try:
+            audio = await synthesize_neutts(request.text, request.voice,
+                                             request.rate, request.pitch)
+        except NeuttsIndisponible as erreur:
+            # 503 : erreur "definitive" (moteur eteint), pas une coupure
+            # reseau. Le client affiche le message et arrete la lecture au
+            # lieu de reessayer sans fin.
+            raise HTTPException(status_code=503, detail=str(erreur))
+        async def generate_neutts():
+            yield audio
+        return StreamingResponse(generate_neutts(), media_type="audio/wav")
 
     from modules.tts import synthesize_stream
     async def generate():

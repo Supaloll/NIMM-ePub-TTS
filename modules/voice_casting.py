@@ -19,7 +19,7 @@ from modules.config import (
     get_gemini_api_key, get_mistral_api_key, get_deepseek_api_key,
     get_local_model, get_local_url,
 )
-from modules.tts import KOKORO_VOICES, KYUTAI_VOICES, XTTS_VOICES
+from modules.tts import KOKORO_VOICES, KYUTAI_VOICES, XTTS_VOICES, NEUTTS_VOICES
 
 MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
@@ -1231,10 +1231,20 @@ def _pool_par_paliers(genre: str) -> list:
     """Pool automatique d'un genre, par paliers d'etoiles.
 
     Paliers 3 -> 2 -> 1 etoile ; dans chaque palier, Edge, puis XTTS v2, puis
-    Kokoro (decision de Laurent du 15/09/2026). A etoile egale et dans un meme
-    moteur, l'ordre du catalogue est conserve : assign_voices traite les
-    personnages du plus present au moins present, donc les meilleurs timbres
-    partent aux roles principaux.
+    Kokoro (decision de Laurent du 15/09/2026), et EN DERNIER les voix NeuTTS
+    (ajout du 16/09/2026). A etoile egale et dans un meme moteur, l'ordre du
+    catalogue est conserve : assign_voices traite les personnages du plus
+    present au moins present, donc les meilleurs timbres partent aux roles
+    principaux.
+
+    POURQUOI NEUTTS EN DERNIER (et non en tete, alors que c'est le moteur le
+    plus stable) : le pool automatique ne connait PAS l'etat des moteurs, et
+    une voix dont le moteur est eteint ne serait pas lisible. XTTS et NeuTTS
+    occupent tous les deux la carte graphique (un seul a la fois), donc mettre
+    NeuTTS devant XTTS aurait envoye un nouveau casting vers des voix
+    indisponibles. En dernier, il sert quand les autres sont epuises -- ce qui
+    est deja beaucoup sur un livre a 175 personnages -- et Laurent le choisit
+    a la main pour l'essayer. Deplacer cette ligne suffit a changer l'ordre.
     """
     edge, notes_edge = _edge_pool(genre)
     familles = (
@@ -1243,6 +1253,8 @@ def _pool_par_paliers(genre: str) -> list:
          _notes(XTTS_VOICES)),
         ([v["id"] for v in KOKORO_VOICES if v.get("gender") == genre],
          _notes(KOKORO_VOICES)),
+        ([v["id"] for v in NEUTTS_VOICES if v.get("gender") == genre],
+         _notes(NEUTTS_VOICES)),
     )
     pool = []
     for etoiles in (3, 2, 1):
@@ -1511,7 +1523,7 @@ def _index_voix() -> dict:
         index[ident] = {"genre": "H", "stars": int(_EDGE_STARS.get(ident, 0))}
     for ident in _EDGE_POOL_F:
         index[ident] = {"genre": "F", "stars": int(_EDGE_STARS.get(ident, 0))}
-    for liste in (XTTS_VOICES, KOKORO_VOICES, KYUTAI_VOICES):
+    for liste in (XTTS_VOICES, KOKORO_VOICES, KYUTAI_VOICES, NEUTTS_VOICES):
         for voix in liste:
             index[voix["id"]] = {
                 "genre": "F" if voix.get("gender") == "F" else "H",
@@ -1562,6 +1574,195 @@ def _classement_voix(genre: str, age: str) -> list:
         classement.append((note, ident))
     classement.sort()
     return [ident for _, ident in classement]
+
+
+
+# ==============================================================
+# ETAPE 2 -- RE-CAST AVEC L'IA (16/09/2026, validee par Laurent)
+# ==============================================================
+# Le re-cast GRATUIT (par criteres, ci-dessus) classe les voix sur les
+# annotations d'ecoute. Celui-ci va plus loin : l'IA LIT LES REPLIQUES du
+# personnage et en deduit ce qu'aucune table ne contient -- position sociale,
+# registre de langue, fait de parler etranger, temperament.
+#
+# Elle ne peut PAS entendre un timbre : elle choisit donc sur DESCRIPTION, ce
+# qui n'est possible que parce que les voix sont annotees (age, timbre, debit,
+# registre, accent, etoiles).
+#
+# GARDE-FOU DE CONCEPTION : l'IA ne choisit JAMAIS dans tout le catalogue. Pour
+# chaque personnage, les voix proposees sont exactement celles que les regles
+# du re-cast gratuit autorisent deja (meme genre, plus de 0 etoile, role
+# reserve ecarte). L'IA ne fait donc que RE-ORDONNER -- elle ne peut pas
+# introduire une voix que le re-cast gratuit aurait refusee.
+#
+# Deux fonctions sont PURES (aucun appel reseau, donc testables) :
+# `construire_prompt_recaste_ia` et `lire_attributions_ia`. L'appel au modele
+# est isole dans `attribuer_voix_avec_ia`.
+
+def description_voix(ident: str, fiche: dict, annotation: dict) -> str:
+    """Une ligne de description d'une voix, lisible par un modele."""
+    morceaux = ["femme" if fiche.get("genre") == "F" else "homme"]
+    for cle, etiquette in (("age", "age"), ("timbre", "timbre"),
+                           ("debit", "debit"), ("registre", "registre"),
+                           ("accent", "accent"), ("role", "role reserve")):
+        valeur = (annotation or {}).get(cle)
+        if valeur:
+            morceaux.append("%s %s" % (etiquette, valeur))
+    etoiles = int(fiche.get("stars") or 0)
+    return "%s (%s, %d etoile%s)" % (ident, ", ".join(morceaux), etoiles,
+                                     "s" if etoiles > 1 else "")
+
+
+def voix_proposees_pour(personnages: list, exclues=None) -> dict:
+    """{genre: [{'id', 'description'}, ...]} : ce que l'IA a le droit de voir.
+
+    Les voix proposees sont celles du re-cast par criteres (`_classement_voix`),
+    personnage par personnage, sans doublon : l'ordre est celui des criteres
+    (le meilleur d'abord), ce qui aide le modele quand il hesite.
+    """
+    exclues = set(exclues or ())
+    annotations = lire_annotations_voix()
+    index = _index_voix()
+    par_genre = {}
+    for personnage in personnages:
+        genre = personnage.get("genre") or "H"
+        age = personnage.get("age") or "adulte"
+        liste = par_genre.setdefault(genre, [])
+        connus = {v["id"] for v in liste}
+        for ident in _classement_voix(genre, age):
+            if ident in exclues or ident in connus:
+                continue
+            liste.append({"id": ident,
+                          "description": description_voix(
+                              ident, index.get(ident, {"genre": genre}),
+                              annotations.get(ident) or {})})
+    return par_genre
+
+
+def construire_prompt_recaste_ia(personnages: list, voix: dict) -> str:
+    """Le prompt envoye au modele (fonction PURE : aucun appel reseau).
+
+    Il contient les personnages AVEC quelques repliques -- c'est ce qui permet
+    au modele de juger registre, position sociale et temperament -- et les voix
+    avec leur description entendue a l'ecoute.
+    """
+    blocs = []
+    for personnage in personnages:
+        lignes = ["- %s (genre %s, age %s, %d repliques)"
+                  % (personnage.get("nom"),
+                     "F" if personnage.get("genre") == "F" else "H",
+                     personnage.get("age") or "adulte",
+                     personnage.get("repliques") or 0)]
+        for replique in (personnage.get("repliques_texte") or [])[:3]:
+            lignes.append('    dit : "%s"' % replique)
+        blocs.append("\n".join(lignes))
+
+    blocs_voix = []
+    for genre, etiquette in (("F", "FEMMES"), ("H", "HOMMES")):
+        liste = voix.get(genre) or []
+        if not liste:
+            continue
+        blocs_voix.append("%s :" % etiquette)
+        blocs_voix.extend("- %s" % v["description"] for v in liste)
+
+    return """Tu attribues une voix a chaque personnage d'un roman, en lisant ce
+qu'il dit dans le texte.
+
+PERSONNAGES :
+%s
+
+VOIX DISPONIBLES (identifiant, puis description telle qu'entendue a l'ecoute) :
+%s
+
+CONSIGNES :
+1. Choisis pour chaque personnage UNE voix du BON GENRE, en te fondant sur ce
+   que ses repliques revelent : age, position sociale (seigneur, servante,
+   enfant...), registre de langue (soutenu, populaire), fait de parler
+   etranger (titres, mots etrangers), temperament (vif, pose, doux).
+2. N'utilise QUE les identifiants de voix fournis ci-dessus, et JAMAIS deux fois
+   le meme identifiant.
+3. Si tu hesites, choisis quand meme : ce re-cast est reversible.
+4. Ne recopie AUCUN texte du roman dans ta reponse.
+
+Reponds UNIQUEMENT avec un JSON de cette forme exacte :
+{"attributions": [{"personnage": "nom", "voix": "identifiant", "pourquoi": "en 5 mots"}]}""" % (
+        "\n".join(blocs), "\n".join(blocs_voix))
+
+
+def lire_attributions_ia(reponse, personnages: list) -> tuple:
+    """(attributions, problemes) : lit et VERIFIE la reponse du modele.
+
+    Controles, dans cet ordre :
+      - le personnage existe (a une variante d'ecriture pres) ;
+      - la voix a bien ete proposee pour CE personnage, c'est-a-dire qu'elle
+        passe les regles du re-cast par criteres (meme genre, plus de 0 etoile,
+        role reserve ecarte) ;
+      - une voix n'est donnee qu'a un seul personnage.
+
+    Tout ce qui ne passe pas est ECARTE et explique : le personnage concerne
+    gardera alors sa voix par criteres (repli, voir main.py).
+    """
+    par_nom = {p["nom"]: p for p in personnages}
+    autorisees = {}
+    for nom, personnage in par_nom.items():
+        autorisees[nom] = set(_classement_voix(personnage.get("genre") or "H",
+                                               personnage.get("age") or "adulte"))
+
+    entrees = (reponse or {}).get("attributions") or []
+    if isinstance(entrees, dict):        # au cas ou le modele rende un objet
+        entrees = [{"personnage": nom, "voix": ident}
+                   for nom, ident in entrees.items()]
+
+    attributions, problemes, prises = {}, [], set()
+    for entree in entrees:
+        if not isinstance(entree, dict):
+            problemes.append("entree illisible : %r" % (entree,))
+            continue
+        nom = str(entree.get("personnage") or "").strip()
+        ident = str(entree.get("voix") or "").strip()
+
+        if nom not in par_nom:
+            # Tolerance : le modele peut rendre une variante du nom.
+            canonique = next(
+                (c for c in par_nom
+                 if normalize_character_name(c) == normalize_character_name(nom)),
+                None)
+            if canonique is None:
+                problemes.append("personnage inconnu : %s" % nom)
+                continue
+            nom = canonique
+
+        if nom in attributions:
+            continue                     # deja attribue : on garde le premier
+        if ident not in autorisees[nom]:
+            problemes.append("voix non proposee pour %s : %s" % (nom, ident))
+            continue
+        if ident in prises:
+            problemes.append("voix donnee deux fois : %s" % ident)
+            continue
+        attributions[nom] = ident
+        prises.add(ident)
+    return attributions, problemes
+
+
+async def attribuer_voix_avec_ia(personnages: list, exclues=None,
+                                 provider: str = "gemini") -> dict:
+    """Attribue les voix avec l'IA et renvoie {attributions, problemes}.
+
+    `personnages` : [{"nom", "genre", "age", "repliques", "repliques_texte"}]
+    `exclues`     : voix a ne pas proposer (verrous et voix figees de saga).
+
+    Les exceptions du fournisseur (contenu bloque, reponse illisible) remontent
+    telles quelles : c'est l'appelant qui decide quoi en dire a l'utilisateur.
+    """
+    voix = voix_proposees_pour(personnages, exclues)
+    if not any(voix.values()):
+        return {"attributions": {}, "problemes": ["aucune voix proposee"]}
+    prompt = construire_prompt_recaste_ia(personnages, voix)
+    reponse = await _call_llm(prompt, provider)
+    attributions, problemes = lire_attributions_ia(reponse, personnages)
+    return {"attributions": attributions, "problemes": problemes}
+
 
 
 def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: dict = None,

@@ -170,16 +170,22 @@ def verifications():
     print('')
     print('7) le re-cast du serveur relit bien l AGE des personnages')
     source = (RACINE / 'main.py').read_text(encoding='utf-8')
-    debut = source.find('async def reassign_voices')
-    fin = source.find('personnages.append', debut)
-    bloc = source[debut:fin] if debut > 0 and fin > debut else ''
+    # Depuis le 16/09/2026, la preparation du re-cast est PARTAGEE avec le
+    # re-cast par IA (`_preparer_recaste`) : on lit donc la preparation ET la
+    # route ensemble -- sans quoi on ne verifierait plus le chemin reellement
+    # utilise (l'age et les voix de saga ont quitte la route pour la
+    # preparation, justement pour que les deux re-casts ne divergent jamais).
+    debut = source.find('def _preparer_recaste')
+    fin = source.find('@app.post("/api/books/{book_id}/cast/autogroup")', debut)
+    zone = source[debut:fin] if debut > 0 and fin > debut else ''
     verifier('la fiche du casting est relue (table cast_fiche)',
-             'cast_fiche' in bloc, 'cast_fiche absent de reassign_voices')
-    verifier('l age n est plus force a « adulte » en dur',
-             '"age": "adulte"' not in source[debut:fin + 400],
-             'age encore force a adulte')
+             'cast_fiche' in zone,
+             'cast_fiche absent de la preparation du re-cast')
+    verifier('l age vient bien de la fiche (et non « adulte » en dur)',
+             'ages_fiche.get(canon) or "adulte"' in zone,
+             'l age ne vient pas de cast_fiche')
     verifier('la coherence de SAGA est reprise au re-cast (voix des autres tomes)',
-             '_fetch_saga_voix_figees' in bloc,
+             '_fetch_saga_voix_figees' in zone,
              'les voix des autres tomes ne sont pas reprises par le re-cast')
 
 

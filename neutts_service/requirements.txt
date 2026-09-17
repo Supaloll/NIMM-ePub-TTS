@@ -1,0 +1,51 @@
+# MOTEUR DE VOIX NeuTTS -- environnement SEPARE du lecteur
+# ======================================================================
+# Ce moteur exige Python 3.12 et PyTorch : il ne peut PAS cohabiter avec le
+# lecteur (Python 3.14). Il vit donc dans son propre environnement :
+#     neutts_service/.venv
+#
+# Installation normale : double-clic sur INSTALLER_NEUTTS.bat
+# (l'installateur s'occupe de tout).
+#
+# Installation manuelle, pour reference :
+#     py -3.12 -m venv .venv
+#     .venv\Scripts\python.exe -m pip install "torch==2.11.*" "torchaudio==2.11.*" --index-url https://download.pytorch.org/whl/cu128
+#     .venv\Scripts\python.exe -m pip install neutts
+#     .venv\Scripts\python.exe -m pip install --no-deps "torchao==0.16.0"
+#     .venv\Scripts\python.exe -m pip install espeakng-loader
+#
+# Versions validees le 16/09/2026 a l'atelier NIMM Voix, par un clonage reel
+# de 30 + 19 + 60 voix (les trois lots). C'est cet ensemble exact qui marche :
+#     neutts 1.4.1 | torch 2.11.0+cu128 | torchaudio 2.11.0+cu128
+#     torchtune 0.6.1 | torchao 0.16.0 | transformers 5.1.0
+#     espeakng-loader 0.2.4 | soundfile 0.13.1 | librosa 0.11.0
+#
+# DEUX PIEGES, mesures -- ne pas les « moderniser » :
+#   1. PyTorch 2.11 et PAS 2.8 (pourtant la paire du moteur XTTS). La chaine de
+#      NeuTTS passe par `neucodec`, qui importe `torchtune` ; torchtune 0.6.1
+#      refuse de tourner sous torch 2.8 :
+#          cannot import name 'ScalingType' from 'torch.nn.functional'
+#      Bonne nouvelle : le piege torchcodec/FFmpeg du moteur XTTS ne s'applique
+#      PAS ici, car neutts lit l'audio avec soundfile/librosa, pas torchaudio.
+#   2. torchao epinglee en 0.16.0. `pip install neutts` tire la 0.18, qui a
+#      SUPPRIME le module `torchao.dtypes.nf4tensor` reclame par torchtune :
+#          ModuleNotFoundError: No module named 'torchao.dtypes.nf4tensor'
+#      L'installation se fait donc en `--no-deps`, sinon pip essaie de deplacer
+#      PyTorch au passage.
+#
+# A SAVOIR (mesures de l'atelier, 16/09/2026) :
+#   - le modele francais fait 0,2 Md de parametres, mais il occupe 3,50 Go de
+#     memoire video au pic (codec + encodeur facebook/w2v-bert-2.0 compris) ;
+#   - vitesse : x0,7 le temps reel sur la RTX 4060, x3 a x4 sur processeur ;
+#   - chargement : ~10 s a chaud ;
+#   - TOUT est deja en cache sur cette machine
+#     (C:\Users\<utilisateur>\.cache\huggingface, 5,3 Go) : l'installation ne
+#     telecharge rien (sinon, comptez 4,2 Go au premier lancement).
+
+torch==2.11.0+cu128       # build CUDA 12.8 (voir l'index PyTorch ci-dessus)
+torchaudio==2.11.0+cu128  # tire par neutts ; garde la meme version que torch
+neutts==1.4.1             # moteur Neuphonic (roue win_amd64 prete : pas de CMake)
+torchao==0.16.0           # epinglee : voir le piege 2 ci-dessus (--no-deps)
+espeakng-loader==0.2.4    # phonemisation francaise : la roue embarque la DLL et
+                          # les dictionnaires (rien a installer dans Windows)
+soundfile==0.13.1         # lecture et ecriture audio (utilisee par neutts)

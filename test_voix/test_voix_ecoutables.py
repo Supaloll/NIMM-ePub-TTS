@@ -51,8 +51,8 @@ def verifications():
     print('')
     print('1) etat des moteurs de voix lourds')
     etat = main.etat_moteurs_voix(force=True)
-    verifier('Kyutai et XTTS v2 sont suivis',
-             sorted(etat) == ['kyutai', 'xtts'], sorted(etat))
+    verifier('Kyutai, XTTS v2 et NeuTTS sont suivis',
+             sorted(etat) == ['kyutai', 'neutts', 'xtts'], sorted(etat))
     verifier('chaque moteur a un nom lisible',
              all(etat[nom].get('nom') for nom in etat), etat)
     verifier('chaque moteur dit s\'il repond ET s\'il est pret',

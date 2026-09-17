@@ -319,6 +319,10 @@
       <div class="modal-box">
         <p>Quel moteur de voix pour les personnages ?</p>
         <div class="provider-choices">
+          <button class="provider-btn" data-moteur="neutts">
+            <span class="provider-name">NeuTTS</span>
+            <span class="provider-estimate" id="moteur-detail-neutts"></span>
+          </button>
           <button class="provider-btn" data-moteur="xtts">
             <span class="provider-name">XTTS v2</span>
             <span class="provider-estimate" id="moteur-detail-xtts"></span>
@@ -390,6 +394,10 @@
             <button id="cast-recast-btn"
                     title="Redistribuer les voix non verrouillees dans le catalogue actuel (gratuit, sans appel IA)">
               Re-caster (gratuit)
+            </button>
+            <button id="cast-recast-ia-btn"
+                    title="Redistribuer les voix en laissant l'IA LIRE les repliques de chaque personnage : elle en deduit la position sociale, le registre de langue, s'il parle etranger et son temperament. Quelques centimes, verrous et sagas respectes.">
+              Re-caster avec l'IA
             </button>
           </div>
         </div>

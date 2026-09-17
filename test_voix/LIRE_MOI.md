@@ -21,6 +21,7 @@ Tu n'as **pas** besoin de savoir taper des commandes : les actions utiles ont un
 | Lanceur (double-clic) | Ce qu'il fait |
 |---|---|
 | `LANCER_BANC_ECOUTE_XTTS.bat` | fabrique un **lot d'écoute XTTS** (qualité des phrases : attaque, incise, tiret, phrase courte, fin de phrase) sur deux voix |
+| `LANCER_OU_SONT_MES_VOIX.bat` | affiche **où en sont tes voix** : combien de personnages lisent avec chaque moteur, combien sont verrouillés, et si chaque voix attribuée existe bien dans le catalogue (rien n'est modifié) |
 | `_PAYANT_lancer_test_attribution.bat` | ⚠️ **payant** : appelle de vraies API d'IA — il demande confirmation avant de partir |
 
 Les lanceurs vérifient **tout seuls** que le moteur dont ils ont besoin est
@@ -63,10 +64,13 @@ gratuit** — ils font seulement travailler la carte graphique :
 | `test_borne_babil_xtts.py` | garde-fou anti-babil : bornes de génération du service XTTS |
 | `test_rogner_babil_xtts.py` | coupure du babil isolé par un silence |
 | `test_rogner_queue_xtts.py` | rognage du silence de queue XTTS (0,25 s) |
+| `test_neutts_service.py` | service NeuTTS : découpage du texte, filet anti-dérive, silence de queue, découpage des références (leur texte est obligatoire), contrat avec le lecteur (port 8084, graine fixe, une seule génération à la fois) |
 | `test_pool_casting.py` | ordre du pool automatique du casting |
 | `test_ids_ecran.py` | chaque élément cherché par le code existe dans la page |
+| `test_recaste_ia.py` | re-cast avec l'IA : cadre des voix proposées, prompt, lecture et validation de la réponse de l'IA, découpage des phrases — **sans appeler l'IA** |
 | `test_import_main.py` | le serveur s'importe et expose ses routes |
 | `test_requirements.py` | l'environnement correspond à `requirements.txt` |
+| `test_pas_de_secrets.py` | rien de secret ni de personnel ne partirait avec un `git push` : clés d'API en clair, fichiers sensibles suivis, audio / EPUB / base SQLite, environnements Python des moteurs |
 
 ### JavaScript (`node test_voix/nom_du_test.js`)
 
@@ -82,9 +86,11 @@ gratuit** — ils font seulement travailler la carte graphique :
 
 ### Ceux qui demandent quelque chose d'allumé
 
-Les scripts dont le nom parle de **moteur**, **kyutai**, **xtts**, **bascule**,
-**local** ou **casting** attendent soit le serveur, soit un moteur de voix :
-`test_bascule_moteur.py`, `test_kyutai_branchement.py`, `test_moteur_local.py`,
+Les scripts dont le nom parle de **moteur**, **kyutai**, **xtts**, **neutts**,
+**bascule**, **local** ou **casting** attendent soit le serveur, soit un moteur de
+voix : `test_bascule_moteur.py`, `test_kyutai_branchement.py`,
+`test_neutts_bout_en_bout.py` (moteur NeuTTS allumé, port 8084 : stabilité
+bit à bit, phrases courtes, phrase longue), `test_moteur_local.py`,
 `test_nettoyage_xtts.py`, `test_pretraitement_tts.py`, `test_start_moteur.py`,
 `test_voix_ecoutables.py`, `test_repli_local.py`… À lancer seulement si le
 moteur concerné est allumé (sinon l'échec est normal).
@@ -109,6 +115,12 @@ aujourd'hui :
 | `_cout_casting.py` | coût d'un casting par livre et par jour, avec la formule de l'application |
 | `_lister_backlog.py` | les items du BACKLOG encore à faire, par section |
 | `_etat_casting_livre.py` | état d'un casting (verrouillés, petits rôles, voix prises) |
+| `_rapprocher_neutts_xtts.py` | quelles voix NeuTTS correspondent à quelles voix déjà cataloguées (pour leur garder les mêmes prénoms et étoiles) |
+| `_etat_familles_voix.py` | combien de personnages lisent avec chaque moteur (Edge, Kokoro, Kyutai, XTTS, NeuTTS, Piper), et combien sont verrouillés — lecture seule |
+| `_generer_catalogue_neutts.py` | reconstruit `NEUTTS_VOICES` dans `modules/tts.py` à partir des extraits du moteur (rapport seul par défaut, `--ecrire` pour écrire) |
+| `_basculer_voix_xtts_vers_neutts.py` | bascule les voix XTTS d'un livre vers leurs jumelles NeuTTS (mêmes prénoms) : rapport seul par défaut, `--ecrire` copie la base avant d'écrire |
+| `_basculer_voix_kyutai_vers_neutts.py` | bascule les voix Kyutai vers leurs jumelles NeuTTS (mêmes extraits) ; refuse d'écrire si une voix n'existe pas chez le moteur : rapport seul par défaut, `--ecrire` copie la base avant d'écrire |
+| `_heriter_annotations_xtts_vers_neutts.py` | recopie les annotations d'écoute des voix XTTS **et** Kokoro sur leurs jumelles NeuTTS (l'accent est remis à « neutre », voir l'en-tête) |
 
 Usage : `python test_voix/_nom_de_l_outil.py` (certains attendent un numéro de
 livre ou un chapitre : le mode d'emploi est en tête de chaque fichier).
