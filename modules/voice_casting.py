@@ -1247,14 +1247,21 @@ def _pool_par_paliers(genre: str) -> list:
     a la main pour l'essayer. Deplacer cette ligne suffit a changer l'ordre.
     """
     edge, notes_edge = _edge_pool(genre)
+    # ORDRE ET CONTENU REVUS LE 17/09/2026, apres un re-cast rate :
+    #   - Kyutai EN PREMIER : c'est le moteur que START.bat allume, donc le seul
+    #     gros moteur dont les voix sont LISIBLES sans rien faire de plus ;
+    #   - puis Edge (toujours disponible, en ligne) et Kokoro (local) ;
+    #   - XTTS et NeuTTS sont RETIRES du pool : leur moteur n'est plus allume
+    #     automatiquement, et une voix dont le moteur est ETEINT ne produit RIEN
+    #     (le lecteur affiche « erreur »). Mesure du 17/09/2026 : un re-cast
+    #     lance a 18h00 sur le livre 28 avait distribue 31 voix XTTS et 47 voix
+    #     NeuTTS, toutes muettes, et laisse 84 personnages sans voix.
+    #     Ils restent choisissables A LA MAIN dans la fenetre du casting.
     familles = (
+        (_kyutai_pool(genre), _notes(KYUTAI_VOICES)),
         (edge, notes_edge),
-        ([v["id"] for v in XTTS_VOICES if v.get("gender") == genre],
-         _notes(XTTS_VOICES)),
         ([v["id"] for v in KOKORO_VOICES if v.get("gender") == genre],
          _notes(KOKORO_VOICES)),
-        ([v["id"] for v in NEUTTS_VOICES if v.get("gender") == genre],
-         _notes(NEUTTS_VOICES)),
     )
     pool = []
     for etoiles in (3, 2, 1):
@@ -1517,19 +1524,41 @@ DEBITS_ATTENDUS = {
 
 
 def _index_voix() -> dict:
-    """{identifiant: {'genre', 'stars'}} pour les moteurs du pool automatique."""
+    """{identifiant: {'genre', 'stars'}} pour les moteurs du pool automatique.
+
+    TROIS FAMILLES SEULEMENT (revu le 17/09/2026) : **Kyutai** (le moteur que
+    START.bat allume), **Edge** (en ligne, toujours disponible) et **Kokoro**
+    (local). XTTS et NeuTTS en sont RETIRES : leur moteur n'etant plus allume
+    automatiquement, une voix attribuee chez eux ne lit RIEN -- le lecteur
+    repond 503 sans rien afficher. C'est ce qui avait remis **79 voix muettes**
+    sur le livre 28 au re-cast du 17/09 a 19h, alors que le pool par paliers
+    etait deja corrige : ce chemin-ci (re-cast par criteres et re-cast IA) en
+    etait reste a l'ancienne liste.
+    """
     index = {}
     for ident in _EDGE_POOL_M:
         index[ident] = {"genre": "H", "stars": int(_EDGE_STARS.get(ident, 0))}
     for ident in _EDGE_POOL_F:
         index[ident] = {"genre": "F", "stars": int(_EDGE_STARS.get(ident, 0))}
-    for liste in (XTTS_VOICES, KOKORO_VOICES, KYUTAI_VOICES, NEUTTS_VOICES):
+    for liste in (KOKORO_VOICES, KYUTAI_VOICES):
         for voix in liste:
             index[voix["id"]] = {
                 "genre": "F" if voix.get("gender") == "F" else "H",
                 "stars": int(voix.get("stars", 0)),
             }
     return index
+
+
+def _jumelle_neutts(ident: str) -> str:
+    """`kyutai:X` -> `neutts:X` : meme extrait, donc meme profil d'ecoute.
+
+    Les voix Kyutai ne sont pas annotees a l'ecoute, mais leurs jumelles NeuTTS
+    oui (ce sont les memes extraits de reference). C'est cette annotation qui
+    permet de choisir une voix Kyutai sur des criteres ENTENDUS.
+    """
+    if ident.startswith("kyutai:"):
+        return "neutts:" + ident.split(":", 1)[1]
+    return ident
 
 
 def _voix_reservee(annotation: dict, ages: list) -> bool:
@@ -1555,7 +1584,9 @@ def _classement_voix(genre: str, age: str) -> list:
     for ident, fiche in index.items():
         if fiche["genre"] != genre or fiche["stars"] <= 0:
             continue                      # mauvais genre, ou voix ecartee
-        annotation = annotations.get(ident) or {}
+        annotation = (annotations.get(ident)
+                      or annotations.get(_jumelle_neutts(ident))
+                      or {})
         if _voix_reservee(annotation, ages):
             continue
         age_voix = annotation.get("age") or ""

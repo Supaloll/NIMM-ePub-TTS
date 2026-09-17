@@ -49,14 +49,19 @@ NOTES_EDGE   = {v["id"]: int(v.get("stars", 0)) for v in main.FRENCH_VOICES}
 NOTES_XTTS   = {v["id"]: int(v.get("stars", 0)) for v in XTTS_VOICES}
 NOTES_KOKORO = {v["id"]: int(v.get("stars", 0)) for v in KOKORO_VOICES}
 NOTES_NEUTTS = {v["id"]: int(v.get("stars", 0)) for v in NEUTTS_VOICES}
+NOTES_KYUTAI = {v["id"]: int(v.get("stars", 0)) for v in KYUTAI_VOICES}
 
-# Ordre des moteurs DANS un palier d'etoiles (decision du 15/09/2026, NeuTTS
-# ajoute en dernier le 16/09/2026).
-RANG_FAMILLE = {"edge": 0, "xtts": 1, "kokoro": 2, "neutts": 3}
-FAMILLES_ORDRE = ("edge", "xtts", "kokoro", "neutts")
+# Ordre des moteurs DANS un palier d'etoiles. REVU LE 17/09/2026 : Kyutai passe
+# EN TETE (c'est le moteur que START.bat allume), et XTTS et NeuTTS SORTENT du
+# pool -- leur moteur n'est plus allume automatiquement, et une voix dont le
+# moteur est eteint ne lit rien (leçon du re-cast rate du 17/09 a 18h00).
+RANG_FAMILLE = {"kyutai": 0, "edge": 1, "kokoro": 2}
+FAMILLES_ORDRE = ("kyutai", "edge", "kokoro")
 
 
 def famille(identifiant):
+    if identifiant.startswith("kyutai:"):
+        return "kyutai"
     if identifiant.startswith("xtts:"):
         return "xtts"
     if identifiant.startswith("kokoro:"):
@@ -67,7 +72,8 @@ def famille(identifiant):
 
 
 def etoiles(identifiant):
-    return {"xtts": NOTES_XTTS, "kokoro": NOTES_KOKORO,
+    return {"kyutai": NOTES_KYUTAI, "xtts": NOTES_XTTS,
+            "kokoro": NOTES_KOKORO,
             "neutts": NOTES_NEUTTS}.get(
         famille(identifiant), NOTES_EDGE).get(identifiant, 0)
 
@@ -77,8 +83,7 @@ def main_test():
     # complete, pas seulement le calcul interne du module.
     vc.definir_voix_edge(main.FRENCH_VOICES)
 
-    print("1) pool compose par paliers d'etoiles, Edge puis XTTS puis Kokoro "
-          "puis NeuTTS")
+    print("1) pool compose par paliers d'etoiles, Kyutai puis Edge puis Kokoro")
     for genre, pool in (("F", vc.DEDICATED_VOICES_F), ("M", vc.DEDICATED_VOICES_M)):
         cles = [(-etoiles(v), RANG_FAMILLE[famille(v)]) for v in pool]
         assert cles == sorted(cles), "l'ordre des paliers est faux : %s" % cles
@@ -95,8 +100,10 @@ def main_test():
         attendu = NOTES_EDGE.get(identifiant)
         assert attendu is None or note == attendu, \
             "%s : %s dans le pool, %s dans le catalogue" % (identifiant, note, attendu)
-    assert vc.DEDICATED_VOICES_F[0] == "fr-FR-DeniseNeural", vc.DEDICATED_VOICES_F[0]
-    assert vc.DEDICATED_VOICES_M[0] == "fr-FR-HenriNeural", vc.DEDICATED_VOICES_M[0]
+    assert vc.DEDICATED_VOICES_F[0].startswith("kyutai:"), vc.DEDICATED_VOICES_F[0]
+    assert vc.DEDICATED_VOICES_M[0].startswith("kyutai:"), vc.DEDICATED_VOICES_M[0]
+    assert etoiles(vc.DEDICATED_VOICES_F[0]) == 3, vc.DEDICATED_VOICES_F[0]
+    assert etoiles(vc.DEDICATED_VOICES_M[0]) == 3, vc.DEDICATED_VOICES_M[0]
 
     print("3) voix notees 0 etoile ECARTEES du pool (tous les moteurs)")
     for genre, pool in (("F", vc.DEDICATED_VOICES_F), ("M", vc.DEDICATED_VOICES_M)):
@@ -105,6 +112,7 @@ def main_test():
     ecartees = {"edge": [i for i, n in NOTES_EDGE.items() if n == 0],
                 "xtts": [i for i, n in NOTES_XTTS.items() if n == 0],
                 "kokoro": [i for i, n in NOTES_KOKORO.items() if n == 0],
+                "kyutai": [i for i, n in NOTES_KYUTAI.items() if n == 0],
                 "neutts": [i for i, n in NOTES_NEUTTS.items() if n == 0]}
     for moteur, identifiants in ecartees.items():
         for identifiant in identifiants:
@@ -112,10 +120,15 @@ def main_test():
             assert identifiant not in vc.DEDICATED_VOICES_M
         print("   %-6s %s" % (moteur, ", ".join(identifiants) or "aucune"))
 
-    print("4) Kyutai absent du pool automatique")
+    print("4) Kyutai EN TETE du pool ; XTTS et NeuTTS hors du pool (17/09/2026)")
     for genre, pool in (("F", vc.DEDICATED_VOICES_F), ("M", vc.DEDICATED_VOICES_M)):
-        kyutai = [v for v in pool if v.startswith("kyutai:")]
-        assert not kyutai, "Kyutai ne doit plus etre dans le pool : %s" % kyutai
+        assert pool and pool[0].startswith("kyutai:"), pool[:3]
+        for prefixe in ("xtts:", "neutts:"):
+            intrus = [v for v in pool if v.startswith(prefixe)]
+            assert not intrus, \
+                "%s ne doit plus etre dans le pool : %s" % (prefixe, intrus[:5])
+        print("   %s : %d voix Kyutai en tete (aucune XTTS ni NeuTTS)"
+              % (genre, sum(1 for v in pool if v.startswith("kyutai:"))))
 
     print("5) attribution automatique (6 personnages importants)")
     fiche = [
@@ -137,8 +150,11 @@ def main_test():
     hors_palier = {n: v["voice_id"] for n, v in voix.items()
                    if v["voice_id"] not in palier3}
     assert not hors_palier, "role important hors du palier 3 etoiles : %s" % hors_palier
-    assert voix["Alice"]["voice_id"] == "fr-FR-DeniseNeural"
-    assert voix["Daniel"]["voice_id"] == "fr-FR-HenriNeural"
+    # Les deux roles les plus presents partent sur les MEILLEURES voix Kyutai :
+    # meme exigence qu'avant (paliers d'etoiles), mais sur le moteur que
+    # START.bat allume depuis le 17/09/2026.
+    assert voix["Alice"]["voice_id"].startswith("kyutai:"), voix["Alice"]
+    assert voix["Daniel"]["voice_id"].startswith("kyutai:"), voix["Daniel"]
 
     print("6) petit role (2 repliques) -> AUCUNE voix dediee (lu par le narrateur)")
     fiche2 = fiche + [{"nom": "Petit", "genre": "H", "age": "adulte"},

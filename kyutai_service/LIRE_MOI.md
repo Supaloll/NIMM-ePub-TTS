@@ -83,6 +83,37 @@ n'y accède pas directement, c'est le serveur du lecteur qui s'en sert.
 | `requirements.txt` | les 11 paquets du moteur (voir plus haut) |
 | `pyrightconfig.json` | réglage pour VS Code : voir « Bon à savoir » |
 
+## Fabriquer une voix à partir d'un extrait ? — chantier ARRÊTÉ le 17/09/2026
+
+Ça a été tenté, et **ça a échoué** (empreintes qui donnent des gargouillis,
+supprimées le soir même). Voici ce qu'il faut savoir pour ne pas refaire le
+travail — le détail complet est au BACKLOG, item NeuTTS.
+
+- Une voix Kyutai est un fichier `.safetensors` (clé `speaker_wavs`, forme
+  `(1, 512, 125)` = **10 s** d'audio encodé, écart-type **0,66**).
+- Le **dossier** compte : les voix françaises vivent dans
+  `voix_fr/cml-tts/fr/`, pas dans `voix_fr/`. Un fichier déposé un cran trop
+  haut reste **invisible** (le moteur n'annonce pas une voix de plus).
+- **Le codec du modèle TTS ne convient pas** : mesuré le 17/09/2026 sur le WAV
+  **exact de la banque**, à 8 niveaux de volume → **corrélation 0,008** avec
+  l'empreinte officielle. Le codec normalise en interne, donc **régler le
+  volume ne change rien**.
+- Kyutai fabrique ces empreintes avec un codec **séparé**
+  (`*_mimi_voice.safetensors`, 16 codebooks) **publié nulle part** — vérifié
+  sur `kyutai/tts-1.6b-en_fr`, `kyutai/mimi` et `kyutai/tts-voices` (404).
+- Sous Windows, il faut `NO_TORCH_COMPILE=1` **avant** d'importer `moshi`,
+  sinon le chargement échoue avec `TritonMissing` (le service le fait déjà).
+
+Les outils laissés sur place (tous en **lecture seule**, sauf `--ecrire`) :
+
+| Outil | Question à laquelle il répond |
+|---|---|
+| `_inspecter_empreinte.py` | forme **et statistiques** d'une empreinte — c'est ce qui révèle une empreinte fausse (écart-type très loin de 0,66) |
+| `_lister_depot_modele.py` | quels fichiers contient un dépôt Hugging Face (ex. `kyutai/mimi`) |
+| `_fabriquer_empreintes.py` | fabrique des empreintes à partir de WAV (rapport seul par défaut ; `--manquantes` pour ne **jamais** écraser la banque) |
+| `_calibrer_encodage.py` | encode un WAV à plusieurs volumes et **compare** à l'empreinte officielle — c'est lui qui a tranché la question du codec |
+| `_reference_tts_make_voice.py` | le **script officiel de Kyutai** (licence MIT), gardé comme référence : il montre la méthode attendue |
+
 ## Réglages possibles (avancé, facultatif)
 
 | Variable | Défaut | Effet |

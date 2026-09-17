@@ -523,6 +523,385 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Le cache audio, une fois de plus, n'a rien besoin de* : les clés sont un
   hachage de (texte + voix + vitesse + hauteur), les voix NeuTTS ont de
   nouvelles clés, l'audio se régénère.
+  **RÉVISION D'ÉCOUTE — 17/09/2026 : le verdict de Laurent est NÉGATIF.**
+  « La lecture est trop aléatoire en qualité », après écoute des livres basculés
+  la veille. C'est un **démenti direct** de ce qui avait justifié la bascule :
+  les mesures d'alors portaient sur la **STABILITÉ** (durée d'une phrase,
+  empreinte SHA-256 identique entre deux prises) — **jamais sur la qualité
+  d'écoute**. Leçon à garder : **stabilité n'est pas qualité**.
+  *Deux causes identifiées dans le code, le jour même* :
+  (1) **la recollure** — le service redécoupe toute unité de plus de ~200
+  caractères en morceaux, génère **chacun séparément** (sa propre attaque, sa
+  propre fin) puis les recolle sans silence : une phrase longue s'entend comme
+  2 à 4 prises collées. Mesure sur le chapitre IV de *Notre-Dame de Paris* :
+  **19 unités sur 196 (10 %)**, jusqu'à **3 morceaux**.
+  (2) **le nettoyage des signes de dialogue n'a JAMAIS été reporté sur NeuTTS** :
+  le service XTTS retire les guillemets et traite le tiret cadratin avant l'envoi
+  (`servir_xtts.py`, `nettoyer_pour_xtts` — mesure du 15/09 : sinon le moteur les
+  **prononce**), le service NeuTTS ne nettoie rien. Mesure sur le même chapitre :
+  **33 unités sur 196 (17 %)** portent des guillemets ou un tiret.
+  *Outils livrés le jour même* : `test_voix/_diagnostic_neutts_phrase.py` (où le
+  texte sera découpé : morceaux par phrase, limite de chaque voix, signes reçus
+  bruts, phrases courtes — **hors ligne, lecture seule**) et
+  `test_voix/_banc_ecoute_neutts.py` + `LANCER_BANC_ECOUTE_NEUTTS.bat` (lot
+  d'écoute : vraies phrases du livre, puis la même phrase avec/sans les signes,
+  phrases courtes, phrase longue d'un bloc puis coupée en deux).
+  *Premières mesures du banc* (`ecoute_neutts_20260917_1234`, voix Frollo,
+  livre 34) : la variante **« garder le guillemet ouvrant, retirer le fermant »
+  est la PIRE** — 6,30 s au lieu de 3,64 s pour la phrase, et **13,30 s** pour
+  la réplique à tiret (contre 3,84 s en brut), avec des silences internes
+  jusqu'à 0,96 s ; les **phrases courtes** gardent des silences internes de 0,3 à
+  0,4 s (« Non. » = 1,34 s dont **0,4 s de silence**) ; la **phrase longue**
+  sort en 17,4 s / **19 segments** d'un bloc contre 16,2 s / 12 segments coupée
+  en deux requêtes. **À confirmer à l'oreille** : ce sont des mesures, pas un
+  verdict.
+  *Pistes du brief extérieur (Lia, 17/09/2026)* : normalisation conditionnelle
+  par moteur, fusion des phrases courtes, bascule vers un moteur stable sous un
+  seuil. Les trois sont réalisables — mais les deux premières **recouvrent en
+  grande partie ce qui existe déjà** (`_clean_text`, `nettoyer_pour_xtts`), et la
+  troisième demande une **voix de secours par personnage** (la table `voices`
+  n'a qu'une voix). Deux affirmations du brief sont **démenties par le code** :
+  « texte envoyé brut » (faux) et « non reproductible, car chaque génération est
+  différente » (faux pour NeuTTS : graine fixe, empreinte SHA-256 identique sur
+  processeur **et** carte graphique).
+  **VERDICT D'ÉCOUTE DE LAURENT (lot `ecoute_neutts_20260917_1234`)** —
+  notation 1 diction qui accroche, 2 débit irrégulier, 3 mot inventé,
+  4 gargouillis, 5 prosodie qui repart :
+  01 réplique à tiret (voix Frollo) : **4** · 02 la même (autre voix) : **propre** ·
+  03 guillemets (Frollo) : **2**, « le [éééé] en début de phrase » ·
+  04 la même (autre voix) : **propre** · 05 narration (Frollo) : **propre** ·
+  06 narration (autre voix) : **2** · 07 guillemets **bruts** : **propre** ·
+  08 guillemets nettoyés comme XTTS : **propre** · 09 guillemet ouvrant seul :
+  **1, 2, 4** · 10 tiret **brut** : **propre** · 11 tiret nettoyé comme XTTS :
+  **2** · 12 tiret remplacé par une virgule : **1, 2, 3, 4** ·
+  13 « Non. » : **3** · 14 « — Oui. » : **4** · 15 « Manger ? » : **propre** ·
+  16 « Il partit. » : **3**, « dit deux fois le même mot » ·
+  17 phrase longue d'un bloc : **propre** · 18 la même coupée en deux : **5**.
+  *Ce que ce verdict ÉLIMINE* :
+  - **les signes de dialogue** : 07 et 10 (**bruts**) sont propres → « reporter
+    le nettoyage XTTS sur NeuTTS » est une **fausse piste**, et ce nettoyage
+    **dégrade** (11 = 2 alors que 10 était propre) ;
+  - **le découpage du service** : 17 (19 segments) est propre ;
+  - **la règle « garder le guillemet ouvrant »** : 09 et 12 sont les pires
+    (12 cumule les quatre défauts) — mesures et oreille d'accord, deux fois.
+  *Ce qu'il DÉSIGNE* :
+  - **les phrases courtes** : 01, 03, 13, 14, 16 dérapent (13 à 16 caractères) ;
+    la seule qui passe est **« Manger ? »** — l'interrogation porte l'intonation ;
+  - **la VOIX** : les mêmes phrases de 13 caractères sont **sales avec Frollo**
+    (01 : 4 ; 03 : 2) et **propres avec la voix 4193** (02 et 04) → une part du
+    défaut tient à l'**extrait de référence** et à sa transcription ;
+  - **la coupe arbitraire** : couper au milieu (18) s'entend (5), la coupe du
+    service aux virgules (17) ne s'entend pas.
+  *Sur le « résidu » comme indicateur automatique* : il a vu juste sur 7 des
+  10 fichiers fautifs, mais s'est déclenché 3 fois sur des fichiers **propres**
+  (07, 08, 10 : ce sont des respirations) → bon pour **trier**, pas pour
+  condamner. Le nombre de « segments » n'est pas un indicateur (05 : 8 segments,
+  propre).
+  *Proportions à retenir* : chapitre IV (196 unités) → **10 % de phrases
+  courtes**, **17 % avec guillemets ou tiret** ; chapitres X et XXV → ~1 % de
+  phrases courtes. Le défaut n'est donc pas réparti uniformément dans un livre.
+  *Suite ouverte le même jour* : volet `--volet voix` du banc (les mêmes phrases
+  courtes lues par 6 voix du livre) pour trier les voix **propres** des voix
+  **sales**, avant tout chantier sur le contexte des phrases courtes.
+  **VOLET « QUELLES VOIX DÉRAPENT ? » — lot `ecoute_neutts_20260917_1617`
+  (4 phrases courtes × 6 voix du livre), verdict de Laurent** :
+  V1 (1770, Frollo) : 4 / 4 / propre / 3 (« il partit » dit deux fois) ·
+  V2 (4193) : propre / 1 (silence avant « oui ») / 4 (« mang[é]ér ») / propre ·
+  V3 (4937) : 4 / propre / « manger » dit deux fois / propre ·
+  V4 (12205, Esmeralda) : 4 / 4 / propre / 4 ·
+  V5 (1591) : propre / 4 / propre / 4 ·
+  V6 (5790) : 3 / 1 et 4 / propre / 1.
+  *Conclusion : la piste « la voix » est DÉMENTIE à son tour.* **Aucune voix
+  n'est propre** : chacune dérape sur 2 ou 3 des 4 phrases. Mon observation de
+  la veille (« le défaut suit la voix » : 01 contre 02) reposait sur **deux**
+  fichiers — l'échantillon était trop petit. Le volet voix a été fabriqué pour
+  cela, il a tranché contre moi.
+  *Ce qui reste est en revanche très net* : **« Manger ? » passe chez 4 voix sur
+  6**, alors que **« — Oui. » dérape chez 5 voix sur 6** et **« Non. » chez 4**.
+  Les défauts sont des **gargouillis**, des **répétitions de mot** (« il partit »
+  deux fois, « manger » deux fois), un **chevauchement de syllabes**
+  (« mang[é]ér ») et un **silence parasite avant le mot** — jamais une erreur de
+  sens : c'est un moteur qui **démarre à froid sur un texte trop court**.
+  *Trois mécanismes trouvés dans le service, jamais réglés* :
+  1. **la TEMPÉRATURE de génération** — `neutts.infer()` a pour défaut
+     **`temperature=1.0`** et `top_k=50`, et le service l'appelle **sans rien
+     préciser**, donc à 1,0 : très élevé pour un TTS de clonage, et c'est le
+     réglage qui pilote exactement ces symptômes. **Jamais essayé** sur NeuTTS
+     (l'atelier n'avait testé la température que sur XTTS, sans effet) ;
+  2. **le plancher du filet de rognage** — `duree_max_derivee()` vaut
+     `max(3.0 s, …)` : une phrase de 4 caractères peut donc durer **3 secondes**
+     sans être coupée, et tout le dérapage passe sous le filet (mesuré : « Non. »
+     à **2,68 s** avec Esmeralda) ;
+  3. **aucun rognage de TÊTE** — `rogner_queue()` ne traite que la fin de
+     l'audio (le service XTTS, lui, rogne aussi le début) : le « silence avant
+     oui » entendu deux fois reste dans le fichier.
+  *Reste aussi, non testé* : `neutts.infer()` n'offre **aucune longueur max**
+  (`max_length` = la fenêtre du modèle, pas le texte) → le seul bornage possible
+  est le rognage après coup, et il faut donc le calibrer.
+  **COMPARAISON NeuTTS / KYUTAI sur les mêmes voix — 17/09/2026** (proposition de
+  Laurent : « Kyutai me semble le plus solide des trois neuronales » ; les deux
+  moteurs partagent les mêmes extraits, donc les mêmes identifiants de voix, ce
+  qui rend la comparaison honnête). Même chapitre, mêmes 4 phrases courtes,
+  mêmes 6 voix, banc identique (`--moteur kyutai`, port 8082) :
+  - « **Non.** » : NeuTTS de **1,06 à 2,68 s** (jusqu'à 3 segments, silence de
+    0,68 s) contre Kyutai **0,56 à 0,88 s, toujours 1 segment** — moyenne
+    **1,55 s contre 0,72 s** ;
+  - « **— Oui.** » : NeuTTS **1 seul fichier sur 6 en un seul segment** (silences
+    jusqu'à 1,14 s) contre Kyutai **6 sur 6, aucun silence** ;
+  - « **Manger ?** » : NeuTTS de **0,65 à 2,26 s** (très variable) contre Kyutai
+    **1,20 à 1,60 s** (régulier) ;
+  - « **Il partit.** » : comparable (les deux découpent en 2-3 segments).
+  *Vitesse* : le lot Kyutai des 24 fichiers s'est fabriqué en **une minute**
+  (NeuTTS mettait ~4 minutes).
+  *Outils* : banc étendu à `--moteur neutts|kyutai` (le livre 34 n'a plus de voix
+  Kyutai depuis la bascule : le banc **transpose** les voix du casting — mêmes
+  identifiants — et écarte celles absentes du moteur) ; nouveau lanceur
+  `LANCER_BANC_ECOUTE_KYUTAI.bat`. Rappel : les deux moteurs **ne cohabitent
+  pas** sur la carte graphique.
+  *Reste à faire* : **l'écoute** du lot `ecoute_kyutai_20260917_1639` (mêmes
+  numéros V1..V6 que le lot NeuTTS → comparaison directe fichier par fichier).
+  **DÉCISION DU 17/09/2026 : KYUTAI L'EMPORTE.** Verdict de Laurent sur le lot
+  `ecoute_kyutai_20260917_1639` : « **tout est propre** » — « parfois les mots
+  traînent un peu, parfois ils sont dits rapidement, mais en l'état, tout est
+  propre ». Les mêmes fichiers en NeuTTS donnaient des gargouillis, des
+  répétitions de mots et des pauses parasites.
+  *Ce que Laurent retient* : « ce moteur est plus lourd, mais de qualité bien
+  supérieure » ; et **c'est un moteur en partie français** (Kyutai est un
+  laboratoire français) — un argument qui compte pour lui, sans chauvinisme.
+  Il ajoute : « je ne regrette pas d'avoir essayé d'autres pistes, c'est bien de
+  ratisser large » (les pistes NeuTTS et les mesures ont servi à comprendre).
+  *Suites ouvertes* :
+  (1) **rebasculer les 223 personnages NeuTTS vers Kyutai** (même opération que
+  la bascule du matin, **en sens inverse**) et faire allumer **Kyutai** par
+  `START.bat` au lieu de NeuTTS ;
+  (2) **améliorer la PROSODIE** (demande de Laurent : nettoyage du texte,
+  ponctuation, « des astuces »). Levier propre à Kyutai trouvé dans le code :
+  **`cfg`** — le « guidage par la voix », `NIMM_KYUTAI_CFG`, aujourd'hui **2.0**,
+  valeurs valides **1.0 à 4.0 par pas de 0.5** (`valid_cfg_conditionings`,
+  `moshi/models/tts.py`). **Jamais essayé** ;
+  (3) **fabriquer des voix Kyutai** (voir ci-dessous).
+  **CRÉER DES VOIX KYUTAI — oui, c'est possible (vérifié le 17/09/2026).**
+  Une voix Kyutai n'est ni un modèle ni un audio : c'est un petit fichier
+  `.safetensors` contenant les **jetons audio d'un extrait**, encodés par le
+  codec **Mimi** du moteur. Vérifié sur les 35 empreintes françaises
+  (`kyutai_service/_inspecter_empreinte.py`) : clé `speaker_wavs`, forme
+  **(1, 512, 125)** — 125 jetons ≈ **5 secondes** d'audio ; le moteur accepte
+  jusqu'à **5 empreintes par voix** (`make_condition_attributes`).
+  *Convention de nommage* (lue dans `servir_kyutai.py`, `_repertorier_voix`) :
+  `voix_fr/` → `<nom>_enhanced.wav.<suffixe>.safetensors` (identifiant = partie
+  avant `_enhanced.wav`) ; `voix_autres/<famille>/` →
+  `<nom>.wav.<suffixe>.safetensors` (identifiant préfixé par la famille). Le
+  suffixe (`1e68beda@240`) dépend du modèle et n'est pas codé en dur.
+  *Ce que cela ouvre* :
+  - **importer chez Kyutai les voix qu'on n'a que chez NeuTTS** — les 19 extraits
+    libres `dp_*` et les 30 voix Kokoro, dont les WAV sont dans
+    `neutts_service/references/` → **49 voix de plus** chez le moteur retenu ;
+  - **créer des voix personnelles** (la voix de Laurent) depuis un extrait de
+    ~5 s ;
+  - la piste de Laurent « **créer avec XTTS, puis importer dans Kyutai** » est
+    valable — un WAV produit par XTTS s'encode comme un autre — mais elle
+    n'apporte rien de plus que l'extrait source, **sauf** quand cet extrait est
+    court ou bruité : XTTS peut alors en produire un long et propre.
+  *À vérifier avant de promettre* : l'encodage d'un WAV par Mimi demandera un
+  petit script dans l'environnement du moteur (`get_prefix()`, dans
+  `moshi/models/tts.py`, montre la voie). **Rien n'a encore été fabriqué.**
+  **FABRICATION D'EMPREINTES — ESSAI RÉUSSI le 17/09/2026.** Outil :
+  `kyutai_service/_fabriquer_empreintes.py` (à lancer avec le python du moteur,
+  **service éteint** : il charge le modèle pour lui, ~4 s).
+  *Trois pièges rencontrés, tous résolus, à garder* :
+  1. `mimi.encode()` rend les **codes discrets** (32 codebooks) — ce n'est PAS
+     une empreinte ; il faut **`encode_to_latent(..., quantize=True)`** pour
+     obtenir les **latents à 512 dimensions** (`moshi/models/compression.py`) ;
+  2. Mimi attend un audio de forme **(lot, canaux, échantillons)** : sans la
+     double dimension, il refuse ;
+  3. les voix françaises vivent dans **`voix_fr/cml-tts/fr/`** (constante
+     `DOSSIER_VOIX` de `servir_kyutai.py`), **pas** dans `voix_fr/` : un fichier
+     déposé un cran trop haut reste **invisible** (le service n'annonce pas une
+     voix de plus — c'est ainsi que le piège a été vu).
+  *Preuve* : la voix libre `Femme001` (extraite de
+  `neutts_service/references/voix_libres_dp/`) a donné une empreinte
+  **(1, 512, 75)** — même structure que la banque — le service annonce **42 voix
+  au lieu de 41**, et cette voix importée lit « Non. » en **0,56 s / 1 segment**
+  (NeuTTS allait jusqu'à 2,68 s avec des pauses). Lot de contrôle :
+  `test_voix/ecoute_kyutai_20260917_1659`.
+  *Ce que ça débloque, DANS CET ORDRE* :
+  (1) fabriquer les **29 empreintes manquantes** (19 voix libres `dp_*` + les
+  voix `cml####` dont les WAV sont dans `neutts_service/references/`) → les
+  **26 voix sans jumelle Kyutai** rentrent dans le rang et la bascule devient
+  possible ; **basculer avant cela laisserait ces personnages en NeuTTS, donc
+  deux moteurs à allumer — impossible, ils ne cohabitent pas sur la carte** ;
+  (2) **basculer** les 222 personnages (`_basculer_voix_neutts_vers_kyutai.py`,
+  rapport seul par défaut, copie de la base avant écriture) ;
+  (3) faire allumer **Kyutai** par `START.bat` (aujourd'hui il allume NeuTTS) ;
+  (4) **ensuite seulement**, l'idée de Laurent : fabriquer des empreintes pour
+  les voix **Edge, Kokoro et Piper** — il faudra d'abord **leur faire lire** un
+  extrait de ~5 s, puisque ces voix n'ont pas de WAV de référence → « tous les
+  timbres avec un seul moteur ».
+  **DÉMENTI LE MÊME SOIR : les 44 empreintes étaient INAUDIBLES.** Verdict de
+  Laurent à l'écoute : « les voix sont des gargouillis, inaudibles ». Erreur de
+  méthode de ma part : fabrication **en série** sur la foi d'une **forme de
+  tenseur** correcte (1, 512, 125), **sans faire écouter un seul essai avant**.
+  Tout a été **supprimé** le soir même (fichiers datés du 17/09 ; les **35
+  empreintes de la banque, datées du 12/09, n'ont pas été touchées**) et le
+  moteur est revenu à **41 voix**.
+  *La cause est mesurée* : l'**échelle** du latent. Empreintes de la banque :
+  écart-type **0,66** (valeurs de -3,9 à 3,4). Les miennes : **0,069** sans
+  réglage, **3,03** avec le codec du modèle TTS. Facteur 9,5 dans un sens,
+  4,6 dans l'autre — le moteur ne sait plus quoi faire de la voix.
+  *Deux réglages essayés sans succès* : un gain RMS cible (-19 dBFS) **sature**
+  ces extraits (très faibles au départ) ; viser l'écart-type de la banque par
+  itérations ne suffit pas (le codec normalise en interne).
+  *Ce qui manque, identifié précisément* : le **codec Mimi dédié aux voix**. Le
+  script OFFICIEL de Kyutai (`moshi/scripts/tts_make_voice.py`, récupéré comme
+  référence dans `kyutai_service/_reference_tts_make_voice.py`) fait
+  `loaders._quantizer_kwargs["n_q"] = 16` puis charge un Mimi séparé
+  (`<poids>_mimi_voice.safetensors`, **16 codebooks**) — alors que le codec du
+  modèle TTS en a **32**. C'est ce codec qui produit des latents à l'échelle
+  0,66.
+  *Où le trouver : introuvable pour l'instant.* Le dépôt `kyutai/tts-1.6b-en_fr`
+  ne contient que **6 fichiers** (aucun `*_mimi_voice*`) ; `kyutai/mimi` a
+  `model.safetensors` et `tts_b6369a24.safetensors` (autre signature) ;
+  `kyutai/tts-voices` n'en a pas non plus.
+  *Outils laissés sur place* : `_lister_depot_modele.py` (liste les fichiers
+  d'un dépôt Hugging Face), `_inspecter_empreinte.py` (forme **et statistiques**
+  — c'est lui qui révèle une empreinte fausse), `_fabriquer_empreintes.py`
+  (étalonnage + commentaires de tous ces pièges).
+  *Leçon de méthode, à garder* : **une empreinte ne se valide pas par sa forme,
+  mais à l'oreille** — et **jamais en série avant l'essai**. Une empreinte fausse
+  ne casse rien (le moteur rend des gargouillis), mais elle abîme la confiance.
+  *Pistes pour reprendre* : demander à l'atelier **NIMM Voix** comment il a
+  fabriqué ses propres empreintes (il a peut-être déjà ce codec, ou le cache du
+  poids), ou chercher `*_mimi_voice.safetensors` dans les **révisions** du dépôt
+  Hugging Face.
+  ⚠️ **Conséquence sur la suite** : tant que ce codec n'est pas trouvé, les voix
+  sans empreinte Kyutai (26 voix de casting) **ne peuvent pas être importées**,
+  donc la bascule des 222 personnages reste **bloquée** — et `START.bat` doit
+  continuer à allumer **NeuTTS** en attendant.
+  **LA CAUSE EST TRANCHÉE, PREUVE À L'APPUI (17/09/2026, avec l'atelier NIMM
+  Voix)** : ce n'est **ni le niveau, ni la normalisation** — c'est le **codec**.
+  Outil : `kyutai_service/_calibrer_encodage.py` (nouveau). Il encode **le WAV
+  exact de la banque** (`10087_11650_000028-0002_enhanced.wav`, pris dans
+  l'atelier voisin) avec le codec Mimi du modèle, à **8 niveaux (×1 à ×40)**, et
+  compare chaque latent à l'empreinte officielle :
+  - **corrélation 0,010 puis 0,008** — aucune corrélation, à aucun niveau ;
+  - l'écart-type du latent **ne bouge pas** (0,0703 → 0,0723) : le codec
+    **normalise en interne**, le volume d'entrée n'a donc aucun effet ;
+  - dès ×2 le signal **sature** (le WAV de la banque est déjà fort) : voilà
+    l'origine de mon écart-type 3,03 — un signal écrasé, pas un réglage.
+  *Conclusion* : les empreintes officielles viennent d'un **codec différent**
+  (le `*_mimi_voice.safetensors` à 16 codebooks), **publié nulle part** —
+  vérifié par l'atelier NIMM Voix sur les trois dépôts possibles
+  (`kyutai/tts-1.6b-en_fr`, `kyutai/mimi`, `kyutai/tts-voices` : 404). Le nom
+  `1e68beda_240_mimi_voice.safetensors` est une **convention de nommage du
+  script officiel de Kyutai**, pas un fichier réel.
+  *Conséquence définitive* : **fabriquer une voix Kyutai à partir d'un WAV est
+  impossible avec ce qu'on a**. L'idée de Laurent (« prendre des extraits de
+  Edge, Kokoro, Piper pour tout ramener dans un seul moteur ») reste **bloquée**
+  jusqu'à ce codec.
+  *Piège à connaître, rencontré ce soir* : nos outils plantaient avec
+  `TritonMissing` au chargement du codec — sous Windows `torch.compile` est
+  impossible, il faut `NO_TORCH_COMPILE=1` **avant** l'import (le service le
+  fait déjà ; `_fabriquer_empreintes.py` et `_calibrer_encodage.py` corrigés).
+  *Ce qui reste ouvert* : rebasculer les **196 personnages** (sur 222) dont la
+  voix existe chez Kyutai, en donnant aux **26** restants une voix Kyutai proche
+  (choix à faire à l'oreille) — ou **rester en NeuTTS**. Décision de Laurent.
+  **BASCULE COMPLÈTE FAITE le 17/09/2026 au soir** (choix de Laurent : « re-cast
+  automatique ») : **222 personnages en Kyutai, 0 en NeuTTS**.
+  - **180 personnages** transposés à l'identique (`neutts:X` → `kyutai:X`) par
+    `_basculer_voix_neutts_vers_kyutai.py --ecrire` — même extrait, même timbre ;
+  - **42 personnages** dont la voix n'avait pas de jumelle (19 extraits libres +
+    voix `cml####`) ont reçu une voix Kyutai choisie **par profil d'écoute**
+    (`_remplacer_voix_sans_jumelle.py --ecrire`) : les 35 voix Kyutai ne sont
+    **pas** annotées, mais leurs **jumelles NeuTTS le sont** (mêmes extraits) →
+    le choix se fait sur **timbre, âge, débit, registre**, jamais au hasard.
+    **4** de ces 42 partagent une voix (livres à 40 personnages : les **17 voix
+    masculines Kyutai** sont épuisées) — c'est le comportement habituel du
+    lecteur quand le pool est vide (« voix partagée »).
+  - Copies de sûreté : `nimm_epub.db.bak_avant_remplacement_voix_20260917_1752`
+    et `nimm_epub.db.bak_avant_bascule_kyutai_20260917_1752`.
+  - **`START.bat` allume désormais Kyutai** (port 8082) et non plus NeuTTS ;
+    `data/moteur_voix.txt` (réglage propre à la machine, lu par le lanceur) est
+    passé à `kyutai`. NeuTTS et XTTS restent lançables à la main.
+  - *État final mesuré* : **kyutai 222 · edge 471 · kokoro 371 · piper 93 ·
+    81 sans voix** = 1238 personnages ; **santé des voix : OK** (toutes les voix
+    attribuées existent au catalogue) ; **65 verrous** préservés.
+  - *Piège documenté au passage* : la **base** écrit le genre **H**, les
+    **catalogues de voix** écrivent **M** — toute comparaison de genre doit
+    passer par la famille (`== "F"`), comme le fait déjà `voice_casting.py`.
+  **INCIDENT DU 17/09/2026 À 18h00, PUIS CORRECTIF** : après la bascule, Laurent
+  a lancé un **re-cast** sur le livre 28 (*22/11/63*). Le lecteur a alors affiché
+  « erreur » sur beaucoup de personnages : **31 voix XTTS et 47 voix NeuTTS**
+  leur avaient été attribuées, plus **84 personnages sans voix** — or seul Kyutai
+  était allumé, et **une voix dont le moteur est éteint ne lit rien**.
+  *Cause, écrite dans le code* : `voice_casting.py`, fonction `_kyutai_pool` —
+  « **cette fonction n'est PLUS utilisée** pour composer DEDICATED_VOICES_F/M —
+  **Kyutai a été retiré du pool automatique** au profit de XTTS v2 (décision du
+  14/09/2026) ». Ce choix datait d'avant Kyutai comme moteur principal : tout
+  re-cast distribuait donc des voix Edge/XTTS/Kokoro/NeuTTS, **jamais Kyutai**.
+  *Réparation (choix de Laurent : « répare tout »)* :
+  (1) **base** — restauration de `bak_avant_bascule_kyutai_20260917_1752` (état
+  d'avant la bascule), puis re-bascule → **222 personnages en Kyutai, 0 en
+  NeuTTS ou XTTS** ; l'état fautif est gardé sous
+  `nimm_epub.db.bak_avant_reparation_20260917_1847` ;
+  (2) **code** — `_pool_par_paliers` compose désormais le pool ainsi :
+  **Kyutai d'abord** (le moteur que `START.bat` allume), puis **Edge**, puis
+  **Kokoro** ; **XTTS et NeuTTS en sont RETIRÉS** (leur moteur n'est plus allumé
+  automatiquement, donc leurs voix ne liraient pas) mais restent choisissables
+  **à la main**.
+  *Conséquence assumée* : sur les très gros livres (pool de 68 voix max) des
+  voix sont **partagées** — c'est préférable à des voix muettes.
+  *Tests mis à jour* : `test_pool_casting.py` vérifie maintenant que Kyutai est
+  **en tête** du pool et qu'XTTS/NeuTTS en sont **absents** (l'ancien test
+  l'interdisait explicitement). Toute la batterie est au vert.
+  *Outil de contrôle ajouté* : `test_voix/_controler_voix_kyutai.py` (lecture
+  seule) — compare la **base**, le **catalogue du lecteur** et les **empreintes
+  du moteur**, liste les voix qui demandent un **autre** moteur et les
+  personnages **sans voix**. C'est lui qui a localisé le problème en une commande.
+  **SUITE À 19h — UN SECOND CHEMIN ÉTAIT RESTÉ EN ARRIÈRE.** Malgré le correctif
+  du pool par paliers, un nouveau re-cast du livre 28 a remis **31 voix XTTS et
+  48 NeuTTS**, toutes muettes : le lecteur répondait **503 Service Unavailable**
+  (message visible seulement dans la console du serveur) et Laurent n'entendait
+  rien, sans rien voir s'afficher dans NIMM ePub.
+  *Cause* : `_index_voix()` — l'index utilisé par le **re-cast par critères** et
+  par le **re-cast avec l'IA** — contenait encore `XTTS_VOICES` et
+  `NEUTTS_VOICES`. Le correctif précédent n'avait touché que
+  `_pool_par_paliers`.
+  *Correctif* : `_index_voix()` ne contient plus que **Kyutai, Edge et Kokoro**.
+  Et pour que les voix Kyutai (qui ne sont pas annotées) restent choisies sur des
+  critères **entendus**, `_classement_voix` lit désormais l'annotation de leur
+  **jumelle NeuTTS** (`_jumelle_neutts` — mêmes extraits, donc même profil).
+  *Effet de bord mesuré* : les voix de vieux sont rares dans le pool restreint
+  (et beaucoup sont **réservées par rôle**) ; pour « homme âgé », il ne reste
+  parfois **qu'une** voix, dont le timbre n'est pas « grave ». Le test
+  `test_attribution_criteres.py` a été ajusté (il exigeait un timbre grave,
+  calibré sur l'ancien catalogue) — l'âge reste exigé.
+  *Base réparée* : **263 personnages en Kyutai**, aucun sur un autre moteur,
+  aucun muet. Copies : `bak_avant_remplacement_voix_20260917_1858` et
+  `bak_avant_bascule_kyutai_20260917_1858`.
+  *À améliorer (noté)* : le **503 ne s'affiche pas côté client** — le lecteur ne
+  sait pas qu'une voix demande un moteur éteint, et l'utilisateur n'entend
+  simplement rien. Un message clair serait préférable (« cette voix demande un
+  autre moteur »).
+  *Leçon* : **corriger un endroit ne suffit pas** — le même catalogue de voix est
+  lu par DEUX chemins (pool par paliers, index par critères). Les deux ont été
+  traités, et `_controler_voix_kyutai.py` vérifie l'état final.
+  **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
+  fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
+  (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**
+  (`dp_*`, la 19ᵉ — `Femme001` — avait été fabriquée pour l'essai). Les **35
+  empreintes de la banque officielle n'ont PAS été touchées** (`--manquantes`).
+  Le moteur annonce désormais **85 voix** (41 + 44). Toutes sortent avec la
+  forme **(1, 512, 75)** et l'extrait est **tronqué à 6 s** (une empreinte trop
+  longue mange la place du texte dans la fenêtre du modèle).
+  ⚠️ **Reste à faire avant de basculer** : ces 44 voix existent **chez le
+  moteur** mais **pas dans le catalogue du lecteur** (`KYUTAI_VOICES`, dans
+  `modules/tts.py`) — or le script de bascule refuse toute voix absente du
+  catalogue. Il faut donc **compléter `KYUTAI_VOICES`** en **préservant les
+  prénoms déjà choisis à la main pour les 35 voix existantes** (Éléonore,
+  Bertrand, Gaston… ne doivent pas être écrasés) et en **héritant** des prénoms,
+  genres et étoiles du catalogue NeuTTS (les identifiants sont les mêmes) pour
+  les 44 nouvelles. Ensuite seulement : bascule des 222 personnages, puis
+  `START.bat` sur Kyutai.
   *Reste à relever au moment du chantier* : la **liste exacte des voix
   françaises** disponibles chez Google (doc « list-voices-and-types »), le
   nombre de voix **Gemini TTS** et leur caractère (homme/femme/âge) — au doigt

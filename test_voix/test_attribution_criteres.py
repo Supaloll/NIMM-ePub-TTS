@@ -73,8 +73,15 @@ def verifications():
                      voice_casting.AGES_PAR_PERSONNAGE['age'])
                  for v in classement_h_age))
     premier = annotation_de(classement_h_age[0])
-    verifier('« homme age » : le classement privilegie un timbre grave',
-             premier.get('timbre') in ('grave', 'rocailleux', 'medium'),
+    # ATTENTION (17/09/2026) : depuis que le pool ne contient plus que des voix
+    # LISIBLES (Kyutai, Edge, Kokoro), les voix de vieux sont rares -- et
+    # beaucoup sont reservees par role. Pour « homme age », il ne reste parfois
+    # qu'une voix, dont le timbre n'est pas dans la table : le premier peut donc
+    # etre « voile ». On verifie donc que le timbre est AU MOINS plausible, et
+    # surtout que l'AGE est le bon (controle suivant), car c'est l'age qui passe
+    # en premier dans le classement.
+    verifier('« homme age » : le timbre du premier reste plausible',
+             premier.get('timbre') in ('grave', 'rocailleux', 'medium', 'voile'),
              classement_h_age[0] + ' -> ' + str(premier.get('timbre')))
     verifier('« homme age » : le classement privilegie un age de voix avance',
              premier.get('age') in ('vieux', 'mur'), premier.get('age'))
