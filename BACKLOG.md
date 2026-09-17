@@ -973,6 +973,31 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Mémo transmis à NIMM Voix* : `test_voix/MEMO_pour_NIMM_Voix.md` — le nettoyage
   du texte, le contexte glissant, les pauses, le piège des phrases courtes et la
   méthode, à rejouer sur **Pocket TTS**.
+  **RÈGLE DU MÊME LOCUTEUR — ajoutée le 17/09/2026 au soir** (idée de Laurent, en
+  entendant deux effets secondaires : un « tic » avant chaque phrase, et une
+  pause de plusieurs secondes à chaque changement de personnage).
+  *Le tic* : on coupait **pile** à la fin du dernier son du contexte, ce qui
+  laissait passer quelques échantillons du dernier mot (discontinuité audible).
+  On coupe désormais **40 ms dans le silence** (`_ou_commence_la_phrase`).
+  *La pause* : cause mesurée — **chaque appel au moteur paie un coût fixe
+  d'environ 3 s** de préparation. Le contexte faisant **deux appels par phrase**,
+  ce coût était payé deux fois : phrase de 150 caractères, **6,38 s seule contre
+  10,13 s avec contexte** (et **4,12 s** pour le contexte seul, 8 mots !). La
+  génération devenait **plus lente que la lecture** → attente, surtout au
+  changement de personnage (tout part d'un coup, et le service ne génère qu'une
+  phrase à la fois).
+  *La règle de Laurent* : **le contexte ne s'applique qu'entre deux phrases du
+  MÊME locuteur** (même voix). Au changement de personnage, pas de contexte —
+  c'est **plus juste prosodiquement** (un locuteur ne prête pas son élan à un
+  autre) **et** ça supprime la double génération là où elle coûtait le plus. Le
+  narrateur suit la même règle : s'il porte la voix d'un personnage (cas de
+  *22/11/63*, où le narrateur **est** Jake Epping), la continuité est conservée.
+  *Implémentation* : `frontend/app.js`, `_buildPlaylist` —
+  `if (units[i].voice !== units[i - 1].voice) continue;`.
+  *Piste notée pour la suite* : générer **deux phrases en un seul appel**
+  (`contexte + A + B`), puis couper en deux — le coût fixe serait amorti et B
+  aurait son contexte naturellement. Chantier (le lecteur reçoit une phrase par
+  requête aujourd'hui), à ouvrir plus tard.
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**

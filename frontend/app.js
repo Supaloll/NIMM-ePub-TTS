@@ -2437,9 +2437,21 @@ function _buildPlaylist(startIdx, endIdx) {
     }
   }
 
-  // Chaque unite recoit la FIN DE LA PRECEDENTE comme contexte : le moteur
-  // enchaîne au lieu de repartir a froid (la premiere n'en a pas).
+  // Chaque unite recoit la FIN DE LA PRECEDENTE comme contexte — MAIS
+  // SEULEMENT si la phrase precedente est du MEME LOCUTEUR (idee de Laurent,
+  // 17/09/2026 au soir, en entendant les deux defauts qui en decoulaient) :
+  //   - prosodie : le contexte d'une replique d'un AUTRE personnage serait lu
+  //     avec la voix du nouveau venu -- un locuteur preterait son elan a un
+  //     autre, ce qui n'a pas de sens ;
+  //   - temps : chaque generation avec contexte en fait DEUX (le contexte est
+  //     genere seul pour savoir ou couper), soit ~10 s au lieu de ~6 s par
+  //     phrase. Le payer a chaque changement de personnage creait une attente
+  //     audible (mesure du 17/09/2026).
+  // Donc : on ne prend le contexte que dans une suite de phrases du meme
+  // locuteur -- y compris le narrateur (si le narrateur EST un personnage, il
+  // porte la meme voix, et la continuite est conservee).
   for (let i = 1; i < units.length; i++) {
+    if (units[i].voice !== units[i - 1].voice) continue;
     units[i].context = _contexteDe(units[i - 1].text);
   }
   return units;

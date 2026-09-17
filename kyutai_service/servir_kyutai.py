@@ -299,7 +299,15 @@ def _ou_commence_la_phrase(sons_contexte, sons_long, frequence):
     for rang in range(1, len(blocs)):
         silence = blocs[rang][0] - blocs[rang - 1][1]
         if silence >= SILENCE_COUPE_S * frequence and blocs[rang][0] >= limite:
-            return blocs[rang - 1][1], fin_contexte, True
+            # On coupe DANS le silence, un peu APRES la fin du dernier son du
+            # contexte. Couper pile sur la frontiere laissait passer quelques
+            # echantillons du dernier mot du contexte : ils s'entendaient comme
+            # un petit « tic » avant chaque phrase (constat de Laurent,
+            # 17/09/2026). La marge reste dans le silence, donc elle ne mange
+            # jamais le debut de la phrase.
+            marge = int(0.04 * frequence)
+            return (min(blocs[rang][0], blocs[rang - 1][1] + marge),
+                    fin_contexte, True)
     return min(fin_contexte, len(sons_long)), fin_contexte, False
 
 
