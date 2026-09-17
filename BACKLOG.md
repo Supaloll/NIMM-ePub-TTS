@@ -1059,6 +1059,29 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   deux de Laurent) : **TOUT EST OK** — saut de ligne à **−0,02 s**, « pas
   marché » à **+0,60 s sur une phrase de 13,9 s** (une respiration, plus un
   mot).
+  **INCISES DE DIALOGUE (« il m'a demandé ») — le prompt demandait le
+  contraire.** Constat de Laurent, 17/09/2026 : dans *22/11/63*, la phrase
+  « Vous êtes qui, putain ? il m'a demandé. » faisait lire **« il m'a
+  demandé »** par Carton Jaune au lieu du narrateur.
+  *Cause* : la consigne 8 du prompt de la passe 1 disait exactement l'inverse —
+  « attribue TOUJOURS la phrase entière au personnage qui parle, **même si
+  l'incise elle-même est techniquement de la prose narrative** » — et la
+  consigne 9 (« tant que la citation n'est pas refermée, TOUTES les phrases
+  gardent le même locuteur ») s'appliquait d'autant mieux que le guillemet
+  fermant **manque** dans ce passage. L'IA appliquait donc les règles **à la
+  lettre**.
+  *Correctif* : la consigne 8 distingue maintenant deux cas — une phrase qui
+  **contient** une réplique entre guillemets va au personnage ; une phrase qui
+  n'est **qu'une incise de parole** (« il m'a demandé. », « dit-il. »,
+  « répondit le comte. », « demanda-t-elle. ») est de la **NARRATION**, même si
+  la citation précédente n'a pas été refermée. La consigne 9 porte l'exception.
+  *Périmètre* : cela vaut pour les **prochains castings et re-casts** ; un livre
+  déjà casté garde son attribution (elle vient de l'IA) — pour le corriger, il
+  faut **relancer le casting**.
+  *Manque signalé au passage* : il n'existe **aucun outil pour corriger le
+  locuteur d'une phrase à la main** (le panneau « voix de cette phrase » change
+  la voix d'un personnage ou celle du lecteur, **pas** l'attribution). À prévoir
+  si le cas se reproduit souvent — c'est un outil d'atelier à part entière.
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**
