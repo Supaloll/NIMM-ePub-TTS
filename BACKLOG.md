@@ -1082,6 +1082,26 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   locuteur d'une phrase à la main** (le panneau « voix de cette phrase » change
   la voix d'un personnage ou celle du lecteur, **pas** l'attribution). À prévoir
   si le cas se reproduit souvent — c'est un outil d'atelier à part entière.
+  **« SI JE RE-CASTE LES TOMES 5 ET 6, VAIS-JE RETROUVER LES VOIX ? » — OUI.**
+  (question de Laurent, 17/09/2026, inquiet du changement de moteur survenu
+  entre-temps). *Vérifié dans le code* : `_fetch_saga_voix_figees` (`main.py`,
+  1284) reprend les voix des autres tomes de la même saga — **le tome le plus
+  anciennement ajouté fait référence** en cas de divergence — et il ne regarde
+  **que l'identifiant de la voix, jamais le moteur**. Le passage d'XTTS/NeuTTS à
+  Kyutai ne casse donc rien, **tant que les identifiants suivent** : c'est
+  exactement ce qu'a fait la bascule (mêmes identifiants, empreintes Kyutai).
+  *Contrôlé* : la saga « Monte Cristo » (5 tomes) est **cohérente** —
+  **134 personnages communs, une seule voix pour chacun** d'un tome à l'autre
+  (nouvel outil `test_voix/_controler_saga.py`).
+  *Les deux seules nuances à connaître* :
+  1. la **voix du narrateur** n'est pas couverte par la saga : elle est **par
+     livre** (mis en place le 17/09/2026) → à choisir une fois pour le T5 et une
+     fois pour le T6, la même que les tomes précédents si on veut la continuité ;
+  2. les personnages dont la voix n'existait pas chez Kyutai ont une voix de
+     remplacement — dans Monte-Cristo, **Beauchamp seul** (`cml3060` →
+     `kyutai:4482_3103_000063-0001`), mais **la même dans tous les tomes**.
+  *Re-caster le T5/T6* reprend donc ces voix automatiquement (le re-cast gratuit
+  comme le casting complet).
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**
