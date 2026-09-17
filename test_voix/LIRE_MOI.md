@@ -44,6 +44,8 @@ demander un lanceur, c'est deux minutes à fabriquer.
 |---|---|
 | `_PAYANT_test_attribution_api.py` | envoie un **vrai chapitre** aux API d'IA (Gemini, Mistral, DeepSeek) — **chaque appel est facturé** |
 | `_PAYANT_lancer_test_attribution.bat` | son lanceur (double-clic) — il demande confirmation avant de partir |
+| `_PAYANT_recaster_un_livre.py` | **re-caste un livre ENTIER** (un livre déjà casté ne peut pas l'être depuis l'interface) : copie datée de la base, effacement de l'attribution, estimation du coût, confirmation, casting, suivi — **facturé** |
+| `_PAYANT_lancer_recaster_un_livre.bat` | son lanceur double-clic (il enchaîne les contrôles de cohérence à la fin) |
 
 Ils sont **renommés et protégés le 16/09/2026** : sans l'option `--je-paie`, le
 script affiche un avertissement et **s'arrête sans rien envoyer**. Avant, un
