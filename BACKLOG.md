@@ -998,6 +998,19 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   (`contexte + A + B`), puis couper en deux — le coût fixe serait amorti et B
   aurait son contexte naturellement. Chantier (le lecteur reçoit une phrase par
   requête aujourd'hui), à ouvrir plus tard.
+  **DEUX AJOUTS DU MÊME SOIR (constats de Laurent, 17/09/2026).**
+  (1) **Le cache pouvait rejouer un ANCIEN rendu** : Laurent entendait
+  « l'ancien défaut sur quelques lignes, puis les mises à jour ». Cause : la clé
+  de cache ne dépend que du texte, donc les phrases dont le texte **n'avait pas
+  changé** étaient servies depuis les fichiers d'**avant** les corrections.
+  Correctif : **`VERSION_CACHE`** (`modules/tts_cache.py`, aujourd'hui **2**)
+  entre dans la clé — tout fichier produit par une version antérieure n'est plus
+  servi, donc une correction de prétraitement ne peut plus être contredite par
+  le cache. **À incrémenter** dès que le texte envoyé au moteur change. Le stock
+  existant a été **purgé** (2 766 fichiers, 406 Mo).
+  (2) **` : ` → `, `** dans `_clean_text` : Laurent n'entendait **aucune pause**
+  sur les deux-points. On ne touche qu'au deux-points **précédé d'une espace**
+  (typographie française), ce qui préserve « 14:30 » et les adresses.
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**

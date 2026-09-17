@@ -238,6 +238,12 @@ def _clean_text(text: str) -> str:
     # respiration sans le son parasite.
     text = text.replace(';', ',')
 
+    # Deux-points -> virgule (17/09/2026 au soir, constat de Laurent : « la
+    # ponctuation des ":" n'a pas de pause du tout »). On ne touche qu'au
+    # deux-points PRECEDE D'UNE ESPACE -- c'est la typographie francaise, et
+    # cela evite de casser « 14:30 » ou une adresse.
+    text = re.sub(r'\s+:\s*', ', ', text)
+
     # Parentheses -> virgules (meme jour, meme constat) : le moteur les ignore,
     # donc l'incise n'etait entouree d'AUCUNE pause. Deux virgules redonnent la
     # respiration attendue de part et d'autre.

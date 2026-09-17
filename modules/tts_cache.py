@@ -39,9 +39,25 @@ _known_total = None          # taille du dossier mesuree au premier ecrit
 _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 
 
+# Version du PRETRAITEMENT. A INCREMENTER des que le texte envoye au moteur
+# change (regle de nettoyage, contexte glissant...) : les fichiers de cache
+# d'une version anterieure ne sont plus servis, donc on n'entend JAMAIS un
+# ancien rendu apres une correction. Constat de Laurent, 17/09/2026 : « quand je
+# reprends une lecture, j'ai l'ancien defaut sur quelques lignes, puis j'entends
+# les mises a jour » -- c'etaient les phrases dont le texte n'avait pas change,
+# servies depuis le cache d'avant.
+#   1 = avant le 17/09/2026 au soir (point-virgule et parentheses non traites,
+#       pas de contexte glissant)
+#   2 = 17/09/2026 au soir : `;` -> `,`, `()` -> virgules, ` : ` -> `, `,
+#       et contexte glissant entre phrases du meme locuteur
+VERSION_CACHE = 2
+
+
 def _hash_key(text, voice, rate, pitch):
-    """Cle de cache : hash des parametres reels de la synthese."""
+    """Cle de cache : hash de la VERSION, des parametres reels de la synthese."""
     h = hashlib.sha256()
+    h.update(("v%d" % VERSION_CACHE).encode("utf-8"))
+    h.update(b"\x00")
     h.update(text.encode("utf-8"))
     h.update(b"\x00")
     h.update(voice.encode("utf-8"))
