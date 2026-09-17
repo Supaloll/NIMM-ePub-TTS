@@ -705,15 +705,24 @@ def _kyutai_voix_id(voice: str) -> str:
     return voice.split(":", 1)[1] if ":" in voice else voice
 
 
-async def _demander_au_moteur_kyutai(texte: str, identifiant_voix: str) -> bytes:
-    """Envoie une phrase au service Kyutai et renvoie le WAV brut."""
+async def _demander_au_moteur_kyutai(texte: str, identifiant_voix: str,
+                                     contexte: str = "") -> bytes:
+    """Envoie une phrase au service Kyutai et renvoie le WAV brut.
+
+    `contexte` : la fin de la phrase precedente (facultatif). Le service lit
+    « contexte + phrase » et ne renvoie que la phrase, coupee dans un silence.
+    """
     import httpx
+
+    corps = {"texte": texte, "voix": identifiant_voix}
+    if contexte:
+        corps["contexte"] = contexte
 
     try:
         async with httpx.AsyncClient(timeout=KYUTAI_DELAI_S) as client:
             reponse = await client.post(
                 KYUTAI_URL + "/tts",
-                json={"texte": texte, "voix": identifiant_voix},
+                json=corps,
             )
     except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout,
             httpx.RemoteProtocolError, httpx.WriteError) as erreur:
@@ -738,10 +747,17 @@ async def _demander_au_moteur_kyutai(texte: str, identifiant_voix: str) -> bytes
 
 
 async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
-                            pitch: str = "+0Hz") -> bytes:
+                            pitch: str = "+0Hz",
+                            contexte: str = "") -> bytes:
     """
     Synthese Kyutai pour une phrase. Le moteur tourne dans son propre
     service (Python 3.12 + PyTorch), appele ici en HTTP local.
+
+    `contexte` (facultatif) : la FIN DE LA PHRASE PRECEDENTE (idee de Laurent,
+    17/09/2026). Le moteur lit « contexte + phrase » puis coupe pour ne livrer
+    que la phrase : la voix ne demarre plus a froid, ce qui supprime les sautes
+    de volume et rend la lecture plus « chantee ». Il ENTRE DANS LA CLE DE
+    CACHE : la meme phrase apres un autre contexte est un autre audio.
 
     Vitesse : aucun reglage natif -> post-traitement ffmpeg (atempo).
     Hauteur : aucun reglage natif -> post-traitement _apply_pitch_shift
@@ -753,11 +769,15 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
     if not text:
         return b""
 
-    cached = _tts_cache.get_audio(text, voice, rate, pitch, "wav")
+    contexte = _clean_text(contexte) if contexte else ""
+    cle = (contexte + "\x00" + text) if contexte else text
+
+    cached = _tts_cache.get_audio(cle, voice, rate, pitch, "wav")
     if cached is not None:
         return cached
 
-    wav_bytes = await _demander_au_moteur_kyutai(text, _kyutai_voix_id(voice))
+    wav_bytes = await _demander_au_moteur_kyutai(text, _kyutai_voix_id(voice),
+                                                 contexte)
     if not wav_bytes:
         return b""
 
@@ -765,7 +785,7 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
     wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
 
-    _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)
+    _tts_cache.put_audio(cle, voice, rate, pitch, "wav", wav_bytes)
     return wav_bytes
 
 

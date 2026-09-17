@@ -243,6 +243,10 @@ class TTSRequest(BaseModel):
     voice: str = DEFAULT_VOICE
     rate: str = "+0%"
     pitch: str = "+0Hz"
+    # Fin de la phrase PRECEDENTE (facultatif) : donnee au moteur Kyutai pour
+    # qu'il ne demarre pas a froid (idee de Laurent, 17/09/2026). Ignoree par
+    # les autres moteurs.
+    context: str = ""
 
 class VoiceUpdateRequest(BaseModel):
     character_name: str
@@ -2255,10 +2259,13 @@ async def tts(request: TTSRequest):
         # Le moteur Kyutai tourne dans SON PROPRE service (Python 3.12 +
         # PyTorch, lance par kyutai_service/DEMARRER_KYUTAI.bat) : on l'appelle
         # en HTTP local, comme Edge TTS est appele par le reseau.
+        # `request.context` (fin de la phrase precedente) est transmis : c'est
+        # ce qui evite au moteur de demarrer a froid (17/09/2026).
         from modules.tts import synthesize_kyutai, KyutaiIndisponible
         try:
             audio = await synthesize_kyutai(request.text, request.voice,
-                                            request.rate, request.pitch)
+                                            request.rate, request.pitch,
+                                            request.context)
         except KyutaiIndisponible as erreur:
             # 503 : erreur "definitive" (moteur eteint), pas une coupure
             # reseau. Le client affiche le message et arrete la lecture au

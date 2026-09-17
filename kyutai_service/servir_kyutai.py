@@ -74,6 +74,22 @@ CFG = float(os.environ.get("NIMM_KYUTAI_CFG", "2.0") or "2.0")
 SILENCE_QUEUE_S = float(
     os.environ.get("NIMM_KYUTAI_SILENCE_QUEUE", "0.10") or "0.10")
 
+# --- Contexte glissant (idee de Laurent, 17/09/2026) -----------------------
+# Le moteur demarre A FROID sur chaque phrase : sa hauteur et son energie
+# « repartent » a chaque fois (sautes de volume, voix moins chantee), et une
+# phrase courte manque de matiere. Laurent a montre qu'en lui donnant LA FIN DE
+# LA PHRASE PRECEDENTE, la voix est plus stable et mieux posee.
+# On genere donc « contexte + phrase », puis on COUPE dans un silence pour ne
+# garder que la phrase -- l'auditeur n'entend jamais le contexte.
+# MESURE (banc du 17/09/2026) : 6 mots suffisent ; une phrase ENTIERE de
+# contexte sature la fenetre du modele et TRONQUE la phrase a lire (1,4 s au
+# lieu de 9,6 s). D'ou les deux garde-fous ci-dessous.
+CONTEXTE_CARACTERES_MAX = 90       # au-dela, on ne garde que la fin du contexte
+SILENCE_COUPE_S = 0.12             # silence minimal ou l'on accepte de couper
+MARGE_CONTEXTE_S = 0.25            # on cherche le silence apres (fin - 0,25 s)
+BLOC_ANALYSE_S = 0.01              # granularite d'analyse du son
+SEUIL_SON = 0.012                  # meme seuil que les autres outils d'atelier
+
 # Une seule generation a la fois : le moteur n'aime pas les appels
 # simultanes (meme precaution que le verrou Kokoro du lecteur).
 _verrou = threading.Lock()
@@ -237,8 +253,62 @@ def _wav_depuis_pcm(pcm, frequence):
     return tampon.getvalue()
 
 
-def generer_wav(texte, identifiant_voix, cfg=None):
+def _en_numpy(sons):
+    """Convertit l'audio du moteur en tableau numpy 1D (tenseur ou tableau).
+
+    `simple_generate` rend un TENSEUR PyTorch, qui peut vivre sur la carte
+    graphique : `np.asarray` le refuse alors (erreur 500 constatee le
+    17/09/2026). On repasse donc par `.detach().cpu()`.
+    """
+    import numpy as np
+
+    if hasattr(sons, "detach"):
+        return sons.detach().cpu().float().numpy().reshape(-1)
+    return np.asarray(sons, dtype=np.float32).reshape(-1)
+
+
+def _blocs_parles(sons, frequence):
+    """[(debut, fin)] en echantillons des blocs de son audible."""
+    import numpy as np
+
+    pas = max(1, int(BLOC_ANALYSE_S * frequence))
+    blocs = []
+    for debut in range(0, len(sons), pas):
+        bloc = sons[debut:debut + pas]
+        if bloc.size and float(np.max(np.abs(bloc))) >= SEUIL_SON:
+            if blocs and debut - blocs[-1][1] <= pas * 1.5:
+                blocs[-1] = (blocs[-1][0], debut + bloc.size)
+            else:
+                blocs.append((debut, debut + bloc.size))
+    return blocs
+
+
+def _ou_commence_la_phrase(sons_contexte, sons_long, frequence):
+    """Ou commence la phrase, dans l'audio « contexte + phrase ».
+
+    On sait ou finit le contexte (mesure sur sa propre generation), et on
+    cherche le premier VRAI SILENCE apres ce point : on coupe donc dans un
+    silence, jamais au milieu d'un mot. Si aucun silence franc n'est trouve,
+    on coupe a la fin mesuree du contexte (moins sur, mais la phrase est
+    entiere).
+    """
+    blocs_contexte = _blocs_parles(sons_contexte, frequence)
+    fin_contexte = blocs_contexte[-1][1] if blocs_contexte else 0
+    blocs = _blocs_parles(sons_long, frequence)
+    limite = fin_contexte - int(MARGE_CONTEXTE_S * frequence)
+    for rang in range(1, len(blocs)):
+        silence = blocs[rang][0] - blocs[rang - 1][1]
+        if silence >= SILENCE_COUPE_S * frequence and blocs[rang][0] >= limite:
+            return blocs[rang - 1][1], fin_contexte, True
+    return min(fin_contexte, len(sons_long)), fin_contexte, False
+
+
+def generer_wav(texte, identifiant_voix, cfg=None, contexte=""):
     """Genere une phrase avec une voix. Renvoie les octets du WAV.
+
+    `contexte` (facultatif) : la FIN DE LA PHRASE PRECEDENTE. Le moteur lit
+    alors « contexte + phrase » et on ne garde que la phrase, coupee dans un
+    silence (voir les constantes CONTEXTE_* ci-dessus).
 
     Leve une exception si la voix est inconnue ou si la generation
     echoue : l'appelant (le service) transforme cela en message clair.
@@ -252,11 +322,36 @@ def generer_wav(texte, identifiant_voix, cfg=None):
     coef = CFG if cfg is None else float(cfg)
     chemin_voix = str(_voix_cache[identifiant_voix])
 
-    with _verrou:
-        resultats = _tts.simple_generate(
-            texte, chemin_voix, cfg_coef=coef, show_progress=False)
+    contexte = (contexte or "").strip()
+    if len(contexte) > CONTEXTE_CARACTERES_MAX:
+        # On ne garde que la FIN du contexte, et on repart a la premiere espace
+        # pour ne pas commencer au milieu d'un mot.
+        contexte = contexte[-CONTEXTE_CARACTERES_MAX:]
+        espace = contexte.find(' ')
+        if espace > 0:
+            contexte = contexte[espace + 1:]
 
-    pcm = resultats[0]
+    with _verrou:
+        if contexte:
+            import numpy as np
+            frequence = _tts.mimi.sample_rate
+            sons_contexte = _tts.simple_generate(
+                contexte, chemin_voix, cfg_coef=coef, show_progress=False)[0]
+            sons_long = _tts.simple_generate(
+                contexte + ' ' + texte, chemin_voix, cfg_coef=coef,
+                show_progress=False)[0]
+            sons_long = _en_numpy(sons_long)
+            coupe, fin_contexte, sur = _ou_commence_la_phrase(
+                _en_numpy(sons_contexte), sons_long, frequence)
+            print("  contexte : %d car., fin a %.2f s, coupe a %.2f s (%s)"
+                  % (len(contexte), fin_contexte / float(frequence),
+                     coupe / float(frequence),
+                     "silence" if sur else "estimation"))
+            pcm = sons_long[coupe:]
+        else:
+            resultats = _tts.simple_generate(
+                texte, chemin_voix, cfg_coef=coef, show_progress=False)
+            pcm = resultats[0]
     # Respiration de fin de phrase (voir SILENCE_QUEUE_S ci-dessus) : le moteur
     # s'arrete net sur le dernier mot.
     if SILENCE_QUEUE_S > 0:
@@ -357,7 +452,10 @@ class Repondeur(BaseHTTPRequestHandler):
 
         t0 = time.time()
         try:
-            wav = generer_wav(texte, voix, demande.get("cfg"))
+            # `contexte` (facultatif) : la fin de la phrase precedente, pour que
+            # le moteur ne demarre pas a froid (voir CONTEXTE_* en haut).
+            wav = generer_wav(texte, voix, demande.get("cfg"),
+                              demande.get("contexte") or "")
         except ValueError as erreur:
             self._envoyer_json(400, {"erreur": str(erreur)})
             return

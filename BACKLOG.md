@@ -941,6 +941,38 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   `MOTEURS_DE_SECOURS = ["deepseek", "local"]` : DeepSeek **n'est** qu'un
   moteur de **rattrapage**, Gemini reste le principal. Il suffit donc de
   **relancer le casting avec Gemini** — rien à changer dans le code.
+  **CONTEXTE GLISSANT — INTÉGRÉ le 17/09/2026 au soir** (idée de Laurent,
+  validée par son écoute : « plus de sautes de volume, les voix paraissent plus
+  chantantes »). C'est la réponse au défaut le plus tenace du projet : le moteur
+  démarrait **à froid** sur chaque phrase.
+  *Principe* : pour la phrase B, on envoie « les 6-8 derniers mots de A, puis B »,
+  le moteur lit tout, et **on coupe l'audio pour ne garder que B** — l'auditeur
+  n'entend jamais le contexte.
+  *Où, dans le code* :
+  - `frontend/app.js` — `_buildPlaylist` donne à chaque unité le contexte de la
+    précédente (`CONTEXTE_MOTS = 8`), `_fetchAudio` l'envoie (`context`) ;
+  - `main.py` — champ `context` dans `TTSRequest`, transmis à Kyutai seulement ;
+  - `modules/tts.py` — `synthesize_kyutai(..., contexte)`, et **le contexte
+    entre dans la clé de cache** (même phrase après un autre contexte = autre
+    audio) ;
+  - `kyutai_service/servir_kyutai.py` — `generer_wav(..., contexte)` génère le
+    contexte SEUL pour connaître la fin de son dernier son, puis
+    « contexte + phrase », et coupe **dans le premier silence franc**
+    (`SILENCE_COUPE_S = 0,12 s`, `MARGE_CONTEXTE_S = 0,25 s`).
+  *Garde-fou mesuré* : un contexte trop long **sature la fenêtre** du modèle et
+  **tronque la phrase** — avec la phrase précédente ENTIÈRE, une phrase de 9,6 s
+  est sortie en **1,4 s**. D'où `CONTEXTE_CARACTERES_MAX = 90` côté service et
+  8 mots côté page.
+  *Effet mesuré, mêmes phrases* : **moins de micro-coupures** (11 segments au
+  lieu de 13 ; 20 au lieu de 23) et des durées comparables.
+  *Piège rencontré* : `simple_generate` rend un **tenseur PyTorch** (parfois sur
+  la carte graphique) — un `np.asarray` direct provoquait une **erreur 500**. Il
+  faut passer par `.detach().cpu()` (`_en_numpy` dans le service).
+  *Vérifié de bout en bout* : service seul (115 Ko avec contexte) **et** via le
+  lecteur (148 Ko).
+  *Mémo transmis à NIMM Voix* : `test_voix/MEMO_pour_NIMM_Voix.md` — le nettoyage
+  du texte, le contexte glissant, les pauses, le piège des phrases courtes et la
+  méthode, à rejouer sur **Pocket TTS**.
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**

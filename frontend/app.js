@@ -2397,6 +2397,19 @@ function _voiceForSentence(idx) {
 // phrase). Aucune fusion de phrases entre elles : c'est ce qui permet a la
 // surbrillance de coller a la voix (frontiere exacte entre deux phrases) et
 // au rythme de lecture d'etre regulier.
+// Nombre de MOTS de la phrase precedente envoyes comme CONTEXTE au moteur
+// Kyutai (idee de Laurent, 17/09/2026). Mesure du meme jour : 6 mots suffisent
+// pour que la voix ne demarre plus a froid, et une phrase ENTIERE de contexte
+// sature la fenetre du moteur, qui TRONQUE alors la phrase a lire.
+const CONTEXTE_MOTS = 8;
+
+// Le contexte envoye : les derniers mots de l'unite precedente.
+function _contexteDe(texte) {
+  const mots = (texte || '').trim().split(/\s+/).filter(m => m);
+  if (mots.length <= CONTEXTE_MOTS) return mots.join(' ');
+  return mots.slice(-CONTEXTE_MOTS).join(' ');
+}
+
 function _buildPlaylist(startIdx, endIdx) {
   const units = [];
   const last  = Math.min(
@@ -2422,6 +2435,12 @@ function _buildPlaylist(startIdx, endIdx) {
         pitch:   v.pitch,
       });
     }
+  }
+
+  // Chaque unite recoit la FIN DE LA PRECEDENTE comme contexte : le moteur
+  // enchaîne au lieu de repartir a froid (la premiere n'en a pas).
+  for (let i = 1; i < units.length; i++) {
+    units[i].context = _contexteDe(units[i - 1].text);
   }
   return units;
 }
@@ -2534,7 +2553,8 @@ async function _runTTS(startIdx, endIdx) {
     if (cache[i] || i >= units.length) return;
     inFlight++;
     const u = units[i];
-    cache[i] = _fetchAudio(u.text, u.voice, rate, u.pitch, signal).then(blob => {
+    cache[i] = _fetchAudio(u.text, u.voice, rate, u.pitch, signal,
+                           u.context).then(blob => {
       if (!blob) cache[i] = null; // echec apres retries : pourra etre retente
       return blob;
     });
@@ -2688,7 +2708,7 @@ function _updateTTSProgress(idx, total) {
   document.getElementById('tts-progress-fill').style.width = pct + '%';
 }
 
-async function _fetchAudio(text, voice, rate, pitch, signal) {
+async function _fetchAudio(text, voice, rate, pitch, signal, context) {
   // Retry renforcé pour le tunnel Tailscale : en mobile, chaque requête TTS
   // traverse le tunnel VPN. Quand l'écran est éteint ou le téléphone est
   // verrouillé, Android peut suspendre le réseau de la page SANS erreur :
@@ -2708,7 +2728,8 @@ async function _fetchAudio(text, voice, rate, pitch, signal) {
       const res = await fetch('/api/tts', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ text, voice, rate, pitch }),
+        body:    JSON.stringify({ text, voice, rate, pitch,
+                                  context: context || '' }),
         signal:  timeoutCtrl.signal
       });
       if (res.status === 503) {

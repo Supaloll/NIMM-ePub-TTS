@@ -147,6 +147,7 @@ kyutai_service/journal_*.txt
 # etaient entrees par erreur dans un commit le 17/09/2026.
 _essai_*.txt
 _lecteur*.txt
-_push_log.txt
+_push*.txt
 _t.txt
 _m.txt
+_ctx*.txt
