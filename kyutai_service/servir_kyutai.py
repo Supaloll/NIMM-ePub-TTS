@@ -283,32 +283,91 @@ def _blocs_parles(sons, frequence):
     return blocs
 
 
-def _ou_commence_la_phrase(sons_contexte, sons_long, frequence):
+def _creux_le_plus_proche(sons, position, frequence, largeur_s=0.30):
+    """L'echantillon le moins sonore autour d'une position.
+
+    Filet de securite quand AUCUN silence franc n'est trouve : on coupe au
+    passage le plus calme (mesure sur des tranches de 20 ms, pour ne pas tomber
+    sur un simple echantillon a zero). On evite ainsi de couper en plein mot.
+    """
+    import numpy as np
+
+    demi = int(largeur_s * frequence)
+    debut = max(0, int(position) - demi)
+    fin = min(len(sons), int(position) + demi)
+    if fin - debut < 10:
+        return max(0, min(int(position), len(sons)))
+    tranches = []
+    pas = max(1, int(0.02 * frequence))
+    for i in range(debut, fin, pas):
+        bloc = np.abs(sons[i:i + pas])
+        if bloc.size:
+            tranches.append((float(np.mean(bloc)), i))
+    return min(tranches)[1] if tranches else int(position)
+
+
+def _ou_commence_la_phrase(sons_contexte, sons_long, frequence,
+                           car_contexte=0, car_total=0):
     """Ou commence la phrase, dans l'audio « contexte + phrase ».
 
-    On sait ou finit le contexte (mesure sur sa propre generation), et on
-    cherche le premier VRAI SILENCE apres ce point : on coupe donc dans un
-    silence, jamais au milieu d'un mot. Si aucun silence franc n'est trouve,
-    on coupe a la fin mesuree du contexte (moins sur, mais la phrase est
-    entiere).
+    Deux pieges, tous les deux constates a l'oreille de Laurent le 17/09/2026 :
+
+    1. prendre « le premier silence franc » ne suffit PAS : le contexte contient
+       des virgules, qui font des pauses courtes, et la coupe tombait DANS le
+       contexte ;
+    2. la duree du contexte mesuree SEUL **sous-estime** sa place dans la
+       version longue : suivi d'une phrase, le modele le lit un peu plus
+       lentement. On coupe alors trop tot, et le dernier mot du contexte
+       s'entend avant la phrase (« ... une montagne. » puis « Va faire un petit
+       tour » donnait « montagne. Va faire un petit tour »).
+
+    On estime donc la part du contexte **proportionnellement au texte**
+    (caracteres), puis on cherche le silence le plus proche de cette position,
+    dans une fenetre etroite. Coupe dans le silence, un peu apres la fin du
+    dernier son (ce qui evitait le « tic »).
     """
+    blocs = _blocs_parles(sons_long, frequence)
     blocs_contexte = _blocs_parles(sons_contexte, frequence)
     fin_contexte = blocs_contexte[-1][1] if blocs_contexte else 0
-    blocs = _blocs_parles(sons_long, frequence)
-    limite = fin_contexte - int(MARGE_CONTEXTE_S * frequence)
+
+    if car_total > 0:
+        estimee = len(sons_long) * car_contexte / float(car_total)
+    else:
+        estimee = fin_contexte
+
+    candidats = []
     for rang in range(1, len(blocs)):
-        silence = blocs[rang][0] - blocs[rang - 1][1]
-        if silence >= SILENCE_COUPE_S * frequence and blocs[rang][0] >= limite:
-            # On coupe DANS le silence, un peu APRES la fin du dernier son du
-            # contexte. Couper pile sur la frontiere laissait passer quelques
-            # echantillons du dernier mot du contexte : ils s'entendaient comme
-            # un petit « tic » avant chaque phrase (constat de Laurent,
-            # 17/09/2026). La marge reste dans le silence, donc elle ne mange
-            # jamais le debut de la phrase.
-            marge = int(0.04 * frequence)
-            return (min(blocs[rang][0], blocs[rang - 1][1] + marge),
-                    fin_contexte, True)
-    return min(fin_contexte, len(sons_long)), fin_contexte, False
+        debut_silence = blocs[rang][0]
+        fin_son = blocs[rang - 1][1]
+        silence = (debut_silence - fin_son) / float(frequence)
+        if silence < SILENCE_COUPE_S:
+            continue                     # pause trop courte (une virgule)
+        ecart = abs(debut_silence - estimee) / float(frequence)
+        if ecart > 2.5:
+            continue                     # trop loin de l'estimation
+        candidats.append((silence, ecart, debut_silence, fin_son))
+
+    # On ne coupe JAMAIS avant la fin du contexte : ce serait laisser son
+    # dernier mot dans l'audio (« montagne. Va faire un petit tour... »).
+    # On ne garde donc que les silences situes a la fin du contexte ou apres,
+    # et parmi eux le plus long (la frontiere est la pause la plus franche).
+    garde = int(0.20 * frequence)
+    retenus = [c for c in candidats if c[2] >= fin_contexte - garde]
+    if retenus:
+        retenus.sort(key=lambda c: (-c[0], c[1]))
+        _silence, _ecart, debut_silence, fin_son = retenus[0]
+        coupe = min(debut_silence, fin_son + int(0.04 * frequence))
+        return coupe, fin_contexte, True
+    if candidats:
+        candidats.sort(key=lambda c: (-c[0], c[1]))
+        _silence, _ecart, debut_silence, fin_son = candidats[0]
+        return (min(debut_silence, fin_son + int(0.04 * frequence)),
+                fin_contexte, True)
+    # Aucun silence franc : on coupe au passage le plus calme juste APRES la fin
+    # du contexte, pour ne jamais tomber en plein milieu d'un mot.
+    position = max(fin_contexte, min(int(estimee), len(sons_long)))
+    return (_creux_le_plus_proche(sons_long, position, frequence),
+            fin_contexte, False)
 
 
 def generer_wav(texte, identifiant_voix, cfg=None, contexte=""):
@@ -343,18 +402,35 @@ def generer_wav(texte, identifiant_voix, cfg=None, contexte=""):
         if contexte:
             import numpy as np
             frequence = _tts.mimi.sample_rate
-            sons_contexte = _tts.simple_generate(
-                contexte, chemin_voix, cfg_coef=coef, show_progress=False)[0]
+            # Les points de suspension entre le contexte et la phrase sont
+            # ESSENTIELS : mesures du 17/09/2026 -- sans eux, le modele enchaine
+            # les deux sans pause detectable (0,31 s au mieux) et la coupe n'a
+            # AUCUN repere ; avec eux, il marque une vraie pause (~1,2 s), juste
+            # apres le contexte. Cette pause est dans la partie qu'on jette.
+            # On genere le PREFIXE EXACT (contexte + ces points) et non le
+            # contexte seul : le texte est alors IDENTIQUE jusqu'a la frontiere,
+            # donc sa duree mesuree est fiable.
+            prefixe = "%s ... " % contexte
+            envoi = prefixe + texte
+            try:
+                sons_contexte = _tts.simple_generate(
+                    prefixe, chemin_voix, cfg_coef=coef,
+                    show_progress=False)[0]
+            except Exception:
+                # Le prefixe seul peut deplaire au moteur : on retombe sur le
+                # contexte nu.
+                sons_contexte = _tts.simple_generate(
+                    contexte, chemin_voix, cfg_coef=coef,
+                    show_progress=False)[0]
             sons_long = _tts.simple_generate(
-                contexte + ' ' + texte, chemin_voix, cfg_coef=coef,
-                show_progress=False)[0]
+                envoi, chemin_voix, cfg_coef=coef, show_progress=False)[0]
             sons_long = _en_numpy(sons_long)
-            coupe, fin_contexte, sur = _ou_commence_la_phrase(
+            coupe, position, sur = _ou_commence_la_phrase(
                 _en_numpy(sons_contexte), sons_long, frequence)
-            print("  contexte : %d car., fin a %.2f s, coupe a %.2f s (%s)"
-                  % (len(contexte), fin_contexte / float(frequence),
+            print("  contexte : %d car., frontiere a %.2f s, coupe a %.2f s (%s)"
+                  % (len(contexte), position / float(frequence),
                      coupe / float(frequence),
-                     "silence" if sur else "estimation"))
+                     "silence" if sur else "estimation"), flush=True)
             pcm = sons_long[coupe:]
         else:
             resultats = _tts.simple_generate(

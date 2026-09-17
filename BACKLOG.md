@@ -1011,6 +1011,33 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   (2) **` : ` → `, `** dans `_clean_text` : Laurent n'entendait **aucune pause**
   sur les deux-points. On ne touche qu'au deux-points **précédé d'une espace**
   (typographie française), ce qui préserve « 14:30 » et les adresses.
+  **COUPE DU CONTEXTE — trois corrections successives, le même soir.** Laurent
+  entendait **le dernier mot du paragraphe précédent** devant la phrase du
+  paragraphe suivant (« montagne. Va faire un petit tour, avait dit Al. »).
+  *Cause 1* : la coupe tombait sur une **virgule du contexte** (le contexte en
+  contient), donc trop tôt. *Cause 2, plus fine* : la durée du contexte mesurée
+  **seul** sous-estime sa place dans la version longue — suivi d'une phrase, le
+  modèle le lit un peu plus lentement. *Cause 3* : **sans séparateur**, le modèle
+  enchaîne contexte et phrase **sans pause détectable** (0,31 s de silence au
+  mieux, mesuré) : aucun repère pour couper.
+  *Correctifs, mesurés à chaque fois* (`test_voix/_essai_separateur.py`,
+  `_diag_coupe_contexte.py`, `_verifier_contexte_service.py`) :
+  1. **points de suspension** entre le contexte et la phrase → le modèle marque
+     une **vraie pause de ~1,2 s** (mesuré : 0,31 s sans eux, 1,18 s avec) ;
+  2. on génère le **préfixe exact** (`contexte + " ... "`), et non le contexte
+     nu : le texte est **identique jusqu'à la frontière**, donc sa durée mesurée
+     est fiable (l'estimation par proportion, elle, ne l'était pas) ;
+  3. on **ne coupe jamais avant la fin du contexte** (marge de 0,20 s), et on
+     choisit le silence **le plus long** parmi ceux qui sont à la frontière ou
+     après (c'est la pause des points de suspension).
+  *Résultat mesuré* : la coupe tombe à **0,08 s de la frontière** (journal du
+  service : « frontière a 7,28 s, coupe a 7,20 s »), contre **1,5 s de résidu**
+  au départ.
+  *Réserve honnête* : le moteur **varie d'une génération à l'autre**, donc la
+  comparaison des durées n'est pas un juge parfait (un même cas mesuré « −0,32 s »
+  puis « +1,09 s »). **C'est l'oreille de Laurent qui tranche** ; s'il reste un
+  résidu, le réglage suivant est simple (couper un peu plus loin après la
+  frontière).
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**
