@@ -232,6 +232,17 @@ def _clean_text(text: str) -> str:
     # Supprime les references entre crochets [1], [note], [i], etc.
     text = re.sub(r'\[[^\]]{0,30}\]', '', text)
 
+    # Point-virgule -> virgule (17/09/2026, constat de Laurent) : les moteurs
+    # neuronaux essaient de PRONONCER la ponctuation forte qu'ils ne savent pas
+    # ignorer, et le « ; » sortait parfois en « euh ». La virgule garde la
+    # respiration sans le son parasite.
+    text = text.replace(';', ',')
+
+    # Parentheses -> virgules (meme jour, meme constat) : le moteur les ignore,
+    # donc l'incise n'etait entouree d'AUCUNE pause. Deux virgules redonnent la
+    # respiration attendue de part et d'autre.
+    text = text.replace('(', ', ').replace(')', ',')
+
     # Supprime les caracteres de controle
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
 

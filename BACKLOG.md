@@ -885,6 +885,62 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Leçon* : **corriger un endroit ne suffit pas** — le même catalogue de voix est
   lu par DEUX chemins (pool par paliers, index par critères). Les deux ont été
   traités, et `_controler_voix_kyutai.py` vérifie l'état final.
+  **RÉGLAGES DE PAUSE — 17/09/2026 au soir (écoute de Kyutai par Laurent).**
+  Trois remarques de Laurent, mesurées avant d'y toucher :
+  « le point passe très très vite » ; « je crois qu'on a réduit la pause, même
+  pour Edge et Kokoro ? » ; « il faudrait augmenter la pause de peut-être
+  100 millisecondes ».
+  *Mesures* (`test_voix/_mesurer_pause_phrases.py`, nouveau — silence de tête /
+  parole / silence de queue, via le lecteur) : **Kyutai 300 à 430 ms** de queue,
+  **Edge 231 à 238 ms**, **Kokoro 96 à 109 ms**, **Piper 106 à 111 ms**.
+  *Ce que Laurent avait senti, et c'était juste* : `frontend/app.js`,
+  `PARAGRAPH_PAUSE_MS` — la pause **entre paragraphes** (et chaque réplique de
+  dialogue est un paragraphe) valait **300 ms**, elle a été mise à **0** le
+  15/09/2026 parce qu'elle s'additionnait au rognage de l'époque. Elle touche
+  **tous** les moteurs : d'où sa remarque sur Edge et Kokoro.
+  *Réglages appliqués (+100 ms demandés par Laurent)* :
+  1. `PARAGRAPH_PAUSE_MS` : 0 → **100 ms** (un tiers de l'ancienne valeur, pour
+     ne pas recoller les répliques) ;
+  2. `modules/audio_trim.py` (Edge) : marge de fin 0,25 s → **0,35 s** ;
+  3. `kyutai_service/servir_kyutai.py` : nouvelle constante
+     `SILENCE_QUEUE_S` = **0,10 s** ajoutée en fin de chaque phrase (réglable par
+     `NIMM_KYUTAI_SILENCE_QUEUE`). Mesure après réglage sur une phrase inédite :
+     Kyutai **630 ms** de queue.
+  *À savoir* : deux réglages ne prennent effet qu'au **redémarrage** — le
+  rognage Edge au redémarrage du **lecteur** (`audio_trim` est chargé en
+  mémoire), et la pause de paragraphe au **rafraîchissement de la page**.
+  *Reste ouvert* : la **hauteur qui varie d'une phrase à l'autre** (constat de
+  Laurent : « parfois il part sur la phrase suivante avec une intonation assez
+  différente »). Cause : chaque phrase est générée **indépendamment**, le moteur
+  tire sa prosodie à chaque fois. Levier à tester : **`cfg`** (`NIMM_KYUTAI_CFG`,
+  aujourd'hui 2,0 ; valeurs valides 1,0 à 4,0 par pas de 0,5) — banc à l'aveugle
+  à faire, comme pour le reste.
+  **QUATRE DEMANDES DE LAURENT — 17/09/2026 (écoute de Kyutai).**
+  (1) **Voix du narrateur sauvegardée, PAR LIVRE** — livré. Elle n'était gardée
+  nulle part (aucun `localStorage`, aucune colonne) : le menu repartait donc de
+  la voix par défaut à chaque rechargement. Choix de Laurent : « **par
+  utilisateur**, et idéalement **par livre** — je n'ai pas la même pour
+  Monte-Cristo et pour 22/11/63 ». Fait ainsi : colonne
+  **`books.narrator_voice`** (migration non destructive dans `init_db`, même
+  méthode que `saga`), route **`PUT /api/books/{id}/narrator`**, restauration à
+  l'ouverture du livre (`_restaurerVoixNarrateur`) et enregistrement au
+  changement du menu. La voix voyage donc **avec le livre**, d'un appareil à
+  l'autre. Vérifié en direct : deux livres gardent bien deux voix différentes.
+  (2) **`;` remplacé par `,`** dans `_clean_text` — les moteurs neuronaux
+  essaient de **prononcer** la ponctuation forte et le point-virgule sortait
+  parfois en « euh ».
+  (3) **`(` et `)` remplacés par des virgules** — le moteur les ignorait, donc
+  l'incise n'était entourée d'**aucune pause**, d'où la demande de Laurent
+  (« il faudrait l'équivalent d'une virgule »).
+  (4) **Cache ramené de 20 Go à 2 Go** — Laurent : « le cache ne me sert pas, je
+  ne réécoute que très rarement un passage déjà entendu ». La purge automatique
+  fait le reste ; le bouton « vider le cache » reste à faire.
+  *Et une confirmation utile* : le **casting Monte-Cristo** a été fait avec
+  **DeepSeek** comme moteur principal, et Laurent le juge insuffisant pour le
+  découpage des dialogues. Or `main.py` dit déjà
+  `MOTEURS_DE_SECOURS = ["deepseek", "local"]` : DeepSeek **n'est** qu'un
+  moteur de **rattrapage**, Gemini reste le principal. Il suffit donc de
+  **relancer le casting avec Gemini** — rien à changer dans le code.
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**

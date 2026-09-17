@@ -47,15 +47,18 @@ def trim_mp3_silence(mp3_bytes: bytes) -> bytes:
             src.write_bytes(mp3_bytes)
 
             # -45 dB : seuil de silence. Marges conservees : ~0,08 s apres
-            # le debut de la parole, ~0,25 s avant la fin (respiration).
+            # le debut de la parole, ~0,35 s avant la fin (respiration).
             # La marge de fin est passee de 0,15 s a 0,25 s le 15/09/2026, a la
             # demande de Laurent : l'enchainement des phrases lui paraissait un
-            # peu sec apres le rognage. Il a demande un ajout TRES LEGER
-            # (+100 ms) : c'est ce que fait cette valeur, et rien d'autre.
+            # peu sec apres le rognage.
+            # PUIS de 0,25 s a 0,35 s le 17/09/2026 (ecoute de Kyutai) : « le
+            # point passe tres tres vite », meme remarque pour Edge. Mesure
+            # avant reglage : Edge gardait 0,23 s de silence de queue, Kokoro et
+            # Piper 0,10 s, Kyutai 0,30 a 0,43 s.
             filtres = (
                 "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.08,"
                 "areverse,"
-                "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.25,"
+                "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.35,"
                 "areverse"
             )
             cmd = [

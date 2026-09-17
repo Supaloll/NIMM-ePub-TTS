@@ -25,9 +25,12 @@ import threading
 from pathlib import Path
 
 # Dossier du cache. Quota : reglable via la variable d'environnement
-# NIMM_TTS_CACHE_GB (defaut 20 Go).
+# NIMM_TTS_CACHE_GB. RAMENE DE 20 Go A 2 Go LE 17/09/2026 (demande de Laurent) :
+# « le cache ne me sert pas, je ne reecoute que tres rarement un passage deja
+# entendu ». 2 Go suffisent largement pour un ou deux livres en cours -- et le
+# bouton de purge evite d'attendre la purge automatique.
 CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "tts_cache"
-_QUOTA_GB = int(os.environ.get("NIMM_TTS_CACHE_GB", "20") or "20")
+_QUOTA_GB = int(os.environ.get("NIMM_TTS_CACHE_GB", "2") or "2")
 CACHE_MAX_BYTES = _QUOTA_GB * 1024 * 1024 * 1024
 PURGE_TARGET_BYTES = int(CACHE_MAX_BYTES * 0.75)
 

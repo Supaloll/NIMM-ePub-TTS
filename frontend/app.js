@@ -399,6 +399,35 @@ async function loadVoices() {
 }
 
 // ============================================================
+// VOIX DU NARRATEUR : elle appartient au LIVRE (17/09/2026)
+// ============================================================
+// Demande de Laurent : « la voix du narrateur n'est pas sauvegardee apres un
+// rechargement », et surtout « je n'ai pas la meme pour Monte-Cristo et pour
+// 22/11/63 ». Elle est donc retenue PAR LIVRE, en base (table books, colonne
+// narrator_voice) : elle suit le livre d'un appareil a l'autre.
+function _restaurerVoixNarrateur(voix) {
+  const sel = document.getElementById('voice-select');
+  if (!sel || !voix || sel.value === voix) return;
+  // On ne restaure que si la voix est PROPOSEE (donc si son moteur est
+  // allume) : sinon le menu refuserait la valeur en silence et la lecture
+  // partirait sur la voix par defaut sans que personne ne le sache.
+  if (!_allVoices.some(v => v.id === voix)) {
+    console.warn('Voix du narrateur indisponible pour ce livre :', voix);
+    return;
+  }
+  sel.value = voix;
+}
+
+document.getElementById('voice-select').addEventListener('change', (e) => {
+  if (!_currentBookId) return;               // aucun livre ouvert : rien a lier
+  fetch('/api/books/' + _currentBookId + '/narrator?user_id=' + _currentUserId, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ voice: e.target.value })
+  }).catch(() => { /* le choix reste valable pour la session en cours */ });
+});
+
+// ============================================================
 // BIBLIOTHEQUE
 // ============================================================
 
@@ -565,6 +594,10 @@ async function openBook(bookId) {
 
     _currentBookData = await bookRes.json();
     const progress   = await progRes.json();
+
+    // Chaque livre a SA voix de narration : on restaure celle du livre ouvert
+    // (Monte-Cristo et 22/11/63 n'ont pas la meme, demande du 17/09/2026).
+    _restaurerVoixNarrateur(_currentBookData.narrator_voice);
 
     _currentBookId  = bookId;
     _totalChapters  = _currentBookData.chapter_count;
@@ -2723,16 +2756,16 @@ async function _playBlob(blob, signal) {
   });
 }
 
-// Pause silencieuse entre deux paragraphes (ex: apres un titre).
+// Pause silencieuse entre deux paragraphes (ex: apres un titre, ou entre deux
+// repliques d'un dialogue : chaque replique est un paragraphe).
 // Elle valait 300 ms. Decision de Laurent (15/09/2026, ecoute du Comte de
-// Monte-Cristo) : dans un dialogue, CHAQUE replique est un paragraphe, donc
-// cette pause s'ajoutait a chaque echange et coupait le rythme -- d'autant
-// plus qu'elle s'additionnait au silence de fin de phrase du moteur. Le
-// silence de fin de phrase etant desormais rogne a 0,25 s cote XTTS (et a
-// 0,25 s pour Edge depuis le 08/09/2026), la pause ajoutee ici devient
-// inutile : la respiration naturelle de la phrase suffit. Mettre une valeur
-// > 0 la retablit (300 = ancien reglage). Interrompue immediatement si le
-// TTS est stoppe/aborte.
+// Monte-Cristo) : elle a ete mise a 0, car elle s'additionnait au silence de
+// fin de phrase du moteur (rogne a 0,25 s cote XTTS et Edge).
+// REVISION DU 17/09/2026 (ecoute de Kyutai) : « le point passe tres tres
+// vite » ; Laurent demande une respiration d'environ 100 ms de plus. On la
+// remet donc a 100 ms -- soit un tiers de l'ancienne valeur, pour ne pas
+// recoller les repliques comme avant. Interrompue immediatement si le TTS est
+// stoppe/aborte.
 function _pause(ms, signal) {
   return new Promise(resolve => {
     const timer = setTimeout(resolve, ms);
@@ -2740,7 +2773,7 @@ function _pause(ms, signal) {
   });
 }
 
-const PARAGRAPH_PAUSE_MS = 0;
+const PARAGRAPH_PAUSE_MS = 100;
 
 // ============================================================
 // SELECTION DE TEXTE — "Lire à partir d'ici" (desktop uniquement)

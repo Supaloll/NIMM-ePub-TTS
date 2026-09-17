@@ -122,6 +122,13 @@ def init_db():
     books_cols = [r["name"] for r in conn.execute("PRAGMA table_info(books)").fetchall()]
     if "saga" not in books_cols:
         conn.execute("ALTER TABLE books ADD COLUMN saga TEXT DEFAULT NULL")
+    # Ajout non destructif de la colonne "narrator_voice" (17/09/2026, demande
+    # de Laurent) : la voix du NARRATEUR choisie pour CE livre. Elle n'etait
+    # gardee nulle part -- le menu de la page repartait donc de la voix par
+    # defaut a chaque rechargement, alors que Laurent n'utilise pas la meme
+    # voix pour Monte-Cristo et pour 22/11/63. NULL = voix par defaut.
+    if "narrator_voice" not in books_cols:
+        conn.execute("ALTER TABLE books ADD COLUMN narrator_voice TEXT DEFAULT NULL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS progress (
             user_id          INTEGER NOT NULL,
@@ -628,6 +635,30 @@ async def get_book(book_id: int, user_id: int):
     book["aliases"] = {row["alias_name"]: row["canonical_name"] for row in alias_rows}
 
     return book
+
+
+class NarratorVoiceRequest(BaseModel):
+    """Voix du narrateur choisie pour un livre."""
+    voice: str = ""
+
+
+@app.put("/api/books/{book_id}/narrator")
+async def set_narrator_voice(book_id: int, demande: NarratorVoiceRequest,
+                             user_id: int):
+    """Retient la voix du NARRATEUR pour CE livre.
+
+    Demande de Laurent (17/09/2026) : le menu de la page n'etait sauvegarde
+    nulle part, et il n'utilise pas la meme voix de narration d'un livre a
+    l'autre. La valeur voyage avec le LIVRE (et son proprietaire), pas avec
+    l'appareil : elle suit donc d'un appareil a l'autre.
+    """
+    conn = get_db()
+    conn.execute(
+        "UPDATE books SET narrator_voice = ? WHERE id = ? AND user_id = ?",
+        (demande.voice, book_id, user_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "narrator_voice": demande.voice}
 
 @app.get("/api/books/{book_id}/chapter/{chapter_index}")
 async def get_chapter(book_id: int, chapter_index: int, user_id: int):

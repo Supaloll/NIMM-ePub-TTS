@@ -140,3 +140,13 @@ data/exports/
 .git_ancien_*/
 
 neutts_service/journal_*.txt
+kyutai_service/journal_*.txt
+
+# Captures de session : sorties de commandes redirigees pendant l'atelier
+# (journaux de test, essais, sorties de script). Jamais versionnees -- elles
+# etaient entrees par erreur dans un commit le 17/09/2026.
+_essai_*.txt
+_lecteur*.txt
+_push_log.txt
+_t.txt
+_m.txt

@@ -66,6 +66,13 @@ REPO_MODELE = "kyutai/tts-1.6b-en_fr"
 HOTE = os.environ.get("NIMM_KYUTAI_HOST", "127.0.0.1")
 PORT = int(os.environ.get("NIMM_KYUTAI_PORT", "8082") or "8082")
 CFG = float(os.environ.get("NIMM_KYUTAI_CFG", "2.0") or "2.0")
+# Respiration ajoutee en FIN de phrase, en secondes (0 = aucune).
+# Demande de Laurent (17/09/2026) : « le point passe tres tres vite ». Mesure
+# avant reglage : le moteur s'arrete net sur le dernier mot et laisse 0,30 a
+# 0,43 s de silence selon la phrase ; on ajoute donc 0,10 s, comme Edge cote
+# lecteur (rognage passe de 0,25 a 0,35 s le meme jour).
+SILENCE_QUEUE_S = float(
+    os.environ.get("NIMM_KYUTAI_SILENCE_QUEUE", "0.10") or "0.10")
 
 # Une seule generation a la fois : le moteur n'aime pas les appels
 # simultanes (meme precaution que le verrou Kokoro du lecteur).
@@ -250,6 +257,18 @@ def generer_wav(texte, identifiant_voix, cfg=None):
             texte, chemin_voix, cfg_coef=coef, show_progress=False)
 
     pcm = resultats[0]
+    # Respiration de fin de phrase (voir SILENCE_QUEUE_S ci-dessus) : le moteur
+    # s'arrete net sur le dernier mot.
+    if SILENCE_QUEUE_S > 0:
+        longueur = int(SILENCE_QUEUE_S * _tts.mimi.sample_rate)
+        if hasattr(pcm, "cpu"):                     # tenseur PyTorch
+            import torch
+            pcm = torch.cat([pcm, torch.zeros(longueur, dtype=pcm.dtype,
+                                              device=pcm.device)])
+        else:                                       # tableau numpy
+            import numpy as np
+            pcm = np.concatenate([np.asarray(pcm),
+                                  np.zeros(longueur, dtype=np.float32)])
     return _wav_depuis_pcm(pcm, _tts.mimi.sample_rate)
 
 
