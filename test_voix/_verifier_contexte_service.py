@@ -41,10 +41,17 @@ CAS = [
     ("contexte riche en virgules",
      "Il prit le chemin, lentement, sans se retourner, et disparut derriere la colline.",
      "Le lendemain, personne ne parla plus de lui."),
-    ("phrase longue apres un contexte long",
+    ("phrase longue apres un contexte lo",
      "Elle ferma la porte, posa son sac sur la chaise, et regarda longuement la fenetre.",
      "Dehors, la pluie continuait de tomber sur les toits du vieux quartier, et les "
      "rues se vidaient peu a peu."),
+    # Le cas rapporte par Laurent le 17/09/2026 au soir : le contexte tel que la
+    # page l'envoie (les derniers mots de la phrase precedente).
+    ("« pas marche » (cas de Laurent)",
+     "mais ca n'a pas marche.",
+     "Les philosophes et les psychologues peuvent debattre de ce qui est reel et de "
+     "ce qui ne l'est pas, mais nous qui vivons des vies ordinaires nous connaissons "
+     "et acceptons pour la plupart la texture du monde qui nous entoure."),
 ]
 
 

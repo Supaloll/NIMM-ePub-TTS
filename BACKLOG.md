@@ -1046,6 +1046,19 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   puis « +1,09 s »). **C'est l'oreille de Laurent qui tranche** ; s'il reste un
   résidu, le réglage suivant est simple (couper un peu plus loin après la
   frontière).
+  **DERNIER AJUSTEMENT DU SOIR — la tolérance de coupe était trop large.**
+  Laurent entendait encore « **pas marché** » à la fin de la phrase ET au début
+  de la suivante (extrait de *22/11/63*). Cause : le code **tolérait** de couper
+  jusqu'à **0,20 s AVANT** la fin mesurée du contexte — or un mot comme
+  « marché » dure 0,3 à 0,4 s, donc il restait. Correctifs :
+  - tolérance ramenée à **50 ms** (juste de quoi absorber l'imprécision) ;
+  - s'il n'y a aucun silence franc à la frontière, on prend le **premier silence
+    qui suit** la fin du contexte (même court), et en dernier recours le passage
+    le plus calme **juste après** — **jamais dans le contexte**.
+  *Contrôle après réglage* (`_verifier_contexte_service.py`, **4 cas** dont les
+  deux de Laurent) : **TOUT EST OK** — saut de ligne à **−0,02 s**, « pas
+  marché » à **+0,60 s sur une phrase de 13,9 s** (une respiration, plus un
+  mot).
   **FABRICATION EN SÉRIE — FAITE le 17/09/2026 (soirée).** 44 empreintes
   fabriquées à partir de `neutts_service/references/` : **25 voix CML-TTS**
   (`cml####`, dont les WAV faisaient défaut chez Kyutai) et **18 voix libres**

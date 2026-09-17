@@ -348,23 +348,26 @@ def _ou_commence_la_phrase(sons_contexte, sons_long, frequence,
         candidats.append((silence, ecart, debut_silence, fin_son))
 
     # On ne coupe JAMAIS avant la fin du contexte : ce serait laisser son
-    # dernier mot dans l'audio (« montagne. Va faire un petit tour... »).
-    # On ne garde donc que les silences situes a la fin du contexte ou apres,
-    # et parmi eux le plus long (la frontiere est la pause la plus franche).
-    garde = int(0.20 * frequence)
+    # dernier mot dans l'audio (« ... mais ça n'a pas marché. » puis « Les
+    # philosophes... » laissait entendre « pas marché » deux fois ; constat de
+    # Laurent, 17/09/2026). La tolerance est donc TRES faible (50 ms), juste de
+    # quoi absorber l'imprecision de la mesure.
+    garde = int(0.05 * frequence)
     retenus = [c for c in candidats if c[2] >= fin_contexte - garde]
     if retenus:
         retenus.sort(key=lambda c: (-c[0], c[1]))
         _silence, _ecart, debut_silence, fin_son = retenus[0]
         coupe = min(debut_silence, fin_son + int(0.04 * frequence))
         return coupe, fin_contexte, True
-    if candidats:
-        candidats.sort(key=lambda c: (-c[0], c[1]))
-        _silence, _ecart, debut_silence, fin_son = candidats[0]
+    # Aucun silence franc a la frontiere ou apres : on prend le PREMIER silence
+    # qui suit la fin du contexte (meme court), sinon on coupe au passage le
+    # plus calme juste apres -- jamais dans le contexte.
+    suivants = sorted([c for c in candidats if c[2] >= fin_contexte],
+                      key=lambda c: c[2])
+    if suivants:
+        _silence, _ecart, debut_silence, fin_son = suivants[0]
         return (min(debut_silence, fin_son + int(0.04 * frequence)),
                 fin_contexte, True)
-    # Aucun silence franc : on coupe au passage le plus calme juste APRES la fin
-    # du contexte, pour ne jamais tomber en plein milieu d'un mot.
     position = max(fin_contexte, min(int(estimee), len(sons_long)))
     return (_creux_le_plus_proche(sons_long, position, frequence),
             fin_contexte, False)
