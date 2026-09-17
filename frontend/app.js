@@ -2437,21 +2437,23 @@ function _buildPlaylist(startIdx, endIdx) {
     }
   }
 
-  // Chaque unite recoit la FIN DE LA PRECEDENTE comme contexte — MAIS
-  // SEULEMENT si la phrase precedente est du MEME LOCUTEUR (idee de Laurent,
-  // 17/09/2026 au soir, en entendant les deux defauts qui en decoulaient) :
-  //   - prosodie : le contexte d'une replique d'un AUTRE personnage serait lu
+  // Contexte entre deux phrases SEULEMENT si elles sont du MEME locuteur ET
+  // DANS LE MEME PARAGRAPHE (idee de Laurent, 17/09/2026 au soir) :
+  //   - locuteur : le contexte d'une replique d'un autre personnage serait lu
   //     avec la voix du nouveau venu -- un locuteur preterait son elan a un
   //     autre, ce qui n'a pas de sens ;
+  //   - paragraphe (saut de ligne) : un nouveau paragraphe ouvre un NOUVEAU
+  //     PROPOS ; le modele n'a pas besoin de l'elan du precedent. C'est aussi
+  //     le cas ou la coupe du contexte laissait s'entendre le dernier mot du
+  //     paragraphe d'avant (« montagne. Va faire un petit tour... »), et ou le
+  //     double travail du moteur se paie sans benefice (attente audible).
   //   - temps : chaque generation avec contexte en fait DEUX (le contexte est
-  //     genere seul pour savoir ou couper), soit ~10 s au lieu de ~6 s par
-  //     phrase. Le payer a chaque changement de personnage creait une attente
-  //     audible (mesure du 17/09/2026).
-  // Donc : on ne prend le contexte que dans une suite de phrases du meme
-  // locuteur -- y compris le narrateur (si le narrateur EST un personnage, il
-  // porte la meme voix, et la continuite est conservee).
+  //     genere seul pour connaitre la frontiere).
+  // Donc : le contexte ne sert plus qu'a une SUITE de phrases du meme locuteur
+  // dans le meme paragraphe -- la ou l'enchainement s'entend vraiment.
   for (let i = 1; i < units.length; i++) {
     if (units[i].voice !== units[i - 1].voice) continue;
+    if (units[i].paraIdx !== units[i - 1].paraIdx) continue;
     units[i].context = _contexteDe(units[i - 1].text);
   }
   return units;

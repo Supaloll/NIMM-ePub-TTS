@@ -993,7 +993,15 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   narrateur suit la même règle : s'il porte la voix d'un personnage (cas de
   *22/11/63*, où le narrateur **est** Jake Epping), la continuité est conservée.
   *Implémentation* : `frontend/app.js`, `_buildPlaylist` —
-  `if (units[i].voice !== units[i - 1].voice) continue;`.
+  `if (units[i].voice !== units[i - 1].voice) continue;` **et**
+  `if (units[i].paraIdx !== units[i - 1].paraIdx) continue;`.
+  *Complément du même soir (idée de Laurent, en entendant le résidu de coupe)* :
+  **aucun contexte après un saut de ligne**. Un nouveau paragraphe ouvre un
+  **nouveau propos** : le modèle n'a pas besoin de l'élan du précédent, c'est le
+  cas où le résidu s'entendait, et le double travail du moteur s'y paie sans
+  bénéfice. Le contexte ne sert donc plus qu'à une **suite de phrases du même
+  locuteur dans le même paragraphe** — les longues tirades et les narrations
+  continues, là où l'enchaînement s'entend vraiment.
   *Piste notée pour la suite* : générer **deux phrases en un seul appel**
   (`contexte + A + B`), puis couper en deux — le coût fixe serait amorti et B
   aurait son contexte naturellement. Chantier (le lecteur reçoit une phrase par
