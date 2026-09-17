@@ -2796,11 +2796,12 @@ async function _playBlob(blob, signal) {
 // Elle valait 300 ms. Decision de Laurent (15/09/2026, ecoute du Comte de
 // Monte-Cristo) : elle a ete mise a 0, car elle s'additionnait au silence de
 // fin de phrase du moteur (rogne a 0,25 s cote XTTS et Edge).
-// REVISION DU 17/09/2026 (ecoute de Kyutai) : « le point passe tres tres
-// vite » ; Laurent demande une respiration d'environ 100 ms de plus. On la
-// remet donc a 100 ms -- soit un tiers de l'ancienne valeur, pour ne pas
-// recoller les repliques comme avant. Interrompue immediatement si le TTS est
-// stoppe/aborte.
+// REVISION DU 17/09/2026 (ecoute de Kyutai) : « le point passe tres tres vite »
+// -> remise a 100 ms, puis, apres le contexte glissant, Laurent a trouve les
+// pauses de fin de phrase « un tout petit peu longues » et les SAUTS DE LIGNE
+// « tres rapides » : la pause entre paragraphes repasse donc a 300 ms (sa
+// valeur d'origine), et la respiration ajoutee en fin de phrase cote Kyutai est
+// retiree. Interrompue immediatement si le TTS est stoppe/aborte.
 function _pause(ms, signal) {
   return new Promise(resolve => {
     const timer = setTimeout(resolve, ms);
@@ -2808,7 +2809,7 @@ function _pause(ms, signal) {
   });
 }
 
-const PARAGRAPH_PAUSE_MS = 100;
+const PARAGRAPH_PAUSE_MS = 300;
 
 // ============================================================
 // SELECTION DE TEXTE — "Lire à partir d'ici" (desktop uniquement)

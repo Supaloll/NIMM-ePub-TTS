@@ -66,13 +66,14 @@ REPO_MODELE = "kyutai/tts-1.6b-en_fr"
 HOTE = os.environ.get("NIMM_KYUTAI_HOST", "127.0.0.1")
 PORT = int(os.environ.get("NIMM_KYUTAI_PORT", "8082") or "8082")
 CFG = float(os.environ.get("NIMM_KYUTAI_CFG", "2.0") or "2.0")
-# Respiration ajoutee en FIN de phrase, en secondes (0 = aucune).
-# Demande de Laurent (17/09/2026) : « le point passe tres tres vite ». Mesure
-# avant reglage : le moteur s'arrete net sur le dernier mot et laisse 0,30 a
-# 0,43 s de silence selon la phrase ; on ajoute donc 0,10 s, comme Edge cote
-# lecteur (rognage passe de 0,25 a 0,35 s le meme jour).
+# Respiration ajoutee en FIN de phrase, en secondes.
+# Historique : ajoutee le 17/09/2026 en debut de soiree (+0,10 s, demande de
+# Laurent : « le point passe tres tres vite »), puis RETIREE le meme soir
+# (0,0) : une fois le contexte glissant en place, Laurent a trouve les pauses
+# « un tout petit peu longues » et a demande -100 ms. Le modele produit deja sa
+# propre respiration (~0,30 a 0,43 s mesurees).
 SILENCE_QUEUE_S = float(
-    os.environ.get("NIMM_KYUTAI_SILENCE_QUEUE", "0.10") or "0.10")
+    os.environ.get("NIMM_KYUTAI_SILENCE_QUEUE", "0.0") or "0.0")
 
 # --- Contexte glissant (idee de Laurent, 17/09/2026) -----------------------
 # Le moteur demarre A FROID sur chaque phrase : sa hauteur et son energie

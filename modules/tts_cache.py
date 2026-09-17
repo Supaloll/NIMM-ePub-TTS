@@ -50,7 +50,9 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       pas de contexte glissant)
 #   2 = 17/09/2026 au soir : `;` -> `,`, `()` -> virgules, ` : ` -> `, `,
 #       et contexte glissant entre phrases du meme locuteur
-VERSION_CACHE = 2
+#   3 = 17/09/2026, fin de soiree : respiration de fin de phrase retiree cote
+#       Kyutai (-100 ms) et pause entre paragraphes ramenee a 300 ms
+VERSION_CACHE = 3
 
 
 def _hash_key(text, voice, rate, pitch):
