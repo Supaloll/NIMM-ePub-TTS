@@ -40,6 +40,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _diagnostic_neutts_phrase import chapitre_du_livre, phrases_du_texte  # noqa: E402
 from _banc_ecoute_xtts import mesurer                                    # noqa: E402
 
+# Le LECTEUR applique `_clean_text` avant d'appeler le moteur (points de
+# suspension, abreviations, point-virgule -> virgule, parentheses -> virgules).
+# Le banc doit faire pareil, sinon il testerait un texte que le moteur ne voit
+# jamais -- et il ferait entendre des defauts deja corriges.
+sys.path.insert(0, str(RACINE))
+from modules.tts import _clean_text                                      # noqa: E402
+
 SERVICE = "http://127.0.0.1:8084"      # mis a jour par --moteur
 MOTEURS = {'kyutai': 'http://127.0.0.1:8082', 'neutts': 'http://127.0.0.1:8084'}
 # Longueur du contexte : les derniers MOTS de la phrase precedente.
@@ -134,8 +141,12 @@ def contexte_de(phrase, mots=MOTS_CONTEXTE):
 
 
 def demander(texte, voix):
-    """Un texte au service du moteur (comme le fait le lecteur)."""
-    corps = json.dumps({"texte": texte, "voix": voix}).encode('utf-8')
+    """Un texte au service du moteur (comme le fait le lecteur).
+
+    Le texte passe par le MEME nettoyage que dans le lecteur (`_clean_text`) :
+    c'est le seul moyen que le banc ecoute ce que le moteur recoit vraiment.
+    """
+    corps = json.dumps({"texte": _clean_text(texte), "voix": voix}).encode('utf-8')
     requete = urllib.request.Request(
         SERVICE + "/tts", data=corps,
         headers={"Content-Type": "application/json"}, method="POST")
