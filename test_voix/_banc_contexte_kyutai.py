@@ -121,7 +121,14 @@ def ou_couper(contexte, phrase, voix):
 
 
 def contexte_de(phrase, mots=MOTS_CONTEXTE):
-    """Les derniers mots d'une phrase, sans sa ponctuation finale."""
+    """Le contexte pris dans une phrase.
+
+    `mots` = 0 -> la phrase ENTIERE (question de Laurent : « je ne sais pas
+    s'il faut une phrase complete ou si la fin de la phrase precedente
+    suffit ») ; sinon, ses `mots` derniers mots.
+    """
+    if mots <= 0:
+        return phrase
     morceaux = phrase.split()
     return ' '.join(morceaux[-mots:]) if len(morceaux) > mots else phrase
 
@@ -145,6 +152,13 @@ def main():
                            choices=('kyutai', 'neutts'))
     analyseur.add_argument('--livre', type=int, default=28)
     analyseur.add_argument('--chapitre', type=int, default=3)
+    analyseur.add_argument('--texte-fichier', default=None,
+                           help="un passage fourni (un fichier, une phrase par "
+                                "ligne) au lieu d'un chapitre du livre")
+    analyseur.add_argument('--mots', default='6,0',
+                           help="longueurs de contexte a comparer, separees par "
+                                "des virgules ; 0 = la phrase precedente ENTIERE "
+                                "(defaut : 6,0)")
     analyseur.add_argument('--voix', default=None,
                            help="voix du moteur (defaut : la plus bavarde du livre)")
     analyseur.add_argument('--phrases', type=int, default=4,
@@ -152,6 +166,7 @@ def main():
     options = analyseur.parse_args()
 
     SERVICE = MOTEURS[options.moteur]
+    variantes = [int(m) for m in options.mots.split(',') if m.strip() != '']
 
     voix = options.voix
     if not voix:
@@ -166,13 +181,22 @@ def main():
         print('ERR : aucune voix trouvee (donnez --voix).')
         return 1
 
-    texte, titre, erreur = chapitre_du_livre(options.livre, options.chapitre)
-    if erreur:
-        print('ERR : %s' % erreur)
-        return 1
+    if options.texte_fichier:
+        source = Path(options.texte_fichier)
+        if not source.is_file():
+            print('ERR : fichier introuvable : %s' % source)
+            return 1
+        texte = source.read_text(encoding='utf-8')
+        titre = source.name
+    else:
+        texte, titre, erreur = chapitre_du_livre(options.livre, options.chapitre)
+        if erreur:
+            print('ERR : %s' % erreur)
+            return 1
     phrases = [p for p in phrases_du_texte(texte) if len(p.split()) >= 4]
     if len(phrases) < options.phrases + 1:
-        print('ERR : pas assez de phrases dans ce chapitre.')
+        print('ERR : pas assez de phrases (il en faut %d apres la premiere).'
+              % options.phrases)
         return 1
 
     horodatage = datetime.datetime.now().strftime('%Y%m%d_%H%M')
@@ -182,64 +206,74 @@ def main():
 
     print('')
     print('=' * 78)
-    print('LA MEME PHRASE, AVEC ET SANS LE CONTEXTE DE LA PRECEDENTE')
+    print('PHRASE SEULE  contre  PHRASE AVEC CONTEXTE (plusieurs longueurs)')
     print('=' * 78)
     print('moteur : %s   voix : %s' % (options.moteur, voix))
-    print('livre %s, chapitre %s : %s' % (options.livre, options.chapitre, titre))
+    print('texte  : %s' % titre)
+    print('contextes testes : %s'
+          % ', '.join(('phrase entiere' if m == 0 else '%d mots' % m)
+                      for m in variantes))
     print('dossier : %s' % dossier.name)
 
     lignes = ["BANC D'ECOUTE — PHRASE SEULE contre PHRASE AVEC CONTEXTE", '',
-              'livre %s, chapitre %s : %s' % (options.livre, options.chapitre, titre),
-              'voix : %s' % voix, '',
-              "Chaque phrase est lue DEUX FOIS : d'abord SEULE (aujourd'hui),",
-              "puis avec la FIN DE LA PHRASE PRECEDENTE devant, dont on ne",
-              "garde pas l'audio (la coupe tombe dans un silence).",
-              '',
-              "ECOUTER dans l'ordre des numeros : la 2e version est-elle plus",
-              "stable, mieux posee, moins 'a froid' que la 1re ?", '']
+              'texte : %s' % titre, 'voix : %s' % voix, '',
+              "Chaque phrase est lue plusieurs fois, DANS CET ORDRE :",
+              "  _seule    = la phrase seule (ce que fait le lecteur aujourd'hui)",
+              "  _ctx6     = avec les 6 derniers mots de la phrase precedente",
+              "  _ctx0     = avec la phrase precedente ENTIERE",
+              "(la partie de contexte n'est jamais entendue : la coupe tombe",
+              "dans un silence, et seule la phrase est gardee).", '',
+              "LA QUESTION : quelle version est la mieux posee, la plus stable,",
+              "la plus 'chantee' ? La phrase precedente entiere apporte-t-elle",
+              "quelque chose de plus que sa fin ?", '']
 
     rang = 0
     for index in range(1, options.phrases + 1):
         phrase = phrases[index]
-        contexte = contexte_de(phrases[index - 1])
+        print('')
+        print('  phrase %d : « %s »' % (index, phrase[:64]))
+
         rang += 1
         seul = demander(phrase, voix)
-        nom_seule = '%02d_p%d_seule.wav' % (rang, index)
-        (dossier / nom_seule).write_bytes(seul)
-        duree, segments, _residu = mesurer(seul)
-        print('  %02d  phrase %d SEULE          %6.2fs | %d segment(s)'
-              % (rang, index, duree, len(segments)))
-
-        rang += 1
-        try:
-            avec, detail = ou_couper(contexte, phrase, voix)
-        except Exception as erreur_tts:
-            print('  %02d  phrase %d AVEC CONTEXTE  ECHEC : %s'
-                  % (rang, index, erreur_tts))
-            continue
-        (dossier / ('%02d_p%d_contexte.wav' % (rang, index))).write_bytes(avec)
-        duree2, segments2, _r2 = mesurer(avec)
-        print('  %02d  phrase %d AVEC CONTEXTE   %6.2fs | %d segment(s)  (%s)'
-              % (rang, index, duree2, len(segments2), detail))
-
-        lignes.append('%02d  phrase %d SEULE : « %s »' % (rang - 1, index, phrase[:70]))
+        nom = '%02d_p%d_seule.wav' % (rang, index)
+        (dossier / nom).write_bytes(seul)
+        duree, segments, _res = mesurer(seul)
+        print('    %02d %-26s %6.2fs | %d segment(s)' % (rang, 'seule', duree,
+                                                         len(segments)))
+        lignes.append('%02d  phrase %d SEULE : « %s »' % (rang, index, phrase[:70]))
         lignes.append('     mesure : %.2f s, %d segment(s)' % (duree, len(segments)))
-        lignes.append('%02d  la MEME avec le contexte « %s… » devant'
-                      % (rang, contexte[:40]))
-        lignes.append('     mesure : %.2f s, %d segment(s)  (%s)'
-                      % (duree2, len(segments2), detail))
+
+        for mots in variantes:
+            rang += 1
+            contexte = contexte_de(phrases[index - 1], mots)
+            etiquette = 'contexte phrase entiere' if mots == 0 else ('contexte %d mots' % mots)
+            nom = '%02d_p%d_ctx%d.wav' % (rang, index, mots)
+            try:
+                avec, detail = ou_couper(contexte, phrase, voix)
+            except Exception as erreur_tts:
+                print('    %02d %-26s ECHEC : %s' % (rang, etiquette, erreur_tts))
+                continue
+            (dossier / nom).write_bytes(avec)
+            duree2, segments2, _r2 = mesurer(avec)
+            print('    %02d %-26s %6.2fs | %d segment(s)  (%s)'
+                  % (rang, etiquette, duree2, len(segments2), detail))
+            lignes.append('%02d  la MEME, %s : « %s… » devant'
+                          % (rang, etiquette, contexte[:45]))
+            lignes.append('     mesure : %.2f s, %d segment(s)  (%s)'
+                          % (duree2, len(segments2), detail))
         lignes.append('')
 
     lignes.append("GRILLE : 1 diction qui accroche · 2 debit irregulier · 3 mot")
-    lignes.append("invente · 4 gargouillis · 5 prosodie qui repart. Donne les")
-    lignes.append("numeros, et dis surtout LAQUELLE des deux versions tu preferes.")
+    lignes.append("invente · 4 gargouillis · 5 prosodie qui repart.")
+    lignes.append("Dis surtout : SEULE, CTX6 ou CTX0 ? et pourquoi.")
     (dossier / 'index.txt').write_text('\n'.join(lignes), encoding='utf-8')
     (dossier / 'ECOUTER_LE_LOT.cmd').write_text(
         '@echo off\r\nchcp 65001 >nul\r\nstart "" "%~dp0index.txt"\r\n'
         'explorer "%~dp0"\r\n', encoding='utf-8')
 
     print('')
-    print('Index : %s' % (dossier / 'index.txt'))
+    print('Index  : %s' % (dossier / 'index.txt'))
+    print('Ecouter: double-clic sur ECOUTER_LE_LOT.cmd')
     return 0
 
 
