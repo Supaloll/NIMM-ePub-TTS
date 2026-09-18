@@ -15,7 +15,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -1718,24 +1718,22 @@ def _decouper_phrases_du_chapitre(texte: str) -> list:
     C'est indispensable : `speaker_attribution.sentence_idx` est calcule sur ce
     decoupage precis (frontend/app.js, `_buildSentences`) -- paragraphes
     separes par une ligne vide, puis phrases coupees apres un point, un point
-    d'interrogation, d'exclamation, une ellipse ou un guillemet fermant, et
-    phrases de 4 caracteres ou plus conservees.
+    d'interrogation, d'exclamation, une ellipse ou un guillemet fermant, SAUF
+    apres une abreviation de civilite (M., Mme... : le nom qui suit fait partie
+    de la meme phrase), et phrases de 4 caracteres ou plus conservees.
+
+    Depuis le 18/09/2026, il n'y a plus qu'UNE regle, ecrite une seule fois
+    (`modules/decoupage.py`) et appelee par la page, le casting, le re-cast et
+    la recherche. Les index de `speaker_attribution` ont ete migres en
+    consequence (`test_voix/_migrer_index_phrases.py`).
 
     Si ce decoupage s'ecarte de celui de la page, l'appelant s'en apercoit (il
     compare les indices au nombre de phrases) et se passe des repliques :
     mieux vaut un re-cast sans extraits qu'un re-cast avec les repliques d'un
     AUTRE personnage.
     """
-    phrases = []
-    for paragraphe in re.split(r"\n\n+", texte or ""):
-        paragraphe = paragraphe.strip()
-        if len(paragraphe) <= 5:
-            continue
-        for brute in re.split(r"(?<=[.!?\u2026\u00bb])\s+", paragraphe):
-            morceau = brute.strip()
-            if len(morceau) > 3:
-                phrases.append(morceau)
-    return phrases
+    from modules.decoupage import phrases as _decouper
+    return _decouper(texte or "")
 
 
 def _repliques_des_personnages(conn, book, personnages, maximum=3,
@@ -2192,8 +2190,14 @@ def _normalize_for_search(s: str) -> str:
 
 
 def _split_sentences(paragraph: str) -> list:
-    raw = _re.split(r'(?<=[.!?…»])\s+', paragraph)
-    return [s.strip() for s in raw if len(s.strip()) > 3]
+    """Les phrases d'un paragraphe pour la RECHERCHE dans le livre.
+
+    Meme regle que la page et le casting (`modules/decoupage.py`) : sans cela,
+    la phrase trouvee ne correspondrait a aucun morceau de l'ecran, et le clic
+    sur un resultat ne poserait pas le curseur au bon endroit.
+    """
+    from modules.decoupage import phrases_d_un_paragraphe
+    return phrases_d_un_paragraphe(paragraph)
 
 
 @app.get("/api/books/{book_id}/search")
@@ -2239,8 +2243,37 @@ async def search_book(book_id: int, q: str, user_id: int):
 
 # --- TTS ---
 
+def _est_incise_seule(texte: str) -> bool:
+    """La phrase ne contient-elle RIEN d'autre qu'une incise de parole ?
+
+    Cas constaté (Laurent, 18/09/2026) : « — Ah ! vraiment ? dit Monte-Cristo. »
+    est découpée en TROIS phrases par le « ! » et le « ? », et la dernière —
+    « dit Monte-Cristo. » — n'est que l'incise. Mesure : **91 phrases** de ce
+    genre dans le seul tome 5.
+
+    On ne peut pas la vider (le moteur refuse un texte vide, et la phrase
+    disparaîtrait de l'écoute) : on joue donc un **court silence**
+    (`modules/silence.py`), et l'auditeur n'entend plus l'incise.
+    """
+    if not texte:
+        return False
+    from modules.incises import incises
+    retirees = incises(texte)
+    if not retirees:
+        return False
+    reste = texte
+    for debut, fin in sorted(retirees, reverse=True):
+        reste = reste[:debut] + ' ' + reste[fin:]
+    return not _re.search(r'[A-Za-z\u00c0-\u024f]', reste)
+
+
 @app.post("/api/tts")
 async def tts(request: TTSRequest):
+    # Une phrase qui n'est qu'une incise ne se lit pas : court silence.
+    if _est_incise_seule(request.text):
+        from modules.silence import wav_silence
+        return Response(content=wav_silence(), media_type="audio/wav")
+
     if request.voice.startswith("kokoro:"):
         from modules.tts import synthesize_kokoro
         audio = await synthesize_kokoro(request.text, request.voice, request.rate, request.pitch)

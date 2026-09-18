@@ -52,7 +52,38 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       et contexte glissant entre phrases du meme locuteur
 #   3 = 17/09/2026, fin de soiree : respiration de fin de phrase retiree cote
 #       Kyutai (-100 ms) et pause entre paragraphes ramenee a 300 ms
-VERSION_CACHE = 3
+#   4 = 18/09/2026 : point d'exclamation retire du texte envoye au moteur,
+#       point final supprime apres une abreviation (M. -> Monsieur), et niveau
+#       de parole des voix Kyutai ramene a celui des autres moteurs
+#   5 = 18/09/2026 au soir (banc d'ecoute) : le « ! » devient une VIRGULE dans
+#       les phrases courtes (interjections) et reste un POINT dans les phrases
+#       entieres ; les INCISES de parole (« , dit-il, ») sont retirees du texte
+#       parle (le texte affiche ne change pas)
+#   6 = 18/09/2026, plus tard dans la soiree : la regle des incises apprend le
+#       « t » euphonique (« ajouta-t-il », « demanda-t-elle »), les PARTICULES
+#       nobles (« , dit M. de Villefort, », tres frequentes) et les noms communs
+#       avec article (« , dit le comte, ») -- sans cette version, les phrases
+#       deja en cache servaient l'ANCIEN rendu et les incises semblaient
+#       toujours la (constat de Laurent : « elles sont toujours presentes »)
+#   7 = 18/09/2026, fin de soiree : les verbes PRONOMINAUX (« , se demanda-t-elle, »)
+#       et les imparfaits (« , disait-il, »), remarque de Laurent -- et le retrait
+#       passe AVANT les conversions de ponctuation, sinon de fausses incises
+#       etaient fabriquees (« ; » et « : » devenaient des virgules)
+#   8 = 18/09/2026, dernier tour de la soiree : les incises sont retirees EN
+#       ENTIER, complement compris (« , dit-il au comte, », « , fit celui-ci
+#       avec sa voix demi-railleuse, »), et l'incise qui OUVRE une phrase est
+#       reconnue (le decoupage coupe au « ! », l'incise n'est plus entre deux
+#       virgules). Exemples donnes par Laurent, tous deux corriges.
+#   9 = 18/09/2026, toute fin de soiree : la RELATIVE qui suit l'incise part avec
+#       elle (« , dit Cavalcanti, qui se grisait a ce bruit metallique… ») ;
+#       « que » reste volontairement dehors (conjonction : « Le fait est que… ») ;
+#       et une phrase qui n'est QUE l'incise reçoit un court silence
+#       (`modules/silence.py`, 150 ms) au lieu d'etre lue.
+#  10 = 18/09/2026, derniers cas tordus signales par Laurent : la RELATIVE
+#       COORDONNEE (« , dit Monte-Cristo, qui sentit…, et qui comprit… ; ») part
+#       avec l'incise jusqu'au point-virgule, et une QUESTION du personnage en fin
+#       de phrase ne bloque plus l'extension (le « ? » etait regarde trop loin).
+VERSION_CACHE = 10
 
 
 def _hash_key(text, voice, rate, pitch):

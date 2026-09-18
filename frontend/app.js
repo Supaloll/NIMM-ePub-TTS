@@ -2045,56 +2045,132 @@ document.getElementById('provider-modal').addEventListener('click', (e) => {
 // CHARGEMENT CHAPITRE
 // ============================================================
 
-async function loadChapter(index, scrollTo, cursorTo = 0, autoPlay = false) {
-  _stopTTS();
-  // Les phrases du nouveau chapitre ont d'autres index : un panneau « voix de
-  // la phrase » reste ouvert pointerait sur la mauvaise phrase (15/09/2026).
-  _closeVoicePanel();
-  if (index < 0 || index >= _totalChapters) return;
-  _currentChapter = index;
+// Nombre d'essais de chargement d'un chapitre, et pause entre deux essais.
+// Pourquoi (constat de Laurent, 18/09/2026) : « parfois le chapitre ne se charge
+// pas correctement, et zappe complètement un chapitre : il passe du
+// quatre-vingt-un au quatre-vingt-trois, surtout après une erreur de
+// chargement ». Un échec de chargement est presque toujours PASSAGER (serveur
+// occupé à préparer une voix, réseau qui vacille) : on retente avant d'abandonner.
+const CHARGEMENT_ESSAIS   = 3;
+const CHARGEMENT_PAUSE_MS = 1200;
 
-  const content = document.getElementById('reader-content');
-  content.innerHTML = '<p style="color:var(--text-muted)">Chargement...</p>';
-
+// Demande UN chapitre au serveur. Renvoie null si c'est impossible (réseau,
+// serveur, chapitre introuvable) : l'appelant décide quoi faire, et surtout
+// n'écrit RIEN dans l'état du lecteur avant d'avoir le chapitre en main.
+async function _demanderChapitre(index) {
   try {
     const res = await fetch(
       '/api/books/' + _currentBookId + '/chapter/' + index + '?user_id=' + _currentUserId
     );
     if (!res.ok) {
-      content.innerHTML = '<p>Chapitre introuvable.</p>';
-      return;
+      console.error('Chapitre ' + (index + 1) + ' : réponse du serveur ' + res.status);
+      return null;
     }
-
-    const data = await res.json();
-    _chapterSpeakers = data.speakers || {};
-    renderChapterContent(data.text || '');
-    document.getElementById('reader-content').scrollTop = scrollTo || 0;
-
-    document.getElementById('chapter-title-display').textContent = data.title || '';
-    document.getElementById('chapter-counter').textContent =
-      (index + 1) + ' / ' + _totalChapters;
-
-    document.getElementById('prev-btn').disabled = (index === 0);
-    document.getElementById('next-btn').disabled = (index === _totalChapters - 1);
-
-    document.querySelectorAll('.chapter-item').forEach((el, i) => {
-      el.classList.toggle('active', i === index);
-    });
-
-    if (_sentences.length > 0) _setCursor(cursorTo);
-
-    if (autoPlay) _startTTS();
-    saveProgress();
-
+    return await res.json();
   } catch (e) {
-    content.innerHTML = '<p>Erreur de chargement.</p>';
-    console.error(e);
+    console.error('Chapitre ' + (index + 1) + ' : réseau indisponible', e);
+    return null;
   }
+}
+
+// Affiche l'échec de chargement, avec un bouton pour recommencer TOUT DE SUITE.
+// Les phrases du chapitre précédent sont VIDÉES : sans cela, appuyer sur
+// « lecture » rejouait l'ancien chapitre, et à sa fin le lecteur passait au
+// chapitre SUIVANT — c'est ainsi qu'un chapitre disparaissait de l'écoute.
+function _afficherEchecChapitre(content, index, scrollTo, cursorTo, autoPlay) {
+  _sentences       = [];
+  _paragraphStarts = [];
+  _cursorIdx       = 0;
+
+  content.innerHTML = '';
+  const message = document.createElement('p');
+  message.style.color = 'var(--text-muted)';
+  message.textContent = 'Le chapitre ' + (index + 1) + " n'a pas pu se charger. "
+    + "Rien n'est perdu : réessaie, ou passe par le sommaire.";
+  const bouton = document.createElement('button');
+  bouton.className   = 'chapter-retry-btn';
+  bouton.textContent = 'Réessayer ce chapitre';
+  bouton.addEventListener('click',
+    () => loadChapter(index, scrollTo, cursorTo, autoPlay));
+  content.appendChild(message);
+  content.appendChild(bouton);
+}
+
+async function loadChapter(index, scrollTo, cursorTo = 0, autoPlay = false) {
+  _stopTTS();
+  // Les phrases du nouveau chapitre ont d'autres index : un panneau « voix de
+  // la phrase » reste ouvert pointerait sur la mauvaise phrase (15/09/2026).
+  _closeVoicePanel();
+  if (index < 0 || index >= _totalChapters) return false;
+
+  const content = document.getElementById('reader-content');
+  content.innerHTML = '<p style="color:var(--text-muted)">Chargement...</p>';
+
+  // --- Le chapitre est DEMANDÉ avant que quoi que ce soit ne change ---------
+  // `_currentChapter` et les phrases en mémoire ne bougent qu'une fois le
+  // chapitre REÇU. Avant le 18/09/2026, le compteur était posé avant la
+  // requête : une erreur laissait le lecteur sur le chapitre raté, gardait les
+  // phrases de l'ancien chapitre, et l'enchaînement automatique sautait le
+  // chapitre manquant.
+  let data = null;
+  for (let essai = 1; essai <= CHARGEMENT_ESSAIS; essai++) {
+    data = await _demanderChapitre(index);
+    if (data) break;
+    if (essai < CHARGEMENT_ESSAIS) await _pause(CHARGEMENT_PAUSE_MS);
+  }
+
+  if (!data) {
+    _afficherEchecChapitre(content, index, scrollTo, cursorTo, autoPlay);
+    return false;
+  }
+
+  // --- Chargement RÉUSSI : c'est seulement ici que le chapitre change ------
+  _currentChapter = index;
+  _chapterSpeakers = data.speakers || {};
+  renderChapterContent(data.text || '');
+  content.scrollTop = scrollTo || 0;
+
+  document.getElementById('chapter-title-display').textContent = data.title || '';
+  document.getElementById('chapter-counter').textContent =
+    (index + 1) + ' / ' + _totalChapters;
+
+  document.getElementById('prev-btn').disabled = (index === 0);
+  document.getElementById('next-btn').disabled = (index === _totalChapters - 1);
+
+  document.querySelectorAll('.chapter-item').forEach((el, i) => {
+    el.classList.toggle('active', i === index);
+  });
+
+  if (_sentences.length > 0) _setCursor(cursorTo);
+
+  if (autoPlay) _startTTS();
+  saveProgress();
+  return true;
 }
 
 // ============================================================
 // DÉCOUPAGE & RENDU DU CHAPITRE
 // ============================================================
+
+// Abréviations françaises après lesquelles un point ne finit JAMAIS une phrase :
+// c'est une civilité, le nom qui suit fait partie de la même phrase.
+// DOIT rester identique à `ABREVIATIONS` dans modules/decoupage.py — le test
+// test_voix/test_decoupage_phrases.py compare les deux fichiers.
+const ABREVIATIONS_SANS_FIN = ['M', 'MM', 'Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr',
+                               'Dr', 'Pr', 'St', 'Ste', 'Mr', 'Mx'];
+// Celles qui s'écrivent sans point mais ne finissent pas une phrase non plus.
+const ABREVIATIONS_SANS_POINT = ['Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr'];
+
+// Le dernier mot de ce morceau est-il une abréviation de civilité ?
+function _finitParAbreviation(morceau) {
+  const mots = (morceau || '').split(/\s+/).filter(m => m);
+  if (!mots.length) return false;
+  let dernier = mots[mots.length - 1].replace(/^[«»"()]+/, '');
+  dernier = dernier.replace(/[»"]+$/, '');
+  const sansPoint = dernier.replace(/\.+$/, '');
+  if (ABREVIATIONS_SANS_FIN.indexOf(sansPoint) === -1) return false;
+  return dernier.endsWith('.') || ABREVIATIONS_SANS_POINT.indexOf(sansPoint) !== -1;
+}
 
 function _buildSentences(text) {
   const paras    = text.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 5);
@@ -2103,12 +2179,24 @@ function _buildSentences(text) {
 
   paras.forEach((para, paraIdx) => {
     paraStarts.push(sentences.length);
-    // Découpe aux fins de phrases tout en conservant la ponctuation
+    // Découpe aux fins de phrases (ponctuation conservée), puis RECOLLE les
+    // morceaux coupés après une abréviation : « … complimenter M. » et
+    // « de Morcerf ; … » sont UNE phrase. C'était la cause du silence entendu
+    // après « monsieur » (constat de Laurent, 18/09/2026) — et le fait de
+    // recoller décale les index, ce qui a demandé de migrer la base
+    // (test_voix/_migrer_index_phrases.py).
     const rawSents = para.split(/(?<=[.!?…»])\s+/);
+    let courant = '';
     rawSents.forEach(s => {
       s = s.trim();
-      if (s.length > 3) sentences.push({ text: s, paraIdx });
+      if (!s) return;
+      courant = courant ? courant + ' ' + s : s;
+      if (!_finitParAbreviation(courant)) {
+        if (courant.length > 3) sentences.push({ text: courant, paraIdx });
+        courant = '';
+      }
     });
+    if (courant.length > 3) sentences.push({ text: courant, paraIdx });
   });
 
   return { sentences, paraStarts };
@@ -2805,7 +2893,9 @@ async function _playBlob(blob, signal) {
 function _pause(ms, signal) {
   return new Promise(resolve => {
     const timer = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); });
+    // `signal` est facultatif : une pause hors lecture (nouvel essai de
+    // chargement d'un chapitre, par exemple) n'a rien a interrompre.
+    if (signal) signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); });
   });
 }
 

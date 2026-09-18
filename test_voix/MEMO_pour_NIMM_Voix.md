@@ -91,6 +91,100 @@ Remèdes, du meilleur au moins bon :
   nous : « garder le guillemet ouvrant » (démenti **deux fois**), « le point
   final bride la prosodie » (démenti), « le défaut suit la voix » (démenti).
 
+## 6. Choisir l'extrait qui sert de voix : un DIALOGUE, pas un récit (18/09/2026)
+
+Le texte **lu** par le lecteur bénévole influence la prosodie que le moteur
+apprend à imiter. Un extrait de **narration** donne une voix qui « lit une
+histoire » ; un extrait de **dialogue** donne une voix qui « parle ». Constat de
+Laurent, en écoutant les voix Kyutai : les passages de dialogue « donnent une
+prosodie toute différente ».
+
+Comment reconnaître un extrait de dialogue dans une page (Librivox, domaine
+public) : chercher les **guillemets** (`« »`, `" "`) et les **tirets cadratins**
+(`—`) qui ouvrent une réplique. Si la page n'en contient aucun, ce n'est pas un
+dialogue, quel que soit le charme du passage.
+
+Mesure faite dans NIMM ePub le 18/09/2026 sur les extraits déjà en service
+(`test_voix/_analyse_extraits_dialogue.py`, qui lit les transcriptions gardées) :
+
+| Famille | Extraits avec dialogue |
+|---|---|
+| CML-TTS (35 voix Kyutai + 25 XTTS) | **13 sur 60** (22 %) → **47 voix ont un extrait de pure narration** |
+| extraits libres de droits choisis à la main | **2 sur 19** (plancher : leur texte est une transcription, qui ne met pas les guillemets) |
+| voix Kokoro clonées | **0 sur 30** (leur référence est un texte de contrôle imposé) |
+
+**ATTENTION — hypothèse, pas résultat** : ce qui est mesuré, c'est ce que
+contiennent les extraits actuels ; l'effet du dialogue sur la prosodie n'est pas
+encore mesuré. À confirmer par une écoute **comparative et à l'aveugle** : même
+voix, deux extraits (un dialogue, un récit).
+
+## 7. Les incises (« , dit-il, ») : à RETIRER du texte parlé (18/09/2026)
+
+Quand chaque personnage a sa voix, l'incise qui dit **qui parle** est redondante —
+et elle coupe la voix du personnage en pleine réplique. Banc d'écoute fait dans
+NIMM ePub (lot `ecoute_ponctuation_20260918_1937`, 6 phrases réelles, 2 variantes
+chacune) : Laurent a trouvé la version **sans incise** systématiquement
+meilleure — « et en plus la voix me paraît plus fluide ».
+
+Volume mesuré (tome 5 de Monte-Cristo, 5 105 phrases) : **289 phrases avec incise
+= 5,66 %**, dont 104 à pronom (« dit-elle ») et 185 à nom (« dit Morrel »), soit
+**0,94 % du texte** lu.
+
+Règle **prudente**, mais qui va jusqu'au bout de l'incise (18/09/2026, fin de
+soirée — trois exemples de Laurent où l'incise était encore lue) :
+
+- **retirer l'incise EN ENTIER, complément compris** : le retrait s'étend jusqu'à
+  la **virgule fermante** (« , dit-il au comte, ») ou jusqu'au point final si la
+  suite ressemble à un complément (« , dit-il au comte. »). Bornes : une virgule
+  au plus, pas de ponctuation forte, **≤ 70 caractères** ;
+- **reconnaître l'incise qui OUVRE la phrase** (« fit celui-ci avec sa voix
+  demi-railleuse, comment vous portez-vous ? ») : quand le découpage sépare les
+  phrases au « ! », l'incise n'est plus entre deux virgules ;
+- **emporter la RELATIVE qui suit l'incise** (« , dit Cavalcanti, **qui se
+  grisait** à ce bruit métallique de paroles dorées. » → « c'est magnifique. »),
+  sinon elle reste orpheline et se fait lire toute seule. Quatre garde-fous, tous
+  posés par des cas réels : « que » est **exclu** (c'est le plus souvent une
+  conjonction : « Le fait est que je meurs de soif ») ; aucune extension si la
+  **proposition immédiate** est une question (« ? » ou « ! ») ; arrêt sur un
+  **décrochage de sens** (« mais », « or », « puis »… **ou le point-virgule**),
+  mais « **et qui** » n'en est pas un (relative coordonnée : « , dit Monte-Cristo,
+  qui sentit…, et qui comprit… ; ma protection… » → on emporte jusqu'au
+  point-virgule) ; et la **longueur emportée** est bornée (200 caractères), pas la
+  phrase entière (chez Dumas, une phrase peut faire 400 caractères et finir par un
+  « ? » qui n'a rien à voir avec l'incise) ;
+- **remplacer par un court silence** (150 ms) une phrase qui n'est **que**
+  l'incise (« dit Monte-Cristo. », isolée par le découpage au « ! » / « ? ») :
+  on ne peut pas la vider (la phrase disparaîtrait), et l'auditeur n'a pas besoin
+  de l'entendre — la voix du personnage dit déjà qui parle ;
+- ne **jamais** toucher si l'incise n'est **pas fermée** : la retirer couperait
+  la réplique en deux ;
+- exiger une **frontière de mot** avant le verbe : « maudit-il », « interdit-il »
+  ne sont pas « dit-il » ;
+- respecter la **casse** : « répondit le jeune homme » n'est pas une incise ;
+- **garde-fou vital** : si le retrait **vide** la phrase (une phrase qui n'est
+  que l'incise), on ne retire rien — sinon le moteur reçoit un texte vide et la
+  phrase **disparaît** de l'écoute.
+
+Formes couvertes : pronom (« dit-il », « se demanda-t-elle », « ajouta-t-il »),
+nom propre (« dit Barrois »), particule noble (« dit M. de Villefort »), nom
+commun avec article (« dit le comte », « reprit la jeune fille »), démonstratif
+(« fit celui-ci »).
+
+**Compromis assumé** : le complément part avec l'incise (« dit-elle **en donnant
+son flacon** ») — l'action n'est plus entendue, mais elle reste **affichée**.
+
+Implémentation : `modules/incises.py` (NIMM ePub), appelée **après** le
+développement des abréviations. Le texte **affiché** n'est jamais modifié.
+
+**Deux pièges entendus sur ce banc, à connaître :**
+
+1. un banc qui envoie le texte **brut** (sans le nettoyage du lecteur) entend
+   « mleu » pour « Mlle » — c'est le banc, pas le livre : la lecture développe
+   l'abréviation avant l'envoi ;
+2. une phrase de **6 caractères** sans contexte glissant « traîne »
+   (« Oui » → « ouiiiii ») : c'est le **contexte glissant** (§2) qui l'évite.
+
 ---
 
-*Écrit le 17/09/2026, à la demande de Laurent, pour l'atelier NIMM Voix.*
+*Écrit le 17/09/2026, à la demande de Laurent, pour l'atelier NIMM Voix.
+Sections 6 et 7 ajoutées le 18/09/2026 (retours d'écoute de Laurent).*

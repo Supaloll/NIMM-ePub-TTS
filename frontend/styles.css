@@ -400,6 +400,23 @@ body {
   word-break: break-word;
 }
 
+/* Bouton « Réessayer ce chapitre » : affiché dans le texte quand un chapitre
+   n'a pas pu être chargé (constat de Laurent, 18/09/2026 : un chapitre sauté
+   après une « erreur de chargement »). Style sobre, aux couleurs du lecteur. */
+.chapter-retry-btn {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.chapter-retry-btn:hover { background: var(--accent-dim); }
+
 #reader-content p {
   margin-bottom: 1.2em;
 }

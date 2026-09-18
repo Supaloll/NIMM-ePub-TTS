@@ -9,6 +9,8 @@ import edge_tts
 from modules import tts_cache as _tts_cache
 from modules import audio_trim as _audio_trim
 from modules import audio_rate as _audio_rate
+from modules import audio_gain as _audio_gain
+from modules import incises as _incises
 
 # ==============================================================
 # CONFIGURATION
@@ -222,6 +224,44 @@ def _expand_abbreviations(text: str) -> str:
     return text
 
 
+# ==============================================================
+# PONCTUATION QUI DERANGE LA VOIX (reglages d'ecoute)
+# ==============================================================
+
+# Point d'exclamation : RETIRE du texte envoye au moteur.
+# Retour d'ecoute de Laurent du 18/09/2026 : « Retirer les points
+# d'exclamation ». A l'oreille, les moteurs neuronaux JOUENT ce signe comme une
+# MONTERE de hauteur : « Il partit ! » sortait en « Il partiiiiit », et les
+# interjections (« Oh ! ») en « OOOOOOoooooh ».
+#
+# ON NE TOUCHE PAS au texte affiche : la phrase garde son « ! » a l'ecran. Il ne
+# disparait que de ce qui est envoye au moteur.
+#
+# DEUX SIGNES, choisis par une ECCOUTE (banc du 18/09/2026, lot
+# `test_voix/ecoute_ponctuation_20260918_1937`, 6 phrases reelles du tome 5) :
+#   - INTERJECTION COURTE (« Oh ! », « Comte ! », « quel poignet ! ») : Laurent
+#     a prefere la VIRGULE — c'est le point qui « trainait » encore ;
+#   - PHRASE EXCLAMATIVE ENTIERE (« Cela recommence, comte ! ») : il a prefere
+#     le POINT, une vraie fin de phrase.
+# La frontiere entre les deux est la LONGUEUR de la phrase (SEUIL_INTERJECTION).
+PONCTUATION_EXCLAMATION = '.'          # phrase exclamative entiere
+PONCTUATION_EXCLAMATION_COURTE = ','   # interjection / replique tres courte
+SEUIL_INTERJECTION = 25                # en caracteres
+
+# Mots sur lesquels un point final NE DOIT JAMAIS etre ajoute.
+# Retour d'ecoute de Laurent du 18/09/2026 : « les silences apres les M. (lu
+# monsieur) ou Mme (lu madame) ». Mesure du meme jour (test_voix/
+# _diag_retours_ecoute.py) : la page decoupe les phrases APRES le point d'une
+# abreviation, donc le moteur recoit un morceau qui se termine par
+# « ... le temps de complimenter Monsieur » (207 fois dans un seul tome de
+# Monte-Cristo). Lui ajouter un point final en fait une VRAIE fin de phrase,
+# avec la respiration qui va avec -- d'ou le silence entendu. Sans ce point, la
+# phrase s'enchaine directement a la suivante.
+MOTS_SANS_POINT_FINAL = re.compile(
+    r"\b(?:Monsieur|Messieurs|Madame|Mesdames|Mademoiselle|Mesdemoiselles"
+    r"|Monseigneur|Docteur|Professeur|Saint|Sainte|numéro)$")
+
+
 def _clean_text(text: str) -> str:
     """Prepare le texte pour la synthese vocale."""
 
@@ -229,8 +269,15 @@ def _clean_text(text: str) -> str:
     # pause artificielle au milieu d'un texte deja decoupe en phrases).
     text = text.replace("\n", " ")
 
-    # Supprime les references entre crochets [1], [note], [i], etc.
+    # Supprime les crochets, les caracteres de controle et les emojis
     text = re.sub(r'\[[^\]]{0,30}\]', '', text)
+
+    # --- INCISES DE PAROLE, TOUT DEBUT --------------------------------------
+    # On les retire AVANT de toucher a la ponctuation : la suite du nettoyage
+    # transforme « ; » et « : » en VIRGULES, ce qui fabriquerait de fausses
+    # incises fermees (« il partit ; repondit le comte , ... ») et supprimerait
+    # le sujet de la phrase. Regle prudente : `modules/incises.py`.
+    text = _incises.retirer_incises(text)
 
     # Point-virgule -> virgule (17/09/2026, constat de Laurent) : les moteurs
     # neuronaux essaient de PRONONCER la ponctuation forte qu'ils ne savent pas
@@ -248,6 +295,11 @@ def _clean_text(text: str) -> str:
     # donc l'incise n'etait entouree d'AUCUNE pause. Deux virgules redonnent la
     # respiration attendue de part et d'autre.
     text = text.replace('(', ', ').replace(')', ',')
+
+    # Le point d'exclamation est traite TOUT A LA FIN de ce nettoyage : il a
+    # besoin de connaitre la LONGUEUR de la phrase (voir PONCTUATION_EXCLAMATION
+    # et SEUIL_INTERJECTION), et il ne doit pas etre transforme par la regle de
+    # fin de segment (sinon la virgule des interjections redeviendrait un point).
 
     # Supprime les caracteres de controle
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
@@ -288,10 +340,30 @@ def _clean_text(text: str) -> str:
     # un vrai point de fin de segment -- ajouter un point apres aurait fait
     # lire "virgule puis point" a la voix. On retire aussi l'espace
     # typographique qui precede ; et : en francais.
+    # Le point final n'est PAS ajoute apres une abreviation developpee
+    # (Monsieur, Madame, Docteur...) : voir MOTS_SANS_POINT_FINAL ci-dessus.
+    # C'est ce qui supprime le silence entendu apres « M. » / « Mme » le
+    # 18/09/2026.
     if text and text[-1] in ',;:':
         text = text[:-1].rstrip() + '.'
-    elif text and text[-1] not in '.!?:…»"':
+    elif (text and text[-1] not in '.!?:…»"'
+          and not MOTS_SANS_POINT_FINAL.search(text)):
         text += '.'
+
+    # --- LE POINT D'EXCLAMATION, EN DERNIER ---------------------------------
+    # Place ici EXPRES : apres la regle de fin de segment, sinon la virgule des
+    # interjections serait reconvertie en point (« Oh, » -> « Oh. »).
+    # L'espace typographique qui precede est retire en meme temps (« Oh ! » ->
+    # « Oh, », et non « Oh , ») ; l'espace qui SUIT est conserve, sinon deux
+    # mots se colleraient.
+    # Le « ?! » est traite a part : c'est une INTERROGATION suivie d'une
+    # exclamation, et le « ? » doit rester seul (sinon on lirait deux signes).
+    text = re.sub(r'\?\s*!+', '?', text)
+    if '!' in text:
+        signe = (PONCTUATION_EXCLAMATION_COURTE
+                 if len(text) <= SEUIL_INTERJECTION
+                 else PONCTUATION_EXCLAMATION)
+        text = re.sub(r'\s*!+', signe if signe else ' ', text)
 
     return text
 
@@ -790,6 +862,14 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
     # Vitesse puis hauteur (aucun des deux n'existe dans le moteur).
     wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
+
+    # Niveau : le moteur Kyutai ne regle pas son volume de sortie, et ses
+    # phrases sortaient jusqu'a 8 dB sous celles d'Edge (mesure du 18/09/2026,
+    # voir modules/audio_gain.py). On ramene la parole au niveau des autres
+    # moteurs ICI, apres la vitesse et la hauteur, pour que ce soit le niveau
+    # definitif qui parte au cache : une phrase relue ne redevient jamais
+    # faible.
+    wav_bytes = _audio_gain.normaliser_wav_parole(wav_bytes)
 
     _tts_cache.put_audio(cle, voice, rate, pitch, "wav", wav_bytes)
     return wav_bytes

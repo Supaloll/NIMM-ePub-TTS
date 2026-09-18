@@ -21,6 +21,7 @@ Tu n'as **pas** besoin de savoir taper des commandes : les actions utiles ont un
 | Lanceur (double-clic) | Ce qu'il fait |
 |---|---|
 | `LANCER_BANC_ECOUTE_XTTS.bat` | fabrique un **lot d'écoute XTTS** (qualité des phrases : attaque, incise, tiret, phrase courte, fin de phrase) sur deux voix |
+| `LANCER_BANC_PONCTUATION.bat` | fabrique un **lot d'écoute sur la ponctuation du « ! »** (point / virgule / suspension / rien) **et sur les incises** (gardées ou retirées), sur les mêmes phrases réelles d'un livre — **Kyutai allumé**. Tu écoutes et tu classes, je règle ensuite |
 | `LANCER_OU_SONT_MES_VOIX.bat` | affiche **où en sont tes voix** : combien de personnages lisent avec chaque moteur, combien sont verrouillés, et si chaque voix attribuée existe bien dans le catalogue (rien n'est modifié) |
 | `LANCER_BANC_ECOUTE_NEUTTS.bat` | fabrique un **lot d'écoute NeuTTS** (livre et chapitre au choix) pour comprendre où la voix dérape : vraies phrases du livre, signes de dialogue avec/sans, phrases courtes, phrase longue d'un bloc puis coupée en deux — **le moteur NeuTTS doit être allumé** |
 | `LANCER_BANC_ECOUTE_KYUTAI.bat` | le **même lot sur Kyutai** (mêmes phrases, mêmes voix : les deux moteurs partagent les mêmes extraits) pour **comparer** les deux — **Kyutai allumé, NeuTTS éteint** (ils ne cohabitent pas sur la carte graphique) |
@@ -69,6 +70,11 @@ gratuit** — ils font seulement travailler la carte graphique :
 | `test_rogner_babil_xtts.py` | coupure du babil isolé par un silence |
 | `test_rogner_queue_xtts.py` | rognage du silence de queue XTTS (0,25 s) |
 | `test_neutts_service.py` | service NeuTTS : découpage du texte, filet anti-dérive, silence de queue, découpage des références (leur texte est obligatoire), contrat avec le lecteur (port 8084, graine fixe, une seule génération à la fois) |
+| `test_nettoyage_tts.py` | le **texte envoyé au moteur** : plus de point d'exclamation (il faisait monter la voix), **plus de point final après « M. » / « Mme »** (c'était le silence entendu), et les réglages précédents (point-virgule, parenthèses, deux-points) toujours en place — 18 contrôles, rien à allumer |
+| `test_niveau_audio.py` | le **volume des phrases** : une phrase Kyutai trop faible est remontée au niveau des autres moteurs, une phrase déjà forte n'est pas touchée, aucune saturation, et un fichier illisible revient inchangé — 10 contrôles, rien à allumer |
+| `test_decoupage_phrases.py` | le **découpage des phrases** : plus de coupe après « M. » / « Mme » (c'était le silence entendu), les vraies fins de phrase coupent toujours, les positions servent de base à la migration, aucun mot n'est perdu — et **la règle de la page est identique à celle du serveur** (19 contrôles, rien à allumer) |
+| `test_ponctuation_incises.py` | les **4 ponctuations du « ! »** que le banc compare (et que « rien du tout » ne colle pas deux mots), et le **retrait des incises** : elles partent **en entier, complément compris**, le sujet de la phrase (« le jeune homme ») n'est jamais supprimé, et une phrase qui n'est que l'incise garde son texte (jamais vidée) — 29 contrôles, rien à allumer |
+| `test_incise_seule.py` | les phrases qui **ne sont qu'une incise** (« dit Monte-Cristo. », isolées par le découpage au « ! » / « ? ») : elles sont détectées, une phrase normale ne l'est jamais, et le **court silence** joué à leur place est un WAV valide et vraiment muet — 15 contrôles, rien à allumer |
 | `test_pool_casting.py` | ordre du pool automatique du casting |
 | `test_ids_ecran.py` | chaque élément cherché par le code existe dans la page |
 | `test_recaste_ia.py` | re-cast avec l'IA : cadre des voix proposées, prompt, lecture et validation de la réponse de l'IA, découpage des phrases — **sans appeler l'IA** |
@@ -85,6 +91,7 @@ gratuit** — ils font seulement travailler la carte graphique :
 | `test_filtre_genre.js` | menus de voix (femmes / hommes) |
 | `test_voix_ecoutables.js` | voix d'un moteur éteint (jamais de substitution silencieuse) |
 | `test_message_reseau.js` | message parlé quand le réseau tombe |
+| `test_chargement_chapitre.js` | le **chargement d'un chapitre** : le chapitre est demandé avant que le lecteur ne change d'état, une panne passagère est retentée, un échec **ne fait plus sauter** le chapitre (phrases vidées, bouton « Réessayer »), et une pause sans signal n'explose plus — exécute le vrai code de la page, sans navigateur |
 | `test_voix_phrase.js` | panneau « voix de cette phrase » |
 | `test_bouton_moteur.js` | bouton de bascule des moteurs de voix |
 
@@ -136,6 +143,17 @@ aujourd'hui :
 | `_basculer_voix_neutts_vers_kyutai.py` | **le sens inverse** (NeuTTS → Kyutai, décision du 17/09/2026) : transposition à l'identique, refus d'écrire s'il reste une voix sans jumelle |
 | `_remplacer_voix_sans_jumelle.py` | pour les voix **sans** jumelle Kyutai : choisit une voix Kyutai **du même profil d'écoute** (les voix Kyutai ne sont pas annotées, mais leurs jumelles NeuTTS le sont) — rapport seul par défaut |
 | `_heriter_annotations_xtts_vers_neutts.py` | recopie les annotations d'écoute des voix XTTS **et** Kokoro sur leurs jumelles NeuTTS (l'accent est remis à « neutre », voir l'en-tête) |
+| `_diag_retours_ecoute.py` | les **retours d'écoute de Laurent** (18/09/2026), en trois parties : quelles phrases du livre sont **coupées après une abréviation** (le silence après « M. » / « Mme »), le **niveau audio** des fichiers en cache par famille de moteur, et l'**effet de la normalisation** sur les phrases réelles — lecture seule, rien à allumer |
+| `_mesurer_niveau.py` | le **niveau d'un fichier audio** (crête, niveau global, et surtout **niveau de la parole** : c'est lui qui dit si une voix est faible) — on peut lui donner autant de fichiers qu'on veut, WAV ou MP3 |
+| `_analyse_extraits_dialogue.py` | **quelles voix ont un extrait de DIALOGUE et lesquelles une narration** : lit la transcription gardée de chaque extrait de référence (`neutts_service/references/*/references.csv`) et dit, famille par famille, lesquelles « lisent une histoire » au lieu de « parler » — lecture seule, rien à allumer (`--tout` montre le texte de chaque extrait) |
+| `_migrer_index_phrases.py` | ⚠️ **écrit dans la base** avec `--ecrire` (copie la base avant) : remappe les index de phrases après la correction du découpage. **Sans argument : simulation** (rien n'est écrit). `--verifier` contrôle APRÈS coup que chaque voix pointe sur une phrase qui existe |
+| `_montrer_attribution.py` | **qui parle, phrase par phrase, et avec quelle voix** dans un chapitre (`--livre 16 --chapitre 9`) : le locuteur, la voix attribuée (et sa vitesse), et le texte — lecture seule. Indispensable pour vérifier une phrase douteuse sans tout réécouter |
+| `_mesurer_incises_supprimables.py` | combien de phrases contiennent une **incise de parole** (« , dit-il, »), de quel type, et **ce que ferait un code de suppression** : il essaie sur de vraies phrases et compte celles qu'il abîme (idée de Laurent, 18/09/2026) — lecture seule, rien à allumer |
+| `_banc_ponctuation_exclamation.py` | fabrique le **lot d'écoute de la ponctuation du « ! »** (4 variantes) **et des incises** (gardées/retirées), sur les phrases réelles d'un livre : dossier `ecoute_ponctuation_<date>` avec les WAV numérotés, un index (ce qu'on demande), les textes exacts envoyés, et le lanceur d'écoute — **Kyutai allumé** (voir `LANCER_BANC_PONCTUATION.bat`) |
+| `_mesurer_exclamations.py` | combien de « ! » sont des **interjections courtes** (pour régler le seuil), et combien d'**abréviations collées** à un prénom (Mlle suivi d'un espace insécable, comme dans le tome 5) — lecture seule, rien à allumer |
+| `_diag_incises_reelles.py` | **pourquoi il reste des incises** : il sépare celles qui sont retirées, celles qui sont gardées **exprès** (non fermées), celles qui échappent par **verbe inconnu**, et les phrases qui ne sont **qu'une incise** (« demanda Morrel. ») — c'est l'outil qui a expliqué le « elles sont toujours présentes » du 18/09/2026 |
+| `_tester_tts_serveur.py` | ce que le **serveur** renvoie vraiment pour une phrase : il interroge le lecteur en marche (`POST /api/tts`, port 8081) et compare l'audio du texte **nettoyé** et du texte **d'origine** — le moyen le plus direct de savoir si un doute vient du nettoyage ou du **cache** (serveur allumé) |
+| `_essai_garde_fou_start.py` | qui serait arrêté par le **garde-fou de `START.bat`** (les serveurs qui écoutent sur le port 8081), **sans rien arrêter** — utile pour vérifier que NIMM (port 8080) et le relais Tailscale ne sont jamais visés |
 
 Usage : `python test_voix/_nom_de_l_outil.py` (certains attendent un numéro de
 livre ou un chapitre : le mode d'emploi est en tête de chaque fichier).

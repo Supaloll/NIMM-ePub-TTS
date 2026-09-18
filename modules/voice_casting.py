@@ -34,22 +34,20 @@ GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_M
 
 def _split_chapter_sentences(text: str) -> list:
     """
-    Decoupe en phrases numerotees, paragraphe par paragraphe --
-    identique a _buildSentences() cote app.js et _split_sentences()
-    cote recherche (main.py), pour garantir une correspondance exacte
-    avec ce que l'utilisateur voit a l'ecran.
+    Decoupe en phrases numerotees -- LA regle unique du projet
+    (`modules/decoupage.py`), identique a `_buildSentences()` cote page, a
+    `_decouper_phrases_du_chapitre()` (re-cast, main.py) et a la recherche.
+
+    Historique : la regle etait ecrite ICI, en double, et coupait les phrases
+    apres le point d'une abreviation (« ... complimenter M. » / « de Morcerf »).
+    Laurent l'entendait comme un silence apres « monsieur ». Depuis le
+    18/09/2026 il n'y a plus qu'une regle, et elle recolle ces morceaux ; les
+    index de `speaker_attribution` ont ete migres en consequence
+    (test_voix/_migrer_index_phrases.py).
     """
-    paras = [p.strip() for p in re.split(r'\n\n+', text) if len(p.strip()) > 5]
-    sentences = []
-    sid = 0
-    for para in paras:
-        raw = re.split(r'(?<=[.!?…»])\s+', para)
-        for s in raw:
-            s = s.strip()
-            if len(s) > 3:
-                sentences.append({"id": sid, "texte": s})
-                sid += 1
-    return sentences
+    from modules.decoupage import phrases as _decouper
+    return [{"id": sid, "texte": phrase}
+            for sid, phrase in enumerate(_decouper(text))]
 
 
 # ==============================================================

@@ -11,6 +11,316 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
+- [x] **Volume des voix Kyutai : niveau ramené à celui des autres moteurs** —
+  livré le **18/09/2026**. Constat de Laurent : « le volume des voix Kyutai est
+  très, très faible ».
+  *Mesure* (`test_voix/_mesurer_niveau.py`, sur le **niveau de la parole seule**,
+  et non le niveau global faussé par les silences) : **Edge 8,4 %** de la pleine
+  échelle contre **Kyutai 6,2 %**, et jusqu'à **3,4 %** sur certaines phrases —
+  soit jusqu'à **-8 dB**. Le moteur Kyutai ne règle pas son niveau de sortie (le
+  script officiel de la banque de voix, lui, normalise à -22 LUFS).
+  *Correction* : `modules/audio_gain.py` mesure le niveau de la parole (fenêtres
+  de 30 ms où l'on parle vraiment) et applique le gain qui l'amène à la cible
+  **8,5 %** (le niveau d'Edge). Garde-fous : gain **plafonné à ×4**, crête de
+  sortie bornée (**jamais de saturation**), **aucune atténuation** (on ne baisse
+  jamais), et tout échec renvoie l'audio d'origine.
+  *Mesure de l'effet* sur 120 phrases réelles du cache : niveau de parole médian
+  **5,4 % → 8,2 %** (≈ +3,6 dB), le plus bas 2,1 % → 4,6 %, gain médian ×1,45.
+  Appliqué dans `synthesize_kyutai` **avant la mise en cache**, après vitesse et
+  hauteur : une phrase relue ne redevient jamais faible.
+  *Vérification* : `test_voix/test_niveau_audio.py` (10 contrôles, sans moteur).
+  *Effet de bord voulu* : `VERSION_CACHE` passe à **4** — les anciens fichiers de
+  cache ne sont plus servis, donc le nouveau niveau s'entend dès la première
+  écoute, sans purge à faire à la main.
+
+- [x] **Un chapitre pouvait être sauté après une « erreur de chargement » —
+  corrigé** — livré le **18/09/2026**. Constat de Laurent : « il passe du
+  quatre-vingt-un au quatre-vingt-trois, surtout après une erreur de
+  chargement ».
+  *Cause* : `loadChapter()` (`frontend/app.js`) posait `_currentChapter = index`
+  **avant** la requête. En cas d'échec, la page affichait « Erreur de
+  chargement », mais le compteur était **déjà** passé au chapitre raté et les
+  phrases de l'ancien chapitre restaient en mémoire : à la fin de leur lecture,
+  l'enchaînement appelait `loadChapter(_currentChapter + 1)` — le chapitre raté
+  était donc **sauté**.
+  *Correction, en trois temps* : (1) le chapitre est **demandé d'abord**
+  (`_demanderChapitre`), et `_currentChapter` n'est posé qu'une fois la réponse
+  **reçue** ; (2) un échec est **retenté** — 3 essais, 1,2 s entre deux
+  (`CHARGEMENT_ESSAIS`, `CHARGEMENT_PAUSE_MS`) — car une panne de chargement est
+  presque toujours **passagère** (serveur occupé, réseau qui vacille) ; (3) en
+  cas d'échec définitif, les phrases du chapitre précédent sont **vidées**
+  (`_afficherEchecChapitre`) — plus de lecture fantôme — et un bouton
+  **« Réessayer ce chapitre »** apparaît dans la page, avec un message qui
+  rappelle que rien n'est perdu.
+  *Effet de bord corrigé au passage* : `_pause(ms)` **plantait** si on l'appelait
+  sans signal d'interruption (elle le supposait toujours présent) ; un chargement
+  de chapitre n'en a pas. Elle est désormais tolérante.
+  *Vérification* : `test_voix/test_chargement_chapitre.js` — **17 contrôles**,
+  sans navigateur : le test **exécute le vrai code de `app.js`** sur un faux
+  lecteur et un faux serveur (panne persistante, panne passagère, chargement
+  normal).
+
+- [ ] **Bouton « vider le cache audio » dans les réglages** — à faire (pas
+  urgent, demande de Laurent du 18/09/2026). Aujourd'hui le cache se purge seul
+  par quota (`modules/tts_cache.py`, 2 Go) et par **version** (`VERSION_CACHE` :
+  dès que le texte envoyé au moteur change, les anciens fichiers ne sont plus
+  servis). Mais Laurent n'a **aucun bouton** pour le forcer à la main, et c'est
+  exactement ce qui manque quand on doute d'un rendu : le cache a dû être vidé à
+  la main le 18/09/2026 pour écarter cette piste (`test_voix/
+  _tester_tts_serveur.py` prouvait que le serveur, lui, nettoyait bien le texte).
+  À faire : une route de purge côté serveur, un bouton dans les réglages du
+  lecteur, et le compte affiché (« 604 Mo sur 2 Go »).
+
+- [x] **Les incises de parole sont RETIRÉES du texte parlé** — livré le
+  **18/09/2026**, décision de Laurent après écoute le soir même : « à chaque fois
+  les incises ont bien disparu […] et en plus la voix me paraît plus fluide ».
+  *Réglage* : `modules/incises.py` (règle prudente), appelé par `_clean_text`
+  (`modules/tts.py`) **après** le développement des abréviations. Le texte
+  **affiché** ne change pas : seule la version parlée. Un banc d'écoute futur
+  teste **la même règle** (le banc importe `modules.incises`).
+  *Réveil du 18/09/2026 au soir — « elles sont toujours présentes »* : deux
+  causes, mesurées par `test_voix/_diag_incises_reelles.py` (lecture seule) :
+  1. **le cache servait l'ancien rendu** (`VERSION_CACHE` passé à **6**) : les
+     phrases déjà générées ne repassent pas par la règle — c'est le piège
+     habituel après un changement de texte ;
+  2. la règle **ratait trois formes très fréquentes** chez Dumas :
+     - le **« t » euphonique** (« ajouta-**t**-il », « demanda-**t**-elle ») ;
+     - les **particules nobles** (« , dit **M. de Villefort**, ») — le motif
+       exigeait une majuscule après la civilité, or « d'Avriguy », « de
+       Morcerf » commencent par une minuscule ;
+     - les **noms communs avec article** (« , dit **le comte**, », « , reprit
+       **la jeune fille**, »).
+     Résultat : **289 → 311 incises retirées** sur le tome 5.
+  3. **les verbes PRONOMINAUX et les imparfaits** — signalé par Laurent lui-même
+     (« est-ce que ça ne va pas coincer sur "se demanda-t-elle" ? ») : il avait
+     raison. Le motif exigeait le verbe **juste après la virgule**, donc
+     « , **se** demanda-t-elle, » et « , **se** reprit-il, » étaient ignorés
+     (sans dégât : l'incise restait entière, aucun « se » orphelin). Idem les
+     imparfaits (« , disait-il, »). Corrigé : **314 incises retirées**.
+     À retenir : on retire soit **toute** l'incise, soit **rien** — jamais un
+     morceau.
+  *Tour suivant, exemples de Laurent à l'appui* (18/09/2026, fin de soirée) : il
+  donne **trois phrases précises** où l'incise est encore lue —
+  « … dit-il au comte. », « fit celui-ci avec sa voix demi-railleuse, comment
+  vous portez-vous ? » et « , dit-il, » — et il doute que ce soit automatisable.
+  **C'est automatisable**, mesures à l'appui (`_diag_incises_reelles.py`) :
+  - **l'incise est retirée EN ENTIER, complément compris** : on étend le retrait
+    jusqu'à la **virgule fermante** (« , dit-il au comte, »), ou jusqu'au point
+    final si la suite ressemble à un complément (« au comte. », « en souriant. »).
+    Bornes strictes : une seule virgule, pas de ponctuation forte, **≤ 70
+    caractères** (`LONGUEUR_SUITE_MAX`).
+  - **l'incise qui OUVRE la phrase** est reconnue (`MOTIF_DEBUT`) : depuis que le
+    découpage sépare les phrases au « ! », « fit celui-ci avec sa voix
+    demi-railleuse, comment vous portez-vous ? » n'est plus « entre virgules ».
+  - les **démonstratifs** (« celui-ci », « celle-là ») rejoignent les sujets
+    reconnus.
+  Résultat sur le tome 5 : **361 incises retirées** (289 à l'origine) et
+  **19 seulement gardées** (non fermées : les retirer couperait la réplique).
+  *Garde-fou trouvé par le contrôle de sécurité intégré* : une phrase qui n'est
+  **que** l'incise (« ajouta Valentine en s'adressant à Noirtier. ») devenait
+  **vide** — plus aucun son, et le moteur refuserait un texte vide. Désormais,
+  si le retrait vide la phrase, **on ne retire rien**.
+  *Dernier cas, réglé le 18/09/2026 au soir* (constat de Laurent, extrait à
+  l'appui) : « — Ah ! vraiment **?** dit Monte-Cristo. » — le « ? » **coupe la
+  phrase**, donc « dit Monte-Cristo. » devient une **phrase à part entière**. Ces
+  phrases ne peuvent pas être vidées (le moteur refuse un texte vide, et la
+  phrase disparaîtrait de l'écoute) : le lecteur renvoie désormais un **court
+  silence** (`modules/silence.py`, `SILENCE_INCISE_MS = 150`, réglable en une
+  ligne ; 0 désactive). Décision prise dans la route `/api/tts`
+  (`_est_incise_seule`, `main.py`) : **91 phrases** de ce genre dans le seul
+  tome 5. L'incise n'est plus **entendue**, elle reste **affichée**, et le rythme
+  est conservé. *Vérification* : `test_voix/test_incise_seule.py` (15 contrôles).
+  *Puis le cas de la RELATIVE (même soir, extrait de Laurent à l'appui)* :
+  « c'est magnifique, dit Cavalcanti, **qui se grisait à ce bruit métallique de
+  paroles dorées.** » — l'incise était bien retirée, mais la **relative restait
+  seule** et se faisait lire ! Désormais la relative part **avec** l'incise
+  → « c'est magnifique. »
+  *Et deux cas tordus de plus, apportés par Laurent (toujours le 18/09)* :
+  (1) la **relative coordonnée** — « , dit Monte-Cristo, qui sentit l'adresse
+  perfide du jeune homme, **et qui comprit** la portée de ses paroles **;** ma
+  protection ne vous a été acquise qu'après… » : le « , et qui » n'est PAS un
+  décrochage, c'est encore la description du personnage. Le retrait va donc
+  jusqu'au **point-virgule**, et la réplique reprend après (« — Vous vous abusez
+  complètement, monsieur, ma protection… ») ;
+  (2) la **question du personnage** — la phrase fait **409 caractères** et finit
+  par un « ? » (« … le bonheur de votre connaissance ?) ») : ce « ? » n'est pas un
+  signe de question *après l'incise*, il ne doit donc pas bloquer l'extension. Le
+  garde-fou ne regarde plus que la **proposition immédiate**.
+  Quatre garde-fous au total, chacun posé par un défaut attrapé par les tests :
+  (a) **« que » est exclu** des relatifs (c'est le plus souvent une
+  conjonction : « Le fait est, dit Barrois, **que** je meurs de soif ») ;
+  (b) une **question juste après l'incise** n'est jamais emportée
+  (« , se demanda-t-elle, **que faisait-il ?** » — sinon la phrase finissait en
+  « — Et lui ») ; (c) un **décrochage de sens** (« mais », « or », « puis »…, ou
+  le point-virgule) arrête l'extension, mais **« et qui »** n'en est pas un ;
+  (d) la **longueur emportée** est bornée (200 caractères), pas la phrase entière.
+  *Compromis assumé, à valider à l'oreille* : retirer l'incise en entier emporte
+  aussi son **complément** (« dit la jeune femme **en donnant son flacon à
+  Valentine** » → l'action n'est plus entendue, mais elle reste **à l'écran**).
+  Si Laurent préfère garder ces détails, on revient à la version prudente : une
+  seule condition à retirer dans `modules/incises.py`.
+  *Idée de Laurent (18/09/2026), mesurée le soir même.*
+  *Son raisonnement* : avec une voix différente par personnage, l'incise qui dit
+  qui parle est redondante — et elle coupe la voix du personnage au milieu de sa
+  réplique.
+  *Mesure* (`test_voix/_mesurer_incises_supprimables.py`, tome 5 : 5 105 phrases) :
+  **289 phrases avec incise = 5,66 %**, dont 104 à pronom (« dit-elle ») et 185 à
+  nom (« dit Morrel ») — soit **4 122 caractères = 0,94 % du texte** lu.
+  *Ce n'est PAS la même chose que l'étude du 13/09/2026* (écartée, 0,8 %) : celle-là
+  comptait les incises **formant une phrase à part**, déjà lues par le narrateur
+  (donc déjà correctes). Ici, ce sont les incises **au milieu** d'une réplique,
+  aujourd'hui lues par la voix du personnage.
+  *Un code proposé ailleurs a été essayé* (trois expressions régulières) :
+  **il touche 756 phrases dont 588 sans aucune incise — 78 % de ses retouches
+  abîment le texte**, parce qu'il n'exige ni frontière de mot avant le verbe, ni
+  incise encadrée ou terminale, et qu'il ignore la casse. Dégâts réels :
+  « répondit le jeune homme » → « jeune homme » supprimé ; « reprit la jeune
+  fille » → sens faux ; « dit Morrel vous qui… » (incise non fermée) supprimée
+  quand même. **À ne surtout pas reprendre tel quel.**
+  *Ce qui serait prudent* : n'accepter que les incises **fermées** (virgule après
+  le nom) ou **terminales**, refuser celles suivies d'un complément (« , dit-il en
+  souriant, » — il resterait « en souriant » tout seul), exiger une frontière de
+  mot avant le verbe, respecter la casse. Le réglage se ferait dans
+  `_clean_text` : **aucun impact** sur la base, la page, le découpage ou les voix.
+  *À faire avant de décider* : l'**écouter**. Le banc d'écoute de l'item suivant
+  portera les deux variantes (ponctuation **et** incises gardées/supprimées) en
+  même temps, sur les mêmes phrases.
+  *Écoute faite le 18/09/2026 — deux remarques de Laurent, expliquées* :
+  (1) `I_1_I2` (« Oui, fit-il. » sans incise) sort un « ouiiiii » : c'est une
+  phrase de **6 caractères**, et le banc envoie les phrases **sans contexte** —
+  dans la lecture, le **contexte glissant** évite justement ce démarrage à
+  froid (mesure du 17/09/2026, BACKLOG) ;
+  (2) `I_6_I2` prononce « mleu » pour « Mlle » : ce n'est **pas** un défaut du
+  livre, c'est un **artefact du banc**, qui envoie le texte **brut**. Le tome 5
+  écrit `Mlle\xa0Eugénie` (espace **insécable**, 72 cas mesurés par
+  `test_voix/_mesurer_exclamations.py`) et la lecture **développe** l'abréviation
+  avant l'envoi (`Mademoiselle`), ce que verrouille désormais
+  `test_voix/test_nettoyage_tts.py`.
+
+- [x] **Banc d'écoute : quelle ponctuation remplacer le « ! » ?** — livré le
+  **18/09/2026**, **tranché par Laurent à l'oreille** le soir même.
+  *Sa réponse, phrase par phrase (le lot `ecoute_ponctuation_20260918_1937`)* :
+  virgule en tête pour « Oh ! », « — Oh ! », « « Comte ! » et « quel poignet ! »
+  (à égalité avec « rien du tout » sur celle-là) ; **point** en tête pour
+  « — Cela recommence, comte ! » (égalité point/virgule sur la phrase longue).
+  La **suspension** n'a jamais été choisie.
+  *Réglage retenu* : le `!` devient une **VIRGULE** dans les phrases **courtes**
+  (interjections) et reste un **POINT** dans les phrases **entières** — seuil
+  **25 caractères** (`SEUIL_INTERJECTION`, `modules/tts.py`). Répartition
+  mesurée sur le tome 5 : **65 %** des 934 phrases exclamatives sont courtes
+  (donc virgule), **35 %** entières (donc point).
+  Demande de Laurent (18/09/2026). Le `!` est retiré depuis aujourd'hui (il fait
+  monter la voix), mais le **point** n'est peut-être pas le meilleur choix : à
+  comparer à l'oreille, sur des phrases réelles du livre, entre le **point**, la
+  **virgule**, le **point de suspension** et la **suppression pure**.
+  *Objectif précisé par le retour d'oreille du 18/09 au soir* : les
+  interjections (« Oh », « Ah », « Eh ») sont **nettement mieux** mais il reste
+  une **traîne** ; le banc doit chercher la ponctuation qui la raccourcit le
+  plus, pas seulement celle qui évite la montée de hauteur.
+  **Lot fabriqué le 18/09/2026** : `LANCER_BANC_PONCTUATION.bat` (double-clic,
+  Kyutai allumé) fabrique un dossier `test_voix/ecoute_ponctuation_<date>/` avec
+  **36 fichiers** : 6 phrases réelles du tome 5 × les 4 ponctuations
+  (`P_n_P1`…`P_n_P4`), plus 6 phrases à incise × 2 (`I_n_I1` gardée, `I_n_I2`
+  retirée), un `index.txt` qui dit quoi noter, et `variantes.txt` qui garde le
+  texte exact envoyé au moteur.
+  *Premier repère mesuré (durée de « Oh ! » sur une voix Kyutai)* :
+  point **0,72 s** / virgule **0,56 s** / suspension **0,88 s** / rien **0,80 s**.
+  La **virgule** est la plus courte et la **suspension** la plus longue, mais
+  c'est la **traîne** perçue qui tranchera, pas la durée.
+  *Vérification des briques* : `test_voix/test_ponctuation_incises.py`
+  (**16 contrôles**) : les 4 ponctuations sont bien produites, et le retrait
+  d'incise ne touche **jamais** une incise suivie d'un complément, ni une incise
+  non fermée, ni le sujet de la phrase.
+  *Attendu* : classement des 4 variantes par Laurent, phrase par phrase (voir
+  `index.txt` du lot), puis réglage d'une seule ligne dans `modules/tts.py`.
+  *Deuxième variante à porter dans le même banc* (idée de Laurent du même soir,
+  voir l'item précédent) : **les incises gardées ou supprimées** (« — Il partit,
+  dit-il. » vs « — Il partit. »). Un seul lot d'écoute pour les deux questions.
+  L'atelier sait déjà fabriquer ce genre de lot (`_banc_large_point_final.py`,
+  `_banc_contexte_kyutai.py` ont fait exactement ce travail pour le point final).
+  Le réglage à changer tient en une ligne : `PONCTUATION_EXCLAMATION` dans
+  `modules/tts.py`.
+
+### Retours d'écoute du 18/09/2026 (une demi-journée d'écoute, 6 h)
+
+- [x] **Les points d'exclamation sont retirés du texte envoyé au moteur** —
+  livré le **18/09/2026**. Constat de Laurent : « Retirer les points
+  d'exclamation ». Les moteurs neuronaux **jouent** ce signe comme une montée de
+  hauteur : `Il partit !` sortait en « Il partiiiiit », et les interjections
+  (`Oh !`) en « OOOOOOoooooh ».
+  On ne touche **pas** au texte affiché : la phrase garde son `!` à l'écran, il
+  ne disparaît que de ce qui part au moteur. Le `?` reste intact (`Quoi ?!` →
+  `Quoi ?`), les suites (`!!`, `!!!`) sont ramenées à un seul signe, et l'espace
+  typographique qui précède est retiré (sinon la voix ferait deux pauses).
+  *Technique* : `modules/tts.py`. Depuis le banc d'écoute du 18/09/2026 au soir,
+  ce ne sont plus « une ligne » mais **deux signes selon la longueur de la
+  phrase** (`PONCTUATION_EXCLAMATION`, `PONCTUATION_EXCLAMATION_COURTE`,
+  `SEUIL_INTERJECTION`) — voir l'item du banc, plus bas.
+  *Vérification* : `test_voix/test_nettoyage_tts.py` (**27 contrôles**, sans moteur).
+  *Retour d'oreille de Laurent (18/09/2026 au soir, après la séance)* : « les
+  "Oh", "Ah", "Eh" sont nettement mieux. C'est bien pour une exclamation, ça
+  traîne encore un peu, mais ça ne me choque pas. » — donc **validé**, avec une
+  **traîne finale** à essayer de raccourcir : c'est justement l'objet du banc
+  d'écoute de la ponctuation (item plus bas).
+
+- [x] **Le silence après « M. » (lu monsieur) / « Mme » : cause trouvée,
+  garde-fou posé** — livré le **18/09/2026**. Constat de Laurent : « les silences
+  après les M. ou Mme […] comme s'ils héritaient du silence d'un point ».
+  *Cause mesurée* (outil `test_voix/_diag_retours_ecoute.py`) : la **page**
+  découpe les phrases **après le point d'une abréviation**, donc le moteur reçoit
+  un morceau qui se termine par l'abréviation seule. Exemple réel du tome 5 de
+  *Monte-Cristo* : `… le temps de complimenter M.` devient la phrase 1, et
+  `de Morcerf ; il a fait preuve…` la phrase 2. Le nettoyage ajoutait alors un
+  **point final** à la phrase 1 (« … complimenter Monsieur. »), c'est-à-dire une
+  **vraie fin de phrase** avec sa respiration — le silence entendu.
+  *Garde-fou livré* : plus de point final ajouté après `Monsieur`, `Madame`,
+  `Messieurs`, `Mesdames`, `Mademoiselle(s)`, `Monseigneur`, `Docteur`,
+  `Professeur`, `Saint(e)`, `numéro` (`MOTS_SANS_POINT_FINAL`, `modules/tts.py`).
+  La phrase s'enchaîne donc directement à la suivante — le contexte glissant fait
+  le reste.
+  *Mesure* : **207 coupures** de ce type dans le seul tome 5 (21 chapitres
+  touchés) : le défaut était fréquent, pas anecdotique.
+  *Retour d'oreille de Laurent (18/09/2026 au soir)* : « les M. qui sont lus
+  "monsieur" font une pause beaucoup plus petite maintenant » — **validé**, et
+  d'autant mieux que les **sauts de ligne et les pauses de phrases** sont
+  désormais trouvés corrects. La coupure en deux morceaux reste tout de même :
+  c'est l'item suivant qui la fera disparaître.
+  *Reste à faire* : le vrai correctif est de **ne plus couper après une
+  abréviation** (item suivant).
+
+- [x] **Ne plus couper les phrases après une abréviation — le vrai correctif** —
+  livré le **18/09/2026**. C'était la suite de l'item précédent : le garde-fou
+  supprimait le point final, mais la phrase restait **coupée en deux**.
+  *Correction* : une **règle unique**, écrite une seule fois
+  (`modules/decoupage.py`) et appelée par les **quatre** endroits qui
+  découpaient chacun de leur côté — la page (`app.js`, `_buildSentences`), le
+  casting (`voice_casting.py`), le re-cast (`main.py`) et la recherche
+  (`main.py`). Une phrase n'est plus coupée après `M.`, `MM.`, `Mme`, `Mmes`,
+  `Mlle(s)`, `Mgr`, `Dr`, `Pr`, `St`, `Ste` : le nom qui suit fait partie de la
+  phrase.
+  *Mesure* : **1 075 fusions** sur **107 101 phrases** (296 chapitres, 14 livres),
+  dont **207 dans le seul tome 5** — soit 1 075 silences parasites en moins.
+  *Le point délicat* : recoller les phrases **décale tous les index**, or la
+  table `speaker_attribution` dit « qui parle » phrase par phrase, et
+  `progress.cursor_idx` retient où le lecteur s'est arrêté. D'où une
+  **migration** (`test_voix/_migrer_index_phrases.py`) : chaque nouvelle phrase
+  étant la **réunion** d'anciennes, on retrouve la nouvelle par **comparaison de
+  positions** (aucune devinette), on remappe, et on garde le locuteur de la
+  phrase la plus longue quand deux locuteurs se retrouvent réunis.
+  *Déroulé* : simulation d'abord (**0 attribution sans cible**, chiffres annoncés
+  = chiffres écrits), copie datée de la base
+  (`nimm_epub.db.bak_avant_migration_20260918` **et** une copie horodatée
+  automatique), puis écriture. **Contrôle après migration**
+  (`--verifier`) : **106 026 attributions vérifiées, 0 hors bornes**.
+  *À vérifier à l'oreille* : **28 fusions** réunissent deux phrases dont les
+  locuteurs étaient différents (l'IA avait attribué les morceaux tronqués de
+  deux façons) — le locuteur de la plus longue a été gardé, et les 28 cas sont
+  listés par le script. À corriger au cas par cas dans la fenêtre du casting si
+  l'écoute les fait entendre.
+  *Vérification* : `test_voix/test_decoupage_phrases.py` (**19 contrôles**, dont
+  la comparaison entre la règle de la page et celle du serveur).
+
+
 - [x] **Babil du moteur XTTS sur les phrases courtes — corrigé** — livré le
   **16/09/2026**. Constat de Laurent (chapitre 2 du *Chevalier Errant*) : après
   une réplique de l'aubergiste, près de **4 secondes** de bouillie
@@ -225,6 +535,72 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 
 ## 🟠 Priorité 2 — Voix & casting
+
+### Retours d'écoute du 18/09/2026
+
+- [ ] **Voir les voix par THÈME, et non par moteur** — à ouvrir. Demande de
+  Laurent (18/09/2026) : « améliorer l'affichage des voix, il faut que je voie
+  plutôt par thèmes dans le style : voix grave/aiguë, âge, rapide, etc. ».
+  *Bonne nouvelle* : les thèmes **existent déjà**, ce sont les critères d'écoute
+  (`CRITERES_VOIX`, `main.py`) — âge (enfant / jeune / adulte / mûr / vieux),
+  timbre (grave / médium / aigu / rocailleux / cristallin / voilé), débit (lent /
+  posé / normal / vif), accent, registre, rôle réservé. Ils sont même **remplis** :
+  250 voix sur 265 pour l'âge, le timbre et le débit (bilan
+  `test_voix/_etat_annotations_voix.py`).
+  *Ce qui manque est donc seulement l'ÉCRAN* : la fenêtre d'écoute des voix et
+  celle du casting se lisent aujourd'hui **par moteur** (Edge, Kokoro, Piper,
+  Kyutai, XTTS, NeuTTS) et par genre. Projet : des **boutons de thème** qui
+  filtrent (femmes jeunes et aiguës, hommes mûrs et graves, voix vives, accents
+  non neutres...) et un tri par thème, **les mêmes filtres dans les deux
+  fenêtres**. Chantier frontend à découper avant de coder (l'écran d'écoute et
+  l'écran de casting doivent partager la même logique — et le pool automatique du
+  casting lit déjà ces critères).
+
+- [ ] **Fabriquer une voix : choisir un extrait de DIALOGUE, pas de narration** —
+  remarque de Laurent, 18/09/2026 au soir : « dans Librivox, il faut que je trouve
+  des passages où le lecteur lit un dialogue. J'ai remarqué que des passages que
+  j'ai pris sont des passages de "narrateur" […] Mais les passages qui contiennent
+  des dialogues donnent une prosodie toute différente […] ça améliorera nettement
+  l'effet "quelqu'un qui parle" plutôt que "quelqu'un qui lit". »
+  *Mesuré le soir même* (nouvel outil `test_voix/_analyse_extraits_dialogue.py`,
+  qui lit les transcriptions gardées dans
+  `neutts_service/references/*/references.csv`) :
+  - **CML-TTS** (les 35 voix Kyutai **et** les 25 CML-XTTS) : **13 extraits sur
+    60 (22 %)** seulement portent un dialogue → **47 voix ont un extrait de pure
+    narration** (Blanche, Diane, Éléonore, Augustin, Geneviève, Claude, Hélène,
+    Damien, Edmond, Irène, Gaston, Hubert, Isidore, Julien, Victoire, Ninon,
+    Léon, Odette, Marcel, Norbert, Monique, Quentin, Simon, et les `cml…`).
+    C'est un chiffre **fiable** : le texte vient de la banque CML-TTS, ponctué.
+  - **extraits libres de droits** (choisis à la main par Laurent) : 2 sur 19
+    (11 %) — **plancher seulement** : leur texte vient d'une transcription
+    automatique, qui ne met pas les guillemets de dialogue.
+  - **voix Kokoro clonées** : 0 sur 30 — sans surprise : leur référence est un
+    **texte de contrôle** (toujours le même), pas un extrait choisi.
+  *À faire* : (1) quand un extrait est repris dans Librivox, **chercher les
+  guillemets et les tirets** dans la page — c'est la marque du dialogue ;
+  (2) vérifier l'effet par une écoute comparative (même voix, deux extraits :
+  un dialogue et un récit). L'essai de clonage se fait dans **NIMM Voix** ; le
+  résultat est à remonter ici.
+  *Hypothèse, pas acquis* : Laurent dit « je pense que ça améliorera » — la
+  mesure ci-dessus dit seulement ce que contiennent les extraits actuels, elle
+  ne prouve pas encore l'effet sur la prosodie. À confirmer à l'oreille.
+
+- [ ] **Pocket TTS : un moteur LÉGER qui sait « fabriquer » des voix** —
+  remontée de Laurent (18/09/2026), après un essai dans l'atelier **NIMM Voix** :
+  « j'ai écouté un extrait de POCKET TTS, qui est très prometteur. Apparemment on
+  peut "fabriquer" des voix pour ce moteur aussi, et il me semble qu'il est très
+  léger. »
+  L'atelier le connaît déjà de nom — `test_voix/MEMO_pour_NIMM_Voix.md` a été
+  écrit « à réutiliser sur Pocket TTS », et le mémo Kyutai parle de « la méthode,
+  à rejouer sur Pocket TTS » : ce serait donc un candidat sérieux pour le
+  **cinquième moteur**, **léger** (donc sans bataille pour la carte graphique,
+  contrairement à Kyutai et XTTS qui ne peuvent pas cohabiter) et capable
+  d'accueillir **nos propres voix**.
+  *À faire, dans cet ordre* : (1) l'essai dans **NIMM Voix** — qualité sur du
+  français, débit, poids, licence, stabilité ; (2) seulement ensuite, la question
+  de l'intégration ici (branchement dans `modules/tts.py` sur le modèle des autres
+  services, catalogue de voix, critères d'écoute).
+  *Règle de l'atelier* : **ne rien intégrer avant d'avoir écouté et mesuré**.
 
 - [ ] **XTTS : l'INÉGALITÉ du moteur — constat de Laurent, 16/09/2026**
   Après une écoute longue de Monte-Cristo : « les voix XTTS sont très inégales,
@@ -3041,6 +3417,33 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
     de NIMM ePub est **entièrement couvert**, sans seuil ni redevance ;
   - l'usage commercial est permis **en dessous de 5 M$ de chiffre d'affaires
     annuel** ; au-delà, une licence payante est exigée ;
+- [x] **« Les retraits se font-ils mécaniquement, ou avec un LLM ? »** — question de
+  Laurent du **18/09/2026**, au moment de relancer. **Réponse consignée** :
+  **c'est du code, pas un LLM.** Le retrait des incises est une série
+  d'**expressions régulières** locales (`modules/incises.py`), appelée à chaque
+  phrase par `_clean_text` : **aucun appel réseau, aucune IA, à aucun moment de
+  la lecture**. Mesure faite le même soir : **5 105 phrases en 0,204 s**, soit
+  **0,04 ms par phrase** (≈ 25 000 phrases/seconde), là où un appel de LLM par
+  phrase coûterait 1 à 3 secondes, de l'argent, et donnerait un résultat
+  **non déterministe** (deux lectures du même passage se comporteraient
+  différemment).
+  *Qui décide quoi, en trois étages* : le **LLM** intervient **une seule fois par
+  livre**, au **casting** (attribuer chaque phrase à un personnage) ; le **code**
+  fait le **nettoyage du texte à la lecture** (incises, ponctuation, abréviations)
+  ; la **base** garde les voix attribuées.
+  *Est-ce qu'une règle de grammaire se code ?* Oui, à condition de distinguer :
+  les règles **formelles** (typographie, morphologie) se codent de façon fiable
+  — « virgule + verbe de parole + pronom collé par un trait d'union » ; les règles
+  **ambigües** se codent **avec des garde-fous et des tests** — et quand on ne
+  sait pas trancher, **on ne touche à rien** (c'est ce qui protège le texte :
+  « que » exclu car conjonction le plus souvent, aucune extension si la suite est
+  une question). Chaque cas tordu signalé par Laurent (quatre extraits le soir du
+  18/09) est devenu un **test**, donc ne peut plus revenir.
+  *Piste pour plus tard, si un cas vraiment tordu résiste* : demander au LLM **du
+  casting** (qui lit déjà toutes les phrases) de marquer aussi les incises et de
+  stocker leurs positions — la lecture resterait instantanée, le coût resterait
+  celui du casting. À évaluer (volume : ~5 000 phrases par livre).
+
   - la **redistribution du modèle est autorisée**, à condition de joindre la
     licence et de conserver les mentions d'attribution ;
   - le mot « Output » (contenu généré, **audio inclus**) est **explicitement
@@ -3061,6 +3464,39 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
     (VoxPopuli CC0).
 
 ## 🟡 Priorité 3 — Robustesse & architecture
+- [x] **Serveurs fantômes sur le port 8081 — le piège, et son garde-fou** — livré
+  le **18/09/2026** au soir, après une soirée de fausses pistes.
+  *Le piège* : fermer la fenêtre de commande ne tue pas toujours le processus
+  Python. Le port 8081 reste pris par l'**ancien serveur** ; le nouveau ne peut
+  pas démarrer (erreur d'une seconde, la fenêtre se ferme) et c'est l'ancien qui
+  répond, **avec l'ancien code en mémoire**. Laurent a donc relancé plusieurs
+  fois en croyant tester les correctifs du soir (banc d'écoute, incises,
+  ponctuation) : **rien n'était chargé**. Il y avait même un **second** serveur
+  oublié sur le port 8080, démarré le matin. Le doute est venu du bon réflexe de
+  Laurent : « j'entends encore les incises **sur un chapitre que je n'ai jamais
+  lu** » — aucun cache ne pouvait expliquer cela.
+  *Diagnostic* : comparer l'heure de démarrage du processus qui écoute
+  (`Get-NetTCPConnection` → PID → `Get-CimInstance`) avec la date de modification
+  des fichiers de `modules/`. L'écart a tout dit (serveur de 14:28, correctifs de
+  21:35). Nouvel outil : **`test_voix/_tester_tts_serveur.py`**, qui montre ce que
+  le serveur renvoie vraiment (texte nettoyé vs texte d'origine).
+  *Garde-fou livré* : **`START.bat` arrête désormais tout ancien serveur du
+  lecteur** avant de démarrer (test du port 8081, puis arrêt des `main.py`).
+  C'est la seconde partie de l'idée déjà notée dans ARCHITECTURE.md
+  (« Arrêt propre du serveur depuis le launcher ») ; le bouton « Arrêter » dans le
+  launcher reste à faire.
+  *Erreur commise — et corrigée le soir même* : la première version filtrait les
+  processus par **nom de script** (`main.py`) et a donc **arrêté NIMM**, le
+  chatbot de Laurent (`G:\NIMM`, port **8080**), qui porte lui aussi un
+  `main.py`. La version corrigée cible le **PORT 8081** et exige un processus
+  **Python** : NIMM (8080) et le relais `tailscaled` (qui écoute aussi 8081, sur
+  l'adresse Tailscale) ne sont plus jamais touchés. Laurent l'a signalé
+  lui-même (« sur le port 8080 c'est NIMM, mon chatbot »), et la correction a été
+  vérifiée par `test_voix/_essai_garde_fou_start.py` : « laisse tranquille
+  tailscaled, arrêterait python 22764 ».
+  *Sauvegarde* : `START.bat.bak_avant_garde_fou_serveur_20260918`.
+
+
 
 - [x] **Ménage : environnements de moteurs dupliqués retirés de l'atelier** —
   livré le **16/09/2026**, à la demande de Laurent (« pour ne pas faire de

@@ -16,6 +16,7 @@ nimm-epub/
 │   ├── tts_cache.py       — Cache audio disque (quota réglable, purge des plus anciens)
 │   ├── audio_trim.py      — Rognage des silences de bord (ffmpeg embarqué)
 │   ├── audio_rate.py      — Vitesse par post-traitement ffmpeg (moteurs sans réglage natif)
+│   ├── audio_gain.py      — Niveau de la parole ramené à celui des autres moteurs (Kyutai)
 │   ├── voice_casting.py   — Casting IA : analyse, fiche de personnages, attribution des voix
 │   └── config.py          — Clés API (data/config.json, hors Git)
 ├── kyutai_service/        — Moteur de voix Kyutai, lancé À PART (Python 3.12 + PyTorch)
@@ -253,7 +254,9 @@ les pauses audibles au milieu ou entre les phrases, `_clean_text()` :
   ajoutée, qui créait une pause artificielle au milieu d'un texte déjà
   découpé en phrases).
 - Supprime les espaces parasites avant `.`/`,`/`…` mais **conserve** l'espace
-  avant `?`/`!`/`:`/`;` (typographie française, prononcée naturellement).
+  avant `?`/`:` (typographie française, prononcée naturellement) — pour `!`, voir
+  la mise à jour du 18/09/2026 plus bas : il est retiré du texte envoyé au
+  moteur, espace compris.
 - `MAX_CHUNK_CHARS` passe de 2000 à **4000** : un envoi client (une phrase,
   ou un sous-segment de phrase trop longue — max ~450 car.) tient toujours
   en **un seul chunk** = une seule "utterance" Edge, sans couture/pause au
@@ -265,6 +268,125 @@ les pauses audibles au milieu ou entre les phrases, `_clean_text()` :
 - En fin de segment, une virgule/point-virgule résiduelle (segment issu
   d'une phrase découpée) devient un vrai point final : la voix lit une
   pause de fin de phrase, pas "virgule puis point".
+
+**Retours d'écoute du 18/09/2026 (deux réglages dans `_clean_text`)** —
+après une demi-journée d'écoute, Laurent a demandé de retirer les points
+d'exclamation et a signalé un silence après « M. » (lu « monsieur ») :
+
+- **Point d'exclamation retiré** du texte envoyé au moteur : les moteurs
+  neuronaux le jouent comme une **montée de hauteur** (« Il partit ! » →
+  « Il partiiiiit », « Oh ! » → « OOOOOOoooooh »). Il est remplacé par **deux
+  signes selon la longueur de la phrase**, après le banc d'écoute du 18/09/2026
+  (lot `test_voix/ecoute_ponctuation_20260918_1937`, 6 phrases réelles du
+  tome 5) : **VIRGULE** dans les phrases courtes (interjections — c'est le point
+  qui « traînait » encore), **POINT** dans les phrases entières (une vraie fin
+  de phrase). Frontière : `SEUIL_INTERJECTION = 25` caractères.
+  Le traitement est appliqué **en fin de nettoyage**, après la règle de fin de
+  segment, sinon la virgule des interjections redeviendrait un point. L'espace
+  typographique qui précède est retiré ; le texte **affiché** garde son « ! » ;
+  le `?` reste intact (`Quoi ?!` → `Quoi ?`) ; les suites (`!!`) sont ramenées
+  à un seul signe. Les valeurs sont en **une ligne** chacune
+  (`PONCTUATION_EXCLAMATION`, `PONCTUATION_EXCLAMATION_COURTE`).
+- **Incises de parole retirées du texte parlé** (`modules/incises.py`, décision
+  de Laurent du 18/09/2026 : « la voix me paraît plus fluide ») : avec une voix
+  par personnage, « , dit-il, » est redondant et coupe la voix en pleine
+  réplique. Mesure : **361 phrases retirées** sur le tome 5 (contre 289 à la
+  première version) et **19 seulement gardées** (non fermées).
+  Les incises sont retirées **en entier, complément compris** : le retrait
+  s'étend jusqu'à la virgule fermante, ou jusqu'au point si la suite ressemble à
+  un complément (« , dit-il au comte. »). Bornes : une virgule au plus, pas de
+  ponctuation forte, ≤ 70 caractères. L'incise qui **ouvre** une phrase est
+  reconnue (`MOTIF_DEBUT`) — cas fréquent depuis que le découpage sépare les
+  phrases au « ! ».
+  **Garde-fou vital** : si le retrait **vide** la phrase (une phrase qui n'est
+  que l'incise, « ajouta Valentine en s'adressant à Noirtier. »), on ne retire
+  rien — sinon la phrase disparaîtrait et le moteur refuserait un texte vide.
+  **Compromis** : le complément part avec l'incise (« en donnant son flacon »),
+  il n'est plus **entendu** mais reste **affiché**.
+  **Dernier cas — la phrase qui n'est QUE l'incise** : le découpage sépare les
+  phrases au « ! » et au « ? », donc « — Ah ! vraiment ? dit Monte-Cristo. »
+  donne trois phrases, dont « dit Monte-Cristo. » seule. La vider ferait
+  disparaître la phrase (le moteur refuse un texte vide) : la route `/api/tts`
+  renvoie alors un **court silence** (`modules/silence.py`,
+  `SILENCE_INCISE_MS = 150`, réglable). Mesure : **94 phrases** dans le tome 5.
+  Vérification : `test_voix/test_incise_seule.py`.
+  **La relative part avec l'incise** (`_etendre_relative`) : « , dit Cavalcanti,
+  qui se grisait à ce bruit métallique de paroles dorées. » → « c'est
+  magnifique. ». Garde-fous : « que » exclu (conjonction le plus souvent),
+  aucune extension si la proposition immédiate est une **question** (`?` ou `!`),
+  arrêt sur un **décrochage de sens** (« mais », « or », « puis »… ou le
+  **point-virgule**), mais « **et qui** » n'en est pas un (relative coordonnée :
+  le retrait va jusqu'au point-virgule), et la **longueur emportée** est bornée
+  (200 caractères), pas la phrase entière.
+  Le retrait se fait **tout au début du nettoyage**, avant la conversion
+  `;` → `,` et `:` → `,` : sinon ces conversions fabriquent de **fausses
+  incises** fermées (« il partit ; répondit le comte » → « … , … , … ») et le
+  sujet de la phrase pouvait disparaître (défaut attrapé par un test).
+  Formes couvertes : pronom (« dit-il », **« ajouta-t-il »** avec le *t*
+  euphonique), nom propre (« dit Barrois »), **particule noble**
+  (« dit M. de Villefort » — fréquent chez Dumas) et **nom commun avec article**
+  (« dit le comte », « reprit la jeune fille »).
+  La règle est **prudente** : jamais une incise suivie d'un complément
+  (« , dit-il en souriant, » — il resterait « en souriant » seul), jamais une
+  incise non fermée. Le texte **affiché** ne change pas.
+- **Pas de point final après une abréviation développée** : la page découpe
+  les phrases **après le point d'une abréviation**, donc le moteur recevait
+  des morceaux finissant par l'abréviation seule (« … le temps de
+  complimenter M. »). Le point final ajouté en fin de nettoyage en faisait une
+  **vraie fin de phrase**, avec la respiration entendue comme un silence
+  parasite (`MOTS_SANS_POINT_FINAL` : Monsieur, Messieurs, Madame, Mesdames,
+  Mademoiselle(s), Monseigneur, Docteur, Professeur, Saint(e), numéro).
+  Mesure : **207 coupures** de ce type dans le seul tome 5 de Monte-Cristo.
+  Le correctif de fond (ne plus couper la phrase après une abréviation)
+  demande de **migrer les index de `speaker_attribution`** : voir BACKLOG.
+
+### Niveau sonore des voix — `modules/audio_gain.py`
+
+Le moteur Kyutai ne règle pas son niveau de sortie : mesure du 18/09/2026 sur
+le cache du lecteur, **niveau de la parole** (médiane des fenêtres de 30 ms
+qui contiennent vraiment du son) : **Edge 8,4 %** de la pleine échelle contre
+**Kyutai 6,2 %**, et jusqu'à **3,4 %** sur certaines phrases (jusqu'à −8 dB).
+
+`normaliser_wav_parole()` mesure ce niveau de parole et applique le gain qui
+l'amène à la cible (`CIBLE_POURCENT = 8,5`, le niveau d'Edge). Garde-fous :
+gain plafonné (`GAIN_MAX = 4.0`), crête de sortie bornée
+(`CRETE_MAX_POURCENT = 98`), aucune atténuation, et tout format inattendu ou
+tout échec renvoie l'audio d'origine. Appelé dans `synthesize_kyutai()`
+**après** la vitesse et la hauteur, et **avant** la mise en cache : le niveau
+définitif est celui qui part au cache. Effet mesuré sur 120 phrases réelles :
+niveau de parole médian **5,4 % → 8,2 %** (≈ +3,6 dB), gain médian ×1,45.
+Vérification : `test_voix/test_niveau_audio.py`.
+
+### Le découpage en phrases — une seule règle, et sa migration (18/09/2026)
+
+La règle était écrite **quatre fois** (page, casting, re-cast, recherche) et
+coupait les phrases après le point d'une abréviation de civilité :
+« … le temps de complimenter M. | de Morcerf ; … ». Laurent l'entendait comme un
+silence après « monsieur », et le texte perdait son début à l'écran.
+
+Elle vit désormais **une seule fois**, dans `modules/decoupage.py`, appelée par
+`frontend/app.js` (`_buildSentences`, qui garde sa copie JS : le navigateur ne
+lit pas le Python), `modules/voice_casting.py` (`_split_chapter_sentences`),
+`main.py` (`_decouper_phrases_du_chapitre`) et la recherche
+(`_split_sentences`). Le test `test_voix/test_decoupage_phrases.py` compare le
+motif de coupe **et** la liste des abréviations des deux fichiers, pour qu'ils ne
+puissent pas diverger en silence.
+
+`phrases_avec_positions()` donne, pour chaque phrase, sa position dans le
+chapitre — c'est ce qui a permis la **migration** des index sans rien deviner.
+
+**La migration** (`test_voix/_migrer_index_phrases.py`) : recoller les phrases
+décale tous les index, or `speaker_attribution.sentence_idx` porte « qui parle »
+et `progress.cursor_idx` retient où le lecteur s'est arrêté. Chaque nouvelle
+phrase étant la **réunion** d'anciennes, la correspondance se retrouve par
+comparaison de positions ; quand deux locuteurs se retrouvent réunis, c'est
+celui de la phrase la plus longue qui est gardé (les cas sont signalés dans le
+rapport).
+
+Bilan du 18/09/2026 : **1 075 fusions** sur 107 101 phrases (296 chapitres,
+14 livres), **28 cas** à locuteurs mélangés, **0 attribution sans cible**, et
+**0 index hors bornes** après écriture (option `--verifier`). Copie de la base
+avant écriture : `data/nimm_epub.db.bak_avant_migration_20260918`.
 
 ---
 
@@ -316,6 +438,35 @@ lecture.
 ### Deux vues dans une seule page
 - **Bibliothèque** : grille de livres (couverture + titre + auteur), bouton upload
 - **Lecteur** : texte du chapitre, navigation chapitres, barre TTS, curseur glitch
+
+### Chargement d'un chapitre — jamais de chapitre sauté (18/09/2026)
+Constat de Laurent : « parfois le chapitre ne se charge pas correctement, et
+zappe complètement un chapitre : il passe du quatre-vingt-un au
+quatre-vingt-trois, surtout après une erreur de chargement ».
+
+Cause : `loadChapter()` posait `_currentChapter = index` **avant** la requête.
+Un échec laissait donc le lecteur sur le chapitre raté, avec les phrases du
+chapitre **précédent** encore en mémoire ; à la fin de leur lecture,
+l'enchaînement automatique appelait `loadChapter(_currentChapter + 1)` — et le
+chapitre raté était sauté.
+
+Correction, en trois temps (`frontend/app.js`) :
+- `_demanderChapitre(index)` fait la requête et renvoie `null` en cas d'échec ;
+  `_currentChapter` n'est posé qu'une fois la réponse **reçue** ;
+- un échec est **retenté** (`CHARGEMENT_ESSAIS = 3`, `CHARGEMENT_PAUSE_MS =
+  1200`) : un échec de chargement est presque toujours passager (serveur occupé,
+  réseau qui vacille) ;
+- après un échec définitif, `_afficherEchecChapitre()` **vide** `_sentences` et
+  `_paragraphStarts` (plus de lecture fantôme de l'ancien chapitre) et affiche un
+  message ainsi qu'un bouton `.chapter-retry-btn` (« Réessayer ce chapitre »).
+- Au passage, `_pause(ms, signal)` accepte désormais l'absence de signal : elle
+  le supposait toujours présent, ce qui aurait fait échouer la pause entre deux
+  essais.
+
+Vérification : `test_voix/test_chargement_chapitre.js` (**17 contrôles**) —
+sans navigateur, il **exécute** le vrai code de `app.js` sur un faux DOM et un
+faux serveur : panne persistante, panne passagère (un seul essai), chargement
+normal.
 
 ### Cartes de livres sur mobile — titre en entier (15/09/2026)
 Demande de Laurent : sur son téléphone, la **couverture était rognée** par le
@@ -1702,12 +1853,42 @@ dans Firefox (Paramètres → Vie privée et sécurité → DNS sécurisé →
 Désactivé). À garder en tête si le problème resurgit sur un autre
 appareil Firefox de la famille.
 
-### 🔌 Arrêt propre du serveur depuis le launcher
-**Idée :** Ajouter un bouton "Arrêter" dans le launcher qui envoie un signal
-d'arrêt au serveur EPUB (SIGTERM ou route `/shutdown`). Évite les processus
-fantômes qui occupent le port 8081 sans être vraiment actifs.
-Le START.bat pourrait aussi tuer automatiquement tout processus sur 8081
-avant de démarrer.
+### 🔌 Serveurs fantômes sur le port 8081 — le piège, et son garde-fou (18/09/2026)
+
+**Le piège, vécu le 18/09/2026 au soir** : fermer la fenêtre de commande ne tue
+pas toujours le processus Python. Le port 8081 reste alors **pris par l'ancien
+serveur** ; le nouveau ne peut pas démarrer (erreur affichée une seconde, puis la
+fenêtre se ferme) et c'est l'**ancien** serveur qui répond — avec l'**ancien code
+en mémoire**. Ce soir-là, Laurent a donc relancé plusieurs fois en croyant tester
+les correctifs : rien n'était chargé (le banc d'écoute, la règle des incises, la
+ponctuation des interjections). Le doute venait aussi d'un **second** serveur
+oublié sur le port 8080, démarré le matin.
+
+**Comment le diagnostiquer** : comparer l'heure de démarrage du processus qui
+écoute (`Get-NetTCPConnection` → PID → `Get-CimInstance Win32_Process`) avec la
+date de modification des fichiers de `modules/`. Et
+`test_voix/_tester_tts_serveur.py` dit, lui, ce que le serveur renvoie vraiment.
+
+**Garde-fou livré** : `START.bat` teste désormais le port 8081 avant de démarrer
+et **arrête tout ancien serveur du lecteur**. C'est la seconde partie de l'idée
+notée ci-dessous, réalisée le même soir.
+
+⚠️ **Leçon du même soir, apprise à mes dépens** : la **première** version du
+garde-fou filtrait les processus par **nom de script** (`main.py`,
+`uvicorn main:app`). Or **NIMM, le chatbot de Laurent** (dossier `G:\NIMM`,
+interface PC sur `localhost:8080`) utilise lui aussi un `main.py` — le garde-fou
+l'a donc **arrêté par erreur**. La version corrigée cible le **PORT 8081** (la
+seule signature fiable du lecteur) **et** exige un processus **Python** (pour ne
+jamais toucher le relais `tailscaled`, qui écoute aussi sur 8081 mais sur
+l'adresse Tailscale). Règle générale à retenir : **ne jamais identifier un
+processus par le nom de son script** quand deux applications de la maison
+peuvent porter le même nom.
+*Essai sans risque du garde-fou* : `test_voix/_essai_garde_fou_start.py` (dit qui
+serait arrêté, sans rien arrêter).
+
+**Reste à faire (idée d'origine)** : un bouton « Arrêter » dans le launcher
+(signal d'arrêt ou route `/shutdown`).
+
 
 ### 👨‍👩‍👧 Profils familiaux (multi-utilisateurs)
 ✅ **Réalisé** — voir section dédiée "Profils familiaux — main.py + index.html

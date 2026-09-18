@@ -88,6 +88,41 @@ rem    lui. L'ancien bloc NeuTTS est conserve dans l'historique Git ; NeuTTS
 rem    reste lancable a la main : neutts_service\DEMARRER_NEUTTS.bat.)
 
 :lecteur
+
+rem ============================================================
+rem  GARDE-FOU AJOUTE LE 18/09/2026 (piege constate le meme soir)
+rem
+rem  PROBLEME : fermer la fenetre de commande ne tue pas toujours le
+rem  processus Python. Le port 8081 reste alors PRIS par l'ancien serveur ;
+rem  le nouveau ne peut pas demarrer (message d'erreur d'une seconde, puis
+rem  la fenetre se ferme) et c'est l'ANCIEN serveur qui repond -- avec
+rem  l'ANCIEN code en memoire. Ce soir-la, Laurent a relance plusieurs fois
+rem  en croyant tester les corrections, alors que tout etait inchange a
+rem  l'oreille.
+rem
+rem  Donc : avant de demarrer, on ARRETE tout serveur deja en marche.
+rem
+rem  ATTENTION (lecon du 18/09/2026, apprise a mes depens) : on cible le
+rem  processus par le PORT (8081), JAMAIS par le nom du script. NIMM (le
+rem  chatbot de Laurent, G:\NIMM) utilise lui aussi un "main.py" et tourne
+rem  sur le port 8080 : un filtre par nom de fichier l'aurait tue lui.
+rem  Et on exige un processus PYTHON, pour ne jamais toucher le relais
+rem  Tailscale qui ecoute aussi sur 8081 (adresse Tailscale uniquement).
+rem ============================================================
+curl -s -o NUL --max-time 2 http://127.0.0.1:8081/ >nul 2>&1
+if not errorlevel 1 (
+    echo.
+    echo  Un serveur NIMM ePub tourne DEJA sur le port 8081.
+    echo  On l'arrete, pour que le nouveau demarre avec le code a jour.
+    echo  ^(Sans cela, le nouveau ne demarre pas et c'est l'ANCIEN qui
+    echo   continue de repondre : on croirait que rien ne change.^)
+    echo.
+    powershell -NoProfile -Command "$pids = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($p in $pids) { $proc = Get-Process -Id $p -ErrorAction SilentlyContinue; if ($proc -and $proc.ProcessName -like 'python*') { Stop-Process -Id $p -Force } }"
+    timeout /t 2 /nobreak >nul
+    echo  Ancien serveur arrete.
+    echo.
+)
+
 echo.
 python main.py
 pause

@@ -28,7 +28,10 @@ check("newline", _clean_text("Ligne 1\nligne 2."), "Ligne 1 ligne 2.")
 
 # 3. Abreviation developpee, ponctuation francaise conservee
 check("guillemet", _clean_text("\"Au revoir\""), "\"Au revoir\"")
-check("guillemet2", _clean_text("Elle dit : « Bonjour »"), "Elle dit : « Bonjour »")
+# Attendu mis a jour le 18/09/2026 : depuis le 17/09/2026 au soir, le
+# deux-points devient une virgule (le moteur n'en faisait AUCUNE pause, constat
+# de Laurent) -- ce test datait d'avant et n'avait pas suivi.
+check("guillemet2", _clean_text("Elle dit : « Bonjour »"), "Elle dit, « Bonjour »")
 
 # 4. Espaces parasites avant point/virgule supprimes, espace avant ? gardee
 check("espace_ponct", _clean_text("Une phrase , puis une autre ."), "Une phrase, puis une autre.")
@@ -54,9 +57,12 @@ if any(len(s) > 470 for s in segs):
     fail += 1
 
 # 8. Chunk apres clean_text (production : _clean_text puis _split_into_chunks)
+# Attendu mis a jour le 18/09/2026 : le point d'exclamation est retire du texte
+# envoye au moteur (il faisait monter la voix). Le « ! » de la phrase affichee
+# ne change pas ; seule la version parlee devient un point.
 cleaned = _clean_text("Premiere phrase...\nSeconde phrase!")
 check("chunk_suspension", _split_into_chunks(cleaned, max_chars=4000),
-      ["Premiere phrase… Seconde phrase!"])
+      ["Premiere phrase… Seconde phrase."])
 
 # 9. Fin de segment sur virgule -> point final (pas de "virgule puis point")
 check("fin_virgule", _clean_text("Premier morceau, seconde moitie,"),
