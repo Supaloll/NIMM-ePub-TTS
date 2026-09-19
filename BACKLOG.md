@@ -816,7 +816,67 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   mesure ci-dessus dit seulement ce que contiennent les extraits actuels, elle
   ne prouve pas encore l'effet sur la prosodie. À confirmer à l'oreille.
 
-- [ ] **Pocket TTS : un moteur LÉGER qui sait « fabriquer » des voix** —
+- [ ] **Fish Audio (S2 / S1-mini) : le clonage avec ÉMOTIONS et plusieurs voix —
+  à évaluer** (question de Laurent, 19/09/2026 : « jette un œil sur Fish Audio,
+  c'est un truc chinois qui clone des voix à la volée ; je ne sais pas si c'est
+  embarqué dans un service web, ou s'ils ont partagé le logiciel à part du
+  site »). **Réponse vérifiée le 19/09/2026 : les DEUX.** Il y a le service web
+  (`fish.audio`, avec playground et API payante) **et** le logiciel complet,
+  librement téléchargeable : dépôt GitHub `fishaudio/fish-speech` (« SOTA Open
+  Source TTS », 32,7 k étoiles), documentation `speech.fish.audio`, poids sur
+  Hugging Face, avec WebUI, ligne de commande, serveur d'inférence et Docker.
+  *Ce qui le rend intéressant pour nous* (c'est exactement ce qui manque aux
+  moteurs actuels) :
+  - **clonage à partir de 10 à 30 s** d'audio (XTTS et Pocket TTS demandent
+    davantage, ou tronquent à 30 s) ;
+  - **marqueurs d'émotion dans le texte** : `(angry)`, `(whispering)`,
+    `(laughing)`, `(sighing)`… et en langage naturel pour S2 (`[laugh]`,
+    `[whispers]`, `[super happy]`) — de quoi donner un vrai JEU à un personnage ;
+  - **plusieurs locuteurs dans un seul audio de référence**, avec les jetons
+    `<|speaker:i|>` : une seule génération peut contenir plusieurs voix ;
+  - **génération multi-tours** (le contexte précédent améliore la suite).
+  *Pistes de « voix de qualité » demandées par Laurent : c'est la plus sérieuse
+  rencontrée jusqu'ici.*
+  *Modèles* : **S2-Pro (4B)** sur Hugging Face (le plus récent, le meilleur) ;
+  **S1-mini (0.5B)** — version distillée **légère** — et **S1 (4B)**, qui lui est
+  **propriétaire** (non téléchargeable : ne pas confondre).
+  *Langues* : le **français est supporté** (13 langues pour S1, ~50 pour S2).
+  *Licences — ATTENTION, c'est le point sensible* : le code **et** les poids sont
+  passés à la **« Fish Audio Research License »** (révisée le 07/03/2026), qui
+  autorise **gratuitement la recherche et le NON-COMMERCIAL** — la licence
+  définit explicitement le « Non-Commercial Purpose » comme l'**usage personnel
+  (hobbyist)** ou l'évaluation, donc le nôtre est **couvert** ; S1-mini est sous
+  **CC-BY-NC-SA-4.0**. En revanche : **tout usage commercial exige une licence
+  séparée** (business@fish.audio), il faut **garder la notice d'attribution** et
+  afficher « Built with Fish Audio » si on distribue. À retenir pour les items
+  « PARTAGE » et « Diffusion » : **aucun usage commercial** avec ces voix.
+  S1-mini est de plus **« gated »** (compte Hugging Face + acceptation des
+  conditions obligatoires).
+  *Contrainte matérielle — MESURÉE le 19/09/2026, et c'est le point qui
+  bloque* : la documentation d'installation (`speech.fish.audio/install`) exige
+  **24 Go de VRAM** pour l'inférence, et un système **Linux ou WSL** (« System:
+  Linux, WSL » ; le `torch.compile` n'est même **pas supporté sous Windows
+  natif**). Or la machine de Laurent a une **RTX 4060 (8 Go de VRAM)** et 32 Go
+  de RAM : **trois fois moins de mémoire graphique que nécessaire**. Les
+  performances annoncées (RTF 0,195 ; ~100 ms avant le premier son) sont mesurées
+  sur une **NVIDIA H200**, ce qui n'a rien à voir.
+  → **S2-Pro est hors de portée en l'état** sur cette machine. Le dépôt prévoit
+  heureusement un mode **CPU-only** (`BACKEND=cpu`), lent mais utilisable pour
+  fabriquer quelques voix, et **S1-mini (0,5B)** — plus léger — mérite un essai
+  (l'outillage actuel du dépôt ne vise plus que S2 : il faudrait une version
+  antérieure du dépôt pour S1-mini).
+  *Ordre conseillé, dans l'esprit de l'atelier (« on essaie sur un petit cas
+  avant d'investir du temps »)* : (1) juger d'abord la **qualité du français et
+  du clonage** avec le **playground web** (`fish.audio`, gratuit) sur nos propres
+  extraits — 10 minutes suffisent ; (2) **seulement si** c'est nettement mieux
+  que Pocket TTS / NeuTTS / XTTS, monter l'installation locale (WSL2 + GPU, ou
+  S1-mini, ou CPU) ; (3) **rien n'est intégré ici avant d'avoir écouté**.
+  ⚠️ Ne pas oublier la cohabitation GPU : Kyutai et XTTS ne peuvent déjà pas
+  tourner en même temps sur cette machine (voir l'item correspondant).
+  *Où* : l'essai se fait dans **NIMM Voix**, avec la règle de l'atelier :
+  **licence notée d'abord**, puis écoute et mesure sur du français.
+
+
   remontée de Laurent (18/09/2026), après un essai dans l'atelier **NIMM Voix** :
   « j'ai écouté un extrait de POCKET TTS, qui est très prometteur. Apparemment on
   peut "fabriquer" des voix pour ce moteur aussi, et il me semble qu'il est très
