@@ -184,6 +184,69 @@ def _etendre_relative(phrase, fin):
     return fin_relative
 
 
+# ============================================================
+# LE GROUPE PARTICIPIAL QUI SUIT UNE INCISE FERMEE (19/09/2026)
+# ============================================================
+# Defaut constate par le TEST ADVERSE du 19/09/2026 (cas C1 de Claude.AI) :
+# quand l'incise est FERMEE, elle part seule et laisse le geste ORPHELIN --
+# « — Merci, dit Morrel, se levant. » devenait « — Merci se levant. », ce qui
+# viole le garde-fou « jamais de mot orphelin ».
+# Mesure dans le tome 5 avant de corriger : **2 phrases** seulement, mais le
+# defaut est net (`test_voix/_mesurer_vague1_20260919.py`).
+#
+# On emporte donc ce qui suit, jusqu'a la virgule suivante ou la fin :
+#   - un PARTICIPE PRESENT : « se levant », « souriant », « tendant la main » ;
+#   - « en + participe » : « en souriant » ;
+#   - un GESTE : « avec un col », « avec un sourire ».
+# GARDE-FOU : on ne l'emporte JAMAIS si le groupe parle du locuteur de la
+# replique (« avec vous », « en vous levant ») : la, c'est la REPLIQUE qui
+# continue, et l'emporter effacerait du texte parle.
+DEBUT_PARTICIPE = re.compile(
+    r'^(?:se\s+)?[\w\u00c0-\u00ff-]+ant\b'
+    r'|^en\s+[\w\u00c0-\u00ff-]+ant\b'
+    r'|^avec\s+(?:un|une)\s')
+
+# Pronoms et possessifs de la 1re et de la 2e personne : s'ils sont dans le
+# groupe, c'est la replique qui parle, pas le narrateur.
+PRONOMS_REPLIQUE = re.compile(
+    r'\b(?:je|tu|nous|vous|me|te|moi|toi|mon|ton|notre|votre'
+    r'|mes|tes|nos|vos)\b', re.IGNORECASE)
+
+
+# Mots en « -ant » qui ne sont PAS des participes présents. Sans cette liste,
+# un motif sur « ...ant » emporterait tout : « , dit-il, MAINTENANT il faut
+# partir. » perdrait la fin de la réplique. (Piège repéré le 19/09/2026.)
+MOTS_PAS_PARTICIPES = frozenset((
+    'maintenant', 'cependant', 'pourtant', 'néanmoins', 'nonobstant',
+    'avant', 'pendant', 'devant', 'quand', 'tant', 'autant', "d'autant",
+    'instant', 'moment', 'printemps', 'sergent', 'argent', 'vent', 'gant',
+    'enfant', 'servant', 'commandant', 'passant', 'restaurant',
+))
+
+
+def _etendre_participle(phrase, fin):
+    """Emporte le geste qui suit une incise FERMEE (ou rend `fin` inchange)."""
+    suite = phrase[fin:]
+    debut = fin + (len(suite) - len(suite.lstrip()))
+    reste = phrase[debut:]
+    if not DEBUT_PARTICIPE.match(reste):
+        return fin
+    virgule = reste.find(',')
+    morceau = reste.strip() if virgule == -1 else reste[:virgule].strip()
+    # Premier mot en « -ant » qui n'est pas un participe (maintenant, pourtant,
+    # pendant...) : c'est la replique ou le recit qui continue, on ne touche a rien.
+    premier = morceau.split(' ')[0].lower()
+    if premier in MOTS_PAS_PARTICIPES:
+        return fin
+    # Le groupe parle-t-il de la REPLIQUE ? Alors on ne touche a rien.
+    if PRONOMS_REPLIQUE.search(morceau):
+        return fin
+    # Trop long pour un geste : c'est autre chose, on s'abstient.
+    if len(morceau) > LONGUEUR_SUITE_MAX:
+        return fin
+    return len(phrase) if virgule == -1 else debut + virgule + 1
+
+
 def _matches(phrase):
     """[(debut, fin)] de tout ce qui RESSEMBLE a une incise (sans filtre)."""
     trouves = []
@@ -263,6 +326,11 @@ def incises(phrase):
         fin_relative = _etendre_relative(phrase, fin)
         if fin_relative > fin:
             fin = fin_relative
+        # Le GESTE qui suit l'incise part avec elle (« , dit Morrel, se levant. ») :
+        # sans cela il resterait orphelin (cas C1 du test adverse du 19/09/2026).
+        fin_geste = _etendre_participle(phrase, fin)
+        if fin_geste > fin:
+            fin = fin_geste
         trouvees.append((debut, fin))
     return trouvees
 

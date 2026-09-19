@@ -90,7 +90,13 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       Mesure avant de decider : 67 phrases touchees dans le tome 5, aucune ne
 #       perd tout son texte. Sans cet increment, les phrases deja en cache
 #       serviraient l'ANCIEN rendu et l'incise semblerait toujours lue.
-VERSION_CACHE = 11
+#  12 = 19/09/2026 : le GESTE qui suit une incise FERMEE part desormais avec
+#       elle (« , dit Morrel, se levant. » ne laisse plus « se levant. »
+#       orphelin, ce qui violait le garde-fou « jamais de mot orphelin »). Cas
+#       trouve par le TEST ADVERSE (Claude.AI, cas C1) : 2 phrases dans le
+#       tome 5. Les faux participes (maintenant, pendant, pourtant) et les
+#       groupes qui parlent de la replique (« avec vous ») sont preserves.
+VERSION_CACHE = 12
 
 
 def _hash_key(text, voice, rate, pitch):

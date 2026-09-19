@@ -140,6 +140,27 @@ def main():
     # doit pas etre pris pour une incise (frontiere de mot exigee).
     verifier('un mot en -dit n est pas pris pour une incise (frontiere de mot)',
              'maudit' in _clean_text("\u2014 Il partit, maudit-il."))
+    # 19/09/2026 -- LE GESTE qui suit une incise FERMEE part avec elle (cas C1
+    # du test adverse). Sans cela, « — Merci se levant. » laissait un mot
+    # ORPHELIN, ce qui violait le garde-fou. Mesure : 2 phrases dans le tome 5.
+    egal('geste apres une incise fermee : parti avec elle',
+         '\u2014 Merci, dit Morrel, se levant.', '\u2014 Merci.')
+    egal('geste « avec un ... » : parti avec l incise',
+         '\u2014 Je pars, dit Morrel, avec un sourire.', '\u2014 Je pars.')
+    # ...et les PIEGES : ce ne sont PAS des gestes, c'est la replique qui
+    # continue. Les emporter effacerait du texte parle (piège repéré le meme
+    # jour : un motif large sur « ...ant » attrapait « maintenant »).
+    verifier('« maintenant » n est pas pris pour un participe',
+             'maintenant' in _clean_text(
+                 '\u2014 Il partit, dit-il, maintenant il faut partir.'))
+    verifier('« pendant » n est pas pris pour un participe',
+             'pendant' in _clean_text(
+                 '\u2014 Il partit, dit-il, pendant que je le regardais.'))
+    verifier('« avec vous » n est pas emporte (la replique continue)',
+             'avec vous' in _clean_text('\u2014 Je pars, dit Morrel, avec vous.'))
+    verifier('« en me regardant » n est pas emporte (pronom de replique)',
+             'me regardant' in _clean_text(
+                 '\u2014 Il partit, dit-il, en me regardant.'))
 
     print('')
     print('6) les abreviations collees a une majuscule (le « mleu » du banc)')

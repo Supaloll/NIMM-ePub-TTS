@@ -628,6 +628,19 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   - **le PARTICIPE orphelin** (C1) : « — Merci, dit Morrel, **se levant**. » →
     « — Merci se levant. » C'est le garde-fou « jamais de mot orphelin » qui
     tombe.
+    ✅ **CORRIGÉ le 19/09/2026** : le geste qui suit une incise **fermée** part
+    avec elle (`_etendre_participle`, `modules/incises.py`) — participe présent,
+    forme pronominale (« se levant »), « en + participe », ou geste (« avec un
+    col »). **Deux garde-fous ajoutés**, après avoir trouvé chacun son propre
+    piège : (1) une **liste noire** des mots en « -ant » qui ne sont pas des
+    participes (`maintenant`, `pendant`, `pourtant`…) — sans elle, « , dit-il,
+    MAINTENANT il faut partir. » perdait la fin de la réplique ; (2) les groupes
+    qui parlent de la **réplique** (pronoms et possessifs de la 1ʳᵉ/2ᵉ personne :
+    « avec vous », « en me regardant ») ne sont **jamais** emportés.
+    `VERSION_CACHE` 11 → **12**. **6 contrôles** ajoutés à
+    `test_nettoyage_tts.py` (2 cas légitimes + 4 pièges) → **37 contrôles, 0
+    échec**. Effet mesuré : la narration abîmée passe de **8 à 7** phrases dans
+    le tome 5.
   - **les NOMS COMPOSÉS jamais reconnus** (B2) : « dit le comte de
     Monte-Cristo », « dit Valentine de Villefort », « dit M. Morrel père »,
     « dit l'abbé Faria », « dit le procureur du roi » → **l'incise reste LUE**,
