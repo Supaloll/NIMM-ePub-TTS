@@ -670,6 +670,17 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
     `test_nettoyage_tts.py` (2 cas légitimes + 4 pièges) → **37 contrôles, 0
     échec**. Effet mesuré : la narration abîmée passe de **8 à 7** phrases dans
     le tome 5.
+    *Complément du même soir (après écoute)* : une **énumération de gestes** part
+    maintenant **en entier** (« avec un col, avec un habit, avec un gilet
+    blanc… ») — sinon seul le premier morceau partait et le texte restait bancal
+    (« voyez avec un habit ouvert… »), constaté à l'oreille au chapitre 90 du
+    tome 5. `VERSION_CACHE` 12 → **13**, **2 contrôles** de plus (**39** au
+    total, 0 échec).
+    ⏸️ *Reste imparfait sur 2 phrases TRÈS longues* du tome 5 (énumérations et
+    relatives imbriquées : chapitre 81 phrase 20 « …beau-père », dit Cavalcanti,
+    se laissant entraîner… » et chapitre 90 phrase 252) : le geste part, mais le
+    texte parlé reste bancal. Ces cas relèvent de la **même famille que A2/A3** —
+    à traiter ensemble, à froid.
   - **les NOMS COMPOSÉS jamais reconnus** (B2) : « dit le comte de
     Monte-Cristo », « dit Valentine de Villefort », « dit M. Morrel père »,
     « dit l'abbé Faria », « dit le procureur du roi » → **l'incise reste LUE**,

@@ -96,7 +96,12 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       trouve par le TEST ADVERSE (Claude.AI, cas C1) : 2 phrases dans le
 #       tome 5. Les faux participes (maintenant, pendant, pourtant) et les
 #       groupes qui parlent de la replique (« avec vous ») sont preserves.
-VERSION_CACHE = 12
+#  13 = 19/09/2026, meme soiree : une ENUMERATION de gestes part desormais EN
+#       ENTIER (« , dit Beauchamp, avec un col, avec un habit, avec un gilet
+#       blanc... »). Sans cela, seul le premier morceau partait et le texte
+#       restait bancal (« voyez avec un habit ouvert... ») -- constate a
+#       l'oreille, chapitre 90 du tome 5.
+VERSION_CACHE = 13
 
 
 def _hash_key(text, voice, rate, pitch):

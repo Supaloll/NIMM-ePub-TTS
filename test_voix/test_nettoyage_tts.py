@@ -161,6 +161,16 @@ def main():
     verifier('« en me regardant » n est pas emporte (pronom de replique)',
              'me regardant' in _clean_text(
                  '\u2014 Il partit, dit-il, en me regardant.'))
+    # Une ENUMERATION de gestes part EN ENTIER : sinon il ne resterait que le
+    # premier morceau retire et le texte serait bancal (« voyez avec un habit
+    # ouvert... »). Constat fait a l'oreille, chapitre 90 du tome 5.
+    enumeration = ('\u2014 Et puis, voyez, dit Beauchamp, avec un col, avec un '
+                   'habit, avec un gilet blanc, que ne fait-il pas ?')
+    verifier('une ENUMERATION de gestes part en entier',
+             'avec un col' not in _clean_text(enumeration)
+             and 'avec un gilet' not in _clean_text(enumeration))
+    verifier('...et la suite de la replique est conservee',
+             'que ne fait-il pas' in _clean_text(enumeration))
 
     print('')
     print('6) les abreviations collees a une majuscule (le « mleu » du banc)')

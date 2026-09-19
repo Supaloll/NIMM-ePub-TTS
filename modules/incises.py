@@ -225,26 +225,38 @@ MOTS_PAS_PARTICIPES = frozenset((
 
 
 def _etendre_participle(phrase, fin):
-    """Emporte le geste qui suit une incise FERMEE (ou rend `fin` inchange)."""
-    suite = phrase[fin:]
-    debut = fin + (len(suite) - len(suite.lstrip()))
-    reste = phrase[debut:]
-    if not DEBUT_PARTICIPE.match(reste):
-        return fin
-    virgule = reste.find(',')
-    morceau = reste.strip() if virgule == -1 else reste[:virgule].strip()
-    # Premier mot en « -ant » qui n'est pas un participe (maintenant, pourtant,
-    # pendant...) : c'est la replique ou le recit qui continue, on ne touche a rien.
-    premier = morceau.split(' ')[0].lower()
-    if premier in MOTS_PAS_PARTICIPES:
-        return fin
-    # Le groupe parle-t-il de la REPLIQUE ? Alors on ne touche a rien.
-    if PRONOMS_REPLIQUE.search(morceau):
-        return fin
-    # Trop long pour un geste : c'est autre chose, on s'abstient.
-    if len(morceau) > LONGUEUR_SUITE_MAX:
-        return fin
-    return len(phrase) if virgule == -1 else debut + virgule + 1
+    """Emporte le geste (ou l'ENUMERATION de gestes) qui suit une incise FERMEE.
+
+    Depuis le 19/09/2026, on continue tant que le morceau suivant est encore un
+    geste : « , dit Beauchamp, avec un col a sa cravate, avec un habit ouvert,
+    avec un gilet blanc... ». Sans cette suite, SEUL le premier morceau partait
+    et le texte devenait bancal (« voyez avec un habit ouvert... ») -- constate
+    a l'oreille dans le chapitre 90 du tome 5.
+    """
+    courant = fin
+    for _ in range(4):      # borne : les enumerations du roman en comptent 2 ou 3
+        suite = phrase[courant:]
+        debut = courant + (len(suite) - len(suite.lstrip()))
+        reste = phrase[debut:]
+        if not DEBUT_PARTICIPE.match(reste):
+            break
+        virgule = reste.find(',')
+        morceau = reste.strip() if virgule == -1 else reste[:virgule].strip()
+        # Premier mot en « -ant » qui n'est pas un participe (maintenant,
+        # pourtant, pendant...) : la replique ou le recit continue, on s'arrete.
+        premier = morceau.split(' ')[0].lower()
+        if premier in MOTS_PAS_PARTICIPES:
+            break
+        # Le groupe parle-t-il de la REPLIQUE ? Alors on ne touche a rien.
+        if PRONOMS_REPLIQUE.search(morceau):
+            break
+        # Trop long pour un geste : c'est autre chose, on s'abstient.
+        if len(morceau) > LONGUEUR_SUITE_MAX:
+            break
+        if virgule == -1:
+            return len(phrase)
+        courant = debut + virgule + 1
+    return courant
 
 
 def _matches(phrase):
