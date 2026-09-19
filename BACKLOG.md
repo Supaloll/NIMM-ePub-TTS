@@ -1190,6 +1190,28 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   22_11_63`** (audiobook **acheté**) → **usage privé** : la voix obtenue ne se
   partage jamais, elle vit dans une banque séparée (`voix_privees/`) et sa fiche
   porte la mention « usage privé — ne pas diffuser ».
+  ⏸️ *Mettre en pause et reprendre plus tard : OUI, c'est possible* (vérifié le
+  19/09/2026 dans `kokoro/pipeline.py`, ligne 153 : `if voice.endswith('.pt')` —
+  la voix de départ peut être un **FICHIER**). Il n'existe **pas** d'option
+  `--resume`, mais on relance un entraînement en pointant `--voice-init` sur le
+  dernier checkpoint :
+  `--voice-init "..\training\voix_pro\voice_pack_epoch002.pt"`.
+  *Les quatre choses à savoir* :
+  1. l'optimiseur Adam **repart de zéro** — la reprise n'est pas
+     mathématiquement identique à un entraînement continu, mais **ça
+     fonctionne** : le pack garde ses acquis et continue de s'affiner ;
+  2. il n'y a **pas de scheduler** de taux d'apprentissage (le `--lr` reste le
+     même) : rien à recaler, tant mieux pour la reprise ;
+  3. couper fait perdre l'**époque en cours** — les époques **terminées** sont
+     sauvées (`voice_pack_epochNNN.pt`) ;
+  4. `--save-every-epoch` numérote les époques **de la session** : à la reprise,
+     utiliser un **autre `--out-dir`** (`training\voix_pro_2`) pour ne pas
+     écraser les fichiers de la veille. Et `apres_train_pro.py` attend
+     `voice_pack_trained.pt` (le **FINAL**) : pour écouter une session
+     partielle, copier le checkpoint voulu sous ce nom.
+  *Où ça se conduit* : dans **l'atelier NIMM Voix** (VS Code ouvert sur
+  `G:\NIMM Voix`), là où sont le `.venv`, les scripts et les corpus — Cline y
+  travaille avec les règles de CET atelier.
 
 - [x] **Timbre : « très grave » et « très aigu » ajoutés** — livré le
   **19/09/2026**, demande de Laurent : « juste ajouter le "très aigu\très grave"
