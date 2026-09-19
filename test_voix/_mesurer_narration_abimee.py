@@ -67,8 +67,15 @@ def main():
     conn.close()
 
     total = {'phrases': 0, 'narration': 0, 'narration_abimee': 0,
-             'perso': 0, 'perso_abimee': 0}
+             'perso': 0, 'perso_abimee': 0,
+             # Heuristique de FORME : une replique commence-t-elle par un tiret
+             # de dialogue ou un guillemet ? Si c'est fiable, on peut proteger
+             # le recit SANS toucher a l'architecture (pas de champ a ajouter).
+             'replique_tiret': 0, 'replique_sans_tiret': 0,
+             'narration_tiret': 0,
+             'incises_rates_par_forme': 0, 'incises_gagnees_par_forme': 0}
     exemples = []
+    exemples_forme = []
 
     for chapitre in get_chapters(str(chemin)):
         for idx, phrase in enumerate(_phrases(chapitre['text'])):
@@ -81,6 +88,16 @@ def main():
                 total['perso'] += 1
             if not incises(phrase):
                 continue
+            # --- Heuristique de FORME : tiret de dialogue ou guillemet ouvrant.
+            a_tiret = phrase.lstrip()[:1] in ('\u2014', '\u2013', '\u00ab')
+            if est_narration:
+                if a_tiret:
+                    total['narration_tiret'] += 1
+            else:
+                if a_tiret:
+                    total['replique_tiret'] += 1
+                else:
+                    total['replique_sans_tiret'] += 1
             # On ne compte que les VRAIES modifications : une phrase qui n'est
             # qu'une incise est protegee par le garde-fou de `retirer_incises`
             # (elle revient inchangee), ce n'est donc PAS un degat.
@@ -93,6 +110,13 @@ def main():
                     exemples.append((chapitre['index'], idx, phrase, apres))
             else:
                 total['perso_abimee'] += 1
+                # Ce qu'on PERDRAIT si on ne retirait les incises que dans les
+                # phrases a tiret : une incise de replique sans tiret.
+                if not a_tiret:
+                    total['incises_rates_par_forme'] += 1
+                    if len(exemples_forme) < options.exemples:
+                        exemples_forme.append((chapitre['index'], idx, phrase,
+                                               apres))
 
     print('')
     print('-' * 78)
@@ -109,6 +133,28 @@ def main():
     print('  PERSONNAGE touche par le retrait          %6d   (normal : c est'
           ' le but)' % total['perso_abimee'])
     print('')
+    print('  --- HEURISTIQUE DE FORME (tiret de dialogue ou guillemet)')
+    print('      repliques qui COMMENCENT par un tiret   %6d'
+          % total['replique_tiret'])
+    print('      repliques SANS tiret                   %6d'
+          % total['replique_sans_tiret'])
+    print('      phrases de NARRATION avec un tiret     %6d'
+          % total['narration_tiret'])
+    print('')
+    print('  Si on ne retirait les incises QUE dans les phrases a tiret :')
+    print('     narration encore abimee                 %6d  (au lieu de %d)'
+          % (total['narration_tiret'], total['narration_abimee']))
+    print('     incises de replique RATEES               %6d'
+          % total['incises_rates_par_forme'])
+    print('')
+    if exemples_forme:
+        print('  --- EXEMPLES d incises de replique SANS tiret (ratees par la')
+        print('      forme -- elles seraient encore lues) :')
+        for chapitre, idx, avant, apres in exemples_forme:
+            print('      chapitre %d, phrase %d' % (chapitre, idx))
+            print('      livre : %s' % avant[:104])
+            print('      sans l incise : %s' % apres[:104])
+            print('')
     if exemples:
         print('  --- EXEMPLES de narration abimee (avant -> apres)')
         for chapitre, idx, avant, apres in exemples:
