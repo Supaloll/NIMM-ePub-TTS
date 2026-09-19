@@ -847,6 +847,63 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   la chose m'est bien indifférente ! », l'attribution (« fit Danglars ») n'est
   **pas** lue et la suite l'est : c'est exactement le comportement voulu.
 
+- [ ] **Les mots TOUT EN MAJUSCULES sont mal prononcés** — demande de Laurent
+  (19/09/2026) : « les mots en majuscule donnent une prononciation bizarre, il
+  faudrait modifier pour qu'ils soient lus normalement ».
+  *Mesure dans TOUS ses livres* (outil
+  `test_voix/_mesurer_majuscules_20260919.py --tous`) : les tomes de Monte-Cristo
+  n'en ont **presque aucun** (4 à 5 phrases, des mentions légales : BIBEBOOK,
+  ISBN, BY-SA) — en revanche **22/11/63 a 531 phrases** touchées (1 742
+  occurrences, 873 mots distincts), Latude 188, Shantaram 145, « Souvenirs d'une
+  gamine effrontée » 137, Dialogues 98, Notre-Dame 77, Le Chevalier Errant 6.
+  *Deux familles bien distinctes* : des **mots de la langue mis en majuscules
+  pour insister** (DE 67, LA 60, VOUS 30, MOI 45, LUI 36, ELLE 32, PAS 23,
+  JAMAIS…) — ce sont eux qui sonnent mal ; et de **vrais sigles** (OK 113, FN 30,
+  CIA 19, DSK 18, JFK 15, FBI 15, TSBD 15, KGB, PCF…) — que le moteur **épelle**,
+  et c'est **voulu**.
+  *Heuristique trouvée et MESURÉE le 19/09/2026* : un mot en majuscules est un mot
+  de la langue s'il est écrit **aussi en casse normale ailleurs dans le même
+  livre** (« DE » et « de », « JIM » et « Jim ») ; s'il n'apparaît **jamais**
+  autrement, c'est un sigle. Essai sur 22/11/63 : **682 mots distincts
+  convertibles (1 423 occurrences)**, les sigles préservés, et le tri est juste
+  sur les 30 mots les plus fréquents (23 bons, les 7 autres étant de vrais
+  sigles). ⚠️ Piège évité : il faut compter « Jim » (majuscule initiale) comme
+  casse normale, **pas** seulement les mots tout en minuscules — sinon « JIM »
+  était classé sigle à tort.
+  *Deux façons de faire, à trancher par Laurent* :
+  **(A) liste blanche de sigles** dans `modules/tts.py` (les ~35 sigles relevés
+  dans ses livres) et conversion de tout le reste — simple, tout de suite, aucun
+  changement d'architecture, liste à compléter au besoin ;
+  **(B) vocabulaire du livre** — le serveur apprend les mots du livre au fil des
+  chapitres servis et ne convertit que ceux qu'il connaît : plus juste, mais il
+  faut transmettre ce vocabulaire au nettoyage (architecture), et le comportement
+  s'améliore au fil de la lecture.
+  *Dans les deux cas* : le texte **affiché** ne change pas (seul le texte parlé),
+  les **chiffres romains** (XIV…) ne sont pas touchés, et la règle s'appliquera à
+  **tous les moteurs** (le nettoyage est commun).
+
+- [ ] **Des ONGLETS : marquer un passage et le retrouver** — demande de Laurent
+  (19/09/2026) : « actuellement si je vais à un endroit du livre, l'endroit est le
+  dernier visité, mais j'aimerais bien pouvoir me faire une liste d'onglets ».
+  *État des lieux* : la base a déjà `progress` (user_id, book_id, chapter_index,
+  scroll_position, cursor_idx, last_read — clé unique `(user_id, book_id)`) et les
+  routes `GET`/`POST /api/progress/{book_id}`. Il faut donc une **table EN PLUS**,
+  pas remplacer l'existante : `bookmarks` (id, user_id, book_id, chapter_index,
+  cursor_idx, libellé, created_at).
+  *À faire* : (1) `CREATE TABLE IF NOT EXISTS bookmarks` dans `init_db()`
+  (main.py, à côté des autres) ; (2) trois routes — lister les onglets d'un livre,
+  en ajouter un, en supprimer un ; (3) côté page : un bouton **« marquer cet
+  endroit »** près des réglages du lecteur, et un panneau **« Mes onglets »** qui
+  liste les marques (chapitre + un extrait de phrase pour reconnaître) et ramène
+  au bon endroit au clic — **le même mécanisme que la reprise de lecture** et que
+  le clic sur un résultat de recherche sont déjà en place.
+  *Prévoir* : un libellé **automatique** (« chapitre 96 — Il n'y aurait… ») que
+  Laurent pourra renommer s'il veut ; pas de limite au nombre d'onglets ; et
+  l'onglet doit survivre au changement de profil (chaque utilisateur a les siens,
+  comme `progress`).
+  *À valider avant de coder* : l'ergonomie (où mettre le bouton, comment afficher
+  la liste) — c'est du **niveau 3** (nouvelle table en base + écran).
+
 ## 🟠 Priorité 2 — Voix & casting
 
 ### Retours d'écoute du 18/09/2026
