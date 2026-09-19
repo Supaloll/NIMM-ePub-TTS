@@ -606,6 +606,47 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   **contrôle dans `test_nettoyage_tts.py`** (et `test_ponctuation_incises.py`),
   puis décider du correctif. Un cas non confirmé à l'oreille ne devient PAS une
   règle.
+  *PREMIER RETOUR (Claude.AI, 19/09/2026)* : 40 cas proposés, **18 confirmés**
+  dans le vrai code (outil `test_voix/_verifier_cas_test_adverse.py`). Ses
+  phrases sont **inventées** (il le dit lui-même) : la fréquence réelle devait
+  donc être mesurée — c'est fait pour la famille la plus grave (ci-dessous).
+  **Défauts CONFIRMÉS, par gravité** :
+  - **le RÉCIT mangé** (son cas A1) : « Il ouvrit la porte, appela la femme de
+    chambre, et attendit. » → « Il ouvrit la porte et attendit. » Une **action
+    disparaît** : un verbe de parole (« appela ») employé comme verbe ordinaire
+    est pris pour une incise. **Mesuré : 8 phrases de NARRATION sur 1 344** dans
+    le tome 5 (0,6 %), dont une **destructrice** : « Mais le comte, sans
+    s'arrêter à ce cri, **continua de tordre le poignet du bandit jusqu'à ce
+    que**, le bras disloqué, il tombât… » → le sens est détruit. Outil :
+    `test_voix/_mesurer_narration_abimee.py`.
+  - **la réplique TRONQUÉE par la relative** (A2, A3) : « — C'est lui, dit
+    Morrel, qui l'a voulu. » → « — C'est lui ». L'étape D emporte une relative
+    qui appartient à la **réplique**.
+  - **les IMPÉRATIFS de la liste** (A4, A5) : « — Parle, **dis la vérité**, et je
+    t'écoute. » → « — Parle et je t'écoute. » Les formes de présent ou
+    d'impératif (dis, demande, ajoute, répète…) déclenchent un faux retrait.
+  - **le PARTICIPE orphelin** (C1) : « — Merci, dit Morrel, **se levant**. » →
+    « — Merci se levant. » C'est le garde-fou « jamais de mot orphelin » qui
+    tombe.
+  - **les NOMS COMPOSÉS jamais reconnus** (B2) : « dit le comte de
+    Monte-Cristo », « dit Valentine de Villefort », « dit M. Morrel père »,
+    « dit l'abbé Faria », « dit le procureur du roi » → **l'incise reste LUE**,
+    et c'est le personnage le plus bavard du roman.
+  - **l'incise à PRONOM en tête de morceau jamais reconnue** (B1) : après un
+    « ! » ou un « ? », le découpage isole « dit-il. » / « demanda-t-elle. » —
+    `MOTIF_DEBUT` n'existe qu'en forme NOM, donc ces morceaux sont **lus**.
+    C'est probablement **la plus grosse fuite** du dispositif.
+  - **une incohérence confirmée** (B5) : « dit le comte gravement » **part**,
+    alors que « répondit Morrel froidement » **reste**. Même famille, deux
+    sorts — à traiter ensemble.
+  *Faible priorité* : tirets fermants (B6), imparfaits pluriels (B7), adverbes
+  (B5), réflexif avec un nom (B4), virgules de vocatif (C3).
+  *Plan proposé, en 2 vagues* (à valider par Laurent) : **vague 1 — ne plus rien
+  casser** (A1, A2, A3, A4, A5, C1) ; **vague 2 — ne plus rien laisser passer**
+  (B1, B2, puis B3 à B7). Chaque vague : un **contrôle de test par cas**, une
+  **mesure avant/après** sur le tome 5, et une **écoute** de Laurent.
+  ⏳ **En attente du retour de Mistral**, demandé le même jour : deux chercheurs
+  de failles indépendants valent mieux qu'un, et ça permettra de prioriser.
 
 - [ ] **Les civilités sans point coupent le motif** (`Mme`, `Mlle`, `Mgr`) —
   cause du « dit Mme Danglars en signant. » **lu**. Le motif prend « Mme » pour
