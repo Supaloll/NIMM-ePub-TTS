@@ -932,6 +932,18 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   ⚠️ **Piège noté pour la suite** : `TestClient` n'exécute **pas** le
   « lifespan » de l'application, donc pas de `init_db()` — un test qui touche
   une table doit appeler `main.init_db()` lui-même.
+  🔎 **Leçon du premier essai de Laurent (19/09/2026 au soir)** : le panneau
+  s'ouvrait mais la pose échouait (« Impossible de poser l'onglet »). **Cause
+  trouvée en direct** : le serveur qui répondait était **l'ANCIEN**, lancé avant
+  la livraison → `GET /api/bookmarks/16` renvoyait **404**. `START.bat` gère ce
+  cas tout seul (il arrête le serveur déjà en marche et le dit :
+  « on croirait que rien ne change »), et le message d'erreur de la page dit
+  désormais **explicitement** « Le serveur doit être redémarré (fermer le
+  lecteur, puis START.bat) » au lieu du vague « Impossible de poser l'onglet ».
+  **Règle à retenir** : une modification dans `modules/` ou `main.py` demande un
+  **redémarrage du lecteur** ; une modification dans `frontend/` demande un
+  **rechargement de la page** (Ctrl+F5, à cause du service worker). Les deux
+  souvent : redémarrer, puis Ctrl+F5.
   *État des lieux* : la base a déjà `progress` (user_id, book_id, chapter_index,
   scroll_position, cursor_idx, last_read — clé unique `(user_id, book_id)`) et les
   routes `GET`/`POST /api/progress/{book_id}`. Il faut donc une **table EN PLUS**,

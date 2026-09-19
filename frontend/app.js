@@ -3464,12 +3464,27 @@ async function _chargerOnglets() {
   try {
     const res = await fetch('/api/bookmarks/' + _currentBookId
                             + '?user_id=' + _currentUserId);
+    if (res.status === 404) {
+      // Le serveur qui repond est une ANCIENNE version (lancee avant que les
+      // onglets existent) : le dire clairement, sinon on croit que le bouton ne
+      // marche pas. Constat de Laurent, 19/09/2026.
+      _noteOnglets('\u26A0\uFE0F Le serveur doit \u00eatre red\u00e9marr\u00e9 '
+                   + '(fermer le lecteur, puis START.bat).');
+      _onglets = [];
+      return _onglets;
+    }
     if (res.ok) _onglets = (await res.json()) || [];
   } catch (e) {
     console.error('Erreur chargement des onglets:', e);
     _onglets = [];
   }
   return _onglets;
+}
+
+// Le petit mot sous la liste (« Onglet pose », « serveur a redemarrer »...).
+function _noteOnglets(texte) {
+  const note = document.getElementById('bookmarks-note');
+  if (note) note.textContent = texte;
 }
 
 function _renderOnglets() {
@@ -3508,9 +3523,8 @@ function _renderOnglets() {
 async function _marquerCetEndroit() {
   if (!_currentBookId) return;
   const bouton = document.getElementById('bookmark-add-btn');
-  const note   = document.getElementById('bookmarks-note');
-  bouton.disabled  = true;
-  note.textContent = '';
+  bouton.disabled = true;
+  _noteOnglets('');
   const extrait = _extraitPhrase(_cursorIdx);
   const label = 'Chapitre ' + (_currentChapter + 1)
     + (extrait ? ' \u2014 ' + extrait : '');
@@ -3522,13 +3536,23 @@ async function _marquerCetEndroit() {
       body:    JSON.stringify({ chapter_index: _currentChapter,
                                 cursor_idx: _cursorIdx, label: label })
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      // 404 = le serveur qui repond est une ANCIENNE version, lancee avant que
+      // les onglets existent : le dire clairement (constat de Laurent,
+      // 19/09/2026), sinon on croit que le bouton ne marche pas.
+      _noteOnglets(res.status === 404
+        ? '\u26A0\uFE0F Le serveur doit \u00eatre red\u00e9marr\u00e9 '
+          + '(fermer le lecteur, puis START.bat).'
+        : '\u26A0\uFE0F Impossible de poser l\u2019onglet (HTTP '
+          + res.status + ').');
+      return;
+    }
     await _chargerOnglets();
     _renderOnglets();
-    note.textContent = 'Onglet pos\u00e9.';
+    _noteOnglets('Onglet pos\u00e9.');
   } catch (e) {
     console.error('Erreur pose onglet:', e);
-    note.textContent = '\u26A0\uFE0F Impossible de poser l\u2019onglet.';
+    _noteOnglets('\u26A0\uFE0F Impossible de poser l\u2019onglet.');
   } finally {
     bouton.disabled = false;
   }
