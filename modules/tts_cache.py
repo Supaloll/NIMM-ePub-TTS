@@ -101,7 +101,11 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       blanc... »). Sans cela, seul le premier morceau partait et le texte
 #       restait bancal (« voyez avec un habit ouvert... ») -- constate a
 #       l'oreille, chapitre 90 du tome 5.
-VERSION_CACHE = 13
+#  14 = 19/09/2026 : les mots TOUT EN MAJUSCULES qui sont des mots du livre sont
+#       remis en casse normale avant l'envoi au moteur (« c'est LUI » ne sonne
+#       plus comme un sigle). Les vrais sigles (« JFK », « FBI ») restent
+#       intacts. Le vocabulaire du livre est appris une fois (main.py).
+VERSION_CACHE = 14
 
 
 def _hash_key(text, voice, rate, pitch):

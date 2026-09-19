@@ -11,6 +11,7 @@ from modules import audio_trim as _audio_trim
 from modules import audio_rate as _audio_rate
 from modules import audio_gain as _audio_gain
 from modules import incises as _incises
+from modules import majuscules as _majuscules
 
 # ==============================================================
 # CONFIGURATION
@@ -262,8 +263,20 @@ MOTS_SANS_POINT_FINAL = re.compile(
     r"|Monseigneur|Docteur|Professeur|Saint|Sainte|numéro)$")
 
 
-def _clean_text(text: str) -> str:
-    """Prepare le texte pour la synthese vocale."""
+def _clean_text(text: str, vocabulaire=None) -> str:
+    """Prepare le texte pour la synthese vocale.
+
+    `vocabulaire` (facultatif) : les mots que le LIVRE ecrit en casse normale
+    (voir `modules/majuscules.py`). Quand il est fourni, les mots TOUT EN
+    MAJUSCULES qui y figurent sont remis en casse normale : sinon un moteur
+    neuronal traite « LUI » ou « DE » comme un sigle, et la lecture part en
+    biais (demande de Laurent, 19/09/2026). Les VRAIS sigles (« JFK », « FBI »)
+    ne sont pas au vocabulaire et restent tels quels, ce qui est voulu.
+    Sans vocabulaire (appels de test, textes hors livre), rien ne change.
+    """
+    # Les majuscules D'ABORD : les autres regles lisent mieux un texte en casse
+    # normale, et la casse n'a aucun effet sur la prononciation.
+    text = _majuscules.reduire_majuscules(text, vocabulaire)
 
     # Sauts de ligne -> simple espace (pas de virgule, qui ajouterait une
     # pause artificielle au milieu d'un texte deja decoupe en phrases).
@@ -433,7 +446,8 @@ def _split_long_sentence(sentence: str, max_chars: int) -> list:
 
 async def synthesize_stream(text: str, voice: str = DEFAULT_VOICE,
                             rate: str = DEFAULT_RATE,
-                            pitch: str = DEFAULT_PITCH):
+                            pitch: str = DEFAULT_PITCH,
+                            vocabulaire=None):
     """
     Generateur async : stream l'audio MP3 chunk par chunk.
     Utilise directement par la route /api/tts de main.py.
@@ -441,7 +455,7 @@ async def synthesize_stream(text: str, voice: str = DEFAULT_VOICE,
     Chaque chunk passe par le cache disque : un passage deja genere est
     renvoye depuis le disque sans re-solliciter Edge TTS.
     """
-    text = _clean_text(text)
+    text = _clean_text(text, vocabulaire)
     if not text:
         return
 
@@ -472,13 +486,14 @@ async def synthesize_stream(text: str, voice: str = DEFAULT_VOICE,
 
 
 async def synthesize_bytes(text: str, voice: str = DEFAULT_VOICE,
-                           rate: str = DEFAULT_RATE) -> bytes:
+                           rate: str = DEFAULT_RATE, vocabulaire=None) -> bytes:
     """
     Retourne l'audio complet en bytes.
     Utile pour les textes courts (titres de chapitres, etc.)
     """
     audio = b""
-    async for chunk in synthesize_stream(text, voice, rate):
+    async for chunk in synthesize_stream(text, voice, rate,
+                                         vocabulaire=vocabulaire):
         audio += chunk
     return audio
 
@@ -549,7 +564,8 @@ def _apply_pitch_shift(wav_bytes: bytes, semitones: float) -> bytes:
     return buffer_out.getvalue()
 
 
-async def synthesize_kokoro(text: str, voice: str, rate: str = "+0%", pitch: str = "+0Hz") -> bytes:
+async def synthesize_kokoro(text: str, voice: str, rate: str = "+0%", pitch: str = "+0Hz",
+                            vocabulaire=None) -> bytes:
     """
     Synthese Kokoro pour une phrase. Le francais est FORCE en dur
     (lang="fr-fr") quel que soit le timbre (voice) choisi -- c'est ce
@@ -560,7 +576,7 @@ async def synthesize_kokoro(text: str, voice: str, rate: str = "+0%", pitch: str
     Kokoro est synchrone/CPU -- execute dans un thread separe pour ne
     pas bloquer le serveur pendant la generation.
     """
-    text = _clean_text(text)
+    text = _clean_text(text, vocabulaire)
     if not text:
         return b""
 
@@ -653,7 +669,8 @@ def _piper_voice_id(voice: str):
     return model_key, int(speaker_id)
 
 
-async def synthesize_piper(text: str, voice: str, rate: str = "+0%", pitch: str = "+0Hz") -> bytes:
+async def synthesize_piper(text: str, voice: str, rate: str = "+0%", pitch: str = "+0Hz",
+                           vocabulaire=None) -> bytes:
     """
     Synthese Piper pour une phrase. Chargement du modele a la volee s'il
     n'est pas deja en memoire (sans effet si deja charge). Vitesse geree
@@ -661,7 +678,7 @@ async def synthesize_piper(text: str, voice: str, rate: str = "+0%", pitch: str 
     (librosa) si different de +0Hz. Execute dans un thread separe (Piper
     est synchrone/CPU) pour ne pas bloquer le serveur pendant la generation.
     """
-    text = _clean_text(text)
+    text = _clean_text(text, vocabulaire)
     if not text:
         return b""
 
@@ -826,7 +843,8 @@ async def _demander_au_moteur_kyutai(texte: str, identifiant_voix: str,
 
 async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
                             pitch: str = "+0Hz",
-                            contexte: str = "") -> bytes:
+                            contexte: str = "",
+                            vocabulaire=None) -> bytes:
     """
     Synthese Kyutai pour une phrase. Le moteur tourne dans son propre
     service (Python 3.12 + PyTorch), appele ici en HTTP local.
@@ -843,11 +861,11 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
     L'audio final est mis en cache disque, exactement comme les autres
     moteurs : un passage deja lu ne redemande rien au moteur.
     """
-    text = _clean_text(text)
+    text = _clean_text(text, vocabulaire)
     if not text:
         return b""
 
-    contexte = _clean_text(contexte) if contexte else ""
+    contexte = _clean_text(contexte, vocabulaire) if contexte else ""
     cle = (contexte + "\x00" + text) if contexte else text
 
     cached = _tts_cache.get_audio(cle, voice, rate, pitch, "wav")
@@ -1179,7 +1197,7 @@ async def _demander_au_moteur_xtts(texte: str, identifiant_voix: str) -> bytes:
 
 
 async def synthesize_xtts(text: str, voice: str, rate: str = "+0%",
-                          pitch: str = "+0Hz") -> bytes:
+                          pitch: str = "+0Hz", vocabulaire=None) -> bytes:
     """
     Synthese XTTS v2 pour une phrase. Le moteur tourne dans son propre
     service (Python 3.12 + PyTorch), appele ici en HTTP local.
@@ -1190,7 +1208,7 @@ async def synthesize_xtts(text: str, voice: str, rate: str = "+0%",
     L'audio final est mis en cache disque, exactement comme les autres
     moteurs : un passage deja lu ne redemande rien au moteur.
     """
-    text = _clean_text(text)
+    text = _clean_text(text, vocabulaire)
     if not text:
         return b""
 
@@ -1274,7 +1292,7 @@ async def _demander_au_moteur_neutts(texte: str, identifiant_voix: str) -> bytes
 
 
 async def synthesize_neutts(text: str, voice: str, rate: str = "+0%",
-                            pitch: str = "+0Hz") -> bytes:
+                            pitch: str = "+0Hz", vocabulaire=None) -> bytes:
     """Synthese NeuTTS pour une phrase. Le moteur tourne dans son propre
     service (Python 3.12 + PyTorch), appele ici en HTTP local.
 
@@ -1285,7 +1303,7 @@ async def synthesize_neutts(text: str, voice: str, rate: str = "+0%",
     moteurs : un passage deja lu ne redemande rien au moteur -- et c'est ce
     qui rend la lenteur du moteur supportable a l'usage.
     """
-    text = _clean_text(text)
+    text = _clean_text(text, vocabulaire)
     if not text:
         return b""
 

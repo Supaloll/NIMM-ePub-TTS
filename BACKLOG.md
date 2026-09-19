@@ -847,9 +847,34 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   la chose m'est bien indifférente ! », l'attribution (« fit Danglars ») n'est
   **pas** lue et la suite l'est : c'est exactement le comportement voulu.
 
-- [ ] **Les mots TOUT EN MAJUSCULES sont mal prononcés** — demande de Laurent
-  (19/09/2026) : « les mots en majuscule donnent une prononciation bizarre, il
-  faudrait modifier pour qu'ils soient lus normalement ».
+- [x] **Les mots TOUT EN MAJUSCULES sont lus normalement — LIVRÉ le
+  19/09/2026** — demande de Laurent : « les mots en majuscule donnent une
+  prononciation bizarre, il faudrait modifier pour qu'ils soient lus
+  normalement ». **Option B retenue** (le lecteur apprend le vocabulaire du
+  livre), plus juste qu'une liste de sigles à tenir à la main.
+  *Comment ça marche* : le serveur apprend **une fois par livre** les mots que
+  ce livre écrit en **casse normale** (« de », « Bastille », « Jim ») — 0,8 s
+  pour les 24 455 mots de 22/11/63, donc jamais d'attente à la lecture. Ensuite,
+  avant l'envoi au moteur, tout mot **TOUT EN MAJUSCULES** qui est dans ce
+  vocabulaire repasse en casse normale (`DE` → `de`, `BASTILLE` → `Bastille`,
+  `JIM` → `Jim`). Ce qui n'y est pas — les **vrais sigles** (`JFK`, `FBI`,
+  `DSK`, `TSBD`) — reste intact : le moteur les épelle, et c'est voulu.
+  Les **chiffres romains** (`XIV`) et les lettres seules (`M.`) ne sont jamais
+  touchés. Le **texte affiché ne change pas** : seul le texte parlé.
+  *Technique* : nouveau module `modules/majuscules.py` (vocabulaire + réduction),
+  `_clean_text(text, vocabulaire=None)` et les 7 fonctions de synthèse qui le
+  transmettent, cache `_VOCABULAIRES` dans `main.py`, `book_id` ajouté à la
+  requête TTS (envoyé par la page), `VERSION_CACHE` 13 → **14**.
+  *Vérification* : **nouveau test** `test_voix/test_majuscules.py`
+  (**16 contrôles**, dont 4 sur le vrai 22/11/63 : « LUI » et « DE » sont des
+  mots du livre, « JFK » n'en est pas) ; les 10 tests Python et les 9 tests
+  JavaScript sont au vert. *Reste à faire par Laurent* : **redémarrer le
+  lecteur** puis écouter 22/11/63.
+  *Limite connue, honnête* : un mot que le livre écrit **toujours** en
+  majuscules (jamais autrement) ne peut pas être reconnu — il restera tel quel.
+  Le cas est rare (les romans écrivent le même mot des deux façons), mais il
+  existe.
+
   *Mesure dans TOUS ses livres* (outil
   `test_voix/_mesurer_majuscules_20260919.py --tous`) : les tomes de Monte-Cristo
   n'en ont **presque aucun** (4 à 5 phrases, des mentions légales : BIBEBOOK,

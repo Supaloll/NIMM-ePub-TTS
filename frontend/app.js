@@ -2915,6 +2915,15 @@ function _updateTTSProgress(idx, total) {
   document.getElementById('tts-progress-fill').style.width = pct + '%';
 }
 
+// L'identifiant du livre OUVERT (0 si aucun). Il part avec chaque demande de
+// synthese : le serveur s'en sert pour remettre en casse normale les mots TOUT
+// EN MAJUSCULES qui sont des mots de CE livre (« DE », « LUI »), sans toucher
+// aux sigles (« JFK », « FBI »). Demande de Laurent, 19/09/2026.
+function _livreCourantId() {
+  const d = (typeof _currentBookData === 'undefined') ? null : _currentBookData;
+  return (d && d.id) ? d.id : 0;
+}
+
 async function _fetchAudio(text, voice, rate, pitch, signal, context) {
   // Retry renforcé pour le tunnel Tailscale : en mobile, chaque requête TTS
   // traverse le tunnel VPN. Quand l'écran est éteint ou le téléphone est
@@ -2936,7 +2945,8 @@ async function _fetchAudio(text, voice, rate, pitch, signal, context) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ text, voice, rate, pitch,
-                                  context: context || '' }),
+                                  context: context || '',
+                                  book_id: _livreCourantId() }),
         signal:  timeoutCtrl.signal
       });
       if (res.status === 503) {

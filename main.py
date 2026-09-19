@@ -238,6 +238,46 @@ class ProgressData(BaseModel):
     scroll_position: int
     cursor_idx: int = 0
 
+# --- Vocabulaire d'un livre (les MAJUSCULES, demande de Laurent, 19/09/2026) ---
+# Pour remettre en casse normale les mots ecrits TOUT EN MAJUSCULES, il faut
+# savoir lesquels sont des mots du livre : un mot que le livre ecrit AUSSI en
+# casse normale est un mot de la langue (« DE » et « de », « JIM » et « Jim ») ;
+# un mot qui n'apparait jamais autrement est un SIGLE (« JFK », « FBI ») et
+# reste tel quel -- c'est voulu, le moteur l'epelle.
+# Le vocabulaire est construit UNE fois par livre, puis garde en memoire.
+# Mesure du 19/09/2026 : moins d'une seconde, meme sur 25 000 phrases (0,8 s pour
+# 22/11/63) -- donc aucun risque de faire attendre la lecture.
+_VOCABULAIRES = {}
+
+
+def _vocabulaire_du_livre(book_id: int) -> dict:
+    """Les mots d'un livre ecrits en casse normale (construits une seule fois).
+
+    Renvoie {mot_en_minuscules: forme_canonique}, par exemple
+    {'de': 'de', 'bastille': 'Bastille', 'jim': 'Jim'}.
+    """
+    if not book_id:
+        return {}
+    connu = _VOCABULAIRES.get(book_id)
+    if connu is not None:
+        return connu
+    from core.epub_parser import get_chapters
+    from modules.majuscules import enrichir_vocabulaire
+    conn = get_db()
+    book = conn.execute("SELECT filename FROM books WHERE id = ?",
+                        (book_id,)).fetchone()
+    conn.close()
+    vocabulaire = {}
+    if book:
+        try:
+            for chapitre in get_chapters(str(LIBRARY_DIR / book["filename"])):
+                enrichir_vocabulaire(chapitre["text"], vocabulaire)
+        except Exception as erreur:            # livre illisible : on continue
+            print("Vocabulaire du livre %s indisponible : %s" % (book_id, erreur))
+    _VOCABULAIRES[book_id] = vocabulaire
+    return vocabulaire
+
+
 class TTSRequest(BaseModel):
     text: str
     voice: str = DEFAULT_VOICE
@@ -247,6 +287,10 @@ class TTSRequest(BaseModel):
     # qu'il ne demarre pas a froid (idee de Laurent, 17/09/2026). Ignoree par
     # les autres moteurs.
     context: str = ""
+    # Livre en cours de lecture (facultatif) : sert a corriger les mots TOUT EN
+    # MAJUSCULES avec le vocabulaire de CE livre (demande de Laurent,
+    # 19/09/2026). Sans lui, le nettoyage garde son comportement d'avant.
+    book_id: int = 0
 
 class VoiceUpdateRequest(BaseModel):
     character_name: str
@@ -2281,16 +2325,25 @@ async def tts(request: TTSRequest):
         from modules.silence import wav_silence
         return Response(content=wav_silence(), media_type="audio/wav")
 
+    # Vocabulaire du livre en cours : il sert a remettre en casse normale les
+    # mots TOUT EN MAJUSCULES qui sont des mots de CE livre (« DE », « LUI »),
+    # sans toucher aux sigles (« JFK », « FBI »). Construit une seule fois.
+    vocabulaire = _vocabulaire_du_livre(request.book_id)
+
     if request.voice.startswith("kokoro:"):
         from modules.tts import synthesize_kokoro
-        audio = await synthesize_kokoro(request.text, request.voice, request.rate, request.pitch)
+        audio = await synthesize_kokoro(request.text, request.voice,
+                                        request.rate, request.pitch,
+                                        vocabulaire=vocabulaire)
         async def generate_kokoro():
             yield audio
         return StreamingResponse(generate_kokoro(), media_type="audio/wav")
 
     if request.voice.startswith("piper:"):
         from modules.tts import synthesize_piper
-        audio = await synthesize_piper(request.text, request.voice, request.rate, request.pitch)
+        audio = await synthesize_piper(request.text, request.voice,
+                                       request.rate, request.pitch,
+                                       vocabulaire=vocabulaire)
         async def generate_piper():
             yield audio
         return StreamingResponse(generate_piper(), media_type="audio/wav")
@@ -2305,7 +2358,8 @@ async def tts(request: TTSRequest):
         try:
             audio = await synthesize_kyutai(request.text, request.voice,
                                             request.rate, request.pitch,
-                                            request.context)
+                                            request.context,
+                                            vocabulaire=vocabulaire)
         except KyutaiIndisponible as erreur:
             # 503 : erreur "definitive" (moteur eteint), pas une coupure
             # reseau. Le client affiche le message et arrete la lecture au
@@ -2322,7 +2376,8 @@ async def tts(request: TTSRequest):
         from modules.tts import synthesize_xtts, XttsIndisponible
         try:
             audio = await synthesize_xtts(request.text, request.voice,
-                                          request.rate, request.pitch)
+                                          request.rate, request.pitch,
+                                          vocabulaire=vocabulaire)
         except XttsIndisponible as erreur:
             # 503 : erreur "definitive" (moteur eteint), pas une coupure
             # reseau. Le client affiche le message et arrete la lecture au
@@ -2339,7 +2394,8 @@ async def tts(request: TTSRequest):
         from modules.tts import synthesize_neutts, NeuttsIndisponible
         try:
             audio = await synthesize_neutts(request.text, request.voice,
-                                             request.rate, request.pitch)
+                                             request.rate, request.pitch,
+                                             vocabulaire=vocabulaire)
         except NeuttsIndisponible as erreur:
             # 503 : erreur "definitive" (moteur eteint), pas une coupure
             # reseau. Le client affiche le message et arrete la lecture au
@@ -2352,7 +2408,8 @@ async def tts(request: TTSRequest):
     from modules.tts import synthesize_stream
     async def generate():
         async for chunk in synthesize_stream(
-            request.text, request.voice, request.rate, request.pitch
+            request.text, request.voice, request.rate, request.pitch,
+            vocabulaire=vocabulaire
         ):
             yield chunk
     return StreamingResponse(generate(), media_type="audio/mpeg")
