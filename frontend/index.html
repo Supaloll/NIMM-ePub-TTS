@@ -155,6 +155,12 @@
                   title="Ecouter les voix disponibles et les annoter">
             🎧 Écouter les voix
           </button>
+          <!-- Onglets de lecture (demande de Laurent, 19/09/2026) : ouvrir la
+               liste des marques, et en poser une a l'endroit ou on lit. -->
+          <button id="bookmarks-open-btn" aria-label="Mes onglets"
+                  title="Marquer un endroit et retrouver mes marques">
+            🔖 Onglets
+          </button>
           <!-- Les deux menus sont groupes sur leur propre rangee (15/09/2026,
                demande de Laurent : agencement plus compact) : la voix du
                narrateur prend la place restante, la vitesse garde sa taille. -->
@@ -253,6 +259,27 @@
         <ul id="search-results-list" role="list" class="hidden"></ul>
       </div>
       <div id="chapters-backdrop"></div>
+    </div>
+
+    <!-- ===================== PANNEAU ONGLETS ===================== -->
+    <!-- Demande de Laurent (19/09/2026) : « pouvoir me faire une liste
+         d'onglets ». On pose une marque la ou on lit, et on y revient d'un
+         clic. La reprise de lecture (le dernier endroit visite) ne change pas :
+         les onglets viennent EN PLUS, par livre et par profil. -->
+    <div id="bookmarks-panel" class="panel hidden" role="dialog"
+         aria-modal="true" aria-label="Mes onglets">
+      <div id="bookmarks-panel-inner">
+        <div id="bookmarks-panel-header">
+          <span>Mes onglets</span>
+          <button id="bookmarks-close-btn" aria-label="Fermer">✕</button>
+        </div>
+        <p id="bookmarks-hint">Propres à ce livre et à ce profil.</p>
+        <button id="bookmark-add-btn" type="button">🔖 Marquer cet endroit</button>
+        <ul id="bookmarks-list" role="list"></ul>
+        <span id="bookmarks-vide">Aucun onglet pour ce livre.</span>
+        <span id="bookmarks-note"></span>
+      </div>
+      <div id="bookmarks-backdrop"></div>
     </div>
 
     <!-- ===================== VUE RSVP ===================== -->

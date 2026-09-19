@@ -3442,6 +3442,121 @@ function closeChaptersPanel() {
 }
 
 // ============================================================
+// ONGLETS (marque-pages de lecture) — 19/09/2026
+// ============================================================
+// Demande de Laurent : « actuellement si je vais a un endroit du livre, l'endroit
+// est le dernier visite, mais j'aimerais bien pouvoir me faire une liste
+// d'onglets ». La reprise de lecture continue de garder le DERNIER endroit : ces
+// marques viennent EN PLUS, par livre et par profil.
+
+let _onglets = [];                       // les onglets du livre ouvert
+
+// Un extrait court d'une phrase, pour reconnaitre l'endroit dans la liste.
+function _extraitPhrase(idx) {
+  const item = (_sentences && _sentences[idx]) ? _sentences[idx] : null;
+  const texte = item ? String(item.text || '') : '';
+  const propre = texte.replace(/\s+/g, ' ').trim();
+  return propre.length > 70 ? propre.slice(0, 70) + '\u2026' : propre;
+}
+
+async function _chargerOnglets() {
+  if (!_currentBookId) return [];
+  try {
+    const res = await fetch('/api/bookmarks/' + _currentBookId
+                            + '?user_id=' + _currentUserId);
+    if (res.ok) _onglets = (await res.json()) || [];
+  } catch (e) {
+    console.error('Erreur chargement des onglets:', e);
+    _onglets = [];
+  }
+  return _onglets;
+}
+
+function _renderOnglets() {
+  const list = document.getElementById('bookmarks-list');
+  const vide = document.getElementById('bookmarks-vide');
+  list.innerHTML = '';
+  vide.classList.toggle('hidden', _onglets.length > 0);
+  _onglets.forEach(onglet => {
+    const li = document.createElement('li');
+    li.className = 'bookmark-item';
+
+    const label = document.createElement('span');
+    label.className   = 'bookmark-label';
+    label.textContent = onglet.label || ('Chapitre ' + (onglet.chapter_index + 1));
+
+    const supprimer = document.createElement('button');
+    supprimer.type      = 'button';
+    supprimer.className = 'bookmark-del-btn';
+    supprimer.textContent = '\u2715';
+    supprimer.title     = 'Supprimer cet onglet';
+    supprimer.addEventListener('click', (ev) => {
+      ev.stopPropagation();           // sinon le clic ouvrirait l'onglet
+      _supprimerOnglet(onglet.id);
+    });
+
+    li.appendChild(label);
+    li.appendChild(supprimer);
+    li.addEventListener('click', () => {
+      closeBookmarksPanel();
+      loadChapter(onglet.chapter_index, 0, onglet.cursor_idx || 0);
+    });
+    list.appendChild(li);
+  });
+}
+
+async function _marquerCetEndroit() {
+  if (!_currentBookId) return;
+  const bouton = document.getElementById('bookmark-add-btn');
+  const note   = document.getElementById('bookmarks-note');
+  bouton.disabled  = true;
+  note.textContent = '';
+  const extrait = _extraitPhrase(_cursorIdx);
+  const label = 'Chapitre ' + (_currentChapter + 1)
+    + (extrait ? ' \u2014 ' + extrait : '');
+  try {
+    const res = await fetch('/api/bookmarks/' + _currentBookId
+                            + '?user_id=' + _currentUserId, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ chapter_index: _currentChapter,
+                                cursor_idx: _cursorIdx, label: label })
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await _chargerOnglets();
+    _renderOnglets();
+    note.textContent = 'Onglet pos\u00e9.';
+  } catch (e) {
+    console.error('Erreur pose onglet:', e);
+    note.textContent = '\u26A0\uFE0F Impossible de poser l\u2019onglet.';
+  } finally {
+    bouton.disabled = false;
+  }
+}
+
+async function _supprimerOnglet(identifiant) {
+  if (!_currentBookId) return;
+  try {
+    await fetch('/api/bookmarks/' + _currentBookId + '/' + identifiant
+                + '?user_id=' + _currentUserId, { method: 'DELETE' });
+    await _chargerOnglets();
+    _renderOnglets();
+  } catch (e) {
+    console.error('Erreur suppression onglet:', e);
+  }
+}
+
+async function openBookmarksPanel() {
+  document.getElementById('bookmarks-note').textContent = '';
+  document.getElementById('bookmarks-panel').classList.remove('hidden');
+  await _chargerOnglets();
+  _renderOnglets();
+}
+function closeBookmarksPanel() {
+  document.getElementById('bookmarks-panel').classList.add('hidden');
+}
+
+// ============================================================
 // PROGRESSION
 // ============================================================
 
@@ -3854,6 +3969,12 @@ function bindEvents() {
   document.getElementById('chapters-btn').addEventListener('click', openChaptersPanel);
   document.getElementById('chapters-close-btn').addEventListener('click', closeChaptersPanel);
   document.getElementById('chapters-backdrop').addEventListener('click', closeChaptersPanel);
+
+  // Onglets de lecture (19/09/2026) : ouvrir la liste, la fermer, en poser un.
+  document.getElementById('bookmarks-open-btn').addEventListener('click', openBookmarksPanel);
+  document.getElementById('bookmarks-close-btn').addEventListener('click', closeBookmarksPanel);
+  document.getElementById('bookmarks-backdrop').addEventListener('click', closeBookmarksPanel);
+  document.getElementById('bookmark-add-btn').addEventListener('click', _marquerCetEndroit);
 
   document.getElementById('search-btn').addEventListener('click', _runSearch);
   document.getElementById('search-input').addEventListener('keydown', e => {

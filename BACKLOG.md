@@ -907,9 +907,31 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   les **chiffres romains** (XIV…) ne sont pas touchés, et la règle s'appliquera à
   **tous les moteurs** (le nettoyage est commun).
 
-- [ ] **Des ONGLETS : marquer un passage et le retrouver** — demande de Laurent
-  (19/09/2026) : « actuellement si je vais à un endroit du livre, l'endroit est le
-  dernier visité, mais j'aimerais bien pouvoir me faire une liste d'onglets ».
+- [x] **Des ONGLETS : marquer un passage et le retrouver — LIVRÉ le
+  19/09/2026** — demande de Laurent : « actuellement si je vais à un endroit du
+  livre, l'endroit est le dernier visité, mais j'aimerais bien pouvoir me faire
+  une liste d'onglets ». **La reprise de lecture ne change pas** : les onglets
+  viennent EN PLUS.
+  *Ce qui existe maintenant* : un bouton **« 🔖 Onglets »** dans la barre du
+  lecteur ouvre un panneau (même style que la liste des chapitres) ; dedans, un
+  bouton **« 🔖 Marquer cet endroit »** pose une marque à l'endroit exact où on
+  lit, et la liste montre chaque onglet avec **son chapitre et le début de la
+  phrase** (« Chapitre 22 — Il n'y aurait cependant… »). **Un clic ramène à
+  l'endroit**, une croix supprime l'onglet (sans l'ouvrir). Chaque **profil** a
+  les siens, chaque **livre** aussi.
+  *Technique* : table `bookmarks` créée dans `init_db()` (main.py), 3 routes
+  (`GET`/`POST /api/bookmarks/{book_id}`, `DELETE …/{bookmark_id}`), bouton et
+  panneau dans `index.html`, styles **mutualisés** avec le panneau des chapitres
+  (`styles.css`), logique dans `app.js` (`openBookmarksPanel`,
+  `_marquerCetEndroit`, `_renderOnglets`, `_supprimerOnglet`). Le libellé est
+  préparé par la page (chapitre + extrait de phrase).
+  *Vérification* : **nouveau test** `test_voix/test_onglets.py` (**11
+  contrôles** : création, contenu gardé, isolation par profil, suppression,
+  ordre de lecture) ; `test_ids_ecran.py` confirme que tous les éléments de
+  l'écran existent ; les 9 tests JavaScript sont au vert.
+  ⚠️ **Piège noté pour la suite** : `TestClient` n'exécute **pas** le
+  « lifespan » de l'application, donc pas de `init_db()` — un test qui touche
+  une table doit appeler `main.init_db()` lui-même.
   *État des lieux* : la base a déjà `progress` (user_id, book_id, chapter_index,
   scroll_position, cursor_idx, last_read — clé unique `(user_id, book_id)`) et les
   routes `GET`/`POST /api/progress/{book_id}`. Il faut donc une **table EN PLUS**,
@@ -1086,6 +1108,28 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   **écouter**, comme toujours (une mesure ne remplace pas l'oreille).
   *Note de licence* : Apache-2.0 pour les trois dépôts → aucune restriction, et
   la provenance est notée ici (règle d'or de l'atelier NIMM Voix).
+  ⏰ **Laurent le redemande le 19/09/2026 au soir** : « on regarde si on peut
+  importer la voix allemande ? » → **prochaine chose à faire, après les
+  onglets** (chantier dans NIMM Voix, pas ici).
+
+- [ ] **Kokoro FRANÇAIS : quelqu'un a-t-il entraîné un modèle ?** — question de
+  Laurent, 19/09/2026 : « vérifier si personne n'a fait du fine tuning Kokoro
+  pour le Français (je rêve, mais c'est gratuit) ».
+  *Première recherche, le 19/09/2026* : sur Hugging Face, `kokoro french` ne
+  renvoie **rien**, et `kokoro-fr` **un seul** modèle, qui n'est pas du français
+  (un anglais « espeak-free »). Donc **rien trouvé pour l'instant** — mais la
+  recherche reste à reprendre plus finement : il faut éplucher les **fine-tunes
+  déclarés** de `hexgrad/Kokoro-82M` (56 modèles sur sa page, plus les
+  quantifications et les adaptateurs), car un modèle français peut porter un nom
+  qui ne contient pas « kokoro » (comme l'allemand, signé `kikiri-tts`).
+  *Pourquoi ça vaut le coup* : le français de Kokoro ne tient aujourd'hui qu'à
+  **une seule voix** (`ff_siwis`) — c'est justement pour ça que l'atelier NIMM
+  Voix a fabriqué ses 30 voix par mélange. Un vrai fine-tune français donnerait
+  des voix natives, sans mélange.
+  *À faire* : reprendre la recherche sur l'API Hugging Face par **modèle parent**
+  (`base_model:finetune:hexgrad/Kokoro-82M`) et par **langue** (`fr`), puis
+  écouter ce qui existe. **Rien ne sera intégré avant écoute** (règle de
+  l'atelier).
 
 - [x] **Timbre : « très grave » et « très aigu » ajoutés** — livré le
   **19/09/2026**, demande de Laurent : « juste ajouter le "très aigu\très grave"

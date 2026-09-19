@@ -204,6 +204,21 @@ def init_db():
     # bloque pour toujours (le bouton refuserait de relancer). On le repasse
     # en 'error' : la reprise repartira du premier chapitre manquant, sans
     # rien recalculer (session du 13/09/2026).
+    # --- Onglets (marque-pages) de lecture (demande de Laurent, 19/09/2026) ---
+    # `progress` ne garde QU'UN endroit par livre (le dernier visite) : Laurent
+    # veut pouvoir poser PLUSIEURS marques lui-meme pendant l'ecoute, et
+    # retrouver chacune d'un clic. Chaque profil a les siennes.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bookmarks (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id       INTEGER NOT NULL,
+            book_id       INTEGER NOT NULL,
+            chapter_index INTEGER DEFAULT 0,
+            cursor_idx    INTEGER DEFAULT 0,
+            label         TEXT DEFAULT '',
+            created_at    TEXT DEFAULT (datetime('now'))
+        )
+    """)
     conn.execute("UPDATE books SET cast_status = 'error' WHERE cast_status LIKE 'processing%'")
     conn.commit()
     conn.close()
@@ -237,6 +252,12 @@ class ProgressData(BaseModel):
     chapter_index: int
     scroll_position: int
     cursor_idx: int = 0
+
+class BookmarkData(BaseModel):
+    """Un onglet de lecture : ou il est, et comment le reconnaitre a l'oeil."""
+    chapter_index: int = 0
+    cursor_idx: int = 0
+    label: str = ""
 
 # --- Vocabulaire d'un livre (les MAJUSCULES, demande de Laurent, 19/09/2026) ---
 # Pour remettre en casse normale les mots ecrits TOUT EN MAJUSCULES, il faut
@@ -2222,6 +2243,49 @@ async def save_progress(book_id: int, user_id: int, data: ProgressData):
             cursor_idx      = excluded.cursor_idx,
             last_read       = excluded.last_read
     """, (user_id, book_id, data.chapter_index, data.scroll_position, data.cursor_idx))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+# --- Onglets de lecture (demande de Laurent, 19/09/2026) ---
+# Laurent : « actuellement si je vais a un endroit du livre, l'endroit est le
+# dernier visite, mais j'aimerais bien pouvoir me faire une liste d'onglets ».
+# Trois routes suffisent : lister, poser, supprimer.
+
+@app.get("/api/bookmarks/{book_id}")
+async def get_bookmarks(book_id: int, user_id: int):
+    """Les onglets d'un livre, dans l'ordre de lecture."""
+    conn = get_db()
+    lignes = conn.execute(
+        "SELECT * FROM bookmarks WHERE book_id = ? AND user_id = ?"
+        " ORDER BY chapter_index, cursor_idx, id", (book_id, user_id)
+    ).fetchall()
+    conn.close()
+    return [dict(ligne) for ligne in lignes]
+
+@app.post("/api/bookmarks/{book_id}")
+async def add_bookmark(book_id: int, user_id: int, data: BookmarkData):
+    """Pose un onglet a l'endroit donne (le libelle est prepare par la page)."""
+    conn = get_db()
+    curseur = conn.execute(
+        "INSERT INTO bookmarks (user_id, book_id, chapter_index, cursor_idx, label)"
+        " VALUES (?, ?, ?, ?, ?)",
+        (user_id, book_id, data.chapter_index, data.cursor_idx, data.label)
+    )
+    conn.commit()
+    ligne = conn.execute("SELECT * FROM bookmarks WHERE id = ?",
+                         (curseur.lastrowid,)).fetchone()
+    conn.close()
+    return {"ok": True, "bookmark": dict(ligne)}
+
+@app.delete("/api/bookmarks/{book_id}/{bookmark_id}")
+async def delete_bookmark(book_id: int, bookmark_id: int, user_id: int):
+    """Supprime un onglet (seulement ceux de ce profil, sur ce livre)."""
+    conn = get_db()
+    conn.execute(
+        "DELETE FROM bookmarks WHERE id = ? AND book_id = ? AND user_id = ?",
+        (bookmark_id, book_id, user_id)
+    )
     conn.commit()
     conn.close()
     return {"ok": True}
