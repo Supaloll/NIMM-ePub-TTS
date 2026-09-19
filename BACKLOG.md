@@ -645,8 +645,33 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   casser** (A1, A2, A3, A4, A5, C1) ; **vague 2 — ne plus rien laisser passer**
   (B1, B2, puis B3 à B7). Chaque vague : un **contrôle de test par cas**, une
   **mesure avant/après** sur le tome 5, et une **écoute** de Laurent.
-  ⏳ **En attente du retour de Mistral**, demandé le même jour : deux chercheurs
-  de failles indépendants valent mieux qu'un, et ça permettra de prioriser.
+  *DEUXIÈME RETOUR (Mistral, 19/09/2026, même document)* : 11 cas proposés,
+  passés dans le vrai code → **2 vrais seulement**, dont un déjà connu, plus
+  **1 vrai sur le fait mais à fausse cause**. Le reste est **faux** : trois de ses
+  « défauts graves » sont en réalité le comportement **voulu** (« Je ne sais,
+  murmura-t-il en baissant les yeux, si cela est juste. » → « Je ne sais si cela
+  est juste. » est correct ; « Partons, dit-il, avant que la nuit ne tombe ! » →
+  « Partons avant que la nuit ne tombe ! » est correct ; « Le comte, dit-il, est
+  un homme dangereux. » → « Le comte est un homme dangereux. » est correct).
+  ⚠️ **Son conseil le plus dangereux est à écarter** : il propose de **ne pas
+  retirer** l'incise quand le mot suivant est le sujet de la phrase — cela
+  supprimerait une foule de retraits légitimes. **Ne pas l'appliquer.**
+  *Pourquoi cet écart* : Claude a **lu `incises.py` et fait tourner 100+ phrases**
+  dans le vrai code ; Mistral a raisonné « au bon sens », sans tester. Leçon à
+  garder pour les prochains tests adverses : **exiger du modèle qu'il exécute**,
+  ou trier systématiquement par `_verifier_cas_test_adverse.py`.
+  *Ce qu'il apporte quand même* : (1) il **converge avec Claude** sur les
+  **verbes manquants** (« chuchota », « lança »…) et le **complément avant le
+  nom** → ces deux cas passent en **priorité renforcée** ; (2) il confirme les
+  **adverbes** (« de nouveau ») ; (3) il révèle une **incohérence réelle** : la
+  relative part ou reste **selon le signe final** — « C'est lui, dit Morrel, qui
+  l'a voulu. » perd la relative, alors que « C'est lui, s'écria-t-elle, qui a
+  tout fait **!** » la garde (le garde-fou « proposition qui finit par ? ou ! »
+  de `_etendre_relative` s'applique). À traiter avec les cas A2/A3 de Claude.
+  *Croisement des deux retours* (ce que les DEUX ont trouvé, donc à faire
+  d'abord) : **les verbes de parole absents de la liste** et **le complément
+  avant le nom**.
+  *Reste à faire* : le **plan en 2 vagues** ci-dessus, à valider par Laurent.
 
 - [ ] **Les civilités sans point coupent le motif** (`Mme`, `Mlle`, `Mgr`) —
   cause du « dit Mme Danglars en signant. » **lu**. Le motif prend « Mme » pour

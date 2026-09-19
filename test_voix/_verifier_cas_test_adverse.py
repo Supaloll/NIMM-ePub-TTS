@@ -105,11 +105,35 @@ CAS = [
     ('C3', 'C', 'virgule du vocatif mangee', '\u2014 Non, dit le comte, jamais.'),
     ('C3', 'C', 'virgule du vocatif mangee',
      '\u2014 Comte, dit Morrel, vous ici ?'),
+    # ==========================================================
+    # DEUXIEME RETOUR : Mistral (19/09/2026, meme document)
+    # Ces cas sont comptes a part : le tri se fait au meme endroit.
+    # ==========================================================
+    ('M-A1', 'M', 'la subordonnee serait perdue (dit-il)',
+     'Je ne sais, murmura-t-il en baissant les yeux, si cela est juste.'),
+    ('M-A2', 'M', 'la virgule de « avant que » serait perdue',
+     'Partons, dit-il, avant que la nuit ne tombe !'),
+    ('M-A3', 'M', 'la relative serait detachee',
+     'C\u2019est lui, s\u2019\u00e9cria-t-elle, qui a tout fait !'),
+    ('M-B1', 'M', 'verbe absent de la liste', 'Je vous en prie, chuchota-t-elle.'),
+    ('M-B2', 'M', 'complement avant le nom',
+     'Non, dit avec un rire amer le comte.'),
+    ('M-B3', 'M', 'incise suivie de « et » : non retiree ?',
+     'Il est parti, dit Morrel, et il ne reviendra pas.'),
+    ('M-B4', 'M', '« de nouveau » non capture',
+     'Qui est l\u00e0 ? demanda-t-il de nouveau.'),
+    ('M-B5', 'M', 'le sujet serait retire a tort',
+     'Le comte, dit-il, est un homme dangereux.'),
+    ('M-C1', 'M', 'double ponctuation', 'Bonjour, dit-il ; comment allez-vous ?'),
+    ('M-C2', 'M', 'phrase trop courte apres retrait', 'Je ne sais, r\u00e9pondit-il.'),
+    ('M-C3', 'M', 'virgule orpheline devant « et »',
+     'Il part, dit-il, et elle reste.'),
 ]
 
 TITRES = {'A': 'A. RETRAIT A TORT (le plus grave)',
           'B': 'B. RETRAIT MANQUE',
-          'C': 'C. EFFET DE BORD'}
+          'C': 'C. EFFET DE BORD',
+          'M': 'M. DEUXIEME RETOUR (Mistral) — a trier'}
 
 
 def main():
