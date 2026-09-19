@@ -626,8 +626,41 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   mange du texte). À mesurer avant/après sur 5 105 phrases, et à écouter, comme
   le banc du 18/09/2026 — **pas** d'adoption sans écoute.
 
+- [ ] **Les incises à la 1ʳᵉ personne (« répondis-je », « fis-je ») — le récit
+  au « je »** (constat de Laurent, 19/09/2026, à propos de Stephen King,
+  *22/11/63* : le narrateur ET le personnage sont la même personne, la frontière
+  est floue). Mesure faite le jour même, sur 8 tournures réelles :
+
+  | Phrase | Ce que la règle fait |
+  |---|---|
+  | `— Ça m'étonne, dis-je.` | ✅ retirée |
+  | `— Ça m'étonne, dis-je à voix basse, et je partis.` | ✅ retirée (complément emporté) |
+  | `— Ça m'étonne, murmura-t-il.` | ✅ retirée |
+  | `— Ça m'étonne, répondis-je.` | ❌ **non détectée** |
+  | `— Ça m'étonne, fis-je en riant.` | ❌ **non détectée** |
+  | `— Ça m'étonne, ai-je dit.` | ❌ **non détectée** |
+  | `— Ça m'étonne, j'ai dit.` | ❌ **non détectée** |
+
+  *Cause, précise* : la liste `VERBES` (`modules/incises.py`) contient « dis »,
+  « répondit », « fit »… mais **pas les 1ʳᵉˢ personnes du passé simple**
+  (« répondis », « fis », « murmurai », « m'écriai », « demandai »), ni les formes
+  **composées** (« ai-je dit », « j'ai dit »). Or un récit au « je » en est plein :
+  le tome de King les accumule, et Laurent les entend.
+  *Piste de correctif* : compléter les formes en `-is` / `-ai` de la 1ʳᵉ personne
+  (le motif `MOTIF_PRONOM` les acceptera tel quel : « , répondis-je » suit
+  exactement la même forme que « , dis-je »). Les formes composées
+  (« ai-je dit ») demandent, elles, un **motif séparé** — à mesurer.
+  ⏸️ **EN ATTENTE du retour de Claude** (test adverse lancé le 19/09/2026, voir
+  l'item correspondant) : Laurent a demandé à ne pas s'éparpiller. On regroupera
+  les cas trouvés par Claude et celui-ci en **un seul chantier mesuré**.
+  *À ne pas confondre avec un sujet de CASTING* : dans un récit à la 1ʳᵉ
+  personne, la voix du **narrateur** devrait être celle du personnage principal
+  — sinon l'écoute est bancale, indépendamment des incises. À vérifier le jour
+  où on ouvrira *22/11/63*.
+
 - [ ] **Les interjections tronquées : « Lèze » pour « Eh », « Nèk » pour
   « Ah »** — constat de Laurent (19/09/2026). Ce n'est **pas** un défaut
+
   d'incise, et ce n'est **pas** Kyutai (hypothèse de Cline, **démentie** par la
   base — à garder, sinon la croyance revient) : la base dit
   `Andrea Cavalcanti → kokoro:im_nicola` pour « Eh ! » et
