@@ -156,13 +156,104 @@ function selectProfile(userId) {
 // VOIX
 // ============================================================
 
-// Libelle d'une voix dans les menus deroulants : « Adèle (F) — 🇫🇷 France (Kyutai) ».
-// Le genre en clair (F = femme, M = masculin) permet de reperer d'un coup
-// d'oeil une voix feminine pour un personnage feminin ; le drapeau vient du
-// champ region du catalogue, commun a Edge, Kokoro, Piper et Kyutai.
+// ============================================================
+// LIBELLE D'UNE VOIX DANS LES MENUS
+// ============================================================
+// Format demande par Laurent (19/09/2026) :
+//   « [Prenom] [drapeau] [Age] [Timbre] - [Moteur] »,
+// par exemple « Alice <drapeau FR> Jeune aigu - Kyutai ».
+// Sa regle : « je ne lis qu'en francais de toute facon » -> le drapeau de la
+// LANGUE (le francais) vient TOUJOURS en premier, et un SECOND drapeau dit d'ou
+// viennent le timbre ou l'accent : « Amelie <FR><GB> Mure grave - Kokoro ».
+// L'age et le timbre sont les CRITERES D'ECOUTE de Laurent (sa fenetre
+// « Ecouter les voix », rangees dans data/annotations_voix.json) : une voix pas
+// encore annotee n'en affiche aucun, et le libelle reste lisible.
+//
+// Le genre (F)/(M) a disparu de ce libelle : le format demande ne le prevoit
+// pas, et les menus du casting groupent deja « Femmes » / « Hommes ».
+const DRAPEAU_FR = '\uD83C\uDDEB\uD83C\uDDF7';
+
+// Un drapeau emoji s'ecrit avec DEUX « indicateurs regionaux » : d'ou ce motif
+// en UTF-16 (0xD83C + 0xDDE6..0xDDFF, deux fois de suite).
+const MOTIF_DRAPEAU = /\uD83C[\uDDE6-\uDDFF]\uD83C[\uDDE6-\uDDFF]/g;
+
+// Pays ou accent ecrits EN TOUTES LETTRES. Le meme tableau sert aux deux cas :
+//   - les 12 voix Edge, dont la region s'ecrit « France », « Canada »,
+//     « Belgique », « Suisse » : elles n'affichaient AUCUN drapeau ;
+//   - les accents nommes dans la region (« France (XTTS) - accent allemand »)
+//     et ceux que Laurent annote lui-meme (anglais, italien...).
+// « paysan » est un REGISTRE, pas un pays : volontairement absent.
+const DRAPEAUX_PAR_MOT = {
+  'france':   '\uD83C\uDDEB\uD83C\uDDF7',
+  'canada':   '\uD83C\uDDE8\uD83C\uDDE6',
+  'belgique': '\uD83C\uDDE7\uD83C\uDDEA',
+  'suisse':   '\uD83C\uDDE8\uD83C\uDDED',
+  'allemand': '\uD83C\uDDE9\uD83C\uDDEA',
+  'anglais':  '\uD83C\uDDEC\uD83C\uDDE7',
+  'canadien': '\uD83C\uDDE8\uD83C\uDDE6',
+  'espagnol': '\uD83C\uDDEA\uD83C\uDDF8',
+  'italien':  '\uD83C\uDDEE\uD83C\uDDF9',
+};
+
+// Le SECOND drapeau, par ordre de fiabilite :
+//   1. un drapeau DEJA ecrit dans la region (le plus precis : Etats-Unis, Japon) ;
+//   2. un accent NOMME dans la region (« accent allemand ») ;
+//   3. un pays ecrit en clair (Canada, Belgique, Suisse...) ;
+//   4. l'accent annote par Laurent dans la fenetre d'ecoute.
+// Jamais le drapeau francais : il est deja devant. '' si la voix est francaise
+// sans accent.
+function _secondDrapeauDeVoix(v) {
+  const region = String((v && v.region) || '');
+  const trouves = (region.match(MOTIF_DRAPEAU) || [])
+    .filter(drapeau => drapeau !== DRAPEAU_FR);
+  if (trouves.length) {
+    return trouves[0];
+  }
+  const bas = region.toLowerCase();
+  const mots = Object.keys(DRAPEAUX_PAR_MOT);
+  for (let i = 0; i < mots.length; i++) {
+    if (bas.indexOf(mots[i]) >= 0 && DRAPEAUX_PAR_MOT[mots[i]] !== DRAPEAU_FR) {
+      return DRAPEAUX_PAR_MOT[mots[i]];
+    }
+  }
+  // `typeof` : certains tests node evaluent ces fonctions HORS de app.js.
+  const annots = (typeof _annotationsVoix === 'undefined') ? {} : _annotationsVoix;
+  const annote = annots[(v && v.id) || ''] || {};
+  return DRAPEAUX_PAR_MOT[annote.accent] || '';
+}
+
+// Le libelle AFFICHE d'une valeur de critere (« mur » -> « mûr »,
+// « tres_aigu » -> « très aigu »). Les libelles viennent du SERVEUR
+// (`CRITERES_VOIX`, main.py) : une seule liste a maintenir.
+function _libelleCritere(cle, valeur) {
+  if (!valeur) {
+    return '';
+  }
+  const criteres = (typeof _criteresVoix === 'undefined') ? [] : _criteresVoix;
+  const critere = criteres.find(c => c.cle === cle);
+  if (!critere) {
+    return String(valeur);
+  }
+  const trouve = (critere.valeurs || []).find(x => x.valeur === valeur);
+  return trouve ? trouve.libelle : String(valeur);
+}
+
 function _libelleVoix(v) {
-  const etiquette = v.gender === 'F' ? ' (F)' : (v.gender === 'M' ? ' (M)' : '');
-  return v.name + etiquette + ' \u2014 ' + v.region;
+  const annots = (typeof _annotationsVoix === 'undefined') ? {} : _annotationsVoix;
+  const annote = annots[v.id] || {};
+  let notes = '';
+  const age = _libelleCritere('age', annote.age);
+  if (age) {
+    notes += ' ' + age;
+  }
+  const timbre = _libelleCritere('timbre', annote.timbre);
+  if (timbre) {
+    notes += ' ' + timbre;
+  }
+  // Le moteur, nomme comme dans le reste du lecteur (Kokoro, XTTS v2...).
+  const moteur = (typeof _familleDeVoix === 'function')
+    ? ' \u2014 ' + _libelleFamille(_familleDeVoix(v.id)) : '';
+  return v.name + ' ' + DRAPEAU_FR + _secondDrapeauDeVoix(v) + notes + moteur;
 }
 
 // ---- Etat des moteurs de voix lourds (Kyutai, XTTS v2) ----
@@ -379,6 +470,13 @@ async function loadVoices() {
     // ...et le catalogue COMPLET, qui sert a NOMMER une voix deja attribuee
     // meme quand son moteur est eteint (15/09/2026).
     await loadCatalogueVoix();
+    // Les NOTES d'ecoute de Laurent (age, timbre) et les libelles des criteres
+    // (voir /api/annotations_voix/criteres) : le libelle d'une voix les affiche
+    // depuis le 19/09/2026, donc la modale du casting doit les avoir AVANT de
+    // construire ses menus. La fenetre « Ecouter les voix » n'a plus besoin de
+    // les charger a part : cet appel les couvre.
+    await _chargerAnnotationsVoix();
+    await _chargerCriteresVoix();
     const sel  = document.getElementById('voice-select');
     // La voix de narration DEJA CHOISIE est conservee : recharger la liste (au
     // demarrage, apres un re-cast, ou en ouvrant le casting) ne doit pas
@@ -714,8 +812,15 @@ function _construireMenuVoix(voiceIdActuelle) {
     return info.actif ? nom + ' en chargement' : nom + ' eteint';
   };
 
-  // Le genre n'est pas repete dans chaque ligne : le groupe le donne deja.
-  const libelle = (v) => v.name + ' \u2014 ' + v.region;
+  // Meme libelle que partout ailleurs depuis le 19/09/2026 : drapeaux, age,
+  // timbre et moteur (« Alice <drapeau FR> Jeune aigu — Kyutai »). Le genre
+  // n'est pas repete dans chaque ligne : le groupe « Femmes » / « Hommes » le
+  // donne deja.
+  // `typeof` : le test node qui isole cette fonction ne fournit pas
+  // `_libelleVoix` ; il retombe alors sur l'ancien libelle (nom + region), ce
+  // que ce test ne regarde pas.
+  const libelle = (v) => (typeof _libelleVoix === 'function')
+    ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region;
 
   const ajouterGroupe = (etiquette, voix) => {
     if (!voix.length) return;
@@ -1388,9 +1493,9 @@ async function _ouvrirEcouteurVoix() {
   // Les voix proposees dependent des moteurs allumes : on rafraichit AVANT de
   // construire la liste (le moteur a pu etre eteint ou demarre entre-temps).
   await loadMoteurs();
+  // `loadVoices` charge aussi les annotations d'ecoute et les criteres : les
+  // libelles de voix les affichent depuis le 19/09/2026.
   await loadVoices();
-  await _chargerAnnotationsVoix();
-  await _chargerCriteresVoix();
 
   _ecouteurFiltre.recherche = '';
   _ecouteurFiltre.famille   = 'T';
@@ -3092,6 +3197,10 @@ function _voixDePhrase(idx) {
 
 // Menu des voix : memes groupes que la fenetre du casting (Femmes / Hommes /
 // Autres), pour retrouver ses reperes.
+// Depuis le 19/09/2026, son libelle est celui des AUTRES menus (drapeaux, age,
+// timbre et moteur) : demande de Laurent, « le meme affichage que dans le menu
+// Casting des voix ». Le `typeof` protege le test node, qui isole cette
+// fonction sans lui fournir `_libelleVoix`.
 function _remplirMenuVoixPhrase(select, voixId) {
   select.innerHTML = '';
   const groupe = (etiquette, liste) => {
@@ -3101,7 +3210,8 @@ function _remplirMenuVoixPhrase(select, voixId) {
     liste.forEach(v => {
       const o = document.createElement('option');
       o.value       = v.id;
-      o.textContent = v.name + ' \u2014 ' + v.region;
+      o.textContent = (typeof _libelleVoix === 'function')
+        ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region;
       g.appendChild(o);
     });
     select.appendChild(g);

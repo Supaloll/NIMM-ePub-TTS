@@ -390,8 +390,15 @@ CRITERES_VOIX = [
         ("enfant", "enfant"), ("jeune", "jeune"), ("adulte", "adulte"),
         ("mur", "mûr"), ("vieux", "vieux"),
     ]),
+    # « tres grave » et « tres aigu » ajoutes le 19/09/2026 (demande de
+    # Laurent) : ses notes couvraient trois hauteurs (grave / medium / aigu),
+    # mais les deux EXTREMES manquaient pour ranger les voix qui sortent de
+    # l'echelle. Les trois anciennes valeurs restent, ainsi que les trois
+    # textures (rocailleux, cristallin, voile) : 250 voix sont deja annotees
+    # avec, dont 26 en texture -- retirer une valeur perdrait ces notes.
     ("timbre", "Timbre", [
-        ("grave", "grave"), ("medium", "médium"), ("aigu", "aigu"),
+        ("tres_grave", "très grave"), ("grave", "grave"),
+        ("medium", "médium"), ("aigu", "aigu"), ("tres_aigu", "très aigu"),
         ("rocailleux", "rocailleux"), ("cristallin", "cristallin"),
         ("voile", "voilé"),
     ]),

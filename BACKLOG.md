@@ -534,6 +534,87 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   `test_voix/test_ids_ecran.py` et les autres tests JS → **tout OK**.
 
 
+### Retours d'écoute du 19/09/2026 (chapitre 96, « Le contrat ») — les INCISES
+
+Écoute du chapitre 96 du *Comte de Monte-Cristo* (tome 5, index 21). Verdict de
+Laurent : « les incises ont énormément disparu déjà ; on affinera une prochaine
+fois ». Ce qui reste se range en **trois causes distinctes**, chacune mesurée le
+19/09/2026 par un nouvel outil (`test_voix/_mesurer_cas_tordus_20260919.py`,
+lecture seule) sur les **5 105 phrases** du tome 5 :
+
+- [ ] **Le point-virgule n'est pas reconnu comme fin d'incise** — cause du
+  « dit le comte » **lu** encore. Exemple réel écouté par Laurent : « Il n'y
+  aurait cependant point de ma faute, **dit le comte** ; aussi je tiens à le
+  constater. » La règle de retrait n'accepte que deux fins : une **virgule** ou
+  la **fin de la phrase**. Un `;` n'est ni l'un ni l'autre → l'incise reste et
+  est **lue**. Or `modules/incises.py` sait déjà que « le point-virgule est une
+  frontière sûre » : il l'utilise dans `MOTIF_DECROCHAGE` pour emporter la
+  relative, mais pas pour **fermer** l'incise.
+  *Mesure* : **67 phrases** du tome 5 (1,3 %) ; **19** d'entre elles n'ont que
+  ce cas (l'outil `_diag_incises_reelles.py` ne voit que celles-là, d'où l'écart
+  apparent entre les deux outils — voir l'item « angle mort », plus bas).
+  *Correctif envisagé* : accepter `;` (et à examiner `:`) comme borne de
+  fermeture dans `_ferme_ou_terminal`. Risque faible. **Incrémenter
+  `VERSION_CACHE`** (le texte envoyé au moteur change).
+
+- [ ] **Les civilités sans point coupent le motif** (`Mme`, `Mlle`, `Mgr`) —
+  cause du « dit Mme Danglars en signant. » **lu**. Le motif prend « Mme » pour
+  le nom et s'arrête là : il ne voit jamais « Danglars », donc l'incise n'est
+  pas retirée. `CIVILITE` n'accepte aujourd'hui que la forme **avec point**
+  (`M.`, `Dr.`), alors que `modules/decoupage.py` connaît déjà les
+  `ABREVIATIONS_SANS_POINT`.
+  *Mesure* : **4 phrases** dans tout le tome 5 (0,08 %) — Laurent est tombé sur
+  un cas rare. Correctif minuscule, risque quasi nul.
+
+- [ ] **Verbe + complément : le motif ne voit rien du tout** — cause du
+  « dit **avec un imperceptible sourire de mépris** le comte » **lu**. Le motif
+  attend le nom **juste après** le verbe ; ici un complément s'intercale.
+  *Mesure* : **61 phrases** (1,2 %) — « dit alors Valentine au jeune homme qui
+  la dévorait des yeux », « répondit le jeune homme ; », « dit rudement le
+  docteur ».
+  *Attention* : c'est le cas le plus **risqué** des trois (une règle trop large
+  mange du texte). À mesurer avant/après sur 5 105 phrases, et à écouter, comme
+  le banc du 18/09/2026 — **pas** d'adoption sans écoute.
+
+- [ ] **Les interjections tronquées : « Lèze » pour « Eh », « Nèk » pour
+  « Ah »** — constat de Laurent (19/09/2026). Ce n'est **pas** un défaut
+  d'incise, et ce n'est **pas** Kyutai (hypothèse de Cline, **démentie** par la
+  base — à garder, sinon la croyance revient) : la base dit
+  `Andrea Cavalcanti → kokoro:im_nicola` pour « Eh ! » et
+  `Comte de Monte-Cristo → fr-FR-HenriNeural` (Edge) pour « Ah ! ».
+  *Ce que le moteur reçoit* (`_clean_text`) : **5 caractères** —
+  `« Eh,` et `— Ah,` : le **signe de dialogue est collé devant** et le `!` est
+  devenu une **virgule** (règle des phrases courtes, `SEUIL_INTERJECTION`).
+  *Mesure* : **379 phrases** du tome 5 font **8 caractères ou moins** (7,4 %).
+  *Trois explications possibles, non tranchées* : (1) le signe de dialogue en
+  tête ; (2) la virgule à la place du `!` ; (3) le texte trop court, sans
+  matière. **Ne rien coder avant de les avoir départagées à l'oreille** : c'est
+  le rôle d'un petit banc d'écoute (même méthode que
+  `_banc_ponctuation_exclamation.py`), à fabriquer → item séparé ci-dessous.
+
+- [ ] **Fabriquer le banc d'écoute des interjections courtes** — l'outil qui
+  tranchera : la **même** interjection (« Eh ! », « Ah ! », « Oh ! », « Non ! »)
+  passée aux voix réellement concernées (Kokoro `im_nicola` +15 %, Edge
+  `fr-FR-HenriNeural` −5 %), en variantes : avec et sans le **signe de dialogue**
+  en tête (`«` / `—`), avec `!`, avec `,`, avec `.`, et rattachée à la **phrase
+  suivante**. Sortie : un dossier d'écoute daté + un lanceur double-clic, comme
+  les autres bancs. **Le moteur doit être allumé.**
+
+- [ ] **`_diag_incises_reelles.py` a un ANGLE MORT** — découvert le 19/09/2026.
+  Son compteur « incises gardées pour une bonne raison » **saute** les phrases
+  dès qu'une incise retirable y est détectée (`continue`, ligne 177) et son
+  `MOTIF_LARGE` n'accepte que les incises **à pronom** et **à nom propre** ; il
+  ne voit donc **pas** les incises à **nom commun** (« , dit le comte », « , dit
+  le jeune homme »). Résultat : il annonce **19** incises gardées là où la mesure
+  complète en compte **151**. Ses bilans sont donc **optimistes** — à corriger,
+  sinon l'outil fait croire que le travail est fini.
+
+- [x] **Le cas « Danglars » : rien à changer** — vérifié le **19/09/2026**,
+  Laurent avait raison de dire « c'est plutôt pas mal découpé, rien à changer ».
+  Dans « Oh ! mon Dieu ! fit Danglars du même ton dont il aurait dit : Ma foi,
+  la chose m'est bien indifférente ! », l'attribution (« fit Danglars ») n'est
+  **pas** lue et la suite l'est : c'est exactement le comportement voulu.
+
 ## 🟠 Priorité 2 — Voix & casting
 
 ### Retours d'écoute du 18/09/2026
@@ -555,8 +636,158 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   fenêtres**. Chantier frontend à découper avant de coder (l'écran d'écoute et
   l'écran de casting doivent partager la même logique — et le pool automatique du
   casting lit déjà ces critères).
+  *Complément de Laurent, 19/09/2026* : « je continue d'annoter les voix, et il
+  faudrait que je voie les rubriques (Âge : jeune, adulte, mûr, vieux ;
+  Timbre : très aigu, aigu, moyenne, grave, très grave) ». Deux manques
+  **distincts** :
+  (1) **voir à quoi correspond chaque menu** : une fois une valeur choisie, la
+  ligne affiche « adulte » ou « aigu » **sans dire de quelle rubrique il
+  s'agit** — le libellé n'apparaît que sur un menu **vide**, en guise d'option
+  (`app.js`, `_construireLigneVoix`). Correctif minimal et immédiat : une
+  **étiquette visible devant chaque menu** (« Âge », « Timbre », « Débit »…).
+  (2) **une échelle de hauteur** pour le timbre : Laurent demande
+  **très aigu / aigu / moyenne / grave / très grave**, là où la liste actuelle
+  mêle trois **hauteurs** (grave, médium, aigu) et trois **textures**
+  (rocailleux, cristallin, voilé).
+  ⚠️ **Ne pas remplacer, AJOUTER** : ces valeurs servent déjà (**250 voix
+  annotées** : aigu 85, médium 81, grave 58, voilé 20, rocailleux 4,
+  cristallin 2 ; âge : adulte 118, jeune 63, mûr 53, vieux 10, enfant 6).
+  Ajouter `tres_aigu` et `tres_grave` ne perd rien ; remplacer rendrait
+  **26 annotations orphelines** (voilé, rocailleux, cristallin). Décision de
+  Laurent à prendre.
 
-- [ ] **Fabriquer une voix : choisir un extrait de DIALOGUE, pas de narration** —
+- [x] **Menus de voix : des DRAPEAUX et tes notes d'écoute — LIVRÉ le
+  19/09/2026** — demande de Laurent : « retirer France, Espagne, Italie, etc. et
+  ne laisser que les drapeaux ». Pour les voix Kokoro : « selon l'accent, plus ou moins
+  prononcé, je pourrais mettre 2 drapeaux — un français et un deuxième pour
+  l'accent. Les langues étrangères très prononcées, on laisse un seul drapeau. »
+  *État mesuré le 19/09/2026* (23 libellés distincts, champ `region` de
+  `modules/tts.py` et `main.py`) :
+  - **12 voix Edge n'ont AUCUN code pays** : « France » (5), « Canada » (3),
+    « Belgique » (2), « Suisse » (2) — incohérence à corriger d'abord ;
+  - les autres nomment le pays **et** le moteur : « France (NeuTTS) » (109),
+    « France (XTTS) » (74), « France (Kyutai) » (35), « France (NIMM Voix) »
+    (30), « France (Piper) » (4), « France (Kokoro) » (1) ;
+  - les accents XTTS sont écrits **dans le texte** : « France (XTTS) - accent
+    allemand / anglais / canadien / paysan / espagnol-italien » ;
+  - pays du timbre : États-Unis (20), Chine (8), Royaume-Uni (8), Japon (5),
+    Inde-Hindi (4), Portugal/Brésil (3), Espagne (3), Italie (2).
+  *Format demandé par Laurent, 19/09/2026 (sa réponse, à garder telle quelle)* :
+  « [Prénom] [drapeau] [Âge] [Timbre] [Accent] [Moteur] » — ses exemples :
+  `Alice 🇫🇷 Jeune aigu - Kyutai` et `Amélie 🇫🇷🇬🇧 Mûre grave - Kokoro`.
+  *Ce qu'il voit aujourd'hui* (relevé par lui le 19/09/2026) :
+  - Kokoro / Kyutai / Piper, modale du casting : `Prénom — 🇫🇷 France` ;
+  - **Edge, PARTOUT : `Prénom — France`** — aucun drapeau : ce sont exactement
+    les **12 voix sans code pays** relevées ci-dessus ;
+  - menu de changement de voix d'un personnage :
+    `Prénom — 🇫🇷 France (Kyutai)` ;
+  - fenêtre « Écouter les voix » : `Prénom — 🇫🇷 France (Kyutai)`.
+  ✅ **Les drapeaux s'affichent bien en IMAGE chez Laurent** (constaté le
+  19/09/2026) : l'alerte « Windows affiche les drapeaux en deux lettres » ne
+  s'applique **pas** à sa machine — ne plus s'en servir d'argument.
+  *Règle des drapeaux validée par Laurent* : « je ne lis qu'en français de toute
+  façon » → le **drapeau principal est toujours 🇫🇷**, et le **2ᵉ drapeau** est
+  celui du pays du **timbre** (ou de l'**accent**) quand la voix vient d'ailleurs.
+  Pas besoin d'une case « intensité de l'accent » : **2 drapeaux suffisent**.
+  *Cas particuliers à trancher* : (1) « accent paysan » — ce n'est pas un pays ;
+  (2) « accent espagnol/italien » — deux pays pour une seule voix ; (3) les voix
+  Edge `fr-BE`, `fr-CA`, `fr-CH` (accent régional francophone : 🇫🇷🇧🇪, 🇫🇷🇨🇦,
+  🇫🇷🇨🇭 ?) ; (4) les **voix sans âge ni timbre annotés** (que montre-t-on à la
+  place ?).
+  *Où sont les rubriques affichées* : l'**Âge** et le **Timbre** du libellé sont
+  les **annotations d'écoute** (`data/annotations_voix.json`), pas les
+  catalogues — la page les a déjà en mémoire (`_annotationsVoix`). ⚠️ Vérifier
+  qu'elles sont chargées **avant** la construction des menus du casting (sinon
+  les libellés seraient vides au premier affichage).
+  ✅ **LIVRÉ le 19/09/2026.** Format en place dans les **deux** menus (celui du
+  narrateur dans les réglages, et celui du casting) : `Prénom 🇫🇷[2ᵉ drapeau] âge
+  timbre — Moteur`. Exemples réels : `Henri 🇫🇷 mûr grave — Edge (en ligne)`,
+  `Aurore 🇫🇷🇬🇧 mûr voilé — Kokoro`, `Sylvie 🇫🇷🇨🇦 — Edge (en ligne)`.
+  *Comment le 2ᵉ drapeau est choisi*, dans cet ordre : un drapeau **déjà écrit
+  dans la région** (le plus précis : États-Unis, Japon), sinon un **accent nommé
+  dans la région** (« France (XTTS) - accent allemand »), sinon un **pays écrit
+  en clair** (France, Canada, Belgique, Suisse — les **12 voix Edge qui
+  n'avaient aucun drapeau**), sinon l'**accent annoté par Laurent**. Le drapeau
+  français est toujours devant et n'est jamais répété.
+  *L'âge et le timbre* viennent des annotations d'écoute, affichés avec les
+  **libellés du serveur** (« mûr », « très aigu »). Une voix pas encore annotée
+  n'affiche rien de plus, le libellé reste propre. `loadVoices()` charge
+  désormais les annotations **et** les critères : la modale du casting les a donc
+  toujours sous la main (c'était le risque : des libellés vides au premier
+  affichage).
+  ⚠️ *Changement assumé, à valider par Laurent* : le **genre (F)/(M) a disparu**
+  du libellé — le format demandé ne le prévoit pas et les menus du casting
+  groupent déjà « Femmes » / « Hommes ». Si le repère manque dans le menu du
+  narrateur, on le remettra.
+  *Technique* : `frontend/app.js` (`_libelleVoix`, `_secondDrapeauDeVoix`,
+  `_libelleCritere`, plus le libellé du menu du casting qui appelle maintenant la
+  même fonction).
+  *Étendu le 19/09/2026, après essai de Laurent* : le panneau **« Voix de cette
+  phrase »** (menu « Voir la voix » depuis le casting, sur PC comme au tap sur
+  mobile) gardait son **ancien** libellé (`_remplirMenuVoixPhrase`, ligne 3209).
+  Demande de Laurent : « le même affichage que dans le menu Casting des voix ».
+  Corrigé. Les notes d'écoute y sont disponibles **sans rien charger de plus** :
+  `loadVoices()` est appelé au démarrage de la page (`app.js`, init ligne 116) et
+  charge désormais annotations et critères ; et une annotation enregistrée met à
+  jour `_annotationsVoix` en mémoire, donc le panneau suit immédiatement.
+  ⚠️ Rappel : le **service worker** de la page met `app.js` en cache — après une
+  modification, un simple F5 ne suffit pas toujours, il faut un **rechargement
+  forcé** (Ctrl+F5) ou un vidage du cache.
+  *Vérification* : **nouveau test** `test_voix/test_libelle_voix.js`
+  (**11 contrôles** : voix Edge, accents région et annotés, libellés du serveur,
+  valeur inconnue, espaces) ; `node --check frontend/app.js`,
+  `test_voix/test_criteres_voix.js` et `test_voix/test_ids_ecran.py` → tout OK.
+  *À faire par Laurent* : **redémarrer le lecteur**, recharger la page, et
+  regarder ses deux menus.
+
+- [ ] **Kokoro allemand et thaï : ça EXISTE (vérifié le 19/09/2026)** — idée de
+  Laurent : « il faudrait télécharger les voix Kokoro en allemand et thaï, je
+  crois qu'elles existent. Je ferais des mélanges avec ces voix pour Kokoro dans
+  NIMM Voix ». Vérification faite (page officielle **et** API Hugging Face) :
+  **Kokoro v1.0 n'a NI allemand NI thaï** — ses langues sont l'américain (11F/9M),
+  l'anglais britannique (4F/4M), le japonais (4F/1M), le mandarin (4F/4M),
+  l'espagnol (1F/2M), le français (**une seule voix : `ff_siwis`**), le hindi
+  (2F/2M), l'italien (1F/1M) et le portugais-brésilien (1F/2M).
+  **Mais Laurent avait raison** : les fine-tunes communautaires existent, tous en
+  **Apache-2.0** (licence notée d'avance : utilisables, et **mélangeables**).
+  *Allemand* — le plus utile :
+  - `cryptomilk/kokoro-german-kerstin` : fournit `voices/df_kerstin.bin` **et**
+    `df_kerstin.pt` — même format que nos banques de voix, et la convention
+    `df_` (deutsch féminin) suit celle de Kokoro, comme notre `ff_` français ;
+  - `crane-local-ai/Kokoro-82M-v1.0-German-ONNX` (97 téléchargements) : un
+    **Kokoro allemand COMPLET** (`onnx/model.onnx` + `voices/df_kerstin.bin`) →
+    de quoi faire tourner un moteur Kokoro allemand de bout en bout ;
+  - `kikiri-tts/kikiri-german-base-51speakers-synthetic` : **51 locuteurs**
+    allemands, mais **un seul** voicepack livré (`voices/victoria.pt`) : les
+    autres voix sont **dans** `kikiri_german_base_51spk_ep4.pth` (~2 Go), à
+    extraire — travail technique, à ne tenter que si les autres ne suffisent pas.
+  *Thaï* — le plus prêt à l'emploi : `kunato/wayu-kokoro-thai-v1` (Apache-2.0)
+    fournit **12 voicepacks `.pt`**, déjà nommés par âge et timbre
+    (`f_teen_bright`, `f_elderly_soft`, `f_mid_warm`, `m_elderly_deep`…) →
+    directement mélangeables comme nos voix de l'atelier.
+  *Où* : le travail se fait dans **NIMM Voix** (téléchargement, fusion des
+  banques, mélanges), pas ici. *À vérifier là-bas, avant tout mélange* : que les
+  vecteurs `.pt`/`.bin` allemands et thaïs ont bien la **même dimension de
+  style** que les nôtres (256), sinon le mélange est impossible ; puis
+  **écouter**, comme toujours (une mesure ne remplace pas l'oreille).
+  *Note de licence* : Apache-2.0 pour les trois dépôts → aucune restriction, et
+  la provenance est notée ici (règle d'or de l'atelier NIMM Voix).
+
+- [x] **Timbre : « très grave » et « très aigu » ajoutés** — livré le
+  **19/09/2026**, demande de Laurent : « juste ajouter le "très aigu\très grave"
+  dans ce menu également ». Deux valeurs ajoutées à `CRITERES_VOIX`
+  (`main.py`) : `tres_grave` et `tres_aigu`, **sans rien retirer** — les trois
+  hauteurs (grave, médium, aigu) et les trois textures (rocailleux, cristallin,
+  voilé) restent : **250 voix sont déjà annotées** avec, dont 26 en texture, et
+  les retirer perdrait ces notes. La fenêtre « Écouter les voix » n'est pas
+  touchée par ailleurs (décision de Laurent : « laisser comme il est pour le
+  moment, on ajoutera/retirera des rubriques si nécessaire plus tard »).
+  *Vérification* : `python -m py_compile main.py` et
+  `test_voix/test_annotations_voix.py` (**tout OK**).
+  *À faire par Laurent* : **redémarrer le lecteur** (`START.bat`) pour que les
+  deux nouvelles valeurs apparaissent dans les menus.
+
+
   remarque de Laurent, 18/09/2026 au soir : « dans Librivox, il faut que je trouve
   des passages où le lecteur lit un dialogue. J'ai remarqué que des passages que
   j'ai pris sont des passages de "narrateur" […] Mais les passages qui contiennent

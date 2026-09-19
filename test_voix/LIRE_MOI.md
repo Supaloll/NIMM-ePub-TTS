@@ -87,6 +87,7 @@ gratuit** — ils font seulement travailler la carte graphique :
 | Test | Ce qu'il vérifie |
 |---|---|
 | `test_criteres_voix.js` | les menus de critères de la page **et** ceux du serveur sont les mêmes |
+| `test_libelle_voix.js` | le **libellé d'une voix** dans les menus (demande de Laurent, 19/09/2026) : drapeau(s), âge, timbre et moteur — les drapeaux des voix Edge (elles n'en avaient aucun), le 2ᵉ drapeau des accents, les libellés exacts du serveur (« mûr », « très aigu ») |
 | `test_etat_casting.js` | badges « à caster » / « voix partagée » |
 | `test_filtre_genre.js` | menus de voix (femmes / hommes) |
 | `test_voix_ecoutables.js` | voix d'un moteur éteint (jamais de substitution silencieuse) |
@@ -152,6 +153,7 @@ aujourd'hui :
 | `_banc_ponctuation_exclamation.py` | fabrique le **lot d'écoute de la ponctuation du « ! »** (4 variantes) **et des incises** (gardées/retirées), sur les phrases réelles d'un livre : dossier `ecoute_ponctuation_<date>` avec les WAV numérotés, un index (ce qu'on demande), les textes exacts envoyés, et le lanceur d'écoute — **Kyutai allumé** (voir `LANCER_BANC_PONCTUATION.bat`) |
 | `_mesurer_exclamations.py` | combien de « ! » sont des **interjections courtes** (pour régler le seuil), et combien d'**abréviations collées** à un prénom (Mlle suivi d'un espace insécable, comme dans le tome 5) — lecture seule, rien à allumer |
 | `_diag_incises_reelles.py` | **pourquoi il reste des incises** : il sépare celles qui sont retirées, celles qui sont gardées **exprès** (non fermées), celles qui échappent par **verbe inconnu**, et les phrases qui ne sont **qu'une incise** (« demanda Morrel. ») — c'est l'outil qui a expliqué le « elles sont toujours présentes » du 18/09/2026 |
+| `_mesurer_cas_tordus_20260919.py` | **combien de phrases tombent dans les cas tordus du 19/09/2026** (chapitre 96) : phrase qui n'est qu'une incise (silence joué), incise gardée à cause d'un **point-virgule** (« , dit le comte ; »), incise coupée sur une **civilité sans point** (« dit Mme Danglars »), **verbe + complément** avant le nom (« dit avec un sourire le comte »), et phrases de **8 caractères ou moins** (celles envoyées seules au moteur) — lecture seule, rien à allumer (`--livre 16`) |
 | `_tester_tts_serveur.py` | ce que le **serveur** renvoie vraiment pour une phrase : il interroge le lecteur en marche (`POST /api/tts`, port 8081) et compare l'audio du texte **nettoyé** et du texte **d'origine** — le moyen le plus direct de savoir si un doute vient du nettoyage ou du **cache** (serveur allumé) |
 | `_essai_garde_fou_start.py` | qui serait arrêté par le **garde-fou de `START.bat`** (les serveurs qui écoutent sur le port 8081), **sans rien arrêter** — utile pour vérifier que NIMM (port 8080) et le relais Tailscale ne sont jamais visés |
 
