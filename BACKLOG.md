@@ -1142,6 +1142,34 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   (`base_model:finetune:hexgrad/Kokoro-82M`) et par **langue** (`fr`), puis
   écouter ce qui existe. **Rien ne sera intégré avant écoute** (règle de
   l'atelier).
+  🔎 **Et pour l'entraîner soi-même : le chantier EXISTE DÉJÀ** (piste Gemini du
+  19/09/2026 examinée le soir même). L'atelier **NIMM Voix** a ouvert un chantier
+  « vraie voix française par entraînement » le **11/09/2026** : outil
+  `voicepack_train` (`vivienhenz24/voicepack_train`, Apache-2.0) **installé et
+  vérifié** (PyTorch 2.11 + CUDA 12.8, RTX 4060 reconnue, phonémisation française
+  OK), corpus de **1 879 extraits d'entraînement + 99 de validation** préparé
+  (le livre audio de Laurent, `outils/corpus/voix_pro/`, avec `manifest_ok.csv`).
+  **Pourquoi ça s'est arrêté (trouvé le 19/09/2026 dans `logs/_train_pro.log`)** :
+  lancé le 11/09 à 23h03, il a **échoué dès le step 1** sur
+  `AssertionError: (758, 512)` — **Kokoro a une fenêtre de 512 phonèmes**, et un
+  extrait du corpus en fait **758** : le programme refuse et s'arrête. C'est
+  exactement le « **corpus à re-découper plus court** » déjà noté dans le
+  `LISEZ-MOI_des_dossiers.md` de l'atelier.
+  ✅ **La VRAM n'est PAS le problème** : le journal mesure **4,25 Go au pic** sur
+  les 8 Go de la 4060.
+  *Sur la piste de Gemini, le tri honnête* : **juste** sur « Kokoro est petit, la
+  4060 suffit, 3-5 Go de VRAM » (mesuré : 4,25 Go) ; **faux** sur « 15-30 min
+  d'audio suffisent » — l'essai de 7,5 min du 11/09 a donné une voix **quasi
+  identique au départ**, et le trainer exige des extraits couvrant **les 510
+  longueurs de phrase** (référence : 13 100 extraits, LJSpeech) ; **inutile** sur
+  « prends les scripts de `kikiri-tts` » (l'outil est déjà installé ici) ; son
+  « Stage 2 » correspond à l'option **`--lr-decoder > 0`** de l'outil, déjà
+  repérée par l'atelier — **à garder pour plus tard**, quand l'entraînement du
+  vecteur seul donnera déjà un résultat.
+  *Prochaine étape, dans NIMM Voix* : (1) repérer et **redécouper les extraits
+  au-delà de 510 phonèmes** (le `manifest_ok.csv` et `filtrer_manifest.py` sont
+  là pour ça) ; (2) relancer `_train_pro2.cmd` ; (3) **écouter**. Rien ici ne
+  demande de matériel nouveau.
 
 - [x] **Timbre : « très grave » et « très aigu » ajoutés** — livré le
   **19/09/2026**, demande de Laurent : « juste ajouter le "très aigu\très grave"
