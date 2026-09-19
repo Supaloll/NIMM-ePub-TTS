@@ -1170,6 +1170,26 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   au-delà de 510 phonèmes** (le `manifest_ok.csv` et `filtrer_manifest.py` sont
   là pour ça) ; (2) relancer `_train_pro2.cmd` ; (3) **écouter**. Rien ici ne
   demande de matériel nouveau.
+  ⏱️ *Combien de temps ? — mesuré, pas deviné (19/09/2026)*. Question de Laurent :
+  « quelques heures ? ». Le premier essai (VoxPopuli, **57 extraits**, 10 époques)
+  a tourné de **15h45 à 16h16**, avec un checkpoint par époque : 15:45, 15:47,
+  15:50, 15:51, 15:53, 15:56, 16:00, 16:06, 16:11, 16:16 → **570 étapes en
+  ~31 min**, soit **≈ 3,3 s par étape** (et les époques **s'allongent** : 2 min
+  puis 5 min 20 — les extraits longs coûtent cher).
+  `_train_pro2.cmd` ne demande que **3 époques** sur **1 879 extraits** =
+  **5 637 étapes** → **≈ 5 h** au rythme de VoxPopuli, **davantage** (8 à 12 h)
+  car le livre audio a des extraits plus longs que VoxPopuli.
+  → **Donc : une NUIT**, pas « quelques heures ». Bonne nouvelle :
+  `--save-every-epoch` écrit `voice_pack_epoch001.pt`, `002`… → **on peut écouter
+  et convertir après CHAQUE époque** sans attendre la fin.
+  *Méthode de l'atelier, à appliquer* : ne pas se fier à cette extrapolation —
+  **relancer et laisser tourner 20-30 min**, puis lire la croissance de
+  `training/voix_pro/history.jsonl` (une ligne par étape) : c'est le **rythme
+  réel** sur CE corpus.
+  ⚠️ *Rappel de licence* : le corpus vient de **`Reference Pro/Stephen King -
+  22_11_63`** (audiobook **acheté**) → **usage privé** : la voix obtenue ne se
+  partage jamais, elle vit dans une banque séparée (`voix_privees/`) et sa fiche
+  porte la mention « usage privé — ne pas diffuser ».
 
 - [x] **Timbre : « très grave » et « très aigu » ajoutés** — livré le
   **19/09/2026**, demande de Laurent : « juste ajouter le "très aigu\très grave"
