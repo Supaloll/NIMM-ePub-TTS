@@ -119,9 +119,27 @@ def main():
     egal('phrase qui n est QUE l incise : gardee entiere (jamais videe)',
          'ajouta Valentine en s\u2019adressant \u00e0 Noirtier.',
          'ajouta Valentine en s\u2019adressant \u00e0 Noirtier.')
-    verifier('le sujet de la phrase n est jamais supprime',
-             'jeune homme' in _clean_text(
-                 "j\u2019\u00e9coute, r\u00e9pondit le jeune homme ; parlez."))
+    # 19/09/2026 -- CE CONTROLE A ETE REFORMULE, et voici POURQUOI (pour que la
+    # question ne revienne pas dans six mois).
+    # Il s'appelait « le sujet de la phrase n'est jamais supprime » et exigeait
+    # que « jeune homme » RESTE dans « j'ecoute, repondit le jeune homme ;
+    # parlez. ». Il avait ete ecrit AVANT que le module apprenne les noms communs
+    # avec article (« , dit le comte, »), et il ne passait que PAR ACCIDENT : le
+    # « ; » n'etait alors pas reconnu comme une fin d'incise, donc l'incise etait
+    # toujours gardee -- et LUE.
+    # Laurent a tranche le 19/09/2026, apres avoir entendu le chapitre 96 du
+    # Comte de Monte-Cristo : « repondit le jeune homme ; » se retire comme
+    # « dit le comte ; », c'est la MEME construction. Le sujet de la REPLIQUE,
+    # lui, n'est jamais touche : il reste « j'ecoute » et « parlez ».
+    egal('incise a nom commun + point-virgule : RETIREE (19/09/2026)',
+         "j\u2019\u00e9coute, r\u00e9pondit le jeune homme ; parlez.",
+         "j\u2019\u00e9coute, parlez.")
+    egal('point-virgule ORPHELIN en tete : nettoye',
+         "criait Villefort ; o\u00f9 est-il ?", "o\u00f9 est-il ?")
+    # Le vrai garde-fou, lui, reste : un mot qui CONTIENT un verbe de parole ne
+    # doit pas etre pris pour une incise (frontiere de mot exigee).
+    verifier('un mot en -dit n est pas pris pour une incise (frontiere de mot)',
+             'maudit' in _clean_text("\u2014 Il partit, maudit-il."))
 
     print('')
     print('6) les abreviations collees a une majuscule (le « mleu » du banc)')

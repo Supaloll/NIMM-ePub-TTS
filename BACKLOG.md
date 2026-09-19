@@ -542,7 +542,7 @@ fois ». Ce qui reste se range en **trois causes distinctes**, chacune mesurée 
 19/09/2026 par un nouvel outil (`test_voix/_mesurer_cas_tordus_20260919.py`,
 lecture seule) sur les **5 105 phrases** du tome 5 :
 
-- [ ] **Le point-virgule n'est pas reconnu comme fin d'incise** — cause du
+- [x] **Le point-virgule ferme l'incise — LIVRÉ le 19/09/2026** — cause du
   « dit le comte » **lu** encore. Exemple réel écouté par Laurent : « Il n'y
   aurait cependant point de ma faute, **dit le comte** ; aussi je tiens à le
   constater. » La règle de retrait n'accepte que deux fins : une **virgule** ou
@@ -556,6 +556,39 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Correctif envisagé* : accepter `;` (et à examiner `:`) comme borne de
   fermeture dans `_ferme_ou_terminal`. Risque faible. **Incrémenter
   `VERSION_CACHE`** (le texte envoyé au moteur change).
+  ✅ **LIVRÉ le 19/09/2026.** Mesure à blanc d'abord (outil
+  `test_voix/_mesurer_cas_tordus_20260919.py`, section « SIMULATION ») : **67
+  phrases** touchées dans le tome 5, **aucune** ne perd tout son texte, mais
+  **31** laisseraient une ponctuation orpheline en tête. Le correctif a donc deux
+  volets : (1) `_ferme_ou_terminal` accepte un « ; » **immédiatement** après
+  l'incise (jamais plus loin : la règle mesurée) ; (2) `retirer_incises` nettoie
+  la ponctuation basse restée en tête (`lstrip` sur espace, `,;:.…`) — **jamais**
+  le tiret de dialogue ni le guillemet ouvrant, qui sont légitimes.
+  `VERSION_CACHE` passé de **10 à 11** (`modules/tts_cache.py`).
+  *Vérifié après coup, sur le vrai texte* : incises gardées **151 → 84** (−67,
+  exactement le chiffre annoncé) ; le cas « point-virgule » tombe à **0** ;
+  l'incise seule (94), les civilités (4) et les phrases courtes (379) sont
+  **inchangées** — le correctif fait ce qu'il annonçait, et rien d'autre.
+  *Deux tests ont démenti une formulation trop étroite, et ont été REFORMULÉS
+  (avec la raison écrite dedans, pour que la question ne revienne pas)* :
+  - `test_nettoyage_tts.py` : le contrôle « le sujet de la phrase n'est jamais
+    supprimé » exigeait que « jeune homme » RESTE dans « j'écoute, répondit le
+    jeune homme ; parlez. ». Il avait été écrit **avant** que le module apprenne
+    les noms communs avec article (« , dit le comte, ») et ne passait que **par
+    accident** (le `;` n'était pas une fin reconnue). **Décision de Laurent le
+    19/09/2026 : on retire** — c'est la même construction que « dit le comte ; ».
+    Le contrôle est remplacé par trois : l'incise à nom commun + `;` est retirée,
+    le point-virgule orphelin est nettoyé, et un mot piège (« maudit-il ») n'est
+    pas pris pour une incise (ce dernier garde-fou n'était testé nulle part).
+  - `test_ponctuation_incises.py` : même cas. Son commentaire expliquait le vrai
+    danger — « le piège du code proposé ailleurs : “jeune homme” sortait TOUT
+    SEUL » — donc le contrôle visait un **mot orphelin**, pas le retrait. Il
+    vérifie maintenant cela précisément : jamais d'orphelin après le verbe, et la
+    réplique garde ses deux morceaux. **Plus juste et plus fort qu'avant.**
+  *Copies de sécurité* : `modules/incises.py.bak_avant_point_virgule_20260919`
+  et `modules/tts_cache.py.bak_avant_point_virgule_20260919`.
+  *Reste à faire* : le `:` (deux-points) n'est **pas** traité — à mesurer plus
+  tard, séparément, comme prévu ci-dessus.
 
 - [ ] **Les civilités sans point coupent le motif** (`Mme`, `Mlle`, `Mgr`) —
   cause du « dit Mme Danglars en signant. » **lu**. Le motif prend « Mme » pour

@@ -83,7 +83,14 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       COORDONNEE (« , dit Monte-Cristo, qui sentit…, et qui comprit… ; ») part
 #       avec l'incise jusqu'au point-virgule, et une QUESTION du personnage en fin
 #       de phrase ne bloque plus l'extension (le « ? » etait regarde trop loin).
-VERSION_CACHE = 10
+#  11 = 19/09/2026 : le POINT-VIRGULE ferme desormais une incise de parole
+#       (« , dit le comte ; aussi je tiens a le constater. ») : il separe deux
+#       propositions, c'est une frontiere sure. La ponctuation ORPHELINE laissee
+#       en tete de phrase par ce retrait (31 phrases du tome 5) est nettoyee.
+#       Mesure avant de decider : 67 phrases touchees dans le tome 5, aucune ne
+#       perd tout son texte. Sans cet increment, les phrases deja en cache
+#       serviraient l'ANCIEN rendu et l'incise semblerait toujours lue.
+VERSION_CACHE = 11
 
 
 def _hash_key(text, voice, rate, pitch):

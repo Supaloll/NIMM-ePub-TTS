@@ -60,6 +60,62 @@ def _texte_des_chapitres(chemin):
     return [c['text'] for c in get_chapters(str(chemin))]
 
 
+# ============================================================
+# SIMULATION DU CORRECTIF « point-virgule » (mesure a blanc, 19/09/2026)
+# ============================================================
+# Idee : le POINT-VIRGULE ferme une incise, au meme titre qu'une virgule. Le
+# module `modules/incises.py` sait deja que « le point-virgule est une frontiere
+# sure » (il s'en sert pour emporter la relative), mais il ne l'accepte pas comme
+# BORNE de l'incise : « , dit le comte ; » reste donc lu.
+#
+# Ce bloc SIMULE la regle candidate SANS toucher au module : il rejoue la
+# fonction `incises()` en acceptant en plus un « ; » juste apres le morceau
+# trouve. C'est une mesure, pas une modification : rien n'est ecrit.
+def _ferme_ou_terminal_pv(phrase, debut, fin):
+    """Comme `_ferme_ou_terminal`, mais un « ; » juste apres ferme aussi."""
+    texte = phrase[debut:fin]
+    apres = phrase[fin:].strip()
+    return (texte.rstrip().endswith(',')
+            or apres.startswith(';')
+            or apres in ('', '.', '!', '?', '\u2026', '\u00bb'))
+
+
+def incises_avec_point_virgule(phrase):
+    """[(debut, fin)] des incises si le « ; » fermait l'incise.
+
+    Rejoue exactement la regle du module (etendue, relative emportee), avec la
+    seule difference de la borne. Volontairement prudent : on n'accepte que le
+    « ; » IMMEDIATEMENT apres le morceau reconnu, jamais plus loin.
+    """
+    from modules import incises as _IN
+    trouvees = []
+    for debut, fin_base in _IN._matches(phrase):
+        fin = fin_base
+        if not _ferme_ou_terminal_pv(phrase, debut, fin):
+            fin = _IN._etendre(phrase, fin_base)
+        if not _ferme_ou_terminal_pv(phrase, debut, fin):
+            continue
+        fin_relative = _IN._etendre_relative(phrase, fin)
+        if fin_relative > fin:
+            fin = fin_relative
+        trouvees.append((debut, fin))
+    return trouvees
+
+
+def _phrase_sans(phrase, trouvees):
+    """Le texte de la phrase une fois les incises retirees."""
+    texte = phrase
+    for debut, fin in sorted(trouvees, reverse=True):
+        texte = texte[:debut] + ' ' + texte[fin:]
+    return ' '.join(texte.split())
+
+
+def _a_des_mots(texte):
+    """Reste-t-il du texte prononcable (et non de la ponctuation seule) ?"""
+    import re as _re
+    return bool(_re.search(r'[A-Za-z\u00c0-\u024f]', texte))
+
+
 def main():
     analyseur = argparse.ArgumentParser(
         description='Compte les cas tordus du 19/09/2026 dans un tome.')
@@ -86,7 +142,8 @@ def main():
 
     total = {'phrases': 0, 'incise_seule': 0, 'virgule_fermee': 0,
              'civilite_sans_point': 0, 'verbe_complement': 0, 'courte': 0,
-             'gardee_toutes': 0, 'gardee_seule': 0}
+             'gardee_toutes': 0, 'gardee_seule': 0,
+             'pv_touchees': 0, 'pv_vides': 0, 'pv_orphelines': 0}
     exemples = {cle: [] for cle in total if cle != 'phrases'}
 
     for texte in _texte_des_chapitres(chemin):
@@ -130,6 +187,23 @@ def main():
                 total['courte'] += 1
                 if len(exemples['courte']) < options.exemples:
                     exemples['courte'].append(phrase)
+            # F. SIMULATION du correctif « point-virgule » (mesure a blanc)
+            candidats = incises_avec_point_virgule(phrase)
+            if candidats != trouves:
+                total['pv_touchees'] += 1
+                nouveau = _phrase_sans(phrase, candidats)
+                # Le retrait laisse parfois un « ; » ORPHELIN en debut de phrase
+                # (l'incise ouvrait la phrase : « appela Valentine ; ... »). Le
+                # module ne le nettoie pas aujourd'hui : la regle candidate doit
+                # donc AUSSI le faire, sinon le moteur recoit un « ; » tout seul.
+                if nouveau[:1] in ',;:\u2026\u00ab\u00bb"':
+                    total['pv_orphelines'] += 1
+                nouveau = nouveau.lstrip(' \u00ab\u00bb"\'.,;:!?\u2026\u2014-')
+                if not _a_des_mots(nouveau):
+                    total['pv_vides'] += 1
+                if len(exemples['pv_touchees']) < options.exemples:
+                    exemples['pv_touchees'].append(
+                        (phrase, _phrase_sans(phrase, trouves), nouveau))
 
     print('')
     print('-' * 78)
@@ -145,7 +219,14 @@ def main():
         ('courte', 'E. phrase de %d caracteres ou moins'
                    % SEUIL_COURT),
     ]
-    for cle, libelle in libelles:
+    # La simulation se compte a part : ses exemples sont des COUPLES
+    # (avant, apres), pas des phrases seules.
+    simulation = [
+        ('pv_touchees', 'F. SIMULATION point-virgule : phrases touchees'),
+        ('pv_vides', 'dont phrases qui perdraient TOUT leur texte'),
+        ('pv_orphelines', 'dont une ponctuation ORPHELINE resterait en tete'),
+    ]
+    for cle, libelle in libelles + simulation:
         part = 100.0 * total[cle] / max(total['phrases'], 1)
         print('  %-52s %6d  (%.3f %%)' % (libelle, total[cle], part))
     print('')
@@ -155,6 +236,14 @@ def main():
         print('  --- exemples de %s' % libelle)
         for phrase in exemples[cle]:
             print('      %s' % phrase[:110])
+    if exemples['pv_touchees']:
+        print('')
+        print('  --- CE QUE LE CORRECTIF POINT-VIRGULE CHANGERAIT (avant -> apres)')
+        for phrase, avant, apres in exemples['pv_touchees']:
+            print('      livre : %s' % phrase[:104])
+            print('      AVANT : %s' % avant[:104])
+            print('      APRES : %s' % apres[:104])
+            print('')
     conn.close()
 
 

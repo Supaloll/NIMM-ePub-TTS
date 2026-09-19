@@ -229,10 +229,21 @@ def _etendre(phrase, fin):
 
 
 def _ferme_ou_terminal(phrase, debut, fin):
-    """L'incise est-elle fermée (virgule après) ou terminale (fin de phrase) ?"""
+    """L'incise est-elle fermée (virgule ou point-virgule après) ou terminale ?
+
+    Le POINT-VIRGULE compte comme une fermeture depuis le 19/09/2026. Il sépare
+    deux propositions : c'est une frontière SÛRE, le module s'en sert déjà pour
+    emporter la relative (`MOTIF_DECROCHAGE`). C'est son absence ici qui laissait
+    lire « , dit le comte ; » chez Laurent (chapitre 96).
+    Mesure avant de décider (tome 5, 5 105 phrases, outil
+    `test_voix/_mesurer_cas_tordus_20260919.py`) : **67 phrases** touchées
+    (1,3 %), dont **aucune** ne perd tout son texte. On n'accepte que le « ; »
+    IMMÉDIATEMENT après l'incise, jamais plus loin : c'est la règle mesurée.
+    """
     texte = phrase[debut:fin]
     apres = phrase[fin:].strip()
     return (texte.rstrip().endswith(',')
+            or apres.startswith(';')
             or apres in ('', '.', '!', '?', '\u2026', '\u00bb'))
 
 
@@ -290,6 +301,13 @@ def retirer_incises(phrase):
     texte = re.sub(r'\s+([.,;:\u2026])', r'\1', texte)
     texte = re.sub(r',\s*,+', ',', texte)
     texte = texte.strip()
+    # Ponctuation ORPHELINE en tete : quand l'incise OUVRait la phrase
+    # (« appela Valentine ; Barrois, venez ! »), le point-virgule qui la suivait
+    # reste seul devant. Mesure du 19/09/2026 : **31 phrases** du tome 5 sur les
+    # 67 touchees par le point-virgule. On ne retire QUE la ponctuation basse et
+    # l'espace -- JAMAIS le tiret de dialogue ni le guillemet ouvrant, qui sont
+    # legitimes en tete de replique (« — Barrois, venez ! »).
+    texte = texte.lstrip(' \u00a0,;:.\u2026')
     # GARDE-FOU VITAL : certaines phrases ne SONT qu'une incise (« ajouta
     # Valentine en s'adressant a Noirtier. »). Les vider ferait disparaitre la
     # phrase -- et le moteur refuserait un texte vide, donc plus aucun son.

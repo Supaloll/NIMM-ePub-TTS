@@ -186,15 +186,23 @@ def main():
          '\u2014 Mais vous, dit Morrel vous qui \u00eates si cher ?')
 
     print('')
-    print('5) le mot APRES le verbe n est jamais supprime a tort')
+    print('5) le mot APRES le verbe n est jamais laisse ORPHELIN')
     # Le piege du code propose ailleurs : « repondit le jeune homme » sortait
-    # « jeune homme » (le sujet disparaissait, le sens cassait).
+    # « jeune homme » TOUT SEUL (le sujet restait colle devant la replique, et le
+    # sens cassait). C'est ca, le vrai danger -- pas le retrait de l'incise.
+    # REGLE DU 19/09/2026 (decision de Laurent, chapitre 96) : notre module
+    # retire l'incise EN ENTIER. Deux resultats sont donc corrects :
+    #   - incise gardee entiere  -> « ... repondit le jeune homme ; ... » ;
+    #   - incise retiree entiere -> « ... ; parlez. » (le point-virgule ferme
+    #     desormais l'incise, comme la virgule).
+    # UN SEUL resultat est interdit : « ... impatiemment jeune homme ; ... ».
     phrase_piege = "j\u2019\u00e9coute, r\u00e9pondit le jeune homme ; parlez."
     resultat = retirer_incises(phrase_piege)
-    verifier('« le jeune homme » est conserve',
-             'jeune homme' in resultat, resultat)
-    verifier('la phrase n a pas perdu son sens',
-             resultat != 'j\u2019\u00e9coute ; parlez.')
+    verifier('jamais de mot ORPHELIN apres le verbe',
+             ('jeune homme' not in resultat)
+             or ('r\u00e9pondit le jeune homme' in resultat), resultat)
+    verifier('la replique garde ses deux morceaux',
+             'j\u2019\u00e9coute' in resultat and 'parlez' in resultat, resultat)
 
     print('')
     print('%d controles, %d en echec' % (CONTROLES, ECHECS))
