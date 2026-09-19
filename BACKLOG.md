@@ -671,7 +671,37 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Croisement des deux retours* (ce que les DEUX ont trouvé, donc à faire
   d'abord) : **les verbes de parole absents de la liste** et **le complément
   avant le nom**.
-  *Reste à faire* : le **plan en 2 vagues** ci-dessus, à valider par Laurent.
+  *Mesure de la VAGUE 1 dans le vrai tome 5 (19/09/2026, outil
+  `test_voix/_mesurer_vague1_20260919.py`)* — ordres de grandeur, motifs simples :
+  - **A2/A3** (incise + relative emportée) : **14 phrases**, dont 13 répliques.
+    ⚠️ **À TRIER** : ces 14 incluent les BONNES relatives, qui décrivent le
+    personnage et doivent partir (« … dit Mme de Villefort, **qui ne pouvait**… »).
+    Le défaut de Claude ne concerne que celles qui appartiennent à la **réplique**
+    (« , dit Morrel, **qui l'a voulu** »). Le tri se fera sur le **temps du
+    verbe** : imparfait ou passé simple → décrit le locuteur, on emporte ;
+    **passé composé** → appartient à la réplique, on ne touche pas.
+  - **A4/A5** (impératif pris pour une incise) : **0 phrase dans le tome 5 !** Le
+    défaut est réel **sur la phrase inventée** par Claude (« — Parle, dis la
+    vérité… »), mais cette tournure **n'existe pas chez Dumas**. À revérifier sur
+    un autre livre (Shantaram, King) avant d'y consacrer du travail :
+    **fausse piste pour l'instant**.
+  - **C1** (participe orphelin) : **2 phrases**, toutes deux des répliques
+    (« dit Cavalcanti, **se laissant entraîner**… », « dit Beauchamp, **avec un
+    col**… »).
+  *Conclusion* : la vague 1 est **beaucoup plus petite** que le tableau de Claude
+  ne le laissait croire. Priorités réelles : **C1** (2 phrases, correctif clair),
+  puis **A2/A3** (14 phrases, avec un tri à faire). **A4/A5** en attente d'une
+  vérification sur un autre livre.
+  *Ordre validé par Laurent le 19/09/2026* : **vague 1 d'abord**, puis la
+  **3ᵉ voie** (ne retirer les incises que dans les répliques) **en ceinture de
+  sécurité** — rappel : la 3ᵉ voie ne protège que le **récit** (8 phrases du
+  tome 5), jamais les répliques.
+  *Aussi mesuré le 19/09/2026, pour mémoire* : l'heuristique « ne retirer les
+  incises que dans les phrases qui commencent par un tiret » **ne marche pas** —
+  elle sauverait 6 phrases de narration mais **raterait 162 incises de réplique**
+  (239 répliques sans tiret sur 756, car le découpage coupe les longues
+  répliques). C'est ce qui justifie la **3ᵉ voie par le locuteur**, et non par la
+  forme.
 
 - [ ] **Les civilités sans point coupent le motif** (`Mme`, `Mlle`, `Mgr`) —
   cause du « dit Mme Danglars en signant. » **lu**. Le motif prend « Mme » pour
