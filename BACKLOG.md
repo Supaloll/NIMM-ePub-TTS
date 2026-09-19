@@ -590,6 +590,23 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Reste à faire* : le `:` (deux-points) n'est **pas** traité — à mesurer plus
   tard, séparément, comme prévu ci-dessus.
 
+- [ ] **Éprouver les règles d'incises par un TEST ADVERSE (idée de Laurent,
+  19/09/2026)** — « Tu me listes les règles, et je les donne à un LLM qui va
+  essayer de les contourner, pour voir quels cas de figure passeraient encore. »
+  Le document à copier-coller est prêt : **`REGLES_INCISES_a_eprouver.md`**
+  (racine du projet). Il contient le contexte, les **6 étapes** de la règle, les
+  **5 garde-fous**, les exemples déjà connus (pour ne pas les voir reproposés) et
+  la mission : chercher des phrases françaises **réalistes** où la règle
+  (A) retire à tort, (B) rate une incise, ou (C) produit un texte bizarre.
+  *Pourquoi ça vaut le coup* : deux formulations de tests se sont déjà révélées
+  fausses aujourd'hui (voir l'item du point-virgule), et l'angle mort de
+  `_diag_incises_reelles.py` n'avait été trouvé que par hasard. Une machine qui
+  **cherche à casser** la règle trouvera ce que nos yeux habitués ne voient plus.
+  *Suite à donner* : pour chaque cas trouvé et confirmé par Laurent, ajouter un
+  **contrôle dans `test_nettoyage_tts.py`** (et `test_ponctuation_incises.py`),
+  puis décider du correctif. Un cas non confirmé à l'oreille ne devient PAS une
+  règle.
+
 - [ ] **Les civilités sans point coupent le motif** (`Mme`, `Mlle`, `Mgr`) —
   cause du « dit Mme Danglars en signant. » **lu**. Le motif prend « Mme » pour
   le nom et s'arrête là : il ne voit jamais « Danglars », donc l'incise n'est
