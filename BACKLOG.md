@@ -622,6 +622,35 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   - **la réplique TRONQUÉE par la relative** (A2, A3) : « — C'est lui, dit
     Morrel, qui l'a voulu. » → « — C'est lui ». L'étape D emporte une relative
     qui appartient à la **réplique**.
+    ⏸️ **ANALYSE FINE faite le 19/09/2026** (l'outil
+    `_mesurer_vague1_20260919.py` montre désormais **ce que le module FAIT**, et
+    non plus seulement la présence du motif) : sur les **14 phrases**, **9 ont un
+    problème réel**, en **trois familles** :
+    1. **la relative appartient à la RÉPLIQUE** et part avec l'incise :
+       ch.8 ph.110 « — Ce n'est pas moi, dit Caderousse, **qui ai voulu tuer le
+       juif**, c'est la Carconte. » → « — Ce n'est pas moi » (la réplique perd sa
+       fin) ; ch.11 ph.202 « , dit le président, **qui vous a conseillé cette
+       démarche**… ». **Critère de tri trouvé** : ces relatives portent un
+       **pronom de la 1ʳᵉ/2ᵉ personne** ou un **verbe au passé composé** (« qui AI
+       voulu », « qui VOUS a conseillé »), tandis que celles qui décrivent le
+       locuteur sont à l'**imparfait** ou au **passé simple** (« qui ne pouvait »,
+       « qui sentit »).
+    2. **l'emportement va TROP LOIN**, au-delà de la virgule qui ferme la
+       relative : ch.13 ph.126 « — Hier, monsieur, dit le jeune homme, dont la
+       tête s'embarrassait, **j'étais chez vous**… » → « — Hier, monsieur ».
+    3. **la relative reste collée à la réplique** quand elle est trop longue pour
+       être emportée (`LONGUEUR_MAX`) : le texte devient **bancal** —
+       ch.6 ph.24 « — Mais, dit Danglars, qui, de son côté, ne s'apercevait
+       pas… » → « — **Mais qui, de son côté, ne s'apercevait pas**… ». Correctif
+       probable : **si on ne peut pas emporter la relative, ne pas retirer
+       l'incise du tout** (mieux vaut une incise lue qu'un texte bancal).
+    *Les 4 autres phrases sont correctes* : l'incise et sa relative qui décrit le
+    locuteur partent ensemble, comme voulu (« dit Cavalcanti, qui se grisait… »,
+    validé par Laurent le 18/09).
+    ⏸️ **À faire dans une session à froid** : c'est la règle la plus subtile du
+    module (trois sous-cas, chacun avec son garde-fou), et le correctif du même
+    jour (C1) a montré qu'un motif « large » cache toujours un piège — le
+    premier jet aurait emporté « , dit-il, **maintenant** il faut partir. »
   - **les IMPÉRATIFS de la liste** (A4, A5) : « — Parle, **dis la vérité**, et je
     t'écoute. » → « — Parle et je t'écoute. » Les formes de présent ou
     d'impératif (dis, demande, ajoute, répète…) déclenchent un faux retrait.

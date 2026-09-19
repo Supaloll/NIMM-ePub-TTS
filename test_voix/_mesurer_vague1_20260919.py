@@ -33,6 +33,7 @@ BASE = RACINE / 'data' / 'nimm_epub.db'
 BIBLIOTHEQUE = RACINE / 'data' / 'library'
 
 from modules.decoupage import phrases as _phrases                    # noqa: E402
+from modules.incises import retirer_incises                          # noqa: E402
 
 VERBES_INCISE = (r'(?:dit|dis|dirent|r\u00e9pondit|repondit|reprit|s\u2019\u00e9cria'
                  r'|fit|ajouta|murmura|demanda|continua|poursuivit|observa'
@@ -96,7 +97,8 @@ def main():
                     continue
                 if len(total[cle]['exemples']) < options.exemples:
                     total[cle]['exemples'].append(
-                        (chapitre['index'], idx, phrase, locuteur))
+                        (chapitre['index'], idx, phrase, locuteur,
+                         retirer_incises(phrase)))
 
     print('')
     print('=' * 78)
@@ -110,9 +112,10 @@ def main():
         print('      phrases concernees (motif simple)      %6d' % d['toutes'])
         print('      dont phrases de REPLIQUE               %6d'
               % d['replique'])
-        for chapitre, idx, phrase, locuteur in d['exemples']:
+        for chapitre, idx, phrase, locuteur, apres in d['exemples']:
             print('        ch.%d ph.%d  (%s)' % (chapitre, idx, locuteur))
-            print('          %s' % phrase[:100])
+            print('          livre : %s' % phrase[:96])
+            print('          parle : %s' % apres[:96])
     print('')
     print('=' * 78)
     print('RAPPEL : ordres de grandeur (motifs simples), a confirmer par un')
