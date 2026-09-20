@@ -892,6 +892,46 @@ pause est respectée, la prochaine lecture reconstruira la playlist).
 notée au BACKLOG* : appliquer le changement aux seules phrases **pas encore
 lues**, sans reprendre la phrase en cours.
 
+**La VITESSE de chaque phrase — corrigée le 20/09/2026.** Jusqu'à ce jour,
+`_buildPlaylist()` mettait bien la **voix** et la **hauteur** dans chaque unité
+de lecture, mais **pas la vitesse** : `_runTTS` lisait celle du menu du haut
+(`#speed-select`) **une seule fois**, et l'appliquait à toutes les phrases. Les
+curseurs de vitesse de la fenêtre du casting enregistraient donc leur valeur en
+base **sans aucun effet audible**. Mesure faite dans la base ce jour-là :
+**131 fiches sur 1 232** portaient une vitesse réglée (de −25 % à +20 %) que
+personne n'avait jamais entendue ; les 594 hauteurs, elles, fonctionnaient (le
+`pitch` était déjà transmis).
+*Règle appliquée (clarifiée par Laurent le 20/09/2026, le soir — la première
+version, livrée le matin, faisait suivre le menu aux personnages non réglés)* :
+`_voiceForSentence()` renvoie aussi `rate`, par la fonction **pure**
+`_vitesseDeFiche()` ; l'unité porte `rate`, et `launchFetch()` appelle
+`_fetchAudio(…, u.rate || rate, …)`. Trois cas :
+1. **fiche avec un vrai réglage** → la vitesse de la fiche ;
+2. **fiche sans réglage** (personnage avec voix dédiée, curseur jamais touché) →
+   `PERSONNAGE_RATE_DEFAUT` = **« Normale »** : le menu du bas **n'est pas un
+   réglage général, c'est celui du NARRATEUR**, il ne touche donc plus aux
+   dialogues ;
+3. **récit et petits rôles** (lus par le narrateur) → `rate` **nul**, donc la
+   **vitesse du menu** : c'est le tempo du narrateur.
+*Le neutre ne compte pas* comme un réglage : une fiche à `+0%` — le cas de
+**1 101** personnages — rend `null` de `_vitesseDeFiche()`, et c'est la
+constante `PERSONNAGE_RATE_DEFAUT` qui décide ensuite (« Normale »).
+*Piste écartée le même jour* : une colonne `books.narrator_rate` (vitesse du
+narrateur **par livre**, sur le modèle de `narrator_voice`) a été proposée puis
+**abandonnée** par Laurent — le menu du bas reste un réglage **global**, donc
+**aucune écriture en base ni colonne ajoutée**.
+*Garde-fou* : `test_voix/test_vitesse_personnage.js` (**27 contrôles**, dont
+« menu sur Lente : le personnage sans réglage reste à Normale » et le
+**câblage** de l'appel dans `app.js`, puisque `_runTTS` n'est pas exécutable
+sans navigateur).
+*Validé à l'oreille par Laurent le **20/09/2026*** (« testé et validé ») : les
+personnages réglés s'entendent enfin, et le menu du bas ne change plus que le
+narrateur.
+*Reste ouvert* (BACKLOG) : un changement du **menu du bas** — donc de la vitesse
+du narrateur — pendant une lecture ne s'entend qu'à la reprise : le gestionnaire
+de `#speed-select` ne relance rien, et la fenêtre de préchargement (jusqu'à
+~5-6 min d'audio) garde l'ancienne vitesse.
+
 
 
 Chaque requête TTS a un timeout (`FETCH_TIMEOUT_MS` = 20 s) : quand
@@ -3557,6 +3597,119 @@ le bouton « Voix de personnages ».
 **Vérifications** : `test_voix/test_neutts_service.py` (39 contrôles, sans
 charger le moteur) et `test_voix/test_neutts_bout_en_bout.py` (11 contrôles,
 moteur allumé : stabilité bit à bit, phrases courtes, phrase longue).
+
+
+
+
+## 🎒 Moteur de voix Pocket TTS (livré le 21/09/2026)
+
+**Sixième moteur**, et le premier qui **cohabite avec tous les autres**. Pocket
+TTS est le « petit frère » de Kyutai TTS 1.6B : **100 M de paramètres** (contre
+1,8 milliard), il tourne sur le **processeur** — donc **zéro mémoire vidéo** —
+et il **clone** une voix depuis un extrait de référence (sans avoir besoin du
+texte dit dans l'extrait, contrairement à NeuTTS).
+
+*Pourquoi il n'entre pas dans la règle « un seul moteur lourd à la fois »* : la
+règle existe parce que Kyutai (3,8 à 5,6 Go) et XTTS/NeuTTS (3,8 et 3,5 Go) se
+disputent les 8 Go de la carte. Pocket TTS n'y touche pas : il peut donc
+tourner **en même temps** que Kyutai, Edge, Kokoro et Piper. Dans
+`MOTEURS_VOIX` (`main.py`), il porte un drapeau **`cohabite: True`** qui le
+tient à l'écart de la bascule de moteur : celle-ci ne l'allume ni ne l'éteint
+jamais.
+
+**Installation** (`pocket_tts_service/`, hors Git) : environnement dédié
+**Python 3.14** avec **PyTorch 2.14.0+cpu** et **pocket-tts 3.1.0** — les mêmes
+versions que l'atelier NIMM Voix. Le lecteur reste **sans PyTorch** : c'est la
+raison du dossier séparé, comme pour Kyutai, XTTS et NeuTTS. Le modèle français
+(`french_24l`, 641 Mo, dépôt Hugging Face *gated*, poids **CC BY 4.0**) était
+**déjà en cache** sur la machine : aucun téléchargement.
+
+**Les 18 voix** : elles viennent des extraits du domaine public préparés par
+Laurent (les mêmes que les voix `dp_*` d'XTTS et de NeuTTS, plus `JEAN_EDGAR`).
+Les **prénoms sont donc ceux qui existaient déjà** — décision de Laurent du
+20/09/2026 (« s'ils existent déjà dans un autre moteur, autant les utiliser,
+c'est bien plus intuitif ») : **Marthe, Solange, Yvette, Henriette, Georgette,
+Thérèse, Colette, Juliette, Madeleine, Marius, Théodore, Édouard, Victor,
+Robert, Paul, Jules, Arthur**, et **Edgar** (unique prénom nouveau, pour
+`JEAN_EDGAR`). Les critères d'écoute (âge, timbre, débit, registre, rôle,
+étoiles) sont **hérités** des voix jumelles de NeuTTS par
+`test_voix/_heriter_annotations_neutts_vers_pocket.py` : **17 voix héritées**,
+Edgar restant à annoter à l'oreille. L'**accent** est à revérifier — Pocket TTS
+garde la diction de l'extrait, ce qui n'a jamais été mesuré ici.
+
+**Le service** (`pocket_tts_service/servir_pocket_tts.py`, port **8085**) suit
+exactement le contrat des autres : `GET /sante` (`pret: true/false`),
+`GET /voix`, `POST /tts` (JSON → WAV), `POST /recharger`. Trois différences :
+
+- **une seule génération à la fois** (le modèle n'est pas thread-safe, c'est
+  écrit dans son code) ;
+- **4 cœurs** par défaut (`NIMM_POCKET_TTS_COEURS`) : les 2 autres restent au
+  lecteur, à Kokoro et à Piper — mesuré le 20/09/2026, **brider ne coûte rien**
+  (ratio 0,82 avec 6 cœurs comme avec 4) ;
+- **auto-extinction** après **30 min sans une seule phrase**
+  (`NIMM_POCKET_TTS_INACTIF`) : il tourne **sans fenêtre**, donc rien ne
+  rappellerait à Laurent qu'il est là — il ne doit pas garder 2,3 Go pour rien.
+
+**Démarrage** : `START.bat` le lance **sans fenêtre** (`Start-Process
+-WindowStyle Hidden`, journal dans `pocket_tts_service/journal_service.txt`),
+en même temps que Kyutai — demande de Laurent du 21/09/2026. Comme pour Kyutai :
+s'il tourne déjà on ne le relance pas, et s'il n'est pas installé le lecteur
+démarre quand même. Pour un essai à la main,
+`pocket_tts_service/DEMARRER_POCKET_TTS.bat` (avec fenêtre, et la fermer
+l'éteint).
+
+**Dans le lecteur** : `POCKET_VOICES` (18 entrées, identifiants `pocket:<fichier>`),
+un client `synthesize_pocket()` / `_demander_au_moteur_pocket()` et une branche
+`pocket:` dans `POST /api/tts` (503 et message clair si le moteur est éteint).
+Vitesse et hauteur n'existent pas dans le moteur : mêmes post-traitements que
+Kyutai, XTTS et NeuTTS (`atempo` puis Rubber Band). Le **niveau** est ramené à
+celui des autres moteurs (`modules/audio_gain.py`), comme pour Kyutai, parce que
+le moteur ne règle pas son volume et que ses prises varient. Les voix
+n'apparaissent dans `/api/voices` que si le service **répond et est prêt** ;
+`/api/voix_catalogue` les liste toujours (`famille: "pocket"`, `dispo`). L'icône
+de la famille est **🎒** (`FAMILLES_VOIX`, `app.js`) et le filtre de la page la
+reprend (`index.html`).
+
+**Mesures du 20/09/2026** (i5-12400F, 6 cœurs, modèle `french_24l`) :
+
+| Mesure | Valeur |
+|---|---|
+| Chargement du modèle | **1,7 s** |
+| Encodage d'une voix | **3,8 s** (une fois par voix et par démarrage) |
+| Ratio calcul / audio | **0,82** → **1 h d'audio ≈ 49 min de calcul** |
+| Mémoire | 2,0 Go après calcul, **pic 2,3 Go** (RAM) |
+| Carte graphique | **0** |
+
+**Trois comportements du moteur à connaître** :
+
+1. **Le « tic » des phrases courtes — corrigé.** Sur un texte de 1 ou 2 mots il
+   sort un **quasi-silence** environ une fois sur deux (constat de Laurent,
+   20/09/2026 : « juste un tic de quelques millisecondes »). Mesure : 5 prises
+   de « Non. » donnent des crêtes de **0,8 / 0,7 / 45,5 / 18,0 / 4,5 %** ; le
+   moteur n'a **aucune graine**. Le service **régénère** donc tant que la crête
+   reste sous 5 % (`NIVEAU_MINI`), jusqu'à 4 essais, et garde le meilleur :
+   après correction, **42,8 / 8,2 / 40,1 / 19,2 / 35,8 %**. Coût nul sur les
+   phrases normales (elles sortent au-dessus de 60 %).
+2. **Une durée minimale de 0,72 s** : deux textes courts différents donnent des
+   WAV de **même taille** mais de contenus différents (« Non. » = 0,15 s de
+   parole dans 0,72 s ; « Oui, monsieur. » = 0,69 s). C'est le moteur, pas un
+   défaut de cache.
+3. **Le débit est élevé** : 20 à 25 caractères/seconde, contre ~15 pour une
+   lecture humaine naturelle. C'est le moteur ; le curseur de vitesse du lecteur
+   fait le reste.
+
+**Ce qui reste** (BACKLOG) : le **voyant** détaillé du moteur dans la fenêtre du
+lecteur (l'état est déjà exposé par `/api/moteurs`), les **étoiles et critères
+d'Edgar** (à l'oreille), la **vérification de l'accent** des 18 voix, et la
+**prégénération** des chapitres (décision différée par Laurent).
+
+**Vérifications du 21/09/2026** : les **19 tests JavaScript** passent ;
+`test_bascule_moteur.py` (la bascule n'éteint plus Pocket TTS),
+`test_import_main.py`, `test_pool_casting.py`, `test_lire_moi.py`,
+`test_ids_ecran.py`, `test_pas_de_secrets.py` et `test_js_syntax.py` : OK. Bout
+en bout **à travers le lecteur** : 3 phrases synthétisées avec `pocket:Femme001`
+(crêtes 37,7 / 46,1 / 69,2 %), et **163 voix** proposées dont **18 Pocket TTS**.
+
 
 
 

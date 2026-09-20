@@ -1319,6 +1319,95 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
 
 ## 🟠 Priorité 2 — Voix & casting
 
+- [x] **La vitesse réglée sur un personnage n'était JAMAIS appliquée — corrigé** —
+  livré le **20/09/2026** (choix **A1** validé par Laurent ; **la règle a été
+  révisée le soir même** — voir « RÉVISION DU MÊME JOUR » en fin d'item). Retour d'écoute de
+  Laurent, le même jour : « il faudrait vider le cache d'une voix quand je change
+  le pitch ou la vitesse, sinon il lit tout à la vitesse précédente. Ça n'a pas
+  l'air de refaire le texte si un réglage a changé. »
+  *Diagnostic — le cache était innocent* : la clé du cache contient bien la
+  vitesse **et** la hauteur (`_hash_key(text, voice, rate, pitch)`), et
+  `/api/tts` transmet les deux au moteur. Le défaut était dans la **playlist de
+  lecture** : `_buildPlaylist()` mettait la **voix** et la **hauteur** dans
+  chaque phrase, mais **pas la vitesse** ; `_runTTS` lisait celle du **menu du
+  haut une seule fois** et l'appliquait à toutes les phrases. Les curseurs de
+  vitesse de la fenêtre du casting s'enregistraient donc en base **sans aucun
+  effet audible** — et comme la vitesse envoyée ne changeait pas, la clé de
+  cache restait identique : le lecteur resservait le **même** audio (d'où
+  l'impression que « le texte n'est pas refait »).
+  *Mesure* (base lue en **LECTURE SEULE** le 20/09/2026) : **1 232 fiches**, dont
+  **131** avec une vitesse réglée jamais entendue (de **−25 % à +20 %** :
+  Carlini +20 %, Luigi Vampa +15 %, le père Dantès −25 %…) et **594** avec une
+  hauteur — cette dernière **fonctionnait** déjà (le `pitch` était transmis).
+  *Correction (**A1**)* : **la fiche du personnage remplace le menu pour ce
+  personnage** ; le menu du haut reste le réglage général de la lecture (et
+  celui du narrateur). Garde-fou ajouté : **le neutre ne compte pas** — une
+  fiche à `+0%` (**1 101** personnages) rend `null` et suit le menu ; sans cela,
+  le menu « Lente » n'aurait plus ralenti **aucun** dialogue (on aurait
+  remplacé un défaut par un autre).
+  *Fichiers touchés* : `frontend/app.js` (nouvelle fonction **pure**
+  `_vitesseDeFiche()`, `_voiceForSentence()`, `_buildPlaylist()`,
+  `launchFetch()`), `frontend/index.html` (`?v=20260920-16`),
+  `test_voix/test_vitesse_personnage.js` (**nouveau**, 23 contrôles),
+  `test_voix/LIRE_MOI.md`.
+  *Vérifications* : les **19 tests JavaScript** de l'atelier passent (le nouveau
+  compris), `node --check` sur `app.js`, `test_ids_ecran.py`,
+  `test_import_main.py`, `test_lire_moi.py`, `test_js_syntax.py`,
+  `test_js_parse.py` : OK.
+  *Sauvegardes* : `frontend/app.js`, `frontend/index.html`, `BACKLOG.md` et
+  `ARCHITECTURE.md`, en `.bak_avant_vitesse_personnage_20260920`.
+  *Ce que Laurent doit voir* : dans la fenêtre du casting, régler la vitesse d'un
+  personnage s'entend **tout de suite** (la lecture repart de la phrase en
+  cours, mécanisme du 15/09) ; les personnages dont le curseur n'a jamais été
+  touché suivent toujours le **menu du haut**, comme la narration.
+  *La hauteur n'a pas changé* : elle était déjà transmise, avec un effet
+  volontairement discret (curseur de ±20 Hz à **8 Hz par demi-ton** → **±2,5
+  demi-tons** au maximum). L'élargir serait un **autre** item, non demandé.
+  *Reste ouvert* : la vitesse du **menu du haut** ne s'entend qu'à la reprise
+  d'une lecture (son gestionnaire ne relance rien, et la fenêtre de
+  préchargement garde l'ancienne vitesse) — petit correctif possible, non
+  demandé à ce jour.
+
+  **RÉVISION DU MÊME JOUR (soir) — la règle se simplifie.** Laurent précise sa
+  pensée : « je voulais que le narrateur, celui du menu, ait son propre tempo.
+  Tout est lu à vitesse normale, sauf pour ceux ayant un réglage de vitesse. Le
+  narrateur a son réglage dans le menu. » Autrement dit : **le menu du bas n'est
+  pas un réglage général — c'est celui du NARRATEUR.**
+  *Ce qui change par rapport à la livraison du matin* : un personnage qui a une
+  voix dédiée mais **aucun** réglage de vitesse lit désormais à **« Normale »**
+  (constante `PERSONNAGE_RATE_DEFAUT`, `+0%`) et **non** à la vitesse du menu ;
+  le menu **ne touche plus aux dialogues**. Le **récit** et les **petits rôles**
+  (lus par le narrateur) gardent, eux, la vitesse du menu — ce sont eux qui ont
+  le tempo du narrateur. Motif de Laurent pour les petits rôles : « fais au plus
+  simple » — il prévoit de leur donner bientôt des **voix génériques** (une voix
+  homme et une voix femme réservées à cet usage, pas encore choisies).
+  *Conséquence à connaître* : mettre le menu sur « Très rapide » accélère le
+  **récit**, pas les dialogues — pour accélérer un personnage, c'est son curseur
+  dans la fenêtre du casting qu'il faut bouger.
+  *Piste abandonnée le même jour* : la vitesse du narrateur **par livre**
+  (colonne `books.narrator_rate`, proposée puis écartée par Laurent) n'est
+  **pas** retenue — le menu reste un réglage **global**. Donc **aucune écriture
+  en base, aucune colonne ajoutée, pas de copie de base nécessaire**.
+  *Fichiers touchés (révision)* : `frontend/app.js` (constante
+  `PERSONNAGE_RATE_DEFAUT`, `_voiceForSentence`, commentaires de la playlist et
+  de `launchFetch`), `frontend/index.html` (`?v=20260920-17`),
+  `test_voix/test_vitesse_personnage.js` (**27 contrôles** — dont « menu sur
+  Lente : le personnage sans réglage reste à Normale »), `test_voix/LIRE_MOI.md`.
+  *Sauvegardes (révision)* : `.bak_avant_menu_narrateur_20260920` pour
+  `frontend/app.js`, `frontend/index.html`, `BACKLOG.md`, `ARCHITECTURE.md`,
+  `test_voix/LIRE_MOI.md` et `test_voix/test_vitesse_personnage.js`.
+  *Ce que Laurent doit voir* : le casting fonctionne comme avant (les 131 fiches
+  réglées s'entendent enfin), **plus** : le menu du bas ne change que le
+  **narrateur**, et les dialogues non réglés restent à vitesse normale.
+  *Effet à connaître* : si le menu était sur « Rapide » ou « Lente », les
+  phrases des personnages non réglés reviennent à Normale — la vitesse entrant
+  dans la clé du cache, elles **se régénèrent une fois**.
+  **✅ VALIDÉ À L'OREILLE par Laurent le 20/09/2026** (« Testé et validé. ») :
+  les personnages réglés s'entendent enfin, et le menu du bas ne change plus que
+  le **narrateur**. L'item est **clos** de bout en bout — reste seulement, si le
+  besoin revient, le petit correctif « menu du bas pendant une lecture ».
+
+
 - [x] **La voix du NARRATEUR passe d'un livre à l'autre — chaque livre doit garder
   la sienne** — **LIVRÉ le 20/09/2026** (correction **A + B**, validée par Laurent
   le même jour). Constat de Laurent, **20/09/2026** : « la voix narrateur passe
@@ -1830,6 +1919,197 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   de l'intégration ici (branchement dans `modules/tts.py` sur le modèle des autres
   services, catalogue de voix, critères d'écoute).
   *Règle de l'atelier* : **ne rien intégrer avant d'avoir écouté et mesuré**.
+  **POINT DE DÉPART — ce qui est DÉJÀ ÉTABLI au 20/09/2026** (rassemblé ici pour
+  ne pas le refouiller ; tout vient de mesures d'atelier ou de vérifications
+  faites ce jour-là) :
+  - **moteur installé et opérationnel dans NIMM Voix** :
+    `G:\NIMM Voix\outils\pocket_tts\.venv`, **Python 3.14** (`C:\Python314`,
+    `torch 2.14.0+cpu`) ;
+  - **il tourne sur le PROCESSEUR, pas sur la carte graphique** → il **cohabite**
+    avec Edge, Kokoro et Piper… **et avec Kyutai**, le seul à occuper la carte
+    (3,8 à 5,6 Go). C'est le premier moteur « lourd » dans ce cas ;
+  - **Python 3.14 = la version du lecteur** : contrairement à Kyutai, XTTS et
+    NeuTTS (Python 3.12 obligatoire), il n'est pas forcé de vivre à part pour
+    cette raison (le README officiel annonce 3.10 → 3.14) ;
+  - modèle **français `french_24l`** (641 Mo, dépôt **gated**), poids
+    **CC BY 4.0**, code **MIT** ;
+  - **recette validée à l'écoute** le 17/09 (verdict « C'est propre ») :
+    nettoyage du texte + `--max-tokens 200` + réglages par défaut ;
+  - **il CLONE** : un extrait de 3 à 15 s suffit (le moteur tronque à 30 s), et
+    la voix **devient plus grave si l'extrait s'allonge** (**133 Hz à 2 s →
+    116 Hz à 6,5 s**, mesuré et entendu) ;
+  - **débit ≈ 1× le temps réel** en français (variante non distillée, « aperçu »
+    chez Kyutai) : **1 h d'audio ≈ 1 h de calcul** → il faudra **pré-générer**,
+    le **cache audio** du lecteur prenant le relais ensuite ;
+  - **aucun réglage de vitesse dans le moteur** → même remède que Kyutai :
+    post-traitement `atempo` du lecteur. **Testé le 20/09/2026 sur Kyutai** (même
+    mécanisme) : à **−30 %** le timbre tient (Laurent n'entend qu'un « à peine
+    plus grave »), et **−30 % tombe presque juste** pour ramener les ~22 car/s
+    de Pocket TTS vers les ~15 car/s d'une lecture naturelle ;
+  - **défauts connus, à traiter au montage** : pauses entre segments de **0,8 à
+    1,6 s** (l'atelier les ramène à 0,40 s), **niveau irrégulier** (jusqu'à
+    ~5 dB *à l'intérieur* d'une phrase — le `modules/audio_gain.py` du lecteur
+    est fait pour ça), phrases **de plus de ~350 caractères sautées** ;
+  - **vocabulaire limité** : apostrophe courbe (`’`) et tiret cadratin (`—`)
+    **absents** → à nettoyer ; attention, il connaît `...` mais **pas** `…`
+    (l'inverse du mémo XTTS/NeuTTS) ;
+  - **extraits disponibles pour cloner** : `Extraits de voix\Découpage OK`
+    (22 MP3 + la banque CML-TTS) ;
+  - ⚠️ **une voix Pocket TTS ne se transvase PAS dans Kyutai 1.6B** (autre
+    moteur, autres empreintes) : les deux mondes restent séparés.
+  *Les trois décisions à prendre AVANT de coder* : (1) **où vit le moteur** —
+    dossier `pocket_tts_service/` avec service HTTP local (modèle
+    `kyutai_service`, port libre) **ou** intégration plus directe, puisqu'il
+    accepte Python 3.14 ; (2) **quelles voix** au catalogue : les extraits de
+    Laurent, la banque CML-TTS, et les futures **voix génériques** des petits
+    rôles (une voix homme, une voix femme — pas encore choisies) ;
+    (3) **allumage** : avec `START.bat` ou **à la demande** (il ne prend pas la
+    carte, mais il prend le **processeur** — 6 cœurs, partagés avec Kokoro et
+    Piper — et il est lent).
+  **ÉTAPE 1 FAITE le 20/09/2026 — installation et MESURES.** Le moteur est
+  installé **chez NIMM ePub** : `pocket_tts_service\.venv` (**torch 2.14.0+cpu**,
+  `pocket-tts` **3.1.0**, les mêmes versions que l'atelier), dans un
+  **environnement à part** (le lecteur reste sans PyTorch) ; les **18 voix** sont
+  copiées dans `pocket_tts_service\voix\` (14,4 Mo). Le modèle français
+  (641 Mo) était **déjà en cache** : rien à télécharger.
+  *Mesures* (`_mesurer_debit.py`, voix **Femme001**, phrases de Monte-Cristo,
+  `max_tokens 200`) : chargement du modèle **1,7 s** ; encodage d'une voix
+  **3,8 s** ; 125 caractères → **8,9 s d'audio en 7,2 s** (ratio **0,81**) ;
+  295 caractères → **14,5 s en 12,0 s** (ratio **0,83**) ; « Non. » → **0,99**.
+  **Ratio moyen 0,82** = **1 h d'audio ≈ 49 min de calcul** : le moteur est
+  **plus rapide que le temps réel** (×1,2), mieux que le « ~1× » annoncé par
+  l'atelier. **Mémoire : 2,0 Go après calcul, pic 2,3 Go** (RAM seulement, la
+  carte graphique n'est pas touchée).
+  *Deux constats pour la suite* : (1) **brider à 4 cœurs ne coûte RIEN**
+  (même 0,82) → on peut laisser 2 cœurs au lecteur, à Kokoro et à Piper ;
+  (2) les **phrases courtes** ont un ratio proche de 1 (coût fixe par appel) →
+  ne pas hacher le texte en minuscules morceaux.
+  *Fichiers créés* : `pocket_tts_service\` — `INSTALLER_POCKET_TTS.bat`,
+  `_mesurer_debit.py`, `ECOUTER_LA_MESURE.bat`, `LIRE_MOI.md`, `voix\` (18 WAV),
+  `sortie_mesure\` (3 WAV + `rapport_mesure.txt`). **Rien d'existant n'a été
+  touché** : aucun fichier du lecteur modifié.
+  *Pièges payés au passage, à garder* : `cmd /c <script.bat>` échoue sous
+  PowerShell (**lancer le .bat directement** avec `Start-Process`) ; `scipy`
+  écrit des WAV **float32** que le module `wave` refuse (**écrire en int16**) ;
+  sans `argtypes`/`restype` explicites, `GetProcessMemoryInfo` renvoie
+  **toujours 0** (handle tronqué à 32 bits — c'est ce qui affichait « 0 Mo ») ;
+  et `python.exe` **bufferise** sa sortie quand elle va dans un fichier
+  (`line_buffering=True` dans les scripts de service).
+  *Reste à faire* : l'**écoute de Laurent** (`ECOUTER_LA_MESURE.bat`), puis
+  l'**étape 2** — le service sur le port **8085**, lancé **sans fenêtre**.
+  **DÉCISIONS DU 20/09/2026 (soir) — prénoms, critères, prégénération.**
+  *Écoute de Laurent : validée*, avec une réserve de timbre décrite par lui :
+  « les voix un peu basse fréquence, comme si on limitait un peu la plage des
+  Hertz, moins de grave surtout, et pas mal d'aigus — mais très convenable, la
+  voix ne saute pas, la prosodie est bonne ». Essai approfondi prévu au travail
+  le lendemain. *(Cette réserve est cohérente avec un codec audio à bas débit :
+  c'est le moteur, pas l'extrait.)*
+  *Les 18 voix ont DÉJÀ un passé* : ce sont les **mêmes extraits** que les voix
+  **`dp_*` de XTTS** (`xtts:dp_femme001` = **Marthe**, `xtts:dp_homme002` =
+  **Théodore**, `xtts:dp_homme004` = **Édouard**…), avec **prénom, genre,
+  étoiles ET critères d'écoute déjà relevés** par Laurent (âge, timbre, débit,
+  accent, registre). Donc : **on reprend les mêmes prénoms** pour
+  `POCKET_VOICES` (il retrouvera ses voix) et **on hérite les annotations**,
+  avec le même genre d'outil que
+  `test_voix/_heriter_annotations_xtts_vers_neutts.py`.
+  ⚠️ **Doublons de prénom assumés** : les mêmes extraits portent déjà les mêmes
+  prénoms en Kyutai, XTTS et NeuTTS — c'est voulu, et **aucun test ne
+  l'interdit** (`test_pool_casting.py` ne contrôle pas les doublons de prénoms).
+  *Reste à nommer* : **JEAN_EDGAR** (validé le 18/09, avant le lot). « Jean » et
+  « Edgar » sont **libres** parmi les **169 prénoms** déjà utilisés, mais
+  « Jean » côtoie « Jeanne » (déjà pris) — à trancher avec Laurent.
+  *Icône* : **🎒 Pocket TTS** (choix de Laurent), à ajouter dans
+  `FAMILLES_VOIX` (`frontend/app.js`) **et** dans les tests qui la vérifient
+  (`test_voix/test_ids_ecran.py`, `test_voix/test_libelle_voix.js`).
+  *Prégénération — DÉCISION DIFFÉRÉE (choix de Laurent).* Il teste beaucoup et
+  change souvent de voix : **on ne précharge rien pour le moment**. Quand les
+  voix seront calées et qu'il écoutera ses livres tranquillement, **précharger
+  le plus possible** redeviendra la meilleure option (mesure : 49 min de calcul
+  pour 1 h d'audio). À rouvrir dans une session dédiée.
+  **ÉTAPE 2 FAITE le 20/09/2026 — LE SERVICE.**
+  `pocket_tts_service\servir_pocket_tts.py` (**port 8085**), écrit sur le même
+  patron que `servir_kyutai.py` et avec le **même contrat** que les autres
+  moteurs (`GET /sante`, `GET /voix`, `POST /tts` en JSON → WAV,
+  `POST /recharger`) : le lecteur ne verra pas la différence. Deux
+  particularités : **une seule génération à la fois** (le modèle n'est pas
+  thread-safe) et **4 cœurs** par défaut (`NIMM_POCKET_TTS_COEURS`), les 2
+  autres restant au lecteur, à Kokoro et à Piper. Le texte est **re-nettoyé
+  côté service** (apostrophe courbe, tiret cadratin, `…` → `...`) en plus du
+  nettoyage du lecteur.
+  *Éprouvé* : modèle chargé en **1,6 s**, **18 voix** annoncées, phrases
+  générées par HTTP aux ratios attendus (**0,85** et **0,86**) ;
+  `tester_service.py` écrit un lot d'écoute (`pocket_tts_service\sortie_ecoute\`)
+  avec son `index_ecoute.txt`.
+  *À savoir* : la **première phrase d'une voix paie son encodage** (**3,8 s**)
+  — le « Non. » a coûté 4,4 s de calcul pour 0,7 s d'audio ; c'est normal, une
+  seule fois par voix et par démarrage.
+  *Fichiers* : `servir_pocket_tts.py`, `DEMARRER_POCKET_TTS.bat` (allumage à la
+  main, pour voir ce que dit le moteur), `tester_service.py`, `LIRE_MOI.md`.
+  *Reste* : le lancement **sans fenêtre par `START.bat`**, le **voyant** dans le
+  lecteur, puis le **catalogue** (prénoms hérités, icône 🎒) et le
+  **branchement** — étapes 3 et 4.
+  **ÉTAPES 3 ET 4 FAITES le 21/09/2026 — CATALOGUE ET BRANCHEMENT.** Laurent :
+  « si tu es partant pour continuer les étapes 3 et 4, et j'écouterais dans NIMM
+  ePub directement ce que ça donne ? »
+  *D'abord le « tic » signalé par Laurent* (« j'ai juste le premier audio “non”
+  qui ne fait quasi aucun son, juste un tic de quelques millisecondes »).
+  Mesure : sur **5 prises** du même texte court, la crête vaut **0,8 / 0,7 /
+  45,5 / 18,0 / 4,5 %** — le moteur n'a **aucune graine**, il sort donc un
+  quasi-silence **environ une fois sur deux** sur 1 ou 2 mots. Remède mesuré :
+  le service **régénère** tant que la crête reste sous **5 %** (4 essais au
+  plus, on garde le meilleur). Après correction : **42,8 / 8,2 / 40,1 / 19,2 /
+  35,8 %**. Coût nul sur les phrases normales (toujours au-dessus de 60 %).
+  *(À savoir : la durée minimale d'un WAV est **0,72 s** — deux textes courts
+  donnent des fichiers de même taille mais de contenus différents. C'est le
+  moteur, pas le cache.)*
+  *Le catalogue* : `POCKET_VOICES` = **18 voix**, prénoms **repris des voix
+  jumelles** (Marthe, Solange, Yvette, Henriette, Georgette, Thérèse, Colette,
+  Juliette, Madeleine, Marius, Théodore, Édouard, Victor, Robert, Paul, Jules,
+  Arthur) + **Edgar** (option A retenue par Laurent pour `JEAN_EDGAR`).
+  *Les critères d'écoute* : **hérités** des 17 jumelles NeuTTS par le nouvel
+  outil `test_voix/_heriter_annotations_neutts_vers_pocket.py` (copie datée de
+  `data/annotations_voix.json` faite — 350 voix au total) : **Laurent n'a rien à
+  ré-annoter**. Restent à son oreille : **Edgar** (aucune jumelle) et l'**accent**
+  des 18 voix (Pocket TTS garde la diction de l'extrait, jamais mesurée ici).
+  *Le branchement* : branche `pocket:` dans `POST /api/tts`, client
+  `synthesize_pocket()`, exposition dans `/api/voices` (seulement si le service
+  est **prêt**) et dans `/api/voix_catalogue`, icône **🎒** dans `FAMILLES_VOIX`
+  (`app.js`) et dans le filtre de la page (`index.html`).
+  *La cohabitation* : Pocket TTS porte le drapeau **`cohabite: True`** dans
+  `MOTEURS_VOIX` — la bascule de moteur du lecteur ne l'éteint **jamais** (c'est
+  le seul moteur qui n'occupe pas la carte graphique) — et `START.bat` le lance
+  **sans fenêtre** en même temps que Kyutai (demande de Laurent du 21/09/2026).
+  Comme il tourne caché, il **s'éteint tout seul** après **30 min sans une
+  seule phrase** (`NIMM_POCKET_TTS_INACTIF`), pour ne pas garder 2,3 Go pour
+  rien : c'est le garde-fou ajouté le jour même.
+  *Fichiers touchés* : `modules/tts.py` (`POCKET_VOICES`, `synthesize_pocket`,
+  `_demander_au_moteur_pocket`, `PocketIndisponible`), `main.py` (branche
+  `/api/tts`, `MOTEURS_VOIX`, `basculer_moteur_voix`, `/api/voices`,
+  `/api/voix_catalogue`), `frontend/app.js` (`FAMILLES_VOIX`),
+  `frontend/index.html` (filtre + `?v=20260921-1`),
+  `pocket_tts_service/servir_pocket_tts.py` (garde-fou anti-tic,
+  auto-extinction), `START.bat` (lancement sans fenêtre),
+  `test_voix/_heriter_annotations_neutts_vers_pocket.py` (**nouveau**),
+  `test_voix/LIRE_MOI.md`, `ARCHITECTURE.md`.
+  *Vérifications* : **19 tests JavaScript** (0 échec), `test_bascule_moteur.py`,
+  `test_import_main.py`, `test_pool_casting.py`, `test_lire_moi.py`,
+  `test_ids_ecran.py`, `test_pas_de_secrets.py`, `test_js_syntax.py` : OK.
+  Bout en bout **à travers le lecteur** (le vrai chemin : nettoyage, vitesse,
+  hauteur, normalisation, cache) : **163 voix** proposées dont **18 Pocket
+  TTS**, et 3 phrases synthétisées avec `pocket:Femme001` — crêtes **37,7 /
+  46,1 / 69,2 %**.
+  *Sauvegarde* : `data/annotations_voix.json` (copie datée par l'outil
+  d'héritage). Les fichiers du lecteur sont dans Git, les modifications sont
+  décrites ci-dessus.
+  **Ce que Laurent doit écouter** : dans NIMM ePub, choisir une voix
+  **🎒 Pocket TTS** (par ex. **Marthe**) et lire un chapitre. À juger : la voix,
+  la prosodie, et surtout le **débit** (20 à 25 caractères/seconde contre ~15
+  pour une lecture naturelle) — le curseur de vitesse du casting, ou le menu du
+  narrateur, peuvent compenser.
+  *Reste* : le **voyant** détaillé du moteur dans la fenêtre du lecteur (l'état
+  est déjà exposé par `/api/moteurs`), **Edgar** (étoiles + critères),
+  l'**accent** des 18 voix, et la **prégénération** (différée à la demande de
+  Laurent).
 
 - [ ] **XTTS : l'INÉGALITÉ du moteur — constat de Laurent, 16/09/2026**
   Après une écoute longue de Monte-Cristo : « les voix XTTS sont très inégales,

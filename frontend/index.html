@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260920-15" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260921-1" />
 </head>
 <body>
   <div id="app">
@@ -704,7 +704,7 @@
                l'application (`FAMILLES_VOIX`, app.js) : on en change une la-bas,
                et elle change partout. Ici, on ne fait que l'ecrire.
                NeuTTS manquait dans cette liste alors que ses voix sont bien
-               proposees : ajoute le 20/09/2026. -->
+               proposees : ajoute le 20/09/2026. Pocket TTS ajoute le 21/09/2026. -->
           <select id="voices-famille" aria-label="Filtrer par moteur">
             <option value="T">Tous les moteurs</option>
             <option value="edge">&#x2601;&#xFE0F; Edge (en ligne)</option>
@@ -713,6 +713,7 @@
             <option value="kyutai">&#x26A1;&#xFE0F; Kyutai</option>
             <option value="xtts">&#x1F9EC; XTTS v2</option>
             <option value="neutts">&#x1F9EA; NeuTTS</option>
+            <option value="pocket">&#x1F392; Pocket TTS</option>
           </select>
           <span id="voices-recap"></span>
         </div>
@@ -739,6 +740,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260920-15"></script>
+  <script src="/static/app.js?v=20260921-1"></script>
 </body>
 </html>

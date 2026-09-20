@@ -141,6 +141,16 @@ data/exports/
 
 neutts_service/journal_*.txt
 kyutai_service/journal_*.txt
+# Moteur Pocket TTS (environnement Python 3.14 + PyTorch CPU + voix, non
+# versionnes : voir pocket_tts_service/LIRE_MOI.md pour les recreer)
+pocket_tts_service/.venv/
+pocket_tts_service/voix/
+pocket_tts_service/sortie_ecoute/
+pocket_tts_service/sortie_mesure/
+pocket_tts_service/sortie_mesure_4coeurs/
+pocket_tts_service/sortie_lecteur/
+pocket_tts_service/journal_*.txt
+pocket_tts_service/__pycache__/
 
 # Captures de session : sorties de commandes redirigees pendant l'atelier
 # (journaux de test, essais, sorties de script). Jamais versionnees -- elles

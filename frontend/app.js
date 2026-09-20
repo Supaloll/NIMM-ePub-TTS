@@ -2209,6 +2209,7 @@ const PHRASE_ECOUTE = 'Le 24 février 1815, la vigie de Notre-Dame de la Garde '
 //   - Kyutai est le moteur LOCAL rapide -> l'eclair ;
 //   - XTTS v2 est le moteur de CLONAGE  -> la molecule ;
 //   - NeuTTS est le plus RECENT         -> la fiole.
+//   - Pocket TTS tient dans la poche    -> le sac a dos (21/09/2026).
 const FAMILLES_VOIX = [
   ['edge',   'Edge (en ligne)', '\u2601\uFE0F'],
   ['kokoro', 'Kokoro',          '\uD83C\uDF8E'],
@@ -2216,6 +2217,7 @@ const FAMILLES_VOIX = [
   ['kyutai', 'Kyutai',          '\u26A1\uFE0F'],
   ['xtts',   'XTTS v2',         '\uD83E\uDDEC'],
   ['neutts', 'NeuTTS',          '\uD83E\uDDEA'],
+  ['pocket', 'Pocket TTS',      '\uD83C\uDF92'],
 ];
 
 let _annotationsVoix = {};                       // { voiceId: {genre, stars, note} }
@@ -3733,6 +3735,38 @@ function _splitLongSentence(text) {
   return out;
 }
 
+// Vitesse d'un PERSONNAGE qui a une voix dediee mais AUCUN reglage de vitesse :
+// « Normale ». A retenir : le menu du bas (Lente / Moderee / Normale / Rapide /
+// Tres rapide) n'est PAS un reglage general de la lecture -- c'est celui du
+// NARRATEUR (decision de Laurent, 20/09/2026, le soir). Toute la lecture suit
+// donc sa vitesse normale, sauf les personnages regles dans le casting et le
+// narrateur (recit + petits roles, qui sont lus par lui).
+const PERSONNAGE_RATE_DEFAUT = '+0%';
+
+// Vitesse demandee par la FICHE d'un personnage. Fonction PURE (testable sans
+// navigateur) : renvoie la valeur de la fiche quand elle porte un VRAI reglage,
+// `null` sinon.
+//
+// Pourquoi `null` pour le neutre : « +0% » est ce que porte une fiche a
+// laquelle Laurent n'a pas touche (1 101 personnages sur 1 232 le
+// 20/09/2026). Une fiche au neutre n'exprime donc rien -- meme cas qu'une fiche
+// sans vitesse du tout.
+//
+// REVISION DU 20/09/2026 (soir, decision de Laurent) : le menu du bas etant le
+// reglage du NARRATEUR, un personnage sans reglage lit a
+// `PERSONNAGE_RATE_DEFAUT` (« Normale ») et non a la vitesse du menu. Les
+// phrases qui passent par la voix du narrateur (recit, petits roles) gardent,
+// elles, la vitesse du menu.
+function _vitesseDeFiche(rate) {
+  if (rate === null || rate === undefined) return null;
+  const valeur = String(rate).trim();
+  if (valeur === '' || valeur === '+0%' || valeur === '0%' || valeur === '+0'
+      || valeur === '-0%') {
+    return null;
+  }
+  return valeur;
+}
+
 function _voiceForSentence(idx) {
   const defaultVoice = document.getElementById('voice-select').value;
   const speaker = _chapterSpeakers[idx];
@@ -3741,9 +3775,25 @@ function _voiceForSentence(idx) {
     // v.voice_id VIDE = personnage sans voix dediee : les petits roles
     // (< 8 repliques) depuis le 15/09/2026. Ils sont lus par le NARRATEUR,
     // c'est-a-dire par la voix choisie dans le lecteur (defaultVoice).
-    if (v && v.voice_id) return { voice: v.voice_id, pitch: v.pitch };
+    //
+    // La VITESSE suit la voix (correctif du 20/09/2026, regle clarifiee par
+    // Laurent le soir) :
+    //   - un personnage qui a SA voix et SON reglage de vitesse (curseurs de
+    //     la fenetre du casting) est lu a CETTE vitesse ;
+    //   - un personnage qui a SA voix mais AUCUN reglage lit a « Normale »
+    //     (`PERSONNAGE_RATE_DEFAUT`) : le menu du bas n'est pas un reglage
+    //     general, c'est celui du NARRATEUR ;
+    //   - le recit et les petits roles (lus par le narrateur) gardent `null`,
+    //     donc la vitesse du menu -- c'est le tempo du narrateur.
+    // Avant ce correctif, la vitesse n'etait JAMAIS transmise a la synthese :
+    // les curseurs du casting s'enregistraient en base sans que rien ne
+    // s'entende (131 fiches concernees, mesure du 20/09/2026).
+    if (v && v.voice_id) {
+      return { voice: v.voice_id, pitch: v.pitch,
+               rate: _vitesseDeFiche(v.rate) || PERSONNAGE_RATE_DEFAUT };
+    }
   }
-  return { voice: defaultVoice, pitch: '+0Hz' };
+  return { voice: defaultVoice, pitch: '+0Hz', rate: null };
 }
 
 // Playlist de lecture : UNE unite audio = UNE phrase (ou, pour les phrases
@@ -3787,6 +3837,12 @@ function _buildPlaylist(startIdx, endIdx) {
         paraIdx: s.paraIdx,
         voice:   v.voice,
         pitch:   v.pitch,
+        // Vitesse de la phrase (regle clarifiee le 20/09/2026) : celle de la
+        // fiche quand le personnage en a une, « Normale » quand il a une voix
+        // dediee mais aucun reglage, et `null` pour le recit et les petits
+        // roles -- la phrase prend alors la vitesse du menu, qui est le reglage
+        // du NARRATEUR (voir `launchFetch`, dans `_runTTS`).
+        rate:    v.rate,
       });
     }
   }
@@ -3924,7 +3980,12 @@ async function _runTTS(startIdx, endIdx) {
     if (cache[i] || i >= units.length) return;
     inFlight++;
     const u = units[i];
-    cache[i] = _fetchAudio(u.text, u.voice, rate, u.pitch, signal,
+    // Vitesse de la phrase (regle de Laurent, 20/09/2026) : `u.rate` porte
+    // soit la vitesse de la fiche, soit « Normale »
+    // (`PERSONNAGE_RATE_DEFAUT`) pour un personnage sans reglage. Il n'est NUL
+    // que pour le recit et les petits roles : ces phrases-la suivent le menu,
+    // qui est le reglage du NARRATEUR.
+    cache[i] = _fetchAudio(u.text, u.voice, u.rate || rate, u.pitch, signal,
                            u.context).then(blob => {
       if (!blob) { cache[i] = null; return null; }  // echec : pourra etre retente
       blobs[i] = blob;                              // pret pour le collage

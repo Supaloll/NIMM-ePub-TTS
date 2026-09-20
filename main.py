@@ -355,12 +355,12 @@ async def service_worker():
 @app.get("/api/voices")
 async def get_voices():
     from modules.tts import (KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES,
-                             XTTS_VOICES, NEUTTS_VOICES)
+                             XTTS_VOICES, NEUTTS_VOICES, POCKET_VOICES)
     # Seules les voix ECOUTABLES TOUT DE SUITE sont proposees (14/09/2026,
     # demande de Laurent). Edge, Kokoro et Piper le sont toujours ; les voix
-    # Kyutai, XTTS v2 et NeuTTS seulement si LEUR moteur est ALLUME ET PRET.
-    # Sinon on pouvait en choisir une moteur eteint et ne le decouvrir qu'en
-    # plein chapitre. Voir /api/moteurs pour l'etat affiche.
+    # Kyutai, XTTS v2, NeuTTS et Pocket TTS seulement si LEUR moteur est
+    # ALLUME ET PRET. Sinon on pouvait en choisir une moteur eteint et ne le
+    # decouvrir qu'en plein chapitre. Voir /api/moteurs pour l'etat affiche.
     etat = etat_moteurs_voix()
     voix = FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES
     if _moteur_voix_pret(etat, "kyutai"):
@@ -369,6 +369,11 @@ async def get_voices():
         voix = voix + XTTS_VOICES
     if _moteur_voix_pret(etat, "neutts"):
         voix = voix + NEUTTS_VOICES
+    # Pocket TTS (21/09/2026) : lui aussi n'est propose que si son service
+    # repond -- mais il n'a pas besoin d'etre allume a la main, START.bat s'en
+    # charge (et il cohabite avec tous les autres).
+    if _moteur_voix_pret(etat, "pocket"):
+        voix = voix + POCKET_VOICES
     return voix
 
 @app.get("/api/voix_catalogue")
@@ -390,17 +395,18 @@ async def get_voix_catalogue():
     (lisible tout de suite, ou non).
     """
     from modules.tts import (KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES,
-                             XTTS_VOICES, NEUTTS_VOICES)
+                             XTTS_VOICES, NEUTTS_VOICES, POCKET_VOICES)
     etat = etat_moteurs_voix()
     dispo = {"kyutai": _moteur_voix_pret(etat, "kyutai"),
              "xtts": _moteur_voix_pret(etat, "xtts"),
-             "neutts": _moteur_voix_pret(etat, "neutts")}
+             "neutts": _moteur_voix_pret(etat, "neutts"),
+             "pocket": _moteur_voix_pret(etat, "pocket")}
 
     def _famille(identifiant: str) -> str:
         return identifiant.split(":")[0] if ":" in identifiant else "edge"
 
     voix = (FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES + KYUTAI_VOICES
-            + XTTS_VOICES + NEUTTS_VOICES)
+            + XTTS_VOICES + NEUTTS_VOICES + POCKET_VOICES)
     return [{**v, "famille": _famille(v["id"]),
              "dispo": dispo.get(_famille(v["id"]), True)} for v in voix]
 
@@ -810,6 +816,8 @@ async def get_chapter(book_id: int, chapter_index: int, user_id: int):
 KYUTAI_URL = "http://127.0.0.1:8082/sante"
 XTTS_URL = "http://127.0.0.1:8083/sante"
 NEUTTS_URL = "http://127.0.0.1:8084/sante"
+# Pocket TTS (21/09/2026) : service sur le port 8085, PROCESSEUR seulement.
+POCKET_URL = "http://127.0.0.1:8085/sante"
 _kyutai_coupe_pour_casting = False
 
 
@@ -853,6 +861,15 @@ MOTEURS_VOIX = {
     "neutts": {"nom": "NeuTTS", "sante": NEUTTS_URL,
                "dossier": "neutts_service", "lanceur": "DEMARRER_NEUTTS.bat",
                "motifs": ("servir_neutts", "DEMARRER_NEUTTS")},
+    # Pocket TTS (21/09/2026) : il tourne sur le PROCESSEUR et n'occupe donc
+    # PAS la carte graphique -- il COHABITE avec tous les autres moteurs. Le
+    # drapeau `cohabite` le tient a l'ecart du choix « un seul moteur lourd a
+    # la fois » : la bascule ne l'eteint jamais et ne l'allume jamais a la
+    # place d'un autre. C'est START.bat qui l'allume, sans fenetre.
+    "pocket": {"nom": "Pocket TTS", "sante": POCKET_URL,
+               "dossier": "pocket_tts_service", "lanceur": "DEMARRER_POCKET_TTS.bat",
+               "motifs": ("servir_pocket_tts", "DEMARRER_POCKET_TTS"),
+               "cohabite": True},
 }
 
 # Le pense-bete du DERNIER moteur utilise. Il est ecrit par les deux lanceurs de
@@ -1024,8 +1041,12 @@ def basculer_moteur_voix(cible: str) -> dict:
     messages = []
 
     # 1. Eteindre ce qui doit l'etre : l'AUTRE moteur, ou les deux pour "aucun".
-    a_eteindre = (list(MOTEURS_VOIX) if cible == "aucun"
-                  else [p for p in MOTEURS_VOIX if p != cible])
+    # Jamais un moteur qui COHABITE (Pocket TTS, 21/09/2026) : il ne prend pas
+    # la carte graphique, il n'a donc aucune raison d'etre eteint quand on
+    # change de moteur lourd.
+    a_eteindre = [p for p in MOTEURS_VOIX
+                  if not MOTEURS_VOIX[p].get("cohabite")
+                  and (cible == "aucun" or p != cible)]
     eteints = []
     for prefixe in a_eteindre:
         if not (etat.get(prefixe) or {}).get("actif"):
@@ -2501,6 +2522,23 @@ async def tts(request: TTSRequest):
         async def generate_neutts():
             yield audio
         return StreamingResponse(generate_neutts(), media_type="audio/wav")
+
+    if request.voice.startswith("pocket:"):
+        # Pocket TTS tourne dans SON PROPRE service (processeur, port 8085,
+        # allume par START.bat sans fenetre) : appele ici en HTTP local, comme
+        # les autres. Lui n'occupe PAS la carte graphique : il cohabite donc
+        # avec Kyutai, Edge, Kokoro et Piper.
+        from modules.tts import synthesize_pocket, PocketIndisponible
+        try:
+            audio = await synthesize_pocket(request.text, request.voice,
+                                            request.rate, request.pitch,
+                                            vocabulaire=vocabulaire)
+        except PocketIndisponible as erreur:
+            # 503 : erreur "definitive" (moteur eteint), pas une coupure reseau.
+            raise HTTPException(status_code=503, detail=str(erreur))
+        async def generate_pocket():
+            yield audio
+        return StreamingResponse(generate_pocket(), media_type="audio/wav")
 
     from modules.tts import synthesize_stream
     async def generate():

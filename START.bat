@@ -87,6 +87,40 @@ rem    gagne a l'ecoute sur les phrases courtes, et le casting est passe chez
 rem    lui. L'ancien bloc NeuTTS est conserve dans l'historique Git ; NeuTTS
 rem    reste lancable a la main : neutts_service\DEMARRER_NEUTTS.bat.)
 
+rem ============================================================
+rem  MOTEUR DE VOIX POCKET TTS : allume AUSSI, mais SANS FENETRE
+rem  (demande de Laurent, 21/09/2026 : « j'aimerais bien qu'il
+rem  demarre en meme temps que tous les autres »).
+rem
+rem  Particularite : ce moteur tourne sur le PROCESSEUR et n'occupe
+rem  PAS la carte graphique -- il COHABITE donc avec Kyutai, Edge,
+rem  Kokoro et Piper. Il ne remplace personne, et la bascule de
+rem  moteur du lecteur ne l'eteint jamais (drapeau « cohabite »).
+rem
+rem  Pourquoi SANS FENETRE : Laurent n'a rien a ouvrir ni a fermer.
+rem  Le moteur s'eteint tout seul apres 30 minutes sans la moindre
+rem  phrase (=NIMM_POCKET_TTS_INACTIF), donc il ne garde pas 2,3 Go
+rem  de memoire pour rien, et il se rallume au demarrage suivant.
+rem
+rem  Deux precautions, comme pour Kyutai :
+rem   - s'il tourne deja, on ne le relance pas ;
+rem   - s'il n'est pas installe, le lecteur demarre quand meme
+rem     (ses voix seront simplement indisponibles).
+rem ============================================================
+curl -s -o NUL --max-time 2 http://127.0.0.1:8085/sante >nul 2>&1
+if not errorlevel 1 (
+    echo  Moteur de voix Pocket TTS : deja en marche.
+    goto lecteur
+)
+if not exist "pocket_tts_service\.venv\Scripts\python.exe" (
+    echo  Moteur de voix Pocket TTS : NON INSTALLE - ses voix seront indisponibles.
+    echo  Pour l'installer une fois pour toutes : pocket_tts_service\INSTALLER_POCKET_TTS.bat
+    goto lecteur
+)
+echo  Moteur de voix Pocket TTS : demarrage (sans fenetre)...
+powershell -NoProfile -Command "Start-Process -FilePath '.\pocket_tts_service\.venv\Scripts\python.exe' -ArgumentList 'servir_pocket_tts.py' -WorkingDirectory '.\pocket_tts_service' -WindowStyle Hidden -RedirectStandardOutput '.\pocket_tts_service\journal_service.txt' -RedirectStandardError '.\pocket_tts_service\journal_service_err.txt'"
+goto lecteur
+
 :lecteur
 
 rem ============================================================

@@ -1190,6 +1190,63 @@ NEUTTS_VOICES = [
 # --- FIN CATALOGUE NEUTTS ---
 
 
+# ==============================================================
+# POCKET TTS -- moteur de CLONAGE de Kyutai (CPU), ajoute le 21/09/2026
+# ==============================================================
+# Sixieme moteur. Pocket TTS est le « petit frere » de Kyutai TTS 1.6B :
+# 100 M de parametres (contre 1,8 milliard), il tourne sur le PROCESSEUR et
+# n'occupe donc PAS la carte graphique -- il cohabite avec Kyutai, Edge,
+# Kokoro et Piper. Il clone une voix depuis un extrait de reference (WAV),
+# sans avoir besoin du texte dit dans l'extrait (contrairement a NeuTTS).
+#
+# MEMES EXTRAITS QUE LES VOIX `dp_*` D'XTTS (et de NeuTTS) : ce sont les
+# enregistrements du domaine public prepares par Laurent. Les PRENOMS SONT
+# DONC LES MEMES (Marthe, Solange, Theodore...) -- decision de Laurent du
+# 20/09/2026 : « s'ils existent deja dans un autre moteur, autant les
+# utiliser, c'est bien plus intuitif ». Un seul est nouveau : JEAN_EDGAR,
+# valide le 18/09, qui devient **Edgar**.
+#
+# Mesures du 20/09/2026 (meme machine) : ratio 0,82 (1 h d'audio = 49 min de
+# calcul), modele charge en 1,7 s, encodage d'une voix 3,8 s, 2,3 Go de RAM au
+# pic. Le service tourne sur le port 8085 (`pocket_tts_service/`).
+#
+# ATTENTION (constat de Laurent, 20/09/2026) : sur un texte de 1 ou 2 mots, ce
+# moteur sort parfois un QUASI-SILENCE (« un tic ») -- corrige cote service par
+# une regeneration automatique (voir `servir_pocket_tts.py`).
+
+POCKET_URL = os.environ.get("NIMM_POCKET_URL", "http://127.0.0.1:8085")
+# Delai large : le moteur est plus LENT que Kyutai (~0,85 le temps reel) et la
+# PREMIERE phrase d'une voix paie en plus son encodage (3,8 s mesure).
+POCKET_DELAI_S = float(os.environ.get("NIMM_POCKET_DELAI", "240") or "240")
+
+POCKET_VOICES = [
+    # --- les 9 voix feminines (memes extraits que les voix dp_* de XTTS) ---
+    {"id": "pocket:Femme001", "name": "Marthe", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme002", "name": "Solange", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme003", "name": "Yvette", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme004", "name": "Henriette", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme32321312445", "name": "Georgette", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme48897", "name": "Thérèse", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme65465464", "name": "Colette", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme6566554478", "name": "Juliette", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    {"id": "pocket:Femme65699878", "name": "Madeleine", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "F", "stars": 3},
+    # --- les 9 voix masculines ---
+    {"id": "pocket:Homme001", "name": "Marius", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme002", "name": "Théodore", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme004", "name": "Édouard", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme1122544987", "name": "Victor", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme1122545656487", "name": "Robert", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme313213265", "name": "Paul", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme65462104", "name": "Jules", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:Homme87976454321", "name": "Arthur", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    # --- l'unique voix SANS jumelle : JEAN_EDGAR, valide le 18/09/2026 ---
+    # Il n'a ni etoiles ni criteres releves : il faudra l'ecouter pour les
+    # remplir (etoiles provisoires a 3, comme les autres voix retenues).
+    {"id": "pocket:JEAN_EDGAR", "name": "Edgar", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+]
+# --- FIN CATALOGUE POCKET TTS ---
+
+
 class XttsIndisponible(RuntimeError):
     """Le service XTTS v2 ne repond pas (moteur eteint ou en chargement)."""
 
@@ -1353,6 +1410,92 @@ async def synthesize_neutts(text: str, voice: str, rate: str = "+0%",
     # Vitesse puis hauteur (aucun des deux n'existe dans le moteur).
     wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
+
+    _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)
+    return wav_bytes
+
+
+# ==============================================================
+# POCKET TTS -- le client du service (voir POCKET_VOICES plus haut)
+# ==============================================================
+
+class PocketIndisponible(RuntimeError):
+    """Le service Pocket TTS ne repond pas (moteur eteint ou en chargement)."""
+
+
+def _pocket_voix_id(voice: str) -> str:
+    """Retire le prefixe 'pocket:' pour obtenir l'identifiant de la voix."""
+    return voice.split(":", 1)[1] if ":" in voice else voice
+
+
+async def _demander_au_moteur_pocket(texte: str, identifiant_voix: str) -> bytes:
+    """Envoie une phrase au service Pocket TTS et renvoie le WAV brut."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=POCKET_DELAI_S) as client:
+            reponse = await client.post(
+                POCKET_URL + "/tts",
+                json={"texte": texte, "voix": identifiant_voix},
+            )
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout,
+            httpx.RemoteProtocolError, httpx.WriteError) as erreur:
+        raise PocketIndisponible(
+            "Le moteur de voix Pocket TTS ne repond pas ("
+            + type(erreur).__name__ + "). Il s'allume avec le lecteur ; sinon, "
+            "double-clique sur DEMARRER_POCKET_TTS.bat, puis relance la lecture."
+        )
+
+    if reponse.status_code != 200:
+        detail = ""
+        try:
+            detail = (reponse.json() or {}).get("erreur", "")
+        except Exception:
+            detail = ""
+        raise PocketIndisponible(
+            "Le moteur de voix Pocket TTS a refuse la phrase (code %d%s)."
+            % (reponse.status_code, (" : " + detail) if detail else "")
+        )
+
+    return reponse.content
+
+
+async def synthesize_pocket(text: str, voice: str, rate: str = "+0%",
+                            pitch: str = "+0Hz", vocabulaire=None) -> bytes:
+    """Synthese Pocket TTS pour une phrase (service HTTP local, port 8085).
+
+    Ce que ce moteur a de particulier (appris le 20/09/2026) :
+      - il tourne sur le PROCESSEUR et cohabite donc avec les autres moteurs ;
+      - il est LENT (~0,85 le temps reel) : c'est le CACHE AUDIO qui rend la
+        lecture confortable (une phrase deja lue ne redemande rien) ;
+      - la PREMIERE phrase d'une voix paie son encodage (3,8 s, une fois) ;
+      - sur un texte de 1 ou 2 mots il sort parfois un quasi-silence : le
+        service le detecte et regenere (garde-fou du cote moteur) ;
+      - vitesse et hauteur n'existent PAS en natif -> meme post-traitement que
+        Kyutai, XTTS et NeuTTS ;
+      - son NIVEAU de sortie varie d'une prise a l'autre : on le ramene au
+        niveau des autres moteurs, exactement comme pour Kyutai.
+    """
+    text = _clean_text(text, vocabulaire)
+    if not text:
+        return b""
+
+    cached = _tts_cache.get_audio(text, voice, rate, pitch, "wav")
+    if cached is not None:
+        return cached
+
+    wav_bytes = await _demander_au_moteur_pocket(text, _pocket_voix_id(voice))
+    if not wav_bytes:
+        return b""
+
+    # Vitesse puis hauteur (aucun des deux n'existe dans le moteur).
+    wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
+    wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
+
+    # Niveau : le moteur ne regle pas son volume de sortie et ses prises
+    # varient (mesure du 20/09/2026). On ramene la parole au niveau des autres
+    # moteurs AVANT la mise en cache : une phrase relue ne redevient pas faible.
+    wav_bytes = _audio_gain.normaliser_wav_parole(wav_bytes)
 
     _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)
     return wav_bytes
