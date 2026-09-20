@@ -90,12 +90,13 @@ gratuit** — ils font seulement travailler la carte graphique :
 |---|---|
 | `test_criteres_voix.js` | les menus de critères de la page **et** ceux du serveur sont les mêmes |
 | `test_libelle_voix.js` | le **libellé d'une voix** dans les menus (demande de Laurent, 19/09/2026) : drapeau(s), âge, timbre et moteur — les drapeaux des voix Edge (elles n'en avaient aucun), le 2ᵉ drapeau des accents, les libellés exacts du serveur (« mûr », « très aigu ») |
-| `test_etat_casting.js` | badges « à caster » / « voix partagée » |
+| `test_etat_casting.js` | badges « à caster » / « voix partagée » — et depuis le 19/09/2026 : **avec qui** une voix est partagée, **quelles voix sont libres** (hors voix génériques et hors voix du narrateur) et **quelle hauteur** appliquer quand on partage (jamais une hauteur déjà prise) |
 | `test_filtre_genre.js` | menus de voix (femmes / hommes) |
+| `test_tiroir_voix_libres.js` | le **tiroir des voix libres**, le **dépliage des partages**, la modale **« Partager / Déplacer »** et l'**attribution d'une voix libre** (19/09/2026) : voix rangées par moteur, libellés écrits, ▶ d'écoute, tiroir vide qui dit *pourquoi*, badge qui se déplie **au tap**, noms cliquables qui mènent à la fiche, recalcul après un changement de voix, choix Partager / Déplacer (hauteur annoncée, verrou respecté), bouton « Choisir » qui donne la voix au personnage |
 | `test_voix_ecoutables.js` | voix d'un moteur éteint (jamais de substitution silencieuse) |
 | `test_message_reseau.js` | message parlé quand le réseau tombe |
 | `test_chargement_chapitre.js` | le **chargement d'un chapitre** : le chapitre est demandé avant que le lecteur ne change d'état, une panne passagère est retentée, un échec **ne fait plus sauter** le chapitre (phrases vidées, bouton « Réessayer »), et une pause sans signal n'explose plus — exécute le vrai code de la page, sans navigateur |
-| `test_voix_phrase.js` | panneau « voix de cette phrase » |
+| `test_voix_phrase.js` | panneau « voix de cette phrase », et l'**état de la voix choisie écrit sous le menu** (libre / portée par X / partagée — 19/09/2026) |
 | `test_bouton_moteur.js` | bouton de bascule des moteurs de voix |
 
 ### Ceux qui demandent quelque chose d'allumé

@@ -1433,6 +1433,89 @@ et badges `.cast-badge-caster` / `.cast-badge-partagee`). *Vérifications* :
 `test_voix/test_ids_ecran.py` (les deux barres, les trois boutons, le seuil,
 les badges).
 
+**Voix libres et « partagée avec qui ? » — session du 19/09/2026.** Demande de
+Laurent, sur un casting de 176 personnages : « je ne vois pas quelle voix est
+libre », et l'onglet « Voix partagée » ne disait pas **par quel personnage** le
+timbre était porté. Contrainte qu'il a rappelée : sur mobile il n'y a **ni
+survol ni appui long** — tout ce qui compte doit donc être **écrit**, ou obtenu
+au **tap** (un tap vaut un clic, y compris en PWA installée).
+
+1. **Tiroir « Voix libres »** : un quatrième bouton dans la barre des
+   personnages, qui porte son compte (« 🔓 Voix libres (68) »). La liste ne
+   montre alors plus des personnages mais les voix **écoutables tout de suite**
+   (`/api/voices`) qu'**aucun** personnage **ni le narrateur** ne porte, rangées
+   par moteur (comme « Écouter les voix ») avec un ▶ d'écoute. Une voix dont le
+   moteur est éteint ne peut pas y figurer : le tiroir le **dit** sous la barre,
+   sinon ces voix sembleraient prises. **Lecture seule** — rien n'est attribué
+   depuis le tiroir.
+2. **Le narrateur compte comme une voix prise** (`books.narrator_voice`) : elle
+   lit tout ce qui n'est pas du dialogue ; l'annoncer « libre » inviterait à lui
+   donner un second rôle. **Mais le narrateur peut ÊTRE un personnage** : dans
+   « 22/11/63 », Jake Epping (3 634 répliques, verrouillé) porte exactement la
+   voix du narrateur, et c'est un choix de Laurent (récit à la première
+   personne). Cette voix n'est donc jamais proposée comme libre, le personnage
+   reçoit un badge **« 🎙 voix du narrateur »** (informatif) et la phrase de
+   détail écrit **les deux rôles** (« … 1 personnage parle aussi avec : Jake
+   Epping »). La référence est la voix du **menu du haut**, pas celle enregistrée
+   dans le livre : un changement de voix du narrateur est vu tout de suite. À
+   savoir : **le re-cast ignore `narrator_voice`** (`modules/voice_casting.py`),
+   donc seule la case **🔒** protège ce couple.
+3. **Le badge écrit les noms** : « ⧉ partagée avec Edmond, Busoni » (deux noms,
+   puis « et N autres »), et se **déplie au tap** (rôle de bouton, `Entrée` au
+   clavier) sur la phrase complète : nombre de porteurs, noms et répliques —
+   plafonnée à **six noms**, puis renvoi à l'onglet « Voix partagée », qui les
+   liste tous un par ligne (cas réel : une voix portée par **dix-huit**
+   personnages dans « 22/11/63 »). En vue « Voix partagée », les lignes sont
+   **groupées par voix**, avec un en-tête « ⧉ <voix> — n personnages ». Quand le
+   badge est déplié, chaque co-porteur est un **bouton** (nom + répliques) qui
+   fait **défiler la liste jusqu'à sa ligne** et la met en évidence un instant
+   (`_allerAuPersonnage`) : si un filtre cache le personnage, le tap
+   l'**explique** au lieu de rester sans effet.
+4. **Marque d'usage dans les menus** : chaque voix porte son état au moment du
+   choix (` · LIBRE`, ` · partagée (2)`, ` · narrateur`, ` · petits rôles`, ou
+   ` · <nom>` s'il n'y a qu'un porteur), et le panneau « Voir la voix »
+   **écrit** l'état de la voix choisie sous le menu (`#voice-phrase-usage`).
+5. **Recalcul après un changement de voix** (constat de Laurent, 19/09/2026) :
+   badges, groupes, marques et tiroir n'étaient calculés **qu'à l'ouverture** —
+   après avoir donné une voix libre à un personnage, sa fiche continuait
+   d'annoncer « Portée par 2 personnages : … ». `_rafraichirCastingApresChangement()`
+   recalcule désormais après chaque changement de voix : il **attend**
+   l'enregistrement (sinon il relirait l'ancienne voix), ne **recharge rien** du
+   serveur, **remet la liste à sa position** et utilise un **jeton** si l'on
+   change deux voix coup sur coup. Les curseurs vitesse/hauteur ne déclenchent
+   aucun recalcul (ils ne changent pas *qui* porte la voix), et un échec
+   d'enregistrement est maintenant **dit** à l'écran. Le panneau « Voir la
+   voix » rafraîchit lui aussi la fenêtre du casting s'il la trouve ouverte, et
+   son changement de voix du **narrateur** est désormais **enregistré pour le
+   livre** (il ne l'était pas : l'enregistrement part du menu du haut).
+6. **Prendre une voix libre depuis une fiche** (19/09/2026) : chaque ligne de
+   personnage a un bouton **🗣️** (une tête qui parle — surtout pas un cadenas
+   ouvert, qui dirait « déverrouillé » sur le bouton juste à côté) qui ouvre
+   `#voixlibres-modal` — la liste des
+   voix que **personne** ne porte (même présentation que le tiroir : rangées par
+   moteur, ▶ pour écouter), avec sur chacune un bouton **« Choisir »** qui
+   l'attribue au personnage en **conservant vitesse et hauteur**. Le geste part
+   du **personnage**, pas du tiroir : partir d'une voix obligerait ensuite à
+   chercher *qui*, parmi 175 personnages — justement ce qu'on veut éviter.
+
+*Fichiers* : `frontend/app.js` (`_etatVoix`, `_resumeNoms` et
+`_pitchPartageLibre`, fonctions **pures** ; `_lignesPersonnages`, extrait de
+`_openCastModal` et **partagé** avec le panneau « Voir la voix » pour que les
+deux comptent les **mêmes répliques** ; `_etatVoixLivre`, `_detailPartageVoix`,
+`_allerAuPersonnage`, `_demanderPartage`, `_deplacerAutresVersGenerique`,
+`_afficherVoixLibres`, `_previewVoixLibre`, `_majInfoVoixLibres`,
+`_rafraichirCastingApresChangement`, `_ouvrirVoixLibres`, `_donnerVoixLibre`,
+`_fermerVoixLibres`), `frontend/index.html` (`#cast-libres-info`,
+`#voice-phrase-usage`, bouton `data-etat="libres"`, modales `#partage-modal` et
+`#voixlibres-modal`), `frontend/styles.css` (`.cast-group`,
+`.cast-partage-detail`, `.cast-partage-chip`, `.cast-voix-libre`,
+`.cast-libre-btn`, badge cliquable et repliable). *Vérifications* :
+`test_voix/test_etat_casting.js` (noms des porteurs, voix libres hors génériques
+et hors narrateur, marques, phrases, plafond à six noms, hauteur de partage) et
+`test_voix/test_tiroir_voix_libres.js` (**nouveau** : le *rendu* du tiroir, du
+dépliage, de la modale Partager/Déplacer et de l'attribution d'une voix libre,
+sans navigateur).
+
 **Noms des voix : jamais d'identifiant technique dans les menus**
 (15/09/2026, constat de Laurent après un re-cast d'un roman contemporain). La fenêtre
 du casting affichait « `xtts:cml9804` » là où elle devait écrire
@@ -1463,11 +1546,16 @@ casté — les 125 personnages d'un roman contemporain ont tous un nom au catalo
 `test_voix/test_filtre_genre.js` (cas 7 et 8 : prénom affiché, identifiant
 absent).
 
-**Piste ouverte (décidée le 15/09/2026, pas encore faite)** : le geste
-« prendre une voix déjà attribuée » — une confirmation en français proposant
-**Partager** (l'autre garde la voix, la hauteur est décalée et affichée) ou
-**Déplacer** (l'autre personnage passe « à caster »), plus un tiroir des
-**voix encore libres** du livre.
+**« Partager / Déplacer » — livré le 19/09/2026.** Choisir pour un personnage une
+voix qu'un **autre** porte ouvre la modale `#partage-modal` : elle nomme la voix
+et ses porteurs, **annonce la hauteur** qui serait appliquée, et propose
+**Partager** (les autres gardent la voix, le personnage reçoit une hauteur
+décalée automatiquement — `_pitchPartageLibre`, jamais une hauteur déjà prise,
+par pas de 4 Hz — écrite dans son curseur) ou **Déplacer** (les autres repassent
+« ⚠ à caster » avec la voix générique de leur genre ; un personnage 🔒 n'est
+**jamais** déplacé). Annuler (bouton, ✕, tap à côté ou Échap) remet le menu comme
+avant. **Reste ouvert** : le **clic pour attribuer** une voix libre depuis le
+tiroir des voix libres.
 
 
 **Ordre du pool automatique — session du 14/09/2026** (décision de Laurent, à

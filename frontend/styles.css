@@ -833,22 +833,30 @@ body {
   flex-direction: column;
 }
 
-#cast-modal-header {
+#cast-modal-header,
+#partage-modal-header,
+#voixlibres-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
   flex-shrink: 0;
 }
-#cast-modal-header h3 { font-size: 1rem; margin: 0; }
-#cast-close-btn {
+#cast-modal-header h3,
+#partage-modal-header h3,
+#voixlibres-modal-header h3 { font-size: 1rem; margin: 0; }
+#cast-close-btn,
+#partage-close-btn,
+#voixlibres-close-btn {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
 }
-#cast-close-btn:hover { color: var(--text); }
+#cast-close-btn:hover,
+#partage-close-btn:hover,
+#voixlibres-close-btn:hover { color: var(--text); }
 
 #cast-saga-bar {
   display: flex;
@@ -943,10 +951,181 @@ body {
   border-color: var(--accent);
   background: var(--accent-dim);
 }
+/* Badge de partage : depuis le 19/09/2026 il ECRIT les noms des autres
+   personnages (« partagee avec Edmond, Busoni ») et se DEPLIE AU TAP -- sur
+   mobile il n'y a ni survol ni appui long : il doit donc avoir l'air
+   touchable. */
 .cast-badge-partagee {
   color: var(--text-muted);
   background: var(--bg-card);
+  cursor: pointer;
+  /* Les noms des porteurs sont ecrits : sur un mobile etro, un badge qui ne
+     revient pas a la ligne deborderait de la fiche (un livre reel a des noms
+     longs, comme « Billy James Hargis »). */
+  white-space: normal;
+  overflow-wrap: break-word;
 }
+.cast-badge-partagee:hover,
+.cast-badge-partagee:focus {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Badge « voix du narrateur » (19/09/2026) : ce personnage parle avec la voix
+   qui lit la narration. Cas normal d'un recit a la premiere personne (le
+   narrateur EST Jake Epping dans « 22/11/63 ») : informatif, jamais une
+   alerte -- on ne le rend donc pas cliquable, il n'y a rien a corriger. */
+.cast-badge-narrateur {
+  color: var(--text-muted);
+  background: var(--bg-card);
+}
+
+/* Detail d'un partage, deplie au tap sur le badge : la liste ECRITE des
+   personnages qui portent la voix, avec leurs repliques. */
+.cast-partage-detail {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border-left: 2px solid var(--accent-dim);
+  padding: 6px 8px;
+  line-height: 1.4;
+}
+.cast-partage-phrase { margin: 0; }
+
+/* Les co-porteurs d'une voix, en BOUTONS : taper un nom amene a SA fiche
+   (demande de Laurent, 19/09/2026 : « cliquer sur Cycliste Schwinn pour arriver
+   sur sa fiche »). Boutons plutot que liens dans la phrase : sur mobile, une
+   cible tactile doit etre franche. */
+.cast-partage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cast-partage-chip {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.7rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+.cast-partage-chip:hover,
+.cast-partage-chip:focus { border-color: var(--accent); }
+
+/* Quand un nom ne mene nulle part (un filtre cache le personnage) : on le dit
+   plutot que de laisser un tap sans effet. */
+.cast-partage-note {
+  margin: 4px 0 0;
+  color: var(--accent);
+  font-size: 0.7rem;
+}
+.cast-partage-note:empty { display: none; }
+
+/* La ligne ou l'on vient d'atterrir, mise en evidence un court instant. */
+.cast-row-survol {
+  background: var(--accent-dim);
+  border-radius: var(--radius-sm);
+}
+
+/* Modale « Partager / Déplacer » (19/09/2026) : elle annonce en clair ce que
+   chaque choix va faire, avec les noms des personnages concernes. Le texte des
+   deux issues est plus long qu'une phrase de confirmation : il est donc plus
+   petit et aligne a gauche (les paragraphes de .modal-box sont centres). */
+#partage-texte { font-weight: 600; }
+#partage-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: left;
+  line-height: 1.5;
+}
+/* Le geste le plus courant (garder la voix, mais differenciee par la hauteur) :
+   mis en avant. */
+#partage-partager-btn {
+  padding: 9px 20px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+#partage-partager-btn:hover { background: var(--accent); }
+
+/* En-tete de groupe dans la liste du casting : une VOIX et ses porteurs (vue
+   « Voix partagee »), ou un MOTEUR et ses voix (vue « Voix libres »). */
+.cast-group {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Ligne d'une voix LIBRE (tiroir « Voix libres ») : le libelle complet de la
+   voix (drapeaux, age, timbre, moteur) et un ▶ pour la reconnaitre. */
+.cast-voix-libre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+}
+.cast-voix-libre-nom {
+  font-size: 0.82rem;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+/* Les actions d'une voix libre : ▶ pour l'ecouter, « Choisir » pour la donner au
+   personnage (fenetre « Voix libres pour <nom> », 19/09/2026). */
+.cast-voix-libre-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cast-voix-libre-choisir {
+  background: var(--accent-dim);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cast-voix-libre-choisir:hover { background: var(--accent); }
+
+/* Fenetre « Voix libres pour <nom> » : la liste defile (elle peut compter des
+   dizaines de voix), le reste de la fenetre reste fixe. */
+#voixlibres-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: left;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+#voixlibres-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+/* Ce que le tiroir des voix libres ne peut PAS montrer (voix dont le moteur est
+   eteint) : sa propre ligne, pour ne pas etre noye dans le resume. */
+#cast-libres-info {
+  flex-basis: 100%;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+#cast-libres-info:empty { display: none; }
 
 #cast-list {
   overflow-y: auto;
@@ -989,7 +1168,8 @@ body {
 #cast-recast-actions button:hover:not(:disabled) { background: var(--accent); }
 #cast-recast-actions button:disabled { opacity: 0.5; cursor: default; }
 
-.cast-lock-btn {
+.cast-lock-btn,
+.cast-libre-btn {
   flex-shrink: 0;
   width: 30px;
   height: 30px;
@@ -1001,7 +1181,12 @@ body {
   cursor: pointer;
   line-height: 1;
 }
-.cast-lock-btn:hover { color: var(--text); }
+.cast-lock-btn:hover,
+.cast-libre-btn:hover { color: var(--text); }
+.cast-libre-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
 .cast-lock-btn.locked {
   border-color: var(--accent);
   color: var(--accent);
@@ -1437,6 +1622,17 @@ body {
 }
 
 #voice-phrase-voix { font-size: 0.82rem; color: var(--text-muted); }
+
+/* Etat de la voix choisie dans « Voir la voix » (19/09/2026) : libre, portee
+   par un personnage, partagee... ECRIT et non au survol, car sur mobile il n'y
+   a ni survol ni appui long. Vide quand il n'y a rien a dire. */
+#voice-phrase-usage {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+#voice-phrase-usage:empty { display: none; }
 
 #voice-phrase-label {
   font-size: 0.78rem;

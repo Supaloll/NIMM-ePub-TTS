@@ -10,7 +10,7 @@
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260916-2" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260919-6" />
 </head>
 <body>
   <div id="app">
@@ -223,6 +223,10 @@
         </div>
         <label id="voice-phrase-label" for="voice-phrase-select">Changer la voix</label>
         <select id="voice-phrase-select" aria-label="Choix de la voix"></select>
+        <!-- Etat de la voix choisie, ECRIT (19/09/2026) : « Libre », « Portee par
+             Edmond (300 repliques) », « Partagee par 3 personnages : ... ».
+             En texte et non au survol : sur mobile, ni survol ni appui long. -->
+        <p id="voice-phrase-usage"></p>
         <div id="voice-phrase-actions">
           <button id="voice-phrase-ecouter-btn" type="button">▶ Écouter</button>
           <span id="voice-phrase-note"></span>
@@ -400,15 +404,23 @@
              qui ne filtre que les voix proposees dans les menus) :
              « a caster » = ce personnage parle souvent mais porte encore la
              voix generique ; « voix partagee » = plusieurs personnages ont le
-             meme timbre, a differencier par la hauteur. -->
+             meme timbre, a differencier par la hauteur.
+             « Voix libres » (19/09/2026) est different : ce n'est plus une
+             liste de personnages, mais l'inventaire des voix que PERSONNE ne
+             porte encore -- celles ou piocher, avec ▶ pour les ecouter. -->
         <div id="cast-etat-bar">
           <span>Personnages :</span>
           <div id="cast-etat-actions">
             <button type="button" data-etat="T" class="actif">Tous</button>
             <button type="button" data-etat="caster">&#x26A0; À caster</button>
             <button type="button" data-etat="partagee">&#x29C9; Voix partagée</button>
+            <button type="button" data-etat="libres">&#x1F513; Voix libres</button>
           </div>
           <span id="cast-etat-resume"></span>
+          <!-- Voix invisibles dans le tiroir parce que leur moteur est eteint
+               (14/09/2026 : /api/voices ne propose que les voix ecoutables tout
+               de suite). Sans ce message, on croirait qu'elles sont prises. -->
+          <span id="cast-libres-info"></span>
         </div>
         <ul id="cast-list" role="list"></ul>
         <div id="cast-recast-bar">
@@ -427,6 +439,52 @@
               Re-caster avec l'IA
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== MODALE « PARTAGER / DÉPLACER » UNE VOIX (19/09/2026) ======= -->
+    <!-- S'ouvre quand on choisit, pour un personnage, une voix DÉJÀ portée par un
+         autre : c'est un CHOIX, pas un accident silencieux (item du BACKLOG
+         décidé avec Laurent le 15/09/2026). Deux issues, jamais un vide :
+         « Partager » = l'autre garde la voix et le nouveau reçoit une hauteur
+         décalée, annoncée ici puis écrite dans son curseur ;
+         « Déplacer » = l'autre repasse « ⚠ à caster », avec la voix générique
+         provisoire de son genre (jamais une voix vide, qui casserait la
+         lecture). Un personnage verrouillé 🔒 n'est jamais déplacé : on le dit. -->
+    <div id="partage-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Voix déjà utilisée par un personnage">
+      <div class="modal-box">
+        <div id="partage-modal-header">
+          <h3>Voix déjà utilisée</h3>
+          <button id="partage-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+        <p id="partage-texte"></p>
+        <p id="partage-note"></p>
+        <div class="modal-actions">
+          <button id="partage-annuler-btn" class="btn-secondary">Annuler</button>
+          <button id="partage-deplacer-btn" class="btn-secondary">Déplacer l'autre</button>
+          <button id="partage-partager-btn">Partager (décaler la hauteur)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== MODALE « VOIX LIBRES POUR <PERSONNAGE> » (19/09/2026) ========= -->
+    <!-- S'ouvre par le bouton 🗣️ d'une ligne de personnage : au lieu de choisir
+         QUI (parmi 175, ce qu'on veut justement éviter), on choisit QUELLE voix
+         libre. Même liste que le tiroir (rangée par moteur, ▶ pour écouter),
+         avec un bouton « Choisir » sur chaque voix. -->
+    <div id="voixlibres-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Voix libres pour un personnage">
+      <div class="modal-box cast-box">
+        <div id="voixlibres-modal-header">
+          <h3 id="voixlibres-titre">Voix libres</h3>
+          <button id="voixlibres-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+        <p id="voixlibres-note"></p>
+        <ul id="voixlibres-list" role="list"></ul>
+        <div class="modal-actions">
+          <button id="voixlibres-annuler-btn" class="btn-secondary">Fermer</button>
         </div>
       </div>
     </div>
@@ -475,6 +533,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260916-2"></script>
+  <script src="/static/app.js?v=20260919-6"></script>
 </body>
 </html>

@@ -44,6 +44,9 @@ const IDS = [
   'voice-phrase-panel', 'voice-phrase-close-btn', 'voice-phrase-extrait',
   'voice-phrase-personnage', 'voice-phrase-voix', 'voice-phrase-label',
   'voice-phrase-select', 'voice-phrase-ecouter-btn', 'voice-phrase-note',
+  // Ligne d'usage de la voix choisie (19/09/2026) : libre, portee par X,
+  // partagee... ECRITE, car sur mobile il n'y a ni survol ni appui long.
+  'voice-phrase-usage',
 ];
 IDS.forEach(id => {
   const dansPage = page.includes('id="' + id + '"');

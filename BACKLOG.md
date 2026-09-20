@@ -3266,16 +3266,134 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   `test_voix/test_filtre_genre.js` (cas « voix absente de la liste » : prénom
   affiché, identifiant absent).
 
-- [ ] **Prendre une voix déjà attribuée : « Partager » ou « Déplacer »** —
-  décidé avec Laurent le 15/09/2026, **pas encore commencé**. Quand on choisit
-  une voix déjà portée par un autre personnage, une confirmation en français
-  proposera **(a) Partager** (l'autre garde la voix, la hauteur est décalée
-  automatiquement et affichée) ou **(b) Déplacer** (l'autre personnage passe
-  « à caster », avec la voix générique provisoire — jamais un vide, qui
-  casserait la lecture). À compléter par un **tiroir des voix encore libres**
-  du livre (celles du pool qu'aucun personnage n'utilise), avec ▶ pour écouter
-  et un clic pour attribuer : c'est le « tri » demandé par Laurent, et le
-  dernier gros gain pour les castings à 175 personnages.
+- [x] **Voir les voix LIBRES et PAR QUI une voix est partagée** — livré le
+  19/09/2026 (demande de Laurent : « je ne vois pas quelle voix est libre », et
+  l'onglet « Voix partagée » ne disait pas par quel personnage). Trois choses :
+  (1) un **4ᵉ bouton « 🔓 Voix libres (n) »** dans la barre des personnages : la
+  liste montre alors les voix **écoutables tout de suite** qu'aucun personnage
+  **ni le narrateur** ne porte, rangées par moteur comme dans « Écouter les
+  voix », avec ▶ pour les reconnaître ; un moteur éteint est signalé sous la
+  barre, sinon ses voix sembleraient prises ; (2) le badge de partage **écrit
+  les noms** (« ⧉ partagée avec Edmond, Busoni ») et se **déplie au tap** —
+  précision de Laurent : sur mobile il n'y a **ni survol ni appui long**, donc
+  tout ce qui compte est écrit ; en vue « Voix partagée », les personnages sont
+  **groupés par voix**, avec un en-tête qui les nomme ; (3) dans les menus de
+  voix (casting **et** « Voir la voix »), chaque voix porte sa marque courte
+  (` · LIBRE`, ` · partagée (2)`, ` · narrateur`, ` · petits rôles`) et le
+  panneau « Voir la voix » **écrit** l'état de la voix choisie sous le menu.
+  **Le narrateur compte comme une voix prise** : elle lit tout le non-dialogue.
+  Cas particulier (question de Laurent, 19/09/2026) : **le narrateur peut ETRE
+  un personnage** — dans « 22/11/63 », Jake Epping (3 634 répliques, verrouillé)
+  porte exactement la voix du narrateur, et c'est **voulu**. Deux conséquences :
+  cette voix n'est donc **jamais** annoncée libre (correct), et le personnage
+  reçoit un badge **« 🎙 voix du narrateur »** (informatif, pas une alerte) ; la
+  phrase de détail **écrit les deux rôles** (« … 1 personnage parle aussi avec :
+  Jake Epping (choix valable : le narrateur peut être un personnage) »).
+  *Nécessaire* : la fenêtre du casting prend désormais la voix du **menu du
+  haut** comme référence (et non plus celle enregistrée dans le livre) — sinon
+  un changement de voix du narrateur n'était pas vu avant rechargement.
+  **Le re-cast, lui, ignore `narrator_voice`** (`modules/voice_casting.py` ne le
+  lit pas) : seule la case **🔒** protège le couple narrateur = Jake, d'où
+  l'intérêt du badge — il rend ce cas visible.
+  **Recalcul apres un changement de voix** (constat de Laurent, 19/09/2026) : les
+  badges, les groupes, les marques et le tiroir n'etaient calcules qu'a
+  l'OUVERTURE de la fenetre — une voix donnee a un personnage laissait donc sa
+  fiche annoncer « Portee par 2 personnages : ... » (son exemple : « Col-bleu
+  sans bretelles » et « Andrew Cullum »). Corrige :
+  `_rafraichirCastingApresChangement()` recalcule apres chaque changement de
+  voix, en **attendant** l'enregistrement (sinon le recalcul se ferait sur
+  l'ancienne voix), **sans rien recharger du serveur**, en **remettant la liste
+  a sa position** (176 personnages obligent) et avec un **jeton** pour deux
+  changements rapproches. Les curseurs vitesse/hauteur ne declenchent aucun
+  recalcul : ils ne changent pas QUI porte la voix. Un echec d'enregistrement est
+  desormais **dit** a l'ecran. Effet de bord utile du meme chantier : changer la
+  voix du narrateur depuis le panneau « Voir la voix » est maintenant
+  **enregistre pour le livre** (ca ne l'etait pas — l'enregistrement part du
+  menu du haut).
+
+  **Aller sur la fiche d'un co-porteur** (demande de Laurent, 19/09/2026 :
+  « pouvoir cliquer sur Cycliste Schwinn pour arriver sur sa fiche ») : quand le
+  badge est deplie, les co-porteurs sont des **boutons** (nom + nombre de
+  repliques) qui font **defiler la liste** jusqu'a leur ligne et la mettent en
+  evidence un court instant. Des boutons et non des liens dans la phrase : sur
+  mobile, une cible tactile doit etre franche. Si un filtre cache le personnage,
+  le tap n'est pas silencieux — l'appli ecrit pourquoi et propose « Tous ».
+  *A ne pas confondre* avec l'item ouvert « Partager / Deplacer » (choisir une
+  voix **deja portee**), qui est un choix d'ECRITURE en base, pas une navigation.
+
+  *Technique* : `_etatVoix()` et `_resumeNoms()` (fonctions pures) et
+  `_lignesPersonnages()` (extrait de `_openCastModal` le 19/09/2026 et partagé
+  avec le panneau, pour que les deux comptent **les mêmes répliques**) dans
+  `frontend/app.js` ; `#cast-libres-info` et `#voice-phrase-usage` dans
+  `index.html` ; styles dans `styles.css`. *Vérifications* :
+  `test_voix/test_etat_casting.js` (noms des porteurs, voix libres, marques,
+  phrases) et `test_voix/test_tiroir_voix_libres.js` (**nouveau** : le rendu,
+  sans navigateur). **Lecture seule : rien n'est attribué depuis le tiroir.**
+
+- [x] **Prendre une voix déjà attribuée : « Partager » ou « Déplacer »** —
+  **livré le 19/09/2026** (décidé avec Laurent le 15/09/2026). Choisir pour un
+  personnage une voix qu'un AUTRE porte n'est plus un accident silencieux : une
+  **modale en français** nomme la voix et ses porteurs, **annonce la hauteur qui
+  sera appliquée**, et propose deux issues :
+  **(a) Partager** — les autres gardent la voix, et le personnage la reçoit avec
+  une hauteur décalée automatiquement (`_pitchPartageLibre` : +8, −8, +12, −12…
+  la plus petite différence **encore libre**, par pas de 4 Hz — le pas des
+  curseurs), écrite dans son curseur **avant** l'enregistrement, donc visible ;
+  **(b) Déplacer** — les autres repassent « ⚠ À caster » avec la **voix générique
+  de leur genre** (jamais un vide, qui casserait la lecture). Un personnage
+  **verrouillé 🔒 n'est jamais déplacé** : on le dit et on ne touche à rien.
+  Annuler (bouton, ✕, tap à côté ou Échap) remet le menu comme avant, sans rien
+  enregistrer.
+  *Technique* : `_pitchPartageLibre()` (fonction pure), `_demanderPartage()`,
+  `_deplacerAutresVersGenerique()` dans `frontend/app.js` ; modale
+  `#partage-modal` dans `index.html` ; styles dans `styles.css`.
+  *Vérifications* : `test_voix/test_etat_casting.js` (hauteur proposée : jamais
+  une hauteur déjà prise, la plus petite différence, aucun plantage quand tout
+  est pris) et `test_voix/test_tiroir_voix_libres.js` (la modale tourne pour de
+  vrai sur un faux DOM : texte, hauteur annoncée, ouverture/fermeture, réponse,
+  respect du verrou).
+- [x] **Attribuer une voix libre depuis la fiche du personnage** — livré le
+  19/09/2026 (le « reste ouvert » de l'item ci-dessus, tranché avec Laurent).
+  Chaque ligne de personnage porte un bouton **🗣️ « prendre une voix libre »** :
+  il ouvre la liste des voix que personne ne porte encore (même présentation que
+  le tiroir : rangées par moteur, ▶ pour écouter), et chaque voix a un bouton
+  **« Choisir »** qui la donne à ce personnage en **conservant sa vitesse et sa
+  hauteur**. Le casting est recalculé aussitôt, comme après tout changement.
+  *Pourquoi depuis le personnage et non depuis le tiroir* (choix expliqué à
+  Laurent) : partir d'une voix obligerait ensuite à choisir **qui**, parmi 175
+  personnages — exactement le problème qu'on cherche à éviter. Le tiroir reste
+  l'inventaire (voir + écouter).
+  *Technique* : `_ouvrirVoixLibres()`, `_donnerVoixLibre()`, `_fermerVoixLibres()`
+  et le paramètre `choisir` de `_afficherVoixLibres()` dans `frontend/app.js` ;
+  modale `#voixlibres-modal` dans `index.html` ; styles dans `styles.css`.
+  *Vérifications* : `test_voix/test_tiroir_voix_libres.js` (le bouton « Choisir »
+  rend bien CETTE voix, vitesse et hauteur conservées, un échec est dit) et
+  `test_voix/test_ids_ecran.py` (les 7 éléments de la fenêtre, les 3 fonctions,
+  les styles).
+
+- [ ] **Symboles ♀️ / ♂️ pour repérer le genre d'un coup d'œil** — demande de
+  Laurent, 19/09/2026 : « on laisse le prénom, mais on ajoutera les symboles,
+  ça sera plus simple à l'œil ». Aujourd'hui la ligne d'un personnage écrit le
+  genre **en toutes lettres** (« Femme · 33 répliques », `frontend/app.js`,
+  `genreLabel` dans `_openCastModal`) : sur un casting de 175 personnages, ça se
+  lit mal. Où poser les symboles, par ordre d'utilité :
+  1. **la ligne de personnage** (fenêtre du casting) : symbole **devant** le
+     texte, pour que l'œil l'attrape — « ♀️ Femme · 33 répliques » (le mot reste
+     dans un premier temps ; on verra à l'usage s'il devient inutile, auquel cas
+     « ♀️ · 33 répliques » suffit) ;
+  2. **les deux barres de filtres** (« Femmes » / « Hommes », fenêtre du casting
+     et menu du narrateur) : « ♀️ Femmes » / « ♂️ Hommes » ;
+  3. *à confirmer avec Laurent* : les libellés de voix dans les menus (le groupe
+     « 👩 Femmes » / « 👨 Hommes » donne **déjà** le genre, le doubler serait
+     redondant — mais le libellé d'une voix reste juste, par exemple sur mobile
+     où l'on voit moins bien les en-têtes de groupe).
+  *Pièges à ne pas oublier* : écrire les symboles avec leur **sélecteur emoji**
+  (`\u2640\uFE0F` = ♀️ et `\u2642\uFE0F` = ♂️), sinon ils s'affichent en petit
+  noir et blanc ; et **le genre vide** (« ni F ni M ») ne doit pas tomber sur
+  « Homme » par défaut comme aujourd'hui — prévoir un signe neutre (ou laisser
+  vide) plutôt qu'un genre faux.
+  *Vérifications* : `test_voix/test_ids_ecran.py` (l'écran et le code restent
+  cohérents) et un contrôle du libellé produit.
 
 - [ ] **PARTAGE : quelles voix peut-on laisser dans un dépôt public ?** —
   question de Laurent (14/09/2026). Contexte : il **ne vend pas** NIMM ePub, il

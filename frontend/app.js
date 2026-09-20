@@ -518,6 +518,10 @@ function _restaurerVoixNarrateur(voix) {
 
 document.getElementById('voice-select').addEventListener('change', (e) => {
   if (!_currentBookId) return;               // aucun livre ouvert : rien a lier
+  // Memoire locale mise a jour tout de suite (19/09/2026) : sans cela, la
+  // fenetre du casting continuait de traiter l'ANCIENNE voix comme celle du
+  // narrateur (elle la marquait « · narrateur ») jusqu'au rechargement.
+  if (_currentBookData) _currentBookData.narrator_voice = e.target.value;
   fetch('/api/books/' + _currentBookId + '/narrator?user_id=' + _currentUserId, {
     method:  'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -748,6 +752,11 @@ function _formatHz(n) { return (n >= 0 ? '+' : '') + n + 'Hz'; }
 function _etatCasting(rows, filtre) {
   const estGenerique = (id) => _CAST_VOIX_GENERIQUES.indexOf(id) >= 0;
   const compteParVoix = {};
+  // Les NOMS en plus du compte (19/09/2026) : « voix partagee (2) » ne dit pas
+  // AVEC QUI. Or sur mobile il n'y a ni survol ni appui long pour aller le
+  // chercher (precision de Laurent) : les noms sont donc gardes ici, pour
+  // pouvoir etre ECRITS a l'ecran.
+  const nomsParVoix = {};
   rows.forEach(r => {
     const id = (r.v && r.v.voice_id) || '';
     // Les voix generiques des petits roles ne comptent PAS comme partagees :
@@ -756,12 +765,16 @@ function _etatCasting(rows, filtre) {
     // alertes. On ne signale que le partage d'une voix DEDIEE.
     if (!id || estGenerique(id)) return;
     compteParVoix[id] = (compteParVoix[id] || 0) + 1;
+    (nomsParVoix[id] = nomsParVoix[id] || []).push({
+      nom: r.nom, total: r.total || 0,
+    });
   });
   const aCaster = (r) => estGenerique((r.v && r.v.voice_id) || '')
                           && r.total >= _CAST_MINOR_THRESHOLD;
   const partagee = (r) => !aCaster(r) && compteParVoix[r.v.voice_id] > 1;
   return {
     compteParVoix: compteParVoix,
+    nomsParVoix: nomsParVoix,
     aCaster: aCaster,
     partagee: partagee,
     nbCaster: rows.filter(aCaster).length,
@@ -775,11 +788,139 @@ function _etatCasting(rows, filtre) {
   };
 }
 
+// Noms de personnages en une ligne lisible : « Edmond, Busoni et 2 autres ».
+// Les badges doivent rester courts, meme sur un casting a 175 personnages.
+function _resumeNoms(noms, max) {
+  const liste = noms || [];
+  const garde = max || 2;
+  if (!liste.length) return '';
+  if (liste.length <= garde) return liste.join(', ');
+  const reste = liste.length - garde;
+  return liste.slice(0, garde).join(', ') + ' et ' + reste
+    + ' autre' + (reste > 1 ? 's' : '');
+}
+
+// Hauteur a appliquer quand on PARTAGE une voix deja portee (19/09/2026) : la
+// plus petite difference encore libre, par pas de 4 Hz (le pas des curseurs du
+// casting). `pitchesUtilises` = les hauteurs (en Hz, nombres) des personnages
+// qui portent DEJA la voix ; on renvoie un nombre, que l'appelant ecrit en
+// « +8Hz ». Le principe : deux personnages au meme timbre doivent s'entendre
+// differemment, et on ne reprend JAMAIS une hauteur deja prise (sinon deux
+// d'entre eux resteraient indiscernables).
+// Fonction PURE (aucun DOM, aucun appel reseau) : verifiee par
+// test_voix/test_etat_casting.js.
+function _pitchPartageLibre(pitchesUtilises) {
+  const utilises = pitchesUtilises || [];
+  const candidats = [8, -8, 12, -12, 16, -16, 4, -4, 20, -20, 0];
+  const trouve = candidats.find(p => utilises.indexOf(p) < 0);
+  return (trouve === undefined) ? 0 : trouve;
+}
+
+// USAGE DES VOIX D'UN LIVRE (19/09/2026) : ce que la fenetre du casting, ses
+// menus et le panneau « Voir la voix » affichent a cote de chaque voix.
+// Fonction PURE (aucun DOM, aucun appel reseau) : elle recoit l'etat calcule
+// par _etatCasting -- qui sait desormais QUELS personnages portent quelle voix
+// -- puis la liste des voix PROPOSEES (celles ecoutables tout de suite) et la
+// voix du narrateur. Verifiee par test_voix/test_etat_casting.js.
+// Aucun texte « au survol » n'est produit : tout doit pouvoir s'ECRIRE a
+// l'ecran, car sur mobile il n'y a ni survol ni appui long.
+//   - « LIBRE »     : aucun personnage ne la porte -> c'est la ou piocher ;
+//   - « partagee »  : plusieurs personnages la portent (les noms sont donnes) ;
+//   - « narrateur » : elle lit la narration de ce livre, donc elle est prise ;
+//   - « generique » : voix des petits roles (Piper siwis/tom), partagee par
+//     construction : jamais comptee comme libre.
+function _etatVoix(etatCasting, voixProposees, voixNarrateur) {
+  const generique   = (id) => _CAST_VOIX_GENERIQUES.indexOf(id) >= 0;
+  const narrateur   = voixNarrateur || '';
+  const proposees   = (voixProposees || []).filter(v => v && v.id);
+  const nomsParVoix = (etatCasting && etatCasting.nomsParVoix) || {};
+  const porteurs    = (id) => nomsParVoix[id] || [];
+  const libres      = proposees.filter(v => !generique(v.id)
+    && porteurs(v.id).length === 0 && v.id !== narrateur);
+
+  // Marque courte, collee au libelle d'une voix dans un MENU deroulant : ces
+  // menus sont etroits (45 % de la ligne du personnage), donc ni noms ni
+  // phrases ici -- les noms vont dans le badge (depliable au tap) et dans le
+  // panneau « Voir la voix », ou il y a la place de les ecrire.
+  const marque = (id) => {
+    if (!id) return '';
+    if (generique(id)) return ' \u00b7 petits r\u00f4les';
+    if (id === narrateur) return ' \u00b7 narrateur';
+    const n = porteurs(id).length;
+    if (n === 0) return ' \u00b7 LIBRE';
+    if (n === 1) return ' \u00b7 ' + porteurs(id)[0].nom;
+    return ' \u00b7 partag\u00e9e (' + n + ')';
+  };
+
+  // Phrase COMPLETE, en texte plein : c'est elle que le badge deplie au tap et
+  // que « Voir la voix » ecrit sous le menu. Jamais un survol.
+  const phrase = (id) => {
+    if (!id) return '';
+    if (generique(id)) {
+      return 'Voix g\u00e9n\u00e9rique des petits r\u00f4les : tous les '
+        + 'personnages de moins de ' + _CAST_MINOR_THRESHOLD
+        + ' r\u00e9pliques la partagent, par genre.';
+    }
+    const noms = porteurs(id);
+    if (id === narrateur) {
+      // La voix du narrateur est PRISE (elle lit tout le non-dialogue). Mais un
+      // PERSONNAGE peut aussi parler avec : dans « 22/11/63 », le narrateur EST
+      // Jake Epping, et Laurent a choisi la MEME voix pour les deux -- c'est un
+      // choix valable, pas une erreur. On l'ECRIT, sinon la fiche ferait croire
+      // que ce personnage n'a pas sa voix.
+      const aussi = noms.length
+        ? ' ' + noms.length + ' personnage' + (noms.length > 1 ? 's' : '')
+          + ' parle' + (noms.length > 1 ? 'nt' : '') + ' aussi avec : '
+          + _resumeNoms(noms.map(x => x.nom), 4)
+          + ' (choix valable : le narrateur peut \u00eatre un personnage).'
+        : '';
+      return 'C\u2019est la voix du NARRATEUR de ce livre : elle lit tout ce '
+        + 'qui n\u2019est pas du dialogue.' + aussi;
+    }
+    if (!noms.length) {
+      return 'Libre : aucun personnage ne porte cette voix.';
+    }
+    if (noms.length === 1) {
+      return 'Port\u00e9e par ' + noms[0].nom + ' (' + noms[0].total
+        + ' r\u00e9pliques).';
+    }
+    // Au-dela de six noms, la phrase deviendrait un pave (un livre reel a une
+    // voix portee par DIX-HUIT personnages) : on s'arrete a six et on renvoie a
+    // l'onglet « Voix partagee », qui les liste TOUS, un par ligne.
+    const montres = noms.slice(0, 6)
+      .map(x => x.nom + ' (' + x.total + ' r\u00e9pliques)');
+    const reste = noms.length - montres.length;
+    return 'Port\u00e9e par ' + noms.length + ' personnages : '
+      + montres.join(', ')
+      + (reste > 0
+          ? ' et ' + reste + ' autre' + (reste > 1 ? 's' : '')
+            + ' (onglet « Voix partag\u00e9e » pour la liste compl\u00e8te)'
+          : '')
+      + '. Diff\u00e9renciez-les avec la hauteur (pitch).';
+  };
+
+  return {
+    nomsParVoix: nomsParVoix,
+    porteurs: porteurs,
+    libres: libres,
+    nbLibres: libres.length,
+    nbProposees: proposees.length,
+    marque: marque,
+    phrase: phrase,
+  };
+}
+
 // Menu deroulant des voix d'un personnage, organise par GENRE et filtre selon
 // le choix en cours (_castGenreFiltre). La voix actuellement attribuee reste
 // TOUJOURS visible, meme si le filtre la masque : sinon on croirait que le
 // personnage n'a plus de voix.
-function _construireMenuVoix(voiceIdActuelle) {
+// `etatVoix` (19/09/2026) ajoute l'etat de chaque voix au libelle (« · libre »,
+// « · partagée (2) ») : c'est au moment de CHOISIR qu'on a besoin de savoir si
+// la voix est libre. Il est facultatif : le test node qui isole cette fonction
+// ne le fournit pas, et rien ne doit changer pour lui.
+function _construireMenuVoix(voiceIdActuelle, etatVoix) {
+  const usage = (!etatVoix || typeof etatVoix.marque !== 'function')
+    ? () => '' : (id) => etatVoix.marque(id);
   const select = document.createElement('select');
   select.className = 'cast-voice-select';
 
@@ -819,8 +960,8 @@ function _construireMenuVoix(voiceIdActuelle) {
   // `typeof` : le test node qui isole cette fonction ne fournit pas
   // `_libelleVoix` ; il retombe alors sur l'ancien libelle (nom + region), ce
   // que ce test ne regarde pas.
-  const libelle = (v) => (typeof _libelleVoix === 'function')
-    ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region;
+  const libelle = (v) => ((typeof _libelleVoix === 'function')
+    ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region) + usage(v.id);
 
   const ajouterGroupe = (etiquette, voix) => {
     if (!voix.length) return;
@@ -912,33 +1053,19 @@ async function _openCastModal(rafraichirVoix) {
   document.getElementById('cast-saga-input').value = (_currentBookData && _currentBookData.saga) || '';
   _loadSagaSuggestions();
 
-  // Regroupement des alias sous leur personnage principal (session 12/09/2026).
-  const aliasOf = {};   // principal -> [alias, ...]
-  Object.keys(aliases).forEach(al => {
-    const canon = aliases[al];
-    if (voices[al] && voices[canon]) (aliasOf[canon] = aliasOf[canon] || []).push(al);
-  });
-  const racineDe = (nom) => {
-    const canon = aliases[nom];
-    return (canon && voices[canon]) ? canon : nom;
-  };
-  const totalDe = (nom) => {
-    let total = voices[nom] ? (voices[nom].line_count || 0) : 0;
-    (aliasOf[nom] || []).forEach(al => { total += (voices[al].line_count || 0); });
-    return total;
-  };
+  // Lignes a afficher : chaque principal suivi de ses alias. Construites par
+  // _lignesPersonnages (partagee depuis le 19/09/2026 avec le panneau « Voir la
+  // voix » : les deux comptent ainsi EXACTEMENT les memes repliques).
+  const rows = _lignesPersonnages(voices, aliases);
 
-  // Lignes a afficher : chaque principal suivi de ses alias.
-  const rows = [];
-  Object.keys(voices)
-    .filter(nom => racineDe(nom) === nom)
-    .sort((a, b) => totalDe(b) - totalDe(a))
-    .forEach(nom => {
-      rows.push({ nom: nom, v: voices[nom], total: totalDe(nom), isAlias: false });
-      (aliasOf[nom] || []).slice().sort().forEach(al => {
-        rows.push({ nom: al, v: voices[al], total: voices[al].line_count || 0, isAlias: true });
-      });
-    });
+  // La voix du NARRATEUR du livre compte comme PRISE : elle lit tout ce qui
+  // n'est pas du dialogue. Sans cela elle serait proposee comme « libre », et
+  // l'attribuer a un personnage donnerait deux roles pour une seule voix.
+  // Le MENU du haut fait foi (il a pu changer depuis le chargement du livre) ;
+  // la valeur enregistree par livre sert de secours quand il est vide.
+  const choixNarrateur = document.getElementById('voice-select');
+  const narrateurVoix  = (choixNarrateur && choixNarrateur.value)
+    || (_currentBookData && _currentBookData.narrator_voice) || '';
 
   // --- Etat des voix de ce livre (session du 15/09/2026) ---
   // Les badges et le filtre viennent de _etatCasting(), une fonction pure et
@@ -946,25 +1073,60 @@ async function _openCastModal(rafraichirVoix) {
   // d'un coup d'oeil les personnages sans voix a eux (« a caster ») et les
   // timbres partages entre plusieurs personnages.
   const etat = _etatCasting(rows, _castEtatFiltre);
+  // Etat d'USAGE de chaque voix : libre, prise, partagee, voix du narrateur. Il
+  // alimente les badges, les menus deroulants et le tiroir « Voix libres ».
+  const etatVoix = _etatVoix(etat, _allVoices, narrateurVoix);
   const rowsAffichees = etat.rowsFiltrees;
   const resume = document.getElementById('cast-etat-resume');
   if (resume) {
     resume.textContent = rows.length + ' personnages \u00b7 ' + etat.nbCaster
       + ' \u00e0 caster \u00b7 ' + etat.nbPartagee + ' voix partag\u00e9e'
-      + (etat.nbPartagee > 1 ? 's' : '');
+      + (etat.nbPartagee > 1 ? 's' : '')
+      + ' \u00b7 ' + etatVoix.nbLibres + ' voix libre'
+      + (etatVoix.nbLibres > 1 ? 's' : '');
   }
+
+  // Le bouton « Voix libres » porte son compte : la reserve se voit sans avoir
+  // a ouvrir l'onglet.
+  const btnLibres = document.querySelector(
+    '#cast-etat-actions button[data-etat="libres"]');
+  if (btnLibres) {
+    btnLibres.textContent = '\uD83D\uDD13 Voix libres (' + etatVoix.nbLibres + ')';
+  }
+  // Les moteurs eteints : leurs voix ne sont pas proposees, donc invisibles ici.
+  _majInfoVoixLibres();
 
   list.innerHTML = '';
 
-  if (rowsAffichees.length === 0) {
+  if (_castEtatFiltre === 'libres') {
+    _afficherVoixLibres(list, etatVoix);
+  } else if (rowsAffichees.length === 0) {
     list.innerHTML = '<li class="cast-empty">'
       + (rows.length === 0
           ? 'Aucun personnage identifie pour ce livre.'
           : 'Aucun personnage dans ce filtre.') + '</li>';
   } else {
+    // Vue « Voix partagee » : on GROUPE les lignes par voix. Dans l'ordre
+    // habituel (du plus bavard au plus discret), deux personnages qui partagent
+    // un timbre ne sont JAMAIS voisins : le partage restait donc invisible.
+    // Ici, une voix = un en-tete qui ECRIT les noms des porteurs (sur mobile,
+    // pas de survol possible : tout ce qui compte doit etre ecrit).
+    let voixPrecedente = null;
     rowsAffichees.forEach(row => {
       const nom = row.nom;
       const v   = row.v;
+      if (_castEtatFiltre === 'partagee' && v.voice_id !== voixPrecedente) {
+        voixPrecedente = v.voice_id;
+        // L'en-tete donne la voix et le NOMBRE de porteurs : les noms sont
+        // juste en dessous, un par ligne -- inutile de les repeter ici (un
+        // livre reel a une voix portee par 18 personnages).
+        const entete = document.createElement('li');
+        entete.className = 'cast-group';
+        entete.textContent = '\u29C9 '
+          + (_libelleCatalogue(v.voice_id) || v.voice_id) + ' \u2014 '
+          + etatVoix.porteurs(v.voice_id).length + ' personnages';
+        list.appendChild(entete);
+      }
       const li = document.createElement('li');
       li.className = 'cast-row' + (row.isAlias ? ' cast-row-alias' : '');
 
@@ -987,6 +1149,10 @@ async function _openCastModal(rafraichirVoix) {
       // parle beaucoup) ou « voix partagee » (meme timbre qu'un autre
       // personnage : a differencier avec la hauteur). Les petits roles restent
       // sans badge : leur voix generique est voulue.
+      // Depuis le 19/09/2026, le badge de partage ECRIT les noms (demande de
+      // Laurent : « je ne sais pas par quel personnage ») et se DEPLIE AU TAP :
+      // sur mobile il n'y a ni survol ni appui long, donc le texte doit etre
+      // atteignable par un simple tap.
       if (etat.aCaster(row)) {
         const badge = document.createElement('span');
         badge.className = 'cast-badge cast-badge-caster';
@@ -995,16 +1161,30 @@ async function _openCastModal(rafraichirVoix) {
           + 'g\u00e9n\u00e9rique des petits r\u00f4les : choisissez-lui une voix.';
         info.appendChild(badge);
       } else if (etat.partagee(row)) {
-        const autres = etat.compteParVoix[v.voice_id] - 1;
+        const autres = etatVoix.porteurs(v.voice_id)
+          .filter(x => x.nom !== nom).map(x => x.nom);
         const badge = document.createElement('span');
         badge.className = 'cast-badge cast-badge-partagee';
-        badge.textContent = '\u29C9 voix partag\u00e9e (' + autres + ')';
-        badge.title = 'Cette voix est port\u00e9e par ' + autres
-          + ' autre(s) personnage(s) : diff\u00e9renciez-les avec la hauteur.';
+        badge.textContent = '\u29C9 partag\u00e9e avec ' + _resumeNoms(autres);
+        badge.title = etatVoix.phrase(v.voice_id);
+        info.appendChild(badge);
+        info.appendChild(_detailPartageVoix(etatVoix, v.voice_id, badge));
+      } else if (narrateurVoix && v.voice_id === narrateurVoix) {
+        // Ce personnage parle avec la VOIX DU NARRATEUR (19/09/2026). Dans
+        // « 22/11/63 », le narrateur EST Jake Epping : Laurent a choisi la meme
+        // voix pour les deux, volontairement -- ce n'est pas une erreur, et
+        // c'est meme le cas normal d'un recit a la premiere personne. On le
+        // SIGNALE sans rien interdire, et sans le compter comme un partage
+        // entre personnages. A savoir : changer la voix du narrateur ne change
+        // PAS celle du personnage, les deux reglages sont separes.
+        const badge = document.createElement('span');
+        badge.className = 'cast-badge cast-badge-narrateur';
+        badge.textContent = '\uD83C\uDF99 voix du narrateur';
+        badge.title = etatVoix.phrase(v.voice_id);
         info.appendChild(badge);
       }
 
-      const select = _construireMenuVoix(v.voice_id);
+      const select = _construireMenuVoix(v.voice_id, etatVoix);
 
       const lockBtn = document.createElement('button');
       lockBtn.type = 'button';
@@ -1018,6 +1198,22 @@ async function _openCastModal(rafraichirVoix) {
       top.appendChild(info);
       top.appendChild(select);
       top.appendChild(lockBtn);
+
+      // 🗣️ « Prendre une voix libre » (19/09/2026) : ouvre la liste des voix que
+      // PERSONNE ne porte encore, avec ▶ pour écouter et « Choisir » pour la
+      // donner a ce personnage. On part d'ici (le personnage qu'on caste) plutot
+      // que du tiroir, ou il faudrait ensuite le retrouver parmi 175.
+      // L'icone est une TETE QUI PARLE, et non un cadenas ouvert : 🔓 dit deja
+      // « deverrouille » sur le bouton juste a cote (retouche demandee par
+      // Laurent le 19/09/2026 : un seul signe pour deux choses differentes,
+      // c'etait deux sens pour une icone).
+      const libreBtn = document.createElement('button');
+      libreBtn.type = 'button';
+      libreBtn.className = 'cast-libre-btn';
+      libreBtn.textContent = '\uD83D\uDDE3\uFE0F';
+      libreBtn.title = 'Prendre une voix libre : celles que personne ne porte encore.';
+      libreBtn.addEventListener('click', () => _ouvrirVoixLibres(nom));
+      top.appendChild(libreBtn);
 
       if (row.isAlias) {
         const detachBtn = document.createElement('button');
@@ -1087,13 +1283,52 @@ async function _openCastModal(rafraichirVoix) {
       sliders.appendChild(pitchGroup);
       sliders.appendChild(playBtn);
 
+      // `return` : le changement de voix ATTEND l'enregistrement (voir juste
+      // apres). Sans cela, l'affichage serait recalcule AVANT que la fiche du
+      // personnage ne soit a jour, donc avec l'ANCIENNE voix.
       const sendUpdate = () => {
         const rateStr  = _formatPercent(parseInt(rateInput.value, 10));
         const pitchStr = _formatHz(parseInt(pitchInput.value, 10));
-        _updateCharacterVoice(nom, select.value, rateStr, pitchStr);
+        return _updateCharacterVoice(nom, select.value, rateStr, pitchStr);
       };
 
-      select.addEventListener('change', sendUpdate);
+      // Changement de VOIX : on enregistre PUIS on recalcule tout l'affichage
+      // (19/09/2026, constat de Laurent : apres avoir donne une voix libre a un
+      // personnage, sa fiche continuait d'annoncer « Portee par 2 personnages :
+      // ... »). Les curseurs de vitesse et de hauteur, eux, ne changent rien a
+      // QUI porte quelle voix : ils ne declenchent pas de recalcul, sinon la
+      // fiche sauterait pendant qu'on regle.
+      select.addEventListener('change', async () => {
+        // La voix choisie est-elle deja portee par un AUTRE personnage ? Alors
+        // c'est un CHOIX a faire, plus un accident silencieux (19/09/2026).
+        const voix   = select.value;
+        const autres = etatVoix.porteurs(voix).filter(x => x.nom !== nom);
+        if (autres.length) {
+          const pitchPropose = _pitchPartageLibre(autres.map(x => _parseHz(
+            ((_currentBookData.voices || {})[x.nom] || {}).pitch)));
+          const choix = await _demanderPartage(nom, voix, autres, pitchPropose,
+                                              narrateurVoix);
+          if (choix === 'annuler') {
+            select.value = v.voice_id;   // rien ne bouge, comme avant le choix
+            return;
+          }
+          if (choix === 'partager') {
+            // La hauteur ANNONCEE dans la modale est ecrite dans le curseur :
+            // Laurent la voit, et elle partira avec l'enregistrement.
+            pitchInput.value = String(pitchPropose);
+            pitchLabel.textContent = 'Pitch ' + _formatHz(pitchPropose);
+          } else if (!await _deplacerAutresVersGenerique(autres)) {
+            select.value = v.voice_id;   // echec (verrou) : on ne change rien
+            return;
+          }
+        }
+        const ok = await sendUpdate();
+        if (ok === false) {
+          alert('Le changement de voix n\'a pas pu être enregistré : '
+            + 'l\'affichage revient donc sur la voix précédente.');
+        }
+        await _rafraichirCastingApresChangement();
+      });
       rateInput.addEventListener('input', () => {
         rateLabel.textContent = 'Vitesse ' + _formatPercent(parseInt(rateInput.value, 10));
       });
@@ -1120,6 +1355,414 @@ async function _openCastModal(rafraichirVoix) {
   });
 
   document.getElementById('cast-modal').classList.remove('hidden');
+}
+
+// ============================================================
+// VOIX LIBRES ET PARTAGES DE VOIX (19/09/2026)
+// ============================================================
+// Demande de Laurent : dans un casting a beaucoup de personnages, « je ne vois
+// pas quelle voix est libre » et « je ne sais pas par quel personnage une voix
+// est partagee ». Les reponses sont ici, et elles sont ECRITES a l'ecran --
+// jamais cachees derriere un survol, car sur mobile il n'y a ni survol ni
+// appui long.
+
+// Lignes du casting : chaque personnage principal suivi de ses alias, du plus
+// bavard au plus discret (les repliques d'un alias comptent pour son
+// personnage). Extrait de _openCastModal le 19/09/2026 pour que le panneau
+// « Voir la voix » compte EXACTEMENT les memes repliques : une seule regle.
+function _lignesPersonnages(voices, aliases) {
+  const aliasOf = {};   // principal -> [alias, ...]
+  Object.keys(aliases || {}).forEach(al => {
+    const canon = aliases[al];
+    if (voices[al] && voices[canon]) (aliasOf[canon] = aliasOf[canon] || []).push(al);
+  });
+  const racineDe = (nom) => {
+    const canon = aliases[nom];
+    return (canon && voices[canon]) ? canon : nom;
+  };
+  const totalDe = (nom) => {
+    let total = voices[nom] ? (voices[nom].line_count || 0) : 0;
+    (aliasOf[nom] || []).forEach(al => { total += (voices[al].line_count || 0); });
+    return total;
+  };
+
+  const rows = [];
+  Object.keys(voices)
+    .filter(nom => racineDe(nom) === nom)
+    .sort((a, b) => totalDe(b) - totalDe(a))
+    .forEach(nom => {
+      rows.push({ nom: nom, v: voices[nom], total: totalDe(nom), isAlias: false });
+      (aliasOf[nom] || []).slice().sort().forEach(al => {
+        rows.push({ nom: al, v: voices[al], total: voices[al].line_count || 0,
+                    isAlias: true });
+      });
+    });
+  return rows;
+}
+
+// Etat d'usage des voix du LIVRE OUVERT : meme calcul que la fenetre du casting
+// (memes fonctions pures), pour le panneau « Voir la voix ».
+function _etatVoixLivre() {
+  const voices  = (_currentBookData && _currentBookData.voices)  || {};
+  const aliases = (_currentBookData && _currentBookData.aliases) || {};
+  const etat    = _etatCasting(_lignesPersonnages(voices, aliases), 'T');
+  const choix   = document.getElementById('voice-select');
+  // Le MENU fait foi (il a pu changer depuis le chargement du livre) ; la
+  // valeur enregistree par livre sert de secours quand il est vide.
+  const narrateur = (choix && choix.value)
+    || (_currentBookData && _currentBookData.narrator_voice) || '';
+  return _etatVoix(etat, _allVoices, narrateur);
+}
+
+// Detail d'un partage de voix, DEPLIE AU TAP sur le badge. Pourquoi un tap et
+// non un survol : sur mobile il n'y a ni survol ni appui long (precision de
+// Laurent, 19/09/2026) -- et un tap fonctionne partout, PWA comprise.
+function _detailPartageVoix(etatVoix, voiceId, badge) {
+  const detail = document.createElement('div');
+  detail.className = 'cast-partage-detail hidden';
+
+  const phrase = document.createElement('p');
+  phrase.className = 'cast-partage-phrase';
+  phrase.textContent = etatVoix.phrase(voiceId);
+  detail.appendChild(phrase);
+
+  // Les co-porteurs, en BOUTONS (demande de Laurent, 19/09/2026 : « pouvoir
+  // cliquer sur Cycliste Schwinn pour arriver sur sa fiche »). Des boutons et
+  // non des liens dans la phrase : sur mobile, une cible tactile doit etre
+  // franche, et un nom au milieu d'un paragraphe ne se tape pas bien.
+  const porteurs = etatVoix.porteurs(voiceId);
+  if (porteurs.length > 1) {
+    const chips = document.createElement('div');
+    chips.className = 'cast-partage-chips';
+    porteurs.forEach(p => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cast-partage-chip';
+      btn.textContent = p.nom + ' (' + p.total + ')';
+      btn.title = 'Aller \u00e0 la fiche de ' + p.nom;
+      btn.addEventListener('click', () => _allerAuPersonnage(p.nom, note));
+      chips.appendChild(btn);
+    });
+    detail.appendChild(chips);
+  }
+
+  // Message d'explication si un nom n'est pas affiche (filtre en cours) : mieux
+  // vaut le dire que de ne rien faire quand on tape.
+  const note = document.createElement('p');
+  note.className = 'cast-partage-note';
+  detail.appendChild(note);
+
+  const basculer = () => detail.classList.toggle('hidden');
+  badge.setAttribute('role', 'button');
+  badge.setAttribute('tabindex', '0');
+  badge.addEventListener('click', basculer);
+  badge.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); basculer(); }
+  });
+  return detail;
+}
+
+// Amene l'ecran sur la fiche d'un personnage, depuis le partage d'une voix
+// (demande de Laurent, 19/09/2026). Fait defiler la liste, met la ligne en
+// evidence un court instant, et renvoie false si la ligne n'est PAS affichee
+// (un filtre la cache) : dans ce cas l'appelant le DIT, plutot que de ne rien
+// faire en silence.
+function _allerAuPersonnage(nom, note) {
+  const liste = document.getElementById('cast-list');
+  const lignes = liste
+    ? Array.prototype.slice.call(liste.querySelectorAll('li.cast-row')) : [];
+  const cible = lignes.find(li => {
+    const el = li.querySelector('.cast-name');
+    return !!el && el.textContent === nom;
+  });
+  if (!cible) {
+    if (note) {
+      note.textContent = nom + ' n\u2019appara\u00eet pas dans ce filtre : '
+        + 'choisissez \u00ab Tous \u00bb pour le voir.';
+    }
+    return false;
+  }
+  if (note) note.textContent = '';
+  if (typeof cible.scrollIntoView === 'function') {
+    cible.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  cible.classList.add('cast-row-survol');
+  setTimeout(() => cible.classList.remove('cast-row-survol'), 1600);
+  return true;
+}
+
+// --- « Partager / Deplacer » une voix deja portee (19/09/2026) ---
+// Decide avec Laurent le 15/09/2026 (item du BACKLOG) : quand on choisit pour un
+// personnage une voix qu'un AUTRE porte deja, l'appli ne fait plus semblant de
+// rien -- elle DEMANDE. Une modale plutot qu'un `confirm` : il y a DEUX issues
+// possibles, et le texte doit nommer les personnages concernes.
+// La reponse revient par une promesse : 'partager' | 'deplacer' | 'annuler'.
+let _partageRepondre = null;   // la reponse en attente (une seule a la fois)
+
+function _demanderPartage(nom, voiceId, autres, pitchPropose, voixNarrateur) {
+  const noms = autres.map(x => x.nom);
+  const plusieurs = noms.length > 1;
+  document.getElementById('partage-texte').textContent =
+    'La voix « ' + (_libelleCatalogue(voiceId) || voiceId) + ' » est déjà '
+    + 'portée par ' + noms.length + ' personnage' + (plusieurs ? 's' : '')
+    + ' : ' + noms.join(', ') + '.';
+  const morceaux = [
+    'Partager : ' + noms.join(', ') + ' garde' + (plusieurs ? 'nt' : '')
+      + ' la voix, et ' + nom + ' la reçoit avec une hauteur de '
+      + _formatHz(pitchPropose) + ' pour rester distinguable.',
+    'Déplacer : ' + noms.join(', ') + ' repasse' + (plusieurs ? 'nt' : '')
+      + ' « à caster » (voix générique provisoire), et ' + nom
+      + ' garde la voix.',
+  ];
+  if (voiceId === voixNarrateur) {
+    morceaux.push('À savoir : c\u2019est aussi la VOIX DU NARRATEUR de ce livre.');
+  }
+  document.getElementById('partage-note').textContent = morceaux.join(' ');
+  const modal = document.getElementById('partage-modal');
+  modal.classList.remove('hidden');
+  return new Promise((resoudre) => {
+    _partageRepondre = (choix) => {
+      _partageRepondre = null;
+      modal.classList.add('hidden');
+      resoudre(choix);
+    };
+  });
+}
+
+// « Deplacer » : la voix reste au personnage qui vient de la prendre, et l'AUTRE
+// (ou les autres) repasse « a caster » -- voix GENERIQUE des petits roles de son
+// genre, jamais un vide (un vide casserait la lecture). Un personnage VERROUILLE
+// n'est jamais deplace : le verrou existe pour ca, on le dit et on ne touche a
+// rien. Renvoie false si rien n'a pu etre fait (l'appelant remet alors le menu
+// comme avant).
+async function _deplacerAutresVersGenerique(autres) {
+  const verrouilles = autres.filter(x => {
+    const fiche = (_currentBookData.voices || {})[x.nom] || {};
+    return !!fiche.locked;
+  });
+  if (verrouilles.length) {
+    alert('Impossible de déplacer : ' + verrouilles.map(x => x.nom).join(', ')
+      + ' est verrouillé (🔒). Déverrouillez-le d\u2019abord, ou choisissez '
+      + '« Partager ».');
+    return false;
+  }
+  for (let i = 0; i < autres.length; i++) {
+    const fiche = (_currentBookData.voices || {})[autres[i].nom] || {};
+    // La voix generique depend du GENRE : piper:siwis:0 (femmes) ou
+    // piper:tom:0 (hommes) -- les deux constantes du casting.
+    const generique = (fiche.genre === 'F')
+      ? _CAST_VOIX_GENERIQUES[0] : _CAST_VOIX_GENERIQUES[1];
+    const ok = await _updateCharacterVoice(autres[i].nom, generique,
+                                           fiche.rate || '+0%', '+0Hz');
+    if (!ok) {
+      alert('Impossible de déplacer : la voix de ' + autres[i].nom
+        + ' n\u2019a pas pu être modifiée.');
+      return false;
+    }
+  }
+  return true;
+}
+
+// Reponses de la modale : chacune rend la main au changement de voix qui attend
+// (voir _demanderPartage). Fermer la modale ou taper a cote = Annuler : jamais
+// de choix par inadvertance.
+document.getElementById('partage-partager-btn').addEventListener('click', () => {
+  if (_partageRepondre) _partageRepondre('partager');
+});
+document.getElementById('partage-deplacer-btn').addEventListener('click', () => {
+  if (_partageRepondre) _partageRepondre('deplacer');
+});
+document.getElementById('partage-annuler-btn').addEventListener('click', () => {
+  if (_partageRepondre) _partageRepondre('annuler');
+});
+document.getElementById('partage-close-btn').addEventListener('click', () => {
+  if (_partageRepondre) _partageRepondre('annuler');
+});
+document.getElementById('partage-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'partage-modal' && _partageRepondre) {
+    _partageRepondre('annuler');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && _partageRepondre) _partageRepondre('annuler');
+});
+
+// Tiroir « Voix libres » : les voix ECOUTABLES TOUT DE SUITE qu'aucun
+// personnage (ni le narrateur) ne porte, rangees par moteur comme dans
+// « Ecouter les voix », avec ▶ pour les reconnaitre.
+// `choisir` (facultatif, 19/09/2026) : quand il est fourni, chaque voix gagne un
+// bouton « Choisir » qui attribue cette voix au personnage ouvert -- c'est le
+// meme affichage, reutilise par la fenetre « Voix libres pour <nom> ».
+function _afficherVoixLibres(list, etatVoix, choisir) {
+  if (!etatVoix.nbProposees) {
+    const vide = document.createElement('li');
+    vide.className = 'cast-empty';
+    vide.textContent = 'Aucune voix proposée pour l\u2019instant : les moteurs '
+      + 'sont peut-être encore en cours de chargement.';
+    list.appendChild(vide);
+    return;
+  }
+  if (!etatVoix.libres.length) {
+    const vide = document.createElement('li');
+    vide.className = 'cast-empty';
+    vide.textContent = 'Aucune voix libre : toutes les voix proposées sont déjà '
+      + 'portées par un personnage.';
+    list.appendChild(vide);
+    return;
+  }
+  FAMILLES_VOIX.forEach(([cle, libelle]) => {
+    const duMoteur = etatVoix.libres
+      .filter(v => _familleDeVoix(v.id) === cle)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    if (!duMoteur.length) return;
+    const titre = document.createElement('li');
+    titre.className = 'cast-group';
+    titre.textContent = libelle + ' \u00b7 ' + duMoteur.length;
+    list.appendChild(titre);
+    duMoteur.forEach(v => {
+      const li = document.createElement('li');
+      li.className = 'cast-voix-libre';
+      const nom = document.createElement('span');
+      nom.className = 'cast-voix-libre-nom';
+      nom.textContent = (typeof _libelleVoix === 'function')
+        ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region;
+      const actions = document.createElement('div');
+      actions.className = 'cast-voix-libre-actions';
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'cast-play-btn';
+      play.textContent = '\u25B6\uFE0F';
+      play.title = 'Écouter un aperçu de cette voix';
+      play.addEventListener('click', () => _previewVoixLibre(v.id, v.name, play));
+      actions.appendChild(play);
+      if (typeof choisir === 'function') {
+        const ok = document.createElement('button');
+        ok.type = 'button';
+        ok.className = 'cast-voix-libre-choisir';
+        ok.textContent = 'Choisir';
+        ok.title = 'Donner cette voix au personnage';
+        ok.addEventListener('click', () => choisir(v));
+        actions.appendChild(ok);
+      }
+      li.appendChild(nom);
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+  });
+}
+
+// Apercu d'une voix LIBRE : comme pour un personnage, on ne fait dire qu'un mot
+// (le prenom de la voix) -- c'est assez pour reconnaitre un timbre, et court,
+// donc rapide meme sur un moteur lourd.
+function _previewVoixLibre(voiceId, nom, btn) {
+  return _previewCharacterVoice(nom || voiceId, voiceId, '+0%', '+0Hz', btn);
+}
+
+// --- Fenetre « Voix libres pour <nom> » (19/09/2026) ---
+// Le pendant du tiroir : au lieu de partir d'une voix et de chercher QUI la
+// prendra (parmi 175 personnages, ce qui est justement le probleme qu'on veut
+// eviter), on part du PERSONNAGE qu'on est en train de caster et on lui choisit
+// une voix encore libre. Meme liste, meme ▶, donc rien de nouveau a apprendre.
+async function _ouvrirVoixLibres(nom) {
+  // Les voix proposees dependent des moteurs allumes : on rafraichit avant de
+  // construire la liste, comme partout ailleurs dans le casting.
+  await loadMoteurs();
+  if (!_allVoices.length) await _chargerVoixProposees();
+  if (!_catalogueVoix.length) await loadCatalogueVoix();
+  const etatVoix = _etatVoixLivre();
+  document.getElementById('voixlibres-titre').textContent =
+    '\uD83D\uDDE3\uFE0F Voix libres pour ' + nom;
+  document.getElementById('voixlibres-note').textContent = etatVoix.nbLibres
+    ? etatVoix.nbLibres + ' voix que personne n\u2019utilise encore : \u25B6 '
+      + 'pour écouter, « Choisir » pour la donner à ' + nom + '.'
+    : '';
+  const list = document.getElementById('voixlibres-list');
+  list.innerHTML = '';
+  _afficherVoixLibres(list, etatVoix, (v) => _donnerVoixLibre(nom, v));
+  document.getElementById('voixlibres-modal').classList.remove('hidden');
+}
+
+function _fermerVoixLibres() {
+  document.getElementById('voixlibres-modal').classList.add('hidden');
+}
+
+// Donne une voix libre a un personnage : sa vitesse et sa hauteur sont
+// CONSERVEES (on ne passe pas par le choix Partager / Deplacer, justement parce
+// que la voix est libre -- personne d'autre ne la porte).
+async function _donnerVoixLibre(nom, voix) {
+  const fiche = (_currentBookData.voices || {})[nom] || {};
+  const ok = await _updateCharacterVoice(nom, voix.id, fiche.rate || '+0%',
+                                         fiche.pitch || '+0Hz');
+  const note = document.getElementById('voixlibres-note');
+  if (!ok) {
+    note.textContent = 'La voix n\u2019a pas pu être enregistrée : vérifiez que '
+      + 'le moteur de cette voix est bien allumé.';
+    return;
+  }
+  _fermerVoixLibres();
+  await _rafraichirCastingApresChangement();
+}
+
+document.getElementById('voixlibres-close-btn')
+  .addEventListener('click', _fermerVoixLibres);
+document.getElementById('voixlibres-annuler-btn')
+  .addEventListener('click', _fermerVoixLibres);
+document.getElementById('voixlibres-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'voixlibres-modal') _fermerVoixLibres();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') _fermerVoixLibres();
+});
+
+// Ce que le tiroir des voix libres NE PEUT PAS montrer : les voix dont le
+// moteur est eteint ne sont pas proposees (/api/voices ne sert que les voix
+// ecoutables tout de suite). Sans ce message, on croirait qu'elles sont prises.
+function _majInfoVoixLibres() {
+  const info = document.getElementById('cast-libres-info');
+  if (!info) return;
+  if (_castEtatFiltre !== 'libres') { info.textContent = ''; return; }
+  const compte = {};
+  (_catalogueVoix || []).forEach(v => {
+    if (v.dispo === false) {
+      const f = v.famille || _familleDeVoix(v.id);
+      compte[f] = (compte[f] || 0) + 1;
+    }
+  });
+  const noms = Object.keys(compte)
+    .map(f => _libelleFamille(f) + ' (' + compte[f] + ' voix)');
+  info.textContent = noms.length
+    ? '\u26A0\uFE0F ' + noms.join(' et ') + ' ne sont pas proposées ici : leur '
+      + 'moteur est éteint (elles ne sont donc pas forcément prises).'
+    : '';
+}
+
+// Recalcule l'AFFICHAGE de la fenetre du casting apres un CHANGEMENT DE VOIX
+// (19/09/2026, constat de Laurent : apres avoir donne une voix libre a un
+// personnage, sa fiche continuait d'annoncer « Portee par 2 personnages : ... »).
+// Pourquoi c'est necessaire : les badges de partage, les groupes par voix, les
+// marques « · LIBRE » des menus, le tiroir des voix libres et le resume sont
+// tous calcules a l'OUVERTURE de la fenetre.
+// Deux precautions :
+//   - on ne recharge RIEN du serveur (ni voix, ni catalogue, ni moteurs) : la
+//     fiche du personnage est deja a jour en memoire, seul l'affichage suit ;
+//   - on REMET LA LISTE A SA POSITION : sur un casting de 176 personnages,
+//     revenir en haut apres chaque changement serait insupportable.
+// Jeton de rafraichissement : si deux voix sont changees coup sur coup, seul le
+// DERNIER recalcul doit remettre la liste a sa position -- sinon une position
+// perimee ferait sauter l'affichage. Meme esprit que `_ttsSession` pour la
+// lecture.
+let _castRefreshToken = 0;
+
+async function _rafraichirCastingApresChangement() {
+  const modal = document.getElementById('cast-modal');
+  if (!modal || modal.classList.contains('hidden')) return;
+  const liste = document.getElementById('cast-list');
+  const position = liste ? liste.scrollTop : 0;
+  const jeton = ++_castRefreshToken;
+  await _openCastModal();
+  if (jeton !== _castRefreshToken) return;
+  const apres = document.getElementById('cast-list');
+  if (apres) apres.scrollTop = position;
 }
 
 function _closeCastModal() {
@@ -3211,7 +3854,12 @@ function _voixDePhrase(idx) {
 // timbre et moteur) : demande de Laurent, « le meme affichage que dans le menu
 // Casting des voix ». Le `typeof` protege le test node, qui isole cette
 // fonction sans lui fournir `_libelleVoix`.
-function _remplirMenuVoixPhrase(select, voixId) {
+// `etatVoix` (19/09/2026) ajoute l'etat d'usage au libelle (« · LIBRE »,
+// « · partagée (2) ») : c'est ici qu'on choisit, donc ici qu'on a besoin de
+// savoir si la voix est libre. Facultatif (le test node ne le fournit pas).
+function _remplirMenuVoixPhrase(select, voixId, etatVoix) {
+  const usage = (!etatVoix || typeof etatVoix.marque !== 'function')
+    ? () => '' : (id) => etatVoix.marque(id);
   select.innerHTML = '';
   const groupe = (etiquette, liste) => {
     if (!liste.length) return;
@@ -3220,8 +3868,8 @@ function _remplirMenuVoixPhrase(select, voixId) {
     liste.forEach(v => {
       const o = document.createElement('option');
       o.value       = v.id;
-      o.textContent = (typeof _libelleVoix === 'function')
-        ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region;
+      o.textContent = ((typeof _libelleVoix === 'function')
+        ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region) + usage(v.id);
       g.appendChild(o);
     });
     select.appendChild(g);
@@ -3279,7 +3927,17 @@ function _openVoicePanel(sentIdx) {
     : 'Changer la voix du lecteur';
   document.getElementById('voice-phrase-note').textContent = '';
 
-  _remplirMenuVoixPhrase(document.getElementById('voice-phrase-select'), voixId);
+  // Etat de la voix dans TOUT le livre : libre, prise par un personnage,
+  // partagee, ou voix du narrateur. Ecrit en TEXTE PLEIN sous le menu, car sur
+  // mobile il n'y a ni survol ni appui long pour aller le chercher (demande de
+  // Laurent, 19/09/2026 : « je ne vois pas quelle voix est libre »).
+  const etatVoix = _etatVoixLivre();
+  _remplirMenuVoixPhrase(document.getElementById('voice-phrase-select'), voixId,
+                         etatVoix);
+  // `if` : la ligne peut manquer si le navigateur sert une page plus ancienne
+  // que le script (cache) -- on ne veut jamais empecher le panneau de s'ouvrir.
+  const ligneUsage = document.getElementById('voice-phrase-usage');
+  if (ligneUsage) ligneUsage.textContent = etatVoix.phrase(voixId);
   document.getElementById('voice-phrase-panel').classList.remove('hidden');
 }
 
@@ -3368,7 +4026,14 @@ document.getElementById('voice-phrase-select').addEventListener('change', async 
       : 'Le changement n\'a pas pu être enregistré.';
   } else {
     const sel = document.getElementById('voice-select');
-    if (sel) sel.value = voix;
+    if (sel) {
+      sel.value = voix;
+      // On PREVIENT le menu du haut (19/09/2026) : l'enregistrement pour ce
+      // livre part de SON gestionnaire 'change'. Sans cela, changer la voix du
+      // narrateur depuis ce panneau n'etait pas retenu apres un rechargement
+      // (defaut trouve en corrigeant le rafraichissement du casting).
+      sel.dispatchEvent(new Event('change'));
+    }
     // La playlist de lecture est construite au lancement : sans ce qui suit,
     // la suite du chapitre garderait l'ancienne voix (meme regle que pour un
     // personnage, decision du 15/09/2026).
@@ -3381,6 +4046,16 @@ document.getElementById('voice-phrase-select').addEventListener('change', async 
 
   document.getElementById('voice-phrase-voix').textContent =
     _libelleCatalogue(voix) || voix;
+  // L'etat de la voix choisie se met a jour tout de suite : c'est la reponse a
+  // « est-elle libre ? » au moment precis ou l'on change de voix.
+  const etatVoix = _etatVoixLivre();
+  const ligneUsage = document.getElementById('voice-phrase-usage');
+  if (ligneUsage) ligneUsage.textContent = etatVoix.phrase(voix);
+
+  // La fenetre du casting, si elle est ouverte derriere, doit suivre elle aussi
+  // (badges de partage, marques « libre », tiroir des voix libres) : sinon elle
+  // garderait le calcul fait a son ouverture -- meme defaut que ci-dessus.
+  await _rafraichirCastingApresChangement();
 });
 
 // PC : bouton « Voir la voix » du tooltip de selection -- ouvre le panneau sur
