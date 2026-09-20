@@ -100,12 +100,47 @@ KOKORO_VOICES = [
     {"id": "kokoro:ff_solene",    "name": "Solène",    "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:ff_zoe",       "name": "Zoé",       "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "F", "stars": 2},
     {"id": "kokoro:fm_antoine",   "name": "Antoine",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
-    {"id": "kokoro:fm_baptiste",  "name": "Baptiste",  "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
+    {"id": "kokoro:fm_baptiste",  "name": "Baptiste",  "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 0},
     {"id": "kokoro:fm_camille",   "name": "Camille",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 0},
     {"id": "kokoro:fm_etienne",   "name": "Étienne",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
     {"id": "kokoro:fm_hugo",      "name": "Hugo",      "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 0},
     {"id": "kokoro:fm_lucas",     "name": "Lucas",     "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 3},
     {"id": "kokoro:fm_vincent",   "name": "Vincent",   "region": "\U0001F1EB\U0001F1F7 France (NIMM Voix)", "gender": "M", "stars": 2},
+    # --- Accent allemand (fabriquees dans NIMM Voix, importees le 20/09/2026) --
+    # 10 voix FRANCAISES a accent allemand : le texte est lu en francais force
+    # (lang="fr-fr"), l'accent vient du timbre. Ce sont des melanges de voix
+    # Kokoro allemandes (df_eva, dm_bernd, df_victoria, dm_martin) et de
+    # ff_siwis, trois d'entre elles etant tirees vers les aigus ou les graves.
+    # Recettes et verdicts d'oreille de Laurent : NIMM Voix,
+    # sorties/validation_accent_allemand_20260920/FICHE_VOIX.txt
+    # Timbres importes dans voices-v1.0.bin le 20/09/2026 (84 -> 94 voix),
+    # fichier de voix inchange par ailleurs (verifie voix par voix).
+    # ET 0 ETOILE A L'IMPORT (decision du 20/09/2026) : une voix notee 0 est
+    # ECARTEE du casting automatique, mais reste choisissable a la main
+    # (voice_casting.py, « regle des paliers »). Ces voix ne se glisseront donc
+    # pas toutes seules dans un livre francais : les notes d'ecoute de Laurent
+    # (fenetre « Ecouter les voix »), reportees par
+    # _appliquer_annotations_voix.py, les feront entrer dans le pool comme les
+    # autres. Les PRENOMS ont ete donnes le 20/09/2026 (demande de Laurent :
+    # « juste des prenoms allemands »), apres son taggage dans « Ecouter les
+    # voix » : ils ne portent plus les etiquettes de l'atelier (fort/trio/
+    # grave/aigue). Correspondance avec les timbres d'origine, pour s'y
+    # retrouver plus tard :
+    #   Eva      = df_eva 25 % (accent leger)   Lena     = df_eva 50 % (aigus)
+    #   Viktoria = df_victoria 50 %             Greta    = df_victoria 75 %
+    #   Bernd    = dm_bernd 50 %                Klaus    = dm_bernd 85 %
+    #   Wolfgang = dm_bernd 50 % (graves)       Martin   = dm_martin 100 %
+    #   Otto     = dm_martin 75 %               Heinrich = dm_martin 50 % (graves)
+    {"id": "kokoro:fa_eva",           "name": "Eva",      "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "F", "stars": 2},
+    {"id": "kokoro:fa_victoria",      "name": "Viktoria",    "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "F", "stars": 0},
+    {"id": "kokoro:fa_bernd",         "name": "Bernd",        "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "M", "stars": 2},
+    {"id": "kokoro:fa_martin",        "name": "Martin",       "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "M", "stars": 2},
+    {"id": "kokoro:fa_bernd_fort",    "name": "Klaus",        "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "M", "stars": 0},
+    {"id": "kokoro:fa_victoria_trio", "name": "Greta",        "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "F", "stars": 2},
+    {"id": "kokoro:fa_martin_trio",   "name": "Otto",         "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "M", "stars": 0},
+    {"id": "kokoro:fa_eva_aigue",     "name": "Lena",         "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "F", "stars": 0},
+    {"id": "kokoro:fa_bernd_grave",   "name": "Wolfgang",     "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "M", "stars": 2},
+    {"id": "kokoro:fa_martin_grave",  "name": "Heinrich",     "region": "\U0001F1E9\U0001F1EA Allemagne (NIMM Voix)", "gender": "M", "stars": 0},
     # --- Etats-Unis (americain) ---
     {"id": "kokoro:af_alloy",   "name": "Alloy",      "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
     {"id": "kokoro:af_aoede",   "name": "Aoede",       "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
@@ -114,7 +149,7 @@ KOKORO_VOICES = [
     {"id": "kokoro:af_jessica", "name": "Jessica",     "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
     {"id": "kokoro:af_kore",    "name": "Kore",        "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
     {"id": "kokoro:af_nicole",  "name": "Nicole",      "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
-    {"id": "kokoro:af_nova",    "name": "Nova",        "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
+    {"id": "kokoro:af_nova",    "name": "Nova",        "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 1},
     {"id": "kokoro:af_river",   "name": "River",       "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
     {"id": "kokoro:af_sarah",   "name": "Sarah",       "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
     {"id": "kokoro:af_sky",     "name": "Sky",         "region": "\U0001F1FA\U0001F1F8 Etats-Unis", "gender": "F", "stars": 2},
@@ -134,7 +169,7 @@ KOKORO_VOICES = [
     {"id": "kokoro:bf_lily",     "name": "Lily",      "region": "\U0001F1EC\U0001F1E7 Royaume-Uni", "gender": "F", "stars": 2},
     {"id": "kokoro:bm_daniel",   "name": "Daniel",    "region": "\U0001F1EC\U0001F1E7 Royaume-Uni", "gender": "M", "stars": 2},
     {"id": "kokoro:bm_fable",    "name": "Fable",     "region": "\U0001F1EC\U0001F1E7 Royaume-Uni", "gender": "M", "stars": 2},
-    {"id": "kokoro:bm_george",   "name": "George",    "region": "\U0001F1EC\U0001F1E7 Royaume-Uni", "gender": "M", "stars": 3},
+    {"id": "kokoro:bm_george",   "name": "George",    "region": "\U0001F1EC\U0001F1E7 Royaume-Uni", "gender": "M", "stars": 2},
     {"id": "kokoro:bm_lewis",    "name": "Lewis",     "region": "\U0001F1EC\U0001F1E7 Royaume-Uni", "gender": "M", "stars": 2},
     # --- Espagne ---
     {"id": "kokoro:ef_dora",  "name": "Dora",  "region": "\U0001F1EA\U0001F1F8 Espagne", "gender": "F", "stars": 2},
@@ -161,8 +196,8 @@ KOKORO_VOICES = [
     {"id": "kokoro:pm_alex",  "name": "Alex",  "region": "\U0001F1F5\U0001F1F9 Portugal/Bresil", "gender": "M", "stars": 2},
     {"id": "kokoro:pm_santa", "name": "Santa", "region": "\U0001F1F5\U0001F1F9 Portugal/Bresil", "gender": "M", "stars": 2},
     # --- Chine ---
-    {"id": "kokoro:zf_xiaobei",  "name": "Xiaobei",  "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "F", "stars": 1},
-    {"id": "kokoro:zf_xiaoni",   "name": "Xiaoni",   "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "F", "stars": 1},
+    {"id": "kokoro:zf_xiaobei",  "name": "Xiaobei",  "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "F", "stars": 2},
+    {"id": "kokoro:zf_xiaoni",   "name": "Xiaoni",   "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "F", "stars": 2},
     {"id": "kokoro:zf_xiaoxiao", "name": "Xiaoxiao", "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "F", "stars": 1},
     {"id": "kokoro:zf_xiaoyi",   "name": "Xiaoyi",   "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "F", "stars": 1},
     {"id": "kokoro:zm_yunjian",  "name": "Yunjian",  "region": "\U0001F1E8\U0001F1F3 Chine", "gender": "M", "stars": 1},
@@ -631,7 +666,7 @@ PIPER_MODEL_FILES = {
 # hachures), constat deja fait sur l'appli NIMM. Seules les 3 voix
 # studio restent utilisables.
 PIPER_VOICES = [
-    {"id": "piper:siwis:0", "name": "Siwis",   "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "F", "stars": 3},
+    {"id": "piper:siwis:0", "name": "Siwis",   "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "F", "stars": 2},
     {"id": "piper:tom:0",   "name": "Tom",     "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "M", "stars": 0},
     {"id": "piper:upmc:0",  "name": "Jessica", "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "F", "stars": 3},
     {"id": "piper:upmc:1",  "name": "Pierre",  "region": "\U0001F1EB\U0001F1F7 France (Piper)", "gender": "M", "stars": 1},
@@ -754,40 +789,40 @@ KYUTAI_VOICES = [
     # propose un autre genre pour 19 de ces voix (voix feminines graves
     # notamment) : c'est bien l'ecoute qui fait foi.
     {"id": "kyutai:10087_11650_000028-0002", "name": "Adèle", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},      # etait Kyutai 01
-    {"id": "kyutai:10177_10625_000134-0003", "name": "Blanche", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},    # etait Kyutai 02
+    {"id": "kyutai:10177_10625_000134-0003", "name": "Blanche", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},    # etait Kyutai 02
     {"id": "kyutai:10179_11051_000005-0001", "name": "Céleste", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},    # etait Kyutai 03
-    {"id": "kyutai:12080_11650_000047-0001", "name": "Diane", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},      # etait Kyutai 04
+    {"id": "kyutai:12080_11650_000047-0001", "name": "Diane", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},      # etait Kyutai 04
     {"id": "kyutai:12205_11650_000004-0002", "name": "Éléonore", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},   # etait Kyutai 05
-    {"id": "kyutai:12977_10625_000037-0001", "name": "Fanny", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},      # etait Kyutai 06
-    {"id": "kyutai:1406_1028_000009-0003", "name": "Augustin", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},    # etait Kyutai 07
+    {"id": "kyutai:12977_10625_000037-0001", "name": "Fanny", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},      # etait Kyutai 06
+    {"id": "kyutai:1406_1028_000009-0003", "name": "Augustin", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},    # etait Kyutai 07
     {"id": "kyutai:1591_1028_000108-0004", "name": "Geneviève", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},   # etait Kyutai 08
     {"id": "kyutai:1770_1028_000036-0002", "name": "Bertrand", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},    # etait Kyutai 09
-    {"id": "kyutai:2114_1656_000053-0001", "name": "Claude", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},      # etait Kyutai 10, accent canadien
-    {"id": "kyutai:2154_2576_000020-0003", "name": "Hélène", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},      # etait Kyutai 11
-    {"id": "kyutai:2216_1745_000007-0001", "name": "Damien", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},      # etait Kyutai 12, accent canadien
-    {"id": "kyutai:2223_1745_000009-0002", "name": "Edmond", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},      # etait Kyutai 13
-    {"id": "kyutai:2465_1943_000152-0002", "name": "Irène", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},       # etait Kyutai 14
-    {"id": "kyutai:296_1028_000022-0001", "name": "Fernand", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},      # etait Kyutai 15
-    {"id": "kyutai:3267_1902_000075-0001", "name": "Jeanne", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},      # etait Kyutai 16
+    {"id": "kyutai:2114_1656_000053-0001", "name": "Claude", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 10, accent canadien
+    {"id": "kyutai:2154_2576_000020-0003", "name": "Hélène", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},      # etait Kyutai 11
+    {"id": "kyutai:2216_1745_000007-0001", "name": "Damien", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 12, accent canadien
+    {"id": "kyutai:2223_1745_000009-0002", "name": "Edmond", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 13
+    {"id": "kyutai:2465_1943_000152-0002", "name": "Irène", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},       # etait Kyutai 14
+    {"id": "kyutai:296_1028_000022-0001", "name": "Fernand", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 15
+    {"id": "kyutai:3267_1902_000075-0001", "name": "Jeanne", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},      # etait Kyutai 16
     {"id": "kyutai:4193_3103_000004-0001", "name": "Gaston", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 17
-    {"id": "kyutai:4482_3103_000063-0001", "name": "Hubert", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 18
-    {"id": "kyutai:4724_3731_000031-0001", "name": "Isidore", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},     # etait Kyutai 19
+    {"id": "kyutai:4482_3103_000063-0001", "name": "Hubert", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 18
+    {"id": "kyutai:4724_3731_000031-0001", "name": "Isidore", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},     # etait Kyutai 19
     {"id": "kyutai:4937_3731_000004-0001", "name": "Julien", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 20
-    {"id": "kyutai:5207_3078_000031-0002", "name": "Victoire", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},    # etait Kyutai 21
+    {"id": "kyutai:5207_3078_000031-0002", "name": "Victoire", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},    # etait Kyutai 21
     {"id": "kyutai:5476_3103_000072-0001", "name": "Mathilde", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},    # etait Kyutai 22
     {"id": "kyutai:577_394_000070-0001", "name": "Ninon", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},         # etait Kyutai 23
     {"id": "kyutai:5790_4893_000052-0001", "name": "Léon", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},        # etait Kyutai 24
-    {"id": "kyutai:579_2548_000015-0001", "name": "Odette", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},       # etait Kyutai 25
-    {"id": "kyutai:5830_4703_000037-0001", "name": "Perrine", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},     # etait Kyutai 26
-    {"id": "kyutai:6318_7016_000027-0002", "name": "Marcel", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 27
-    {"id": "kyutai:7142_2432_000124-0003", "name": "Norbert", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},     # etait Kyutai 28
-    {"id": "kyutai:7400_2928_000100-0001", "name": "Renée", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},       # etait Kyutai 29
-    {"id": "kyutai:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 1},     # etait Kyutai 30
-    {"id": "kyutai:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 31
-    {"id": "kyutai:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},     # etait Kyutai 32
-    {"id": "kyutai:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 0},     # etait Kyutai 33, NON retenue a l'ecoute
+    {"id": "kyutai:579_2548_000015-0001", "name": "Odette", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 2},       # etait Kyutai 25
+    {"id": "kyutai:5830_4703_000037-0001", "name": "Perrine", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},     # etait Kyutai 26
+    {"id": "kyutai:6318_7016_000027-0002", "name": "Marcel", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 27
+    {"id": "kyutai:7142_2432_000124-0003", "name": "Norbert", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},     # etait Kyutai 28
+    {"id": "kyutai:7400_2928_000100-0001", "name": "Renée", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},       # etait Kyutai 29
+    {"id": "kyutai:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},     # etait Kyutai 30
+    {"id": "kyutai:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 31
+    {"id": "kyutai:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},     # etait Kyutai 32
+    {"id": "kyutai:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},     # etait Kyutai 33, NON retenue a l'ecoute
     {"id": "kyutai:928_486_000075-0001", "name": "Raymond", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 34
-    {"id": "kyutai:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 2},      # etait Kyutai 35
+    {"id": "kyutai:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 35
 ]
 
 

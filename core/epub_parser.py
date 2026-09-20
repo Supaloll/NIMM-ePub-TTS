@@ -40,6 +40,17 @@ def _html_to_text(html_content: str) -> str:
 
     cleaned_paragraphs = []
     for para in raw_paragraphs:
+        # Residus de balises CASSEES, ecrits en clair dans le fichier EPUB
+        # (20/09/2026, trouve par Laurent au chapitre 98 du Tome 5) : certains
+        # livres convertis a la va-vite contiennent des morceaux de balise avec
+        # le « > » ECHAPPE -- donc traites comme du TEXTE par BeautifulSoup.
+        # L'extrait reel :
+        #     M<supu0003c span=""> class="textsuperscript"&gt;<span class="ecrm">lle</span>
+        # BeautifulSoup retire ce qu'il peut de la balise cassee, mais le texte
+        # garde « M class="textsuperscript">lle Danglars » -- que Laurent LIT et
+        # ENTEND. On retire donc ces morceaux : un vrai texte de roman ne contient
+        # jamais la forme  nom="valeur">  .
+        para = re.sub(r'\s+[a-zA-Z-]+="[^"]*">', '', para)
         # Collapse tous les sauts de ligne internes en espace simple
         # (corrige les EPUB avec retours à la ligne de page papier)
         para = re.sub(r'[ \t]*\n[ \t]*', ' ', para)

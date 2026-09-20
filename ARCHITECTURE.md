@@ -111,6 +111,27 @@ les métadonnées (titre, auteur), et la couverture si disponible.
 ### Bibliothèque utilisée
 `ebooklib` + `BeautifulSoup4` pour le parsing HTML interne des EPUB.
 
+**Résidus de balises dans le texte — nettoyés le 20/09/2026.** Constat de
+Laurent, au chapitre 98 du Comte de Monte-Cristo (Tome 5) : le texte lu et
+affiché contenait « **M `class="textsuperscript">`lle Danglars** ». Cause, vue
+dans le fichier EPUB lui-même : une balise **cassée** par une conversion
+automatique, avec le « **>** » **échappé** — donc prise pour du **texte** :
+
+```html
+M<supu0003c span=""> class="textsuperscript"&gt;<span class="ecrm">lle</span> Danglars
+```
+
+Le parseur n'était donc **pas** en faute : il recopiait fidèlement le fichier ✗.
+`_html_to_text` retire maintenant ces morceaux (`re.sub(r'\s+[a-zA-Z-]+="[^"]*">')`),
+juste **avant** le nettoyage des espaces : un vrai texte de roman ne contient
+jamais la forme `nom="valeur">`. Effet immédiat sur **tous les livres**, puisque le
+texte est extrait **à la lecture** (aucune table de chapitres en base, donc rien à
+réimporter) — *mais il faut **redémarrer le lecteur** : le correctif est côté
+serveur.* *Vérifications* : `test_voix/test_residus_html.py` (le cas réel nettoyé,
+le texte normal intact) et l'outil `test_voix/_chercher_residus_html.py`, qui a
+balayé la bibliothèque : **379 documents, 13 livres, zéro résidu** après
+correction.
+
 ---
 
 ## modules/tts.py — Synthèse vocale
@@ -537,6 +558,128 @@ mais lit le manifest de façon moins fiable que Chrome dans certains cas
 `icon.png` et `apple-touch-icon.png` existent bien physiquement dans
 `frontend/` si l'icône n'apparaît pas comme prévu.
 
+**📲 « Je n'ai pas l'option Installer l'application » — le piège des icônes
+(20/09/2026).** Constat de Laurent : Chrome lui propose d'installer **NIMM** (le
+chatbot) mais **pas NIMM ePub**, alors que Brave et Firefox le laissent faire.
+**Cause trouvée** : le manifeste déclarait **trois fois la même image**
+(`icon.png`, 512×512) en annonçant `192x192`, `512x512` **et** `2048x2048`.
+Chrome **vérifie que la taille annoncée correspond au fichier** : il rejetait donc
+toutes les icônes — et sans icône valide de 192 px, l'entrée d'installation
+n'apparaît pas. (Brave est plus permissif, et « installer » avec Firefox Android
+n'est qu'un **raccourci**, pas une application.)
+
+*Ce qui a été corrigé* : **un fichier par taille** — `icon-192.png` (192×192),
+`icon-512.png` (512×512), `apple-touch-icon.png` (180×180) et
+`icon-maskable-512.png` (512×512 **avec marge de sécurité**, pour que le lanceur
+Android ne rogne pas le logo) — plus les `<link rel="icon">` correspondants dans
+la page, un `start_url` propre (`/`) et un `id`. Les icônes se **régénèrent**
+depuis le logo maître (`frontend/image_NIMM_ePub.png`, 1523×1523) avec
+`test_voix/_generer_icones_pwa.py --ecrire`.
+
+⚠️ **Le fichier `icon.png` (512×512) est conservé** : il n'est plus déclaré par
+le manifeste, mais il peut encore servir d'icône à un raccourci déjà installé sur
+un téléphone. *Vérification* : `test_voix/test_pwa_manifeste.py` (le manifeste,
+**la taille réelle de chaque icône**, les critères d'installation de Chrome, et
+le service worker sans lequel rien ne s'installe).
+
+**Un bouton DANS l'application (20/09/2026).** Comme Chrome ne dit jamais
+*pourquoi* il refuse d'installer (et que Laurent ne trouvait pas l'entrée du
+menu), la bibliothèque porte un bouton **« 📲 Installer l'application »**
+(`#installer-btn`) :
+
+- si le navigateur sait installer (`beforeinstallprompt`, les Chromium), il
+  déclenche **sa** fenêtre d'installation (`prompt()`) — plus besoin de chercher
+  une icône dans la barre d'adresse ;
+- s'il ne propose rien (Firefox, ou navigateur qui ne juge pas l'application
+  installable), il **écrit où chercher** au lieu de ne rien faire ;
+- il **disparaît** quand l'application tourne déjà comme une application
+  installée (`display-mode: standalone`) ou après une installation réussie
+  (`appinstalled`).
+
+*Pourquoi deux issues* : un bouton qui reste muet au clic est un bouton qu'on
+croit cassé — ici, **jamais** de silence. *Vérification* :
+`test_voix/test_ids_ecran.py` (§ 3 septies).
+
+**⚠️ Le piège qui expliquait tout (20/09/2026) : le navigateur INTÉGRÉ.** Laurent
+voyait bien le bouton, mais il tombait sur la note « ton navigateur n'a pas
+proposé l'installation » — et son menu (⋮) ne proposait **pas** « Installer »,
+mais « **Ouvrir dans le navigateur Firefox** » et « **Ouvrir NIMM** » (avec un
+bref passage par le logo et le 🥨 de NIMM avant d'afficher NIMM ePub). Lecture :
+il n'était **pas dans Chrome**, mais dans le **navigateur intégré à une autre
+application** (page ouverte depuis l'appli NIMM ou depuis le launcher) — et
+**une fenêtre intégrée ne peut pas installer d'application**, c'est une limite
+d'Android. Deuxième enseignement : son **navigateur par défaut est Firefox**, et
+Firefox n'installe qu'un raccourci — d'où l'absence d'application et, plus tôt,
+le DNS sécurisé, le raccourci au lieu d'une application et la lecture qui
+s'arrête au verrouillage. **Le remède** : ouvrir l'adresse **directement dans
+Chrome ou Brave** (icône du navigateur → taper l'adresse complète, `:8081`
+compris → Entrée), et non par une page ouverte depuis une autre application. La
+note du bouton dit maintenant ces deux causes.
+
+**Pourquoi préférer CHROME ou BRAVE** (les deux Chromium) pour la PWA :
+`navigator.mediaSession` y est complet — donc la **couverture**, la **barre de
+progression** et les **boutons de l'écran verrouillé** fonctionnent (voir
+« Lire écran verrouillé » plus bas) — et une application **installée** (WebAPK)
+survit bien mieux au verrouillage qu'un onglet. Firefox Android, lui, n'installe
+qu'un **raccourci**, a une Media Session réduite, et il est le navigateur de la
+famille qui a déjà eu le problème de **DNS sécurisé** avec `*.ts.net`.
+
+**🔎 Mémo diagnostic — « l'appli ne s'affiche pas depuis le téléphone »
+(20/09/2026).** Vécu par Laurent : chez sa mère, **NIMM et NIMM ePub ne
+s'affichaient pas**, alors que le **launcher** (`http://100.75.88.88:8765`)
+répondait normalement, sans que rien n'ait changé sur le PC. **Ce contraste est
+la clé du diagnostic** :
+
+| Ce qui marche | Ce qui ne marche pas | Ce que ça veut dire |
+|---|---|---|
+| le launcher : IP + **HTTP** | les deux apps : **nom** + HTTPS | le tunnel est **debout**, c'est le **nom** (`*.ts.net`) ou le HTTPS qui tombe **côté téléphone** |
+
+*Côté PC, à vérifier dans l'ordre (tout en lecture seule)* :
+1. `tailscale status` → le PC et les téléphones de la famille sont-ils en ligne ?
+2. `tailscale serve status` → les deux règles sont-elles là (443 → 8080,
+   8081 → 8081) ?
+3. les ports (`Get-NetTCPConnection -State Listen`) : **8080** (NIMM) et **8081**
+   (NIMM ePub) écoutés — et sur 8081, l'**adresse Tailscale appartient à
+   `tailscaled`** (le relais HTTPS), donc `http://100.75.88.88:8081` répond
+   **400 « Client sent an HTTP request to an HTTPS server »** : c'est normal,
+   c'est documenté juste au-dessus ;
+4. le certificat : `curl -sS -o NUL -w "%{http_code} %{ssl_verify_result}"
+   https://…:8081/` → attendu **200** et **0** (0 = vérification OK).
+   ⚠️ **Piège du 20/09/2026** : un contrôle en **Python**
+   (`ssl.create_default_context()` + `getpeercert()`) annonçait
+   « certificate has expired » alors que le certificat était **valide**
+   (13/09 → 12/12/2026, confirmé par `curl` **et** par .NET). **Vérifier un
+   certificat avec `curl` ou `Invoke-WebRequest`, pas avec le `ssl` de Python
+   sur cette machine.**
+5. `tailscale cert <fqdn>` **génère** un certificat à la demande — à savoir :
+   la commande **écrit deux fichiers dans le dossier courant** (`.crt` et
+   `.key`). Ne jamais les laisser traîner, surtout pas dans le dépôt :
+   préférer `--cert-file <chemin> --key-file <chemin>`.
+
+*Côté téléphone*, c'est presque toujours **le même coupable**, déjà documenté
+plus bas (section « cache HTTP ») : le **DNS sécurisé** (DNS over HTTPS) résout
+`*.ts.net` chez Cloudflare/NextDNS **au lieu de** Tailscale → le nom ne se
+résout plus, **même VPN actif**. Checklist dans l'ordre :
+1. **DNS sécurisé** : Firefox (Paramètres → Vie privée → DNS sécurisé →
+   **Désactivé**) ; sur Android, « **DNS privé** » ne doit pas viser un
+   fournisseur ;
+2. **Batterie sans restriction** pour Tailscale **et** pour le navigateur/PWA ;
+3. **VPN toujours actif** si l'appareil le propose ;
+4. **couper/rallumer le VPN Tailscale** sur le téléphone (10 s) **avant** de
+   redémarrer : le redémarrage **reconstruit** la configuration DNS/VPN de
+   Tailscale, c'est pourquoi il a « réparé » le problème le 20/09.
+
+*Plan B possible, non retenu à ce jour* : un second accès en **HTTP clair** sur
+un port libre, `tailscale serve --bg --http=8082 http://localhost:8081` → le
+téléphone utiliserait `http://100.75.88.88:8082`, comme le launcher, sans
+dépendre du nom ni du certificat. À décider avec Laurent (le PWA perd son
+« service worker » en HTTP clair).
+
+⏰ **À surveiller** : la **clé de ce PC expire le 24/10/2026** (`Self.KeyExpiry`
+de `tailscale status --json`) — à cette date, l'ordinateur **sort du tailnet**
+et plus rien n'est joignable. Désactiver l'expiration de cette machine dans la
+console Tailscale (Machines → … → *Disable key expiry*).
+
 ---
 
 ## Logique TTS — app.js
@@ -628,30 +771,90 @@ d'une phrase et pouvoir la changer — sans que le tap lance la lecture.
   choisie dit un extrait **de la phrase ouverte**, avec la vitesse et la
   hauteur du personnage (celles du lecteur pour la narration) ; si le moteur
   est éteint, le panneau l'indique sans se bloquer.
+- **Porte vers le casting (20/09/2026)** : bouton **« 🎭 Ouvrir dans le
+  casting »** (`#voice-phrase-cast-btn`). Idée de Laurent le jour même : « cette
+  modale est moins riche que Casting des voix ». Le panneau ne change qu'**une**
+  voix ; pour le reste — cadenas 🔒, curseurs **vitesse et hauteur**, tiroir 🗣️
+  des voix libres, badges d'état — le bouton ouvre la **vraie fenêtre** sur le
+  personnage, **surligné** un instant. On n'a donc **pas remplacé** le panneau :
+  il est le **seul** à savoir dire **qui parle dans cette phrase** (le casting
+  est par livre, pas par phrase), et le geste fréquent (lire → taper → changer
+  la voix) doit rester **léger** — la fenêtre du casting, sur un livre à
+  176 personnages, ferait perdre la position de lecture. Trois garde-fous :
+  le bouton est **caché pour la narration** (le narrateur n'a pas de ligne dans
+  le casting : sa voix se change dans le menu du haut) ; le panneau est
+  **fermé** en ouvrant le casting (jamais deux fenêtres empilées) ; et la porte
+  **ramène toujours au personnage** — si un filtre d'état (« ⚠ à caster »,
+  « ⧉ voix partagée », « 🔓 voix libres ») ou la recherche le cachait, on revient
+  d'abord à la liste complète, sinon on ouvrirait une fenêtre où il est
+  invisible **sans rien expliquer**. Le surlignage réutilise
+  `_allerAuPersonnage()`, celui des noms cliquables du badge « partagée avec… » :
+  même repère que le 19/09/2026, rien de nouveau à apprendre.
 - **Fermeture** : croix, tap à côté de la feuille, ou touche `Échap`. Le
   panneau est aussi fermé au **changement de chapitre** (les index de phrases
   changent, il pointerait sur la mauvaise phrase).
 - **Présentation** : feuille collée en bas d'écran sur mobile (avec l'animation
   `slide-up`), petite fenêtre centrée à partir de 641 px de large
   (`frontend/styles.css`). *Vérification* : `test_voix/test_voix_phrase.js`
-  (24 contrôles, sans navigateur).
+  (**34 contrôles**, sans navigateur, dont **5 pour la porte** vers le casting).
 
 ### Navigation
+
+**Barre refaite le 20/09/2026** (demande de Laurent : « J'ai 2 boutons "retour
+rapide" qui font la même chose. Si tu peux en retirer un, et mettre tous les
+boutons comme des icônes […] un genre de marron foncé, flèches blanches »).
+Elle est maintenant **symétrique**, avec **six flèches dessinées (SVG)** autour
+du bouton de lecture, et **trois niveaux de saut** — le nombre de triangles dit
+la taille du pas :
+
 | Bouton | Action |
 |---|---|
-| ⏮ | Début du paragraphe précédent |
-| ⏪ | Phrase précédente |
+| ⏮ chapitre précédent | Chapitre précédent (`#prev-btn`, assombri au premier chapitre) |
+| ⏪ retour moyen | **`_PAS_PARAGRAPHES` paragraphes d'un coup** (`#para-prev-btn`) |
+| ◀ phrase précédente | **Phrase** précédente (`#sent-prev-btn`) |
 | ▶️ / ⏸ | Lecture / Pause depuis le curseur |
-| ⏭ | Début du paragraphe suivant |
-| `<` / `>` | Chapitre précédent / suivant (encadrent la barre) |
+| ▶ phrase suivante | **Phrase** suivante (`#sent-next-btn`) |
+| ⏩ avance moyenne | **`_PAS_PARAGRAPHES` paragraphes d'un coup** (`#para-next-btn`) |
+| ⏭ chapitre suivant | Chapitre suivant (`#next-btn`, assombri au dernier chapitre) |
 
-**Le bouton « phrase suivante » ⏩ a été retiré le 15/09/2026** (demande de
-Laurent : il faisait doublon avec ⏭, car dans un dialogue un paragraphe fait
-souvent une seule phrase). Les commandes du casque et de l'écran verrouillé
-(`navigator.mediaSession`, `nexttrack`) continuent d'avancer **d'une phrase** :
-elles appellent directement `_cursorSentNext()` au lieu de cliquer sur un
-bouton qui n'existe plus. ⏪ reste disponible (reculer d'une phrase reste
-utile quand ⏮ saute tout le paragraphe).
+*Pourquoi trois niveaux* (idée de Laurent, le même jour, après essai) : « le saut
+de paragraphe correspond **très souvent** à un saut de phrase » — donc sauter
+**un** paragraphe ne se distinguait pas d'un saut de phrase. Le saut moyen saute
+donc **plusieurs** paragraphes (`const _PAS_PARAGRAPHES = 4;` dans `app.js` —
+**une seule ligne à changer** pour ajuster), et la phrase a sa propre paire
+◀ / ▶. Les trois fonctions sont **bornées** : on ne dépasse jamais la fin du
+chapitre (le saut est ramené au dernier paragraphe) et on ne recule jamais avant
+le début. C'est exactement ce que vérifie `test_voix/test_sauts_navigation.js`
+(le pas lu dans le fichier, les trois niveaux, et les bords).
+
+*Pourquoi des SVG et non des emojis* : **un emoji ne peut pas être blanc** — il
+garde ses couleurs, ou s'affiche en petit noir et blanc selon le clavier. C'est
+ce qui faisait **deux familles de boutons** dans la même barre (chevrons dessinés
+pour les chapitres, emojis ⏮⏪⏭ pour les phrases). Les six partagent maintenant
+une seule règle de style (`#prev-btn, #next-btn, #para-prev-btn, #para-next-btn,
+#sent-prev-btn, #sent-next-btn`), avec les variables `--nav-btn` /
+`--nav-btn-survol` / `--nav-btn-bord` (marron foncé dérivé de l'or du thème). La
+barre **se resserre sur téléphone** (`@media (max-width: 640px)` puis `380px`) :
+six boutons de 40 px et le bouton de lecture ne tiennent pas autrement.
+
+*Historique des retouches* (utile pour ne pas refaire les allers-retours) :
+**15/09** — le ⏩ « phrase suivante » est retiré, il doublonnait avec ⏭
+« paragraphe suivant » ; **20/09 (matin)** — on retire les deux boutons « en
+arrière » côte à côte (⏮ paragraphe et ⏪ phrase, qui semblaient faire la même
+chose) au profit d'une paire symétrique, le pas devenant la phrase ; **20/09
+(même jour, après essai de Laurent)** — **trois niveaux** : le paragraphe revient
+comme saut **moyen** (4 d'un coup) et la phrase gagne sa paire ◀ / ▶. Le
+conteneur `#tts-nav` qui enveloppait les boutons a disparu au passage.
+
+**Le mode RSVP a quitté la barre** (même jour) : c'est un **mode de lecture**, pas
+une flèche. Il rejoint la ligne des boutons d'action et s'appelle maintenant
+**« 👀 Lecture Rapide »** (demande de Laurent), avec le même style que ses
+voisins.
+
+*Le casque et l'écran verrouillé* restent sur la **phrase** :
+`navigator.mediaSession` (`previoustrack` / `nexttrack`) appelle
+`_cursorSentPrev()` / `_cursorSentNext()` — soit exactement le pas des flèches
+◀ / ▶ (et non celui des ⏪ / ⏩, qui sautent plusieurs paragraphes).
 
 La navigation pendant la lecture coupe le TTS en cours et repart
 immédiatement depuis la nouvelle position du curseur.
@@ -1359,6 +1562,46 @@ naturel entre narrateur et personnages, expérience jugée "bluffante".
 Point faible identifié : certaines voix Edge TTS jugées trop
 robotiques — motive le chantier Kokoro (voir backlog plus bas).
 
+### Voix du narrateur : par livre, sans héritage entre livres (20/09/2026)
+
+La voix du narrateur appartenait déjà au **livre** (`books.narrator_voice`,
+17/09/2026) — mais **deux trous dans la chaîne** la faisaient « passer » d'un livre
+à l'autre. Constat de Laurent : « la voix narrateur passe d'un livre à l'autre […]
+En gros, chaque livre devrait avoir son narrateur, pas un même narrateur qui passe
+de livre en livre. » Mesure du 20/09/2026 sur la base (**lecture seule**) :
+**10 livres sur 14 n'avaient AUCUNE valeur** dans `narrator_voice`.
+
+- **Défaut 1 — le livre sans valeur gardait la voix du précédent.** À l'ouverture
+  d'un livre sans valeur, `_restaurerVoixNarrateur()` sortait immédiatement
+  (`if (!sel || !voix …) return;`) : le menu `#voice-select` gardait la voix du
+  livre d'avant, et **rien n'était écrit** pour le livre ouvert. *Corrigé* : le
+  livre reçoit la voix **par défaut** (`NARRATEUR_VOIX_DEFAUT =
+  'fr-CH-ArianeNeural'`) **et cette valeur est enregistrée** (`PUT
+  /api/books/{id}/narrator`) → chacun a SA voix, et elle le suit d'un appareil à
+  l'autre. L'appel de restauration est passé **après** `_currentBookId = bookId`
+  dans `openBook()` : sans cela, l'écriture visait le livre précédent.
+- **Défaut 2 — la voix indisponible était remplacée en silence.** Si la voix
+  enregistrée n'est pas proposée (moteur éteint), le code se contentait d'un
+  `console.warn` **invisible** et la lecture repartait avec la voix de l'autre
+  livre. *Corrigé* : on lit au **défaut**, on **le dit** dans une ligne dédiée
+  sous les menus (`#narrateur-etat`), et on **n'écrase rien** — ni en mémoire ni en
+  base — pour que **SA** voix revienne dès que le moteur est rallumé.
+- **Ce qui n'a pas changé** : le re-cast ignore toujours `narrator_voice` ; un
+  changement de voix ne s'applique qu'au prochain chargement de chapitre ; le menu
+  reste la source de vérité pour la lecture (les badges du casting suivent le
+  menu, et la valeur enregistrée sert de secours quand le menu est vide).
+- **Vérification** : nouveau test **`test_voix/test_narrateur_par_livre.js`**
+  (**24 contrôles**, `node test_voix/test_narrateur_par_livre.js`) — il exécute le
+  **vrai** code extrait de `app.js`, avec un faux DOM et un faux `fetch` (jamais
+  une copie du code : renommé, le test échoue bruyamment). Les **10 autres tests
+  JS** de l'atelier passent aussi, ainsi que `test_voix/test_ids_ecran.py` et
+  `test_voix/test_lire_moi.py`.
+- **Cache-busting** : `?v=` monté à **20260920-1** dans `frontend/index.html`
+  (`app.js` *et* `styles.css` modifiés — règle de session).
+- **Sauvegardes** avant modification, en
+  `.bak_avant_narrateur_par_livre_20260920` : `data/nimm_epub.db`,
+  `frontend/app.js`, `frontend/index.html`, `ARCHITECTURE.md`.
+
 **🔊 Banque de voix (session du 08/09/2026 — pool élargi aux Kokoro)**
 Le pool d'attribution automatique était limité aux voix Edge TTS françaises
 (et à quelques voix Piper). Depuis la session du 08/09/2026, les pools
@@ -1516,6 +1759,177 @@ et hors narrateur, marques, phrases, plafond à six noms, hauteur de partage) et
 dépliage, de la modale Partager/Déplacer et de l'attribution d'une voix libre,
 sans navigateur).
 
+**Barre de recherche dans la fenêtre du casting** (item du BACKLOG du
+14/09/2026, **livré le 20/09/2026**). Sur un livre à **175 personnages**,
+retrouver un nom à la main devenait long : un champ `#cast-search` est placé **en
+haut** de la fenêtre et filtre les lignes **pendant la frappe**. Trois choix,
+tous dictés par l'usage réel :
+
+1. **Comparaison indirecte** : minuscules, **sans accents**, apostrophes, tirets
+   et underscores réduits à des espaces — « EDMOND », « Edmond » trouvent le
+   même nom, et « jean luc » trouve **Jean-Luc**. C'est la règle de
+   `normalize_character_name` (`modules/voice_casting.py`), **sauf l'article
+   initial**, qui n'est pas retiré : dans une recherche en direct, taper « le »
+   doit filtrer, pas s'évanouir ;
+2. **Les familles restent lisibles** : un personnage trouvé **garde ses alias**
+   (ses autres appellations), et taper un **alias** fait remonter **son
+   personnage** — sans lui, la ligne d'alias s'afficherait seule, en retrait
+   sous une fiche absente ;
+3. **Elle ne laisse jamais un vide muet** : un **compteur** écrit ce que la
+   liste montre (« 3 personnages sur 176 »), et une recherche sans résultat
+   l'**écrit** (« Aucun personnage ne correspond à … »). Dans le **tiroir des
+   voix libres**, où la liste montre des *voix* et non des personnages, la même
+   barre filtre le **prénom et la provenance** — sinon elle aurait l'air morte
+   dans cet onglet.
+
+Deux détails de confort : la frappe **ne rappelle pas le serveur**
+(`_openCastModal(false, true)`, argument `listeSeule`) et la recherche est gardée
+dans `_castRecherche` pour **survivre aux reconstructions** de l'affichage
+(filtre d'état, changement de voix). Deux garde-fous d'exactitude : les
+compteurs et les badges restent calculés sur **tout le livre** (le badge
+« partagée avec … » ne doit pas perdre les autres porteurs dès la première
+lettre tapée), et la recherche **se combine** avec le filtre d'état
+(« ⚠ À caster » **et** « edm »). Elle est **remise à zéro à la fermeture** : on
+rouvre la fenêtre sur la liste complète.
+
+*Fichiers* : `frontend/index.html` (`#cast-search-bar`, `#cast-search`,
+`#cast-search-resume`), `frontend/app.js` (`_castRecherche`, `_cleRecherche`,
+`_filtrerPersonnages`, `_filtrerVoixLibres`, fonctions **pures** ;
+`_openCastModal` ; `_afficherVoixLibres`, `_closeCastModal`),
+`frontend/styles.css` (`#cast-search-bar`, `#cast-search`,
+`#cast-search-resume`). *Vérifications* : `test_voix/test_recherche_casting.js`
+(33 contrôles, sans navigateur), `test_voix/test_tiroir_voix_libres.js` (le
+tiroir filtré, message quand rien ne correspond) et `test_voix/test_ids_ecran.py`
+(les éléments, les fonctions, le style).
+
+**Symboles ♀️ / ♂️ de genre devant les prénoms — session du 20/09/2026.**
+Demande de Laurent, 19/09/2026 : « on laisse le prénom, mais on ajoutera les
+symboles, ça sera plus simple à l'œil ». Trois emplacements, dans l'ordre
+d'utilité :
+
+1. **La ligne de personnage** (fenêtre du casting) : « ♀️ Femme · 33 répliques »
+   — le symbole **devant**, puis le mot, qui reste pour l'instant (l'usage dira
+   s'il devient inutile sur un casting de 175 personnages) ;
+2. **La barre de filtre « Voix proposées »** : « ♀️ Femmes » / « ♂️ Hommes »
+   (`#cast-gender-actions`) ;
+3. **Le libellé d'une voix**, dans tous les menus et toutes les listes
+   (`_libelleVoix`) : « ♀️ Eva 🇩🇪 Allemagne (NIMM Voix) … — Kokoro ». C'est le
+   point que Laurent a explicitement demandé (« devant les prénoms ») : il est
+   **redondant** dans les menus du casting (déjà groupés « Femmes » / « Hommes »)
+   mais il est le SEUL repère dans la fenêtre « 🎧 Écouter les voix », rangée par
+   **moteur**, et dans le tiroir des voix libres. On le garde partout pour que le
+   même prénom se lise de la même façon dans toute l'application.
+
+Les symboles viennent d'**une seule fonction pure**, `_symboleGenre(genre)`
+(`frontend/app.js`), qui accepte **les deux conventions** du projet : `F`/`M`
+pour les **catalogues de voix**, `F`/`H` pour les **fiches de personnage**
+(colonne `genre` de la table `voices`, défaut `H`). Deux pièges signalés
+d'avance au BACKLOG, tous les deux évités :
+
+- les symboles portent leur **sélecteur emoji** (`\u2640\uFE0F`, `\u2642\uFE0F`) :
+  sans lui, ils s'affichent en petit noir et blanc selon les claviers ;
+- un **genre inconnu** n'écrit **ni signe ni mot**. L'ancien code faisait
+  `v.genre === 'F' ? 'Femme' : 'Homme'`, donc annonçait « Homme » pour **tout**
+  ce qui n'était pas `F` — un genre **faux** dès que la fiche était vide. La
+  ligne affiche alors simplement « 33 répliques ».
+
+*Fichiers* : `frontend/app.js` (`_symboleGenre`, `_libelleVoix`, ligne de
+personnage de `_openCastModal`), `frontend/index.html` (`#cast-gender-actions`).
+*Vérifications* : `test_voix/test_libelle_voix.js` (libellés exacts, `H` accepté,
+genre vide **sans** symbole, et **deux points de code** vérifiés pour le
+sélecteur emoji) et `test_voix/test_ids_ecran.py` (les symboles dans les deux
+fichiers, les deux boutons, et l'absence de l'ancien repli sur « Homme »).
+
+**Icônes des moteurs de voix — session du 20/09/2026.** Demande de Laurent :
+« trouver des icônes pour les moteurs, histoire d'avoir un visuel sur les
+moteurs plutôt que les noms ». Une **seule table** porte l'information
+(`FAMILLES_VOIX`, `frontend/app.js`) : `['kokoro', 'Kokoro', '🎎']`. Deux
+fonctions **pures** en dérivent : `_iconeFamille(cle)` et
+`_libelleFamilleIcone(cle)` (icône + nom, ou le nom seul si l'icône manque).
+
+| Moteur | Icône | Pourquoi |
+|---|---|---|
+| Edge | ☁️ | le seul moteur **en ligne** |
+| Kokoro | 🎎 | modèle **japonais** |
+| Piper | 🎶 | le **joueur de flûte** |
+| Kyutai | ⚡ | moteur **local** rapide |
+| XTTS v2 | 🧬 | moteur de **clonage** |
+| NeuTTS | 🧪 | le plus **récent** |
+
+Où chaque forme sert :
+
+- le **libellé d'une voix** (`_libelleVoix`) montre l'icône **SEULE** :
+  « ♀️ Eva 🇫🇷🇩🇪 adulte médium — 🎎 ». C'est **là** que le nom gênait : les menus
+  du casting sont étroits (45 % de la ligne du personnage), et « — Kokoro » y
+  prenait la place du prénom, de l'âge et du timbre ;
+- **partout où il y a la place**, le nom reste, précédé de son icône : la ligne
+  d'une voix dans « 🎧 Écouter les voix » (`_construireLigneVoix`), les en-têtes
+  de groupe du tiroir des voix libres (`_afficherVoixLibres`), la ligne
+  d'information sur les moteurs éteints, le menu de **filtre** des moteurs
+  (`#voices-famille`), la fenêtre de choix du moteur (cartes `provider-btn`) et
+  le **bouton des moteurs** (`_libelleMoteur`).
+
+Aucune marque ni logo sous licence : des repères **distincts** et **changeables
+en une ligne**. Deux garde-fous : `_libelleMoteur` et la ligne d'information
+gardent un **`typeof`** (leur test node les isole, sans la table des icônes — le
+nom s'écrit alors sans icône, jamais un tiret orphelin), et un moteur **inconnu**
+n'affiche aucune icône. **Corrigé au passage** : le menu de filtre des moteurs
+**n'avait pas l'option NeuTTS**, alors que ses voix sont proposées par
+`/api/voices` — on ne pouvait donc pas les isoler.
+
+*Fichiers* : `frontend/app.js` (`FAMILLES_VOIX`, `_iconeFamille`,
+`_libelleFamilleIcone`, `_libelleVoix`, `_libelleMoteur`, `_construireLigneVoix`,
+`_afficherVoixLibres`, `_majInfoVoixLibres`), `frontend/index.html`
+(`#voices-famille`, cartes `provider-btn`). *Vérifications* :
+`test_voix/test_libelle_voix.js` (libellés exacts avec l'icône),
+`test_voix/test_tiroir_voix_libres.js` (en-têtes « 🎎 Kokoro · 1 »),
+`test_voix/test_bouton_moteur.js` (le nom reste écrit) et
+`test_voix/test_ids_ecran.py` (les 6 icônes, l'icône seule dans le libellé,
+NeuTTS filtrable).
+
+**« 🔖 Onglets » remis à la même échelle (20/09/2026).** Constat de Laurent : le
+bouton des onglets n'était **pas** dans la règle de style commune
+(`#multivoice-btn, #voices-open-btn`) — il gardait l'apparence native du
+navigateur (plus grand, fond plus clair) à côté de « 🎭 Voix multiples » et
+« 🎧 Écouter les voix ». Les trois partagent désormais la **même règle**
+(`frontend/styles.css`). *Leçon à garder* : **tout nouveau bouton de la barre du
+lecteur doit être ajouté à cette règle** — le bouton « vider le cache audio »
+(voir BACKLOG) est le prochain concerné. *Vérification* :
+`test_voix/test_ids_ecran.py` (la règle commune porte bien les trois boutons).
+
+**🧹 Bouton « Vider le cache audio » (20/09/2026).** Le cache se purge déjà tout
+seul (quota de **2 Go**, et `VERSION_CACHE` dès que le texte envoyé au moteur
+change), mais Laurent n'avait **aucun moyen de le forcer** — et c'est exactement
+ce qui manque quand on doute d'un rendu (le 18/09/2026, il a fallu vider le
+dossier à la main pour écarter cette piste). Deux routes et un bouton :
+
+- **Serveur** : `GET /api/cache_audio` → `{octets, quota_octets, fichiers,
+  version}` (`tts_cache.stats()`, **lecture seule**) et `POST /api/cache_audio/
+  vider` → `{ok, fichiers_supprimes, octets_liberes}` (`tts_cache.purger()`).
+  **Sans danger pour les données** : le cache ne contient que de l'audio **déjà
+  synthétisé**, régénérable à l'identique (la synthèse est déterministe). Seule
+  conséquence : la première écoute d'un passage déjà lu redemandera le calcul au
+  moteur. Une **écriture en cours** (`.tmp`) n'est **jamais coupée** ;
+- **Écran** : le bouton **« 🧹 Vider le cache (604 Mo) »** est dans la barre du
+  lecteur, **à la même échelle et dans le même style** que « 🎭 Voix multiples »,
+  « 🎧 Écouter les voix », « 🔖 Onglets » et « 👀 Lecture Rapide » (précision de
+  Laurent : c'est la leçon du jour — tout nouveau bouton de cette barre rejoint
+  la règle de style commune). Le libellé est composé par `_libelleBoutonCache()`
+  (« 604 Mo », « 1,2 Go », « 12 Ko », **virgule française**), il **n'affiche
+  jamais « undefined »** quand le serveur n'a pas encore répondu, et la purge
+  demande **confirmation** en annonçant ce qui sera libéré.
+
+*Fichiers* : `modules/tts_cache.py` (`stats`, `purger`), `main.py` (les deux
+routes), `frontend/index.html` (`#cache-open-btn`), `frontend/app.js`
+(`_formatOctets`, `_libelleBoutonCache`, `_chargerEtatCache`,
+`_viderCacheAudio`), `frontend/styles.css` (la règle partagée).
+*Vérifications* : **nouveau** `test_voix/test_cache_audio.py` (le compte et la
+purge dans un **dossier temporaire** — il compare même le nombre de fichiers du
+**vrai** cache avant/après pour prouver qu'il n'y a pas touché, et vérifie qu'un
+`.tmp` survit à la purge) et **nouveau** `test_voix/test_cache_audio.js` (le
+libellé : tailles lisibles, jamais « undefined ») ; `test_voix/test_ids_ecran.py`
+(le bouton, les deux routes, la règle de style partagée).
+
 **Noms des voix : jamais d'identifiant technique dans les menus**
 (15/09/2026, constat de Laurent après un re-cast d'un roman contemporain). La fenêtre
 du casting affichait « `xtts:cml9804` » là où elle devait écrire
@@ -1625,6 +2039,56 @@ Intégration minimale : côté modules/tts.py, il suffit de changer le chemin du
 fichier de voix au moment d'instancier Kokoro(...). Aucune autre modification
 n'est nécessaire — le reste du pipeline (routage par préfixe kokoro:, menu
 déroulant du casting, GET /api/voices) fonctionne tel quel.
+
+**🎚️ Ajouter des voix Kokoro au lecteur — la procédure réelle (20/09/2026).**
+Faute d'avoir échangé le fichier de voix, une autre route a été suivie : les
+timbres fabriqués dans NIMM Voix sont **fusionnés dans `voices-v1.0.bin`**, le
+fichier de référence du lecteur — **54 voix officielles + 30 voix NIMM**
+(12/09/2026), puis **+ 10 voix à accent allemand** (20/09/2026) → **94 voix**.
+`KOKORO_VOICES` (`modules/tts.py`) reste la **liste** de ces voix (id, nom,
+région, genre, étoiles) : un timbre présent dans le fichier mais absent de la
+liste est chargé mais **jamais proposé** — et l'inverse (une ligne sans timbre)
+donne une voix qui **échoue à la lecture**. Les deux vont donc **toujours
+ensemble**.
+
+1. **Le timbre** — `python test_voix/_importer_voix_kokoro.py --quoi <mot>
+   --ecrire` ajoute les voix **manquantes** d'un fichier source (défaut : la
+   banque à accent allemand de NIMM Voix) dans `voices-v1.0.bin`. **Aperçu par
+   défaut** ; `--ecrire` **copie d'abord** la cible en
+   `.bak_avant_<mot>_<date>` (ce fichier est la référence de **toutes** les
+   voix : sans copie, une erreur d'écriture les emporterait toutes), refuse
+   tout **nom déjà pris**, vérifie la forme `(510, 1, 256)` en `float32` et un
+   timbre **non vide**, puis **relit le fichier écrit** : empreinte md5 **voix
+   par voix** pour prouver qu'**aucune voix d'avant n'a changé**, compte exact,
+   et relecture des voix ajoutées **par leur nom** — exactement ce que fait le
+   moteur (`np.load` puis `voices[nom]`, `kokoro_onnx/__init__.py`) ;
+2. **La liste** — une ligne par voix dans `KOKORO_VOICES` (`modules/tts.py`),
+   **sur une seule ligne** : les outils de taggage lisent le catalogue **ligne
+   par ligne** (`_appliquer_annotations_voix.py`, `_rapprocher_neutts_xtts.py`).
+   Convention de nom : `<pays><genre>_<prénom>` — ici **`fa_`** = français à
+   accent **allemand** (`df_`/`dm_` = allemand, comme `ff_`/`fm_` = français) —
+   et région **« 🇩🇪 Allemagne (NIMM Voix) »**, pour les retrouver d'un coup
+   d'œil dans les menus.
+
+*Décision du 20/09/2026 : les voix importées entrent à **0 étoile**.* Dans la
+« règle des paliers » (`voice_casting.py`), une voix notée 0 est **écartée du
+casting automatique mais reste choisissable à la main** : les 10 voix
+allemandes ne peuvent donc pas se glisser toutes seules dans un livre français.
+Ce sont les **notes d'écoute de Laurent** (fenêtre « 🎧 Écouter les voix »),
+reportées par `_appliquer_annotations_voix.py`, qui les font entrer dans le
+pool — comme toutes les autres voix.
+
+*Vérifications du 20/09/2026* : `_importer_voix_kokoro.py` (aperçu puis
+écriture : « aucune voix existante n'a changé » sur les **84** voix d'avant,
+**94** au total) ; **nouveau** `test_voix/_tester_voix_kokoro_importees.py` —
+fait **parler le moteur par le vrai chemin du lecteur** (`modules/tts.py`) et
+mesure ce qui sort : **10/10 voix**, 2,28 à 2,71 s d'audio, crête **-4,0 à
+-5,7 dBFS** (jamais du silence) ; `test_voix/test_pool_casting.py` (le pool
+automatique est **inchangé** : 0 étoile) et `test_voix/test_voix_ecoutables.py`
+(**110 voix proposées** par `/api/voices`) ; `_appliquer_annotations_voix.py`
+en **aperçu** (les lignes allemandes sont bien lues par le taggage).
+*Pour écouter* : `START.bat`, fenêtre « 🎧 Écouter les voix », filtre
+**Kokoro** — les 10 voix portent le drapeau 🇩🇪.
 
 **Module voice_casting.py — détail technique**
 - `_split_chapter_sentences()` : découpe le chapitre en phrases
@@ -1906,9 +2370,143 @@ s'arrête à la fin du buffer audio. Recommandations côté téléphone pour que
 lecture écran éteint tienne :
 - Paramètres → Applications → **Tailscale** → Batterie → **Sans restriction**
   (faire de même pour le navigateur/PWA utilisé : Chrome, Brave, Firefox...).
+  ⚠️ **C'est LE réglage qui décide** — confirmé sur le terrain le 20/09/2026 :
+  avec Brave sur « optimisée », la lecture s'arrêtait ~20 s après le
+  verrouillage ; passé à « **non restreinte** », elle tient (voir « Lire écran
+  verrouillé » plus haut).
 - Paramètres → Réseau → VPN → Tailscale → **VPN toujours actif** si proposé.
 - Utiliser la **PWA installée** (Ajouter à l'écran d'accueil) plutôt que le
   navigateur classique : meilleur traitement en arrière-plan.
+
+### 🔒 Lire écran verrouillé : la « réserve à bloc », et le lecteur (20/09/2026)
+
+**Le problème, tel que Laurent l'a décrit** : « la lecture s'arrête si je
+verrouille le téléphone (c'est aléatoire, parfois après quelques secondes,
+parfois ça tient longtemps) ; par contre quand l'écran s'éteint tout seul, ça ne
+semble pas poser de souci. En Chrome (donc pas la PWA), verrouiller arrête la
+lecture immédiatement. »
+
+**Ce que dit le code** (et ce qui explique l'aspect « aléatoire ») : la lecture
+est **phrase par phrase**, et un **préchargeur de fond** garde une réserve
+d'environ **5-6 minutes** d'audio (`PREFETCH_MAX_AHEAD_CHARS` = 5000 caractères,
+fenêtre glissante, 2 requêtes en parallèle). Quand Android suspend le réseau de
+la page, la lecture continue **sur la réserve**, puis **s'arrête quand elle est
+vide** : c'est donc **l'état de la réserve au moment du verrouillage** qui
+décide — d'où « parfois quelques secondes, parfois longtemps ». L'écran qui
+s'éteint tout seul, lui, laisse la page au premier plan plus longtemps.
+
+**Trois réponses, livrées ensemble :**
+
+1. **La réserve « à bloc »** (`_prechargementBurst`) : dès que la page passe en
+   **arrière-plan** pendant une lecture (`visibilitychange` → `hidden`), le
+   plafond de la fenêtre est levé (`PREFETCH_MAX_AHEAD_CHARS_BURST` = 400 000
+   caractères : tout le reste du chapitre) et le remplissage est relancé
+   immédiatement par un **crochet**, `_pumpCourant` (le `pump` de la session en
+   cours ; la session sert de garde-fou, un `pump` périmé ne fait rien). Le
+   téléphone remplit donc sa réserve **pendant que le réseau répond encore**.
+   **Hors lecture, rien ne se déclenche.**
+2. **Le lecteur du système complet** : `_updateMediaSession` habille la
+   notification et l'écran verrouillé avec la **couverture du livre** (en URL
+   **absolue** — un chemin relatif est refusé), le titre, l'auteur et le
+   **chapitre**, et déclare les boutons ▶/⏸ · `previoustrack`/`nexttrack` (la
+   phrase) · `seekbackward`/`seekforward` (4 paragraphes) · `seekto` (la barre) ·
+   `stop`. `_majPositionMediaSession` envoie la **progression** à chaque phrase,
+   sur l'échelle du **chapitre** (position = phrases lues, durée = phrases du
+   chapitre), avec deux garde-fous : la position est **bornée** et l'appel est
+   **protégé** (`setPositionState` lève une `TypeError` hors bornes, et une barre
+   ne doit **jamais** pouvoir casser la lecture). Un vrai lecteur média aux yeux
+   d'Android, c'est aussi ce qui l'aide à ne pas endormir la page.
+3. **Le lecteur intégré « façon Deezer »** (`#lecteur-modal`) : ouvert en tapant
+   la **barre de progression** (qui porte un petit ⤢ pour l'annoncer), il affiche
+   la couverture, le titre, l'auteur, le chapitre, **qui parle**, **la phrase en
+   cours**, la progression et le compteur. Ses **sept boutons sont des
+   télécommandes** de la barre du bas : ils cliquent sur les vrais boutons, donc
+   **une seule logique de navigation** existe, et les pas sont forcément les bons
+   (◀▶ la phrase, ⏪⏩ 4 paragraphes, ⏮⏭ le chapitre). Il suit l'état réel de la
+   lecture (`_majLecteurEtat`, appelé par `setTTSUI`).
+
+4. **Les phrases sont COLLÉES en un seul morceau** (demande de Laurent, le soir) :
+   la lecture ne joue plus un fichier par phrase, elle joue **un seul long
+   morceau**, fabriqué dans le navigateur en recollant les WAV déjà téléchargés.
+   Pourquoi : avec un fichier par phrase, **il n'y a plus de son** pendant la
+   préparation de la suivante — et Android **range sa modale de lecture** dès
+   qu'il n'y a plus de son. Laurent l'a dit mieux que personne : « c'est comme si
+   j'avais une playlist de centaines de morceaux de quelques secondes, et entre
+   chaque, elle disparaît ». Avec un seul morceau : **la modale reste affichée**
+   (comme pour une vidéo) et le son n'a plus de micro-blanc.
+   *Comment c'est possible* : les fichiers du lecteur sont des **WAV** (audio non
+   compressé) — vérifié sur 400 fichiers du cache : **399 en 24000 Hz mono
+   16 bits** (une voix Piper, en 22050 Hz, ne se colle pas aux autres et termine
+   simplement le morceau). Le collage ne **copie rien** (`Blob.slice` pointe sur
+   les données d'origine, donc pas de mémoire en plus), la **pause entre
+   paragraphes est insérée en silence** dans le morceau, et la surbrillance suit
+   grâce à des durées **calculées** (taille du son ÷ débit) et non estimées : le
+   piège du 15/09/2026 (curseur qui dérive) ne s'applique donc pas.
+   *Filet* : si un format est inattendu, `_collerWav` renvoie `null` et la phrase
+   est jouée **seule**, exactement comme avant (`_playBlob`). Le lecteur reste le
+   même : même élément `audio`, mêmes arrêts, mêmes sauts.
+   *Vérification* : **nouveau** `test_voix/test_collage_wav.js` — et il a servi
+   tout de suite : il a attrapé une **taille fausse** dans l'en-tête
+   (`_enteteDeBlob` ne lit que les **64 premiers octets** du fichier, et le
+   garde-fou « fichier tronqué » en déduisait que la phrase ne durait que
+   **0,4 ms** ✗) : le morceau collé aurait annoncé une taille minuscule, donc été
+   **inaudible**. Corrigé en transmettant la **taille réelle** du blob
+   (`_enteteWav(octets, tailleFichier)`). Leçon : **une taille calculée se teste**,
+   sinon elle se découvre à l'oreille.
+
+5. **L'application remet son état en phase avec le lecteur** (demande de Laurent,
+   le soir : « quand la lecture est arrêtée, le bouton affiche souvent Pause » et
+   « je voudrais pouvoir mettre pause avec le casque, et reprendre la lecture » —
+   **les deux ont la MÊME cause**). Quand Android met l'audio en pause **sans
+   nous** (appel téléphonique, autre application qui prend le son, système…),
+   **aucun événement de fin** n'est envoyé : le lecteur attendait alors pour
+   toujours et `_ttsState` restait sur `'playing'` ✗ → le bouton disait « Pause »
+   alors que plus rien ne jouait, et le bouton du **casque** envoyait « **pause** »
+   au lieu de « **play** » (l'application se croyant déjà en lecture).
+   Correctif : `audio.onpause` détecte la pause **venue d'ailleurs** — notre propre
+   pause et la fin naturelle d'un morceau (qui déclenche aussi cet événement) sont
+   écartées — puis remet l'état sur `'paused'`, met à jour **l'écran** et le
+   **lecteur du système**, et **rend la main** (`break` dans la boucle). La reprise
+   part du curseur à la pression suivante, et ne repart **jamais** toute seule.
+   *Vérification* : **nouveau** `test_voix/test_pause_casque.js` (pause externe
+   reconnue, notre pause ignorée, fin naturelle non confondue, écouteur retiré).
+
+**Ce qui reste à prouver** : le comportement au verrouillage ne peut être validé
+que **sur le téléphone** — et **avec la PWA installée** (une page d'onglet Chrome
+survit beaucoup moins bien qu'une application installée : c'est écrit dans ces
+notes depuis le 15/09).
+
+**✅ CAUSE TROUVÉE ET CONFIRMÉE SUR LE TERRAIN (20/09/2026, le soir) — et ce
+n'était PAS l'application : l'OPTIMISATION DE BATTERIE d'Android.** Laurent
+testait dans **Brave installé**, et la lecture s'arrêtait « après une vingtaine
+de secondes » écran verrouillé. Son verdict final, en une phrase :
+« **je viens de modifier le réglage de la batterie dans l'appli, ça semble ne
+plus couper** » — Brave était sur « **optimisée** », il l'a passé à « **non
+restreinte** », et la lecture tient depuis (2 minutes et plus, y compris en
+quittant le lecteur et en revenant à l'écran d'accueil). Autrement dit : **Android
+endormait le navigateur dès le verrouillage**, et l'application n'y pouvait rien
+— c'est un réglage du TÉLÉPHONE, pas du code.
+
+*Ce que sa description a confirmé au passage* : la **notification de lecture
+apparaît** (couverture, titre, auteur, boutons) et **s'ouvre en plein écran** au
+tap → notre Media Session fonctionne, et c'est bien le « lecteur façon Deezer »
+demandé. L'écart entre **l'écran qui s'éteint tout seul** (la page reste au premier
+plan → ça joue) et le **verrouillage** (la page passe en arrière-plan → ça
+s'arrêtait) collait exactement à cette cause.
+
+⚠️ **À retenir pour la prochaine fois** : avant de chercher dans le code, **vérifier
+que le navigateur (et Tailscale) sont en Batterie « Sans restriction »**. C'est la
+**première** chose à contrôler, et ça a coûté deux jours de doute. Le réglage se
+fait dans **Paramètres Android → Applications → [Brave] → Batterie → Sans
+restriction**.
+
+*Fichiers* : `frontend/app.js` (`_prechargementBurst`, `_pumpCourant`,
+`limiteFenetre`, `_updateMediaSession`, `_majPositionMediaSession`,
+`_urlCouvertureLivre`, `_ouvrirLecteur`, `_fermerLecteur`, `_majLecteurIntegre`,
+`_majLecteurEtat`), `frontend/index.html` (`#lecteur-modal`, `#tts-progress-row`
+cliquable), `frontend/styles.css`. *Vérifications* :
+`test_voix/test_lecteur_media.js` (**42 contrôles**, sans navigateur) et
+`test_voix/test_ids_ecran.py` (§ 3 sexies, **160 contrôles** au total).
 
 ### 🧹 Cache HTTP (no-store) — bibliothèque + API — session du 20/08/2026
 **Problème rencontré en cascade ce soir-là :** plusieurs symptômes
@@ -2779,10 +3377,44 @@ validation), `frontend/app.js` (`_chargerCriteresVoix`, `_construireLigneVoix`,
 `_sauverAnnotationVoix`, `_majStyleCritere`), `frontend/styles.css`
 (`.voice-criteres`).
 
+**Les rubriques sont ÉCRITES devant leurs menus (20/09/2026).** Constat de
+Laurent, 19/09/2026 : « une fois une valeur choisie, la ligne affiche "adulte"
+ou "aigu" **sans dire de quelle rubrique il s'agit** ». C'est exactement ce que
+faisait le code : le nom de la rubrique était porté par l'**option vide** du
+menu (`[['', critere.libelle]]`), donc il **disparaissait dès le premier choix**.
+Correctif : une **étiquette écrite** devant chaque menu — « Âge [– ] », « Timbre
+[grave] » — qui ne dépend jamais du choix en cours, et l'option vide devient un
+**tiret** (`–`), comme les menus « genre » et « étoiles ». L'étiquette et son
+menu vivent dans le **même petit groupe** (`.voice-critere-champ`), pour qu'un
+passage à la ligne sur téléphone ne les sépare jamais.
+
+Deux détails qui comptent :
+
+- les étiquettes sont **courtes** (`_libelleCourtCritere`, fonction **pure** :
+  « Âge », « Timbre », « Débit », « Accent », « Registre », « Rôle ») parce que
+  six menus doivent tenir sur la ligne d'un téléphone ; le libellé **complet**
+  du serveur reste dans l'**infobulle** du menu. Une rubrique **inconnue**
+  (ajoutée plus tard côté serveur) retombe sur son libellé complet : jamais
+  d'étiquette vide ;
+- les libellés de `CRITERES_VOIX` ont reçu leurs **accents** au passage
+  (« Âge perçu », « Débit », « Rôle réservé » — c'étaient des chaînes sans
+  accent, visibles en infobulle). **Seuls les libellés changent** : les clés
+  techniques (`age`, `timbre`, `debit`, `accent`, `registre`, `role`) et les
+  valeurs restent identiques, donc **aucune annotation n'est perdue**.
+
+*Fichiers* : `frontend/app.js` (`_libelleCourtCritere`,
+`_LIBELLES_COURTS_CRITERES`, `_construireLigneVoix`), `frontend/styles.css`
+(`.voice-critere-champ`, `.voice-critere-label`), `main.py` (libellés).
+*Vérifications* : `test_voix/test_criteres_voix.js` (les étiquettes exactes dans
+l'ordre du serveur, l'étiquette et son menu **dans le même groupe**, le tiret de
+l'état vide, et une **rubrique inconnue** qui affiche son libellé complet) et
+`test_voix/test_ids_ecran.py` (l'étiquette produite, le groupe, le style).
+**Reste ouvert** : l'écran « par thème » lui-même (BACKLOG).
+
 **Vérifications** : `test_voix/test_annotations_voix.py` (**29 contrôles** :
 listes annoncées, enregistrement, refus des valeurs inconnues, annotation
 remise à zéro, annotation ancienne, redémarrage) et
-`test_voix/test_criteres_voix.js` (**20 contrôles**, sans navigateur) : ce
+`test_voix/test_criteres_voix.js` (**25 contrôles**, sans navigateur) : ce
 dernier **lit les critères dans `main.py`** et vérifie que la page construit
 exactement ces menus et envoie exactement ces clés — une valeur ajoutée d'un
 côté sans l'autre fait échouer le test.

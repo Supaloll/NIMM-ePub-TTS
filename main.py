@@ -435,6 +435,35 @@ async def basculer_moteur(request: BasculeMoteurRequest):
         raise HTTPException(status_code=400, detail=resultat.get("message"))
     return resultat
 
+
+# --- Cache audio : etat et purge a la main (demande de Laurent, 18/09/2026) ---
+# Le cache se purge deja tout seul par quota (2 Go, modules/tts_cache.py) et par
+# VERSION_CACHE, mais Laurent n'avait AUCUN moyen de le vider a la main -- et
+# c'est exactement ce qui manque quand on doute d'un rendu (le 18/09/2026, il a
+# fallu vider le dossier a la main). Le cache est REGENERABLE : c'est de l'audio
+# deja synthetise, le moteur le refera a l'identique.
+
+@app.get("/api/cache_audio")
+async def get_cache_audio():
+    """Taille du cache audio, quota et nombre de fichiers. LECTURE SEULE.
+
+    Sert au bouton « 🧹 Vider le cache » du lecteur, qui affiche le compte.
+    """
+    from modules import tts_cache
+    return tts_cache.stats()
+
+
+@app.post("/api/cache_audio/vider")
+async def vider_cache_audio():
+    """Vide le cache audio et dit ce qui a ete libere.
+
+    Sans danger pour les donnees : le cache ne contient que de l'audio deja
+    synthetise (regenerable). Seule consequence : la premiere ecoute d'un
+    passage deja lu redemandera le calcul au moteur.
+    """
+    from modules import tts_cache
+    return tts_cache.purger()
+
 # --- Annotations des voix (fenetre « Ecouter les voix », 14/09/2026) ---
 # Permet d'ecouter n'importe quelle voix disponible et de la noter SANS
 # toucher au catalogue : c'est ce qui remplace les lots d'ecoute par fichiers.
@@ -450,8 +479,12 @@ async def basculer_moteur(request: BasculeMoteurRequest):
 # la page par GET /api/annotations_voix/criteres, donc une valeur ajoutee ici
 # apparait aussitot dans les menus du lecteur (aucune liste a tenir en double).
 # Chaque entree : (cle technique, libelle affiche, [(valeur, libelle), ...]).
+# Depuis le 20/09/2026, la page ecrit devant chaque menu un libelle COURT
+# (`_libelleCourtCritere`, frontend/app.js : « Âge », « Timbre », « Débit »...)
+# et garde ce libelle-ci en INFOBULLE -- les deux se completent, aucune liste a
+# tenir en double cote serveur.
 CRITERES_VOIX = [
-    ("age", "Age percu", [
+    ("age", "Âge perçu", [
         ("enfant", "enfant"), ("jeune", "jeune"), ("adulte", "adulte"),
         ("mur", "mûr"), ("vieux", "vieux"),
     ]),
@@ -467,7 +500,7 @@ CRITERES_VOIX = [
         ("rocailleux", "rocailleux"), ("cristallin", "cristallin"),
         ("voile", "voilé"),
     ]),
-    ("debit", "Debit", [
+    ("debit", "Débit", [
         ("lent", "lent"), ("pose", "posé"), ("normal", "normal"),
         ("vif", "vif"),
     ]),
@@ -480,7 +513,7 @@ CRITERES_VOIX = [
         ("noble", "noble"), ("neutre", "neutre"), ("populaire", "populaire"),
         ("savant", "savant"),
     ]),
-    ("role", "Role reserve", [
+    ("role", "Rôle réservé", [
         ("narrateur", "narrateur"), ("enfant", "enfant"), ("vieux", "vieux"),
         ("etranger", "étranger"), ("secondaire", "secondaire"),
     ]),

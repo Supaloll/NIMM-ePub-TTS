@@ -175,6 +175,66 @@ def get_audio(text, voice, rate, pitch, ext):
     return None
 
 
+def stats() -> dict:
+    """Etat du cache disque : octets utilises, quota, nombre de fichiers.
+
+    Sert au bouton « Vider le cache audio » du lecteur, qui affiche le compte
+    (« Vider le cache (604 Mo) »). LECTURE SEULE : rien n'est modifie.
+    """
+    octets = 0
+    fichiers = 0
+    try:
+        for p in CACHE_DIR.rglob("*"):
+            if p.is_file():
+                fichiers += 1
+                octets += p.stat().st_size
+    except OSError:
+        pass
+    return {
+        "octets": octets,
+        "quota_octets": CACHE_MAX_BYTES,
+        "fichiers": fichiers,
+        "version": VERSION_CACHE,
+    }
+
+
+def purger() -> dict:
+    """Vide le cache audio et renvoie ce qui a ete libere.
+
+    Pourquoi c'est sans danger : le cache est REGENERABLE par nature -- c'est de
+    l'audio deja synthetise, et le moteur le refera a l'identique (la synthese
+    est deterministe). Le vider ne fait donc perdre qu'une chose : la premiere
+    ecoute d'un passage deja lu redemandera le calcul au moteur.
+
+    Demande de Laurent (18/09/2026) : le cache se purge seul par quota, mais il
+    n'avait aucun moyen de le vider a la main -- exactement ce qui manque quand
+    on doute d'un rendu.
+
+    Les fichiers `.tmp` (une ecriture en cours) sont laisses de cote : on ne
+    coupe jamais une synthese en train de s'ecrire.
+    """
+    global _known_total, _written_since_purge
+    liberes = 0
+    supprimes = 0
+    with _lock:
+        try:
+            fichiers = [p for p in CACHE_DIR.glob("*")
+                        if p.is_file() and not p.name.endswith(".tmp")]
+        except OSError:
+            fichiers = []
+        for p in fichiers:
+            try:
+                taille = p.stat().st_size
+                p.unlink()
+                liberes += taille
+                supprimes += 1
+            except OSError:
+                pass
+        _known_total = _dir_size()
+        _written_since_purge = 0
+    return {"ok": True, "fichiers_supprimes": supprimes, "octets_liberes": liberes}
+
+
 def put_audio(text, voice, rate, pitch, ext, data):
     """Ecrit l'audio dans le cache (ecriture atomique, purge si quota plein)."""
     global _written_since_purge

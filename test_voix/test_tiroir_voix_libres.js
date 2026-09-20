@@ -68,18 +68,30 @@ function element(tag) {
 }
 const fauxDocument = { createElement: element };
 
-const FAMILLES_VOIX = [['edge', 'Edge (en ligne)'], ['kokoro', 'Kokoro'],
-                       ['xtts', 'XTTS v2']];
+// La famille des moteurs : libelles ET icones, comme FAMILLES_VOIX (app.js).
+// Depuis le 20/09/2026, l'en-tete de groupe d'un moteur porte son icone devant
+// son nom (« 🎎 Kokoro · 12 »).
+const FAMILLES_VOIX = [['edge', 'Edge (en ligne)', '\u2601\uFE0F'],
+                       ['kokoro', 'Kokoro', '\uD83C\uDF8E'],
+                       ['xtts', 'XTTS v2', '\uD83E\uDDEC']];
 const familleDe   = (id) => (id.indexOf(':') > 0 ? id.split(':')[0] : 'edge');
 const libelleVoix = (v) => v.name + ' \u2014 ' + v.region;
 
+// La recherche du tiroir (20/09/2026) est une fonction PURE d'app.js. On donne
+// ici la MEME tranche de code que test_recherche_casting.js : une seule regle
+// de comparaison (accents, casse, tirets), jamais deux.
+const fabriqueFiltre = new Function(
+  tranche('function _cleRecherche', 'function _etatCasting')
+    + '\nreturn { _filtrerVoixLibres: _filtrerVoixLibres };')();
+const filtreVoixLibres = fabriqueFiltre._filtrerVoixLibres;
+
 const fabriqueLibres = new Function(
   'document', 'FAMILLES_VOIX', '_familleDeVoix', '_libelleVoix',
-  '_previewVoixLibre',
+  '_previewVoixLibre', '_filtrerVoixLibres',
   tranche('function _afficherVoixLibres', 'function _previewVoixLibre')
     + '\nreturn _afficherVoixLibres;');
 const afficherLibres = fabriqueLibres(fauxDocument, FAMILLES_VOIX, familleDe,
-  libelleVoix, () => 'apercu');
+  libelleVoix, () => 'apercu', filtreVoixLibres);
 
 const fabriqueDetail = new Function(
   'document',
@@ -136,7 +148,8 @@ const textes = liste.children
 verifier('un en-tete par moteur, suivi de ses voix (2 + 2 lignes)',
          liste.children.length === 4, textes.join(' | '));
 verifier('chaque en-tete compte ses voix',
-         textes[0] === 'Kokoro \u00b7 1' && textes[2] === 'XTTS v2 \u00b7 1',
+         textes[0] === '\uD83C\uDF8E Kokoro \u00b7 1'
+         && textes[2] === '\uD83E\uDDEC XTTS v2 \u00b7 1',
          textes.join(' | '));
 verifier('les voix libres sont ecrites en clair',
          textes[1].indexOf('Zoe') === 0 && textes[3].indexOf('Yousef') === 0,
@@ -166,6 +179,34 @@ actionsChoix.children[1].ecouteurs.click();
 verifier('taper « Choisir » rend bien CETTE voix au personnage',
          choisies.length === 1 && choisies[0] === 'kokoro:zoe',
          JSON.stringify(choisies));
+
+console.log('');
+console.log('1 ter) la recherche du casting filtre AUSSI le tiroir (20/09/2026)');
+// Meme barre de recherche, autre liste : ici ce sont des VOIX, pas des
+// personnages. Si le filtre ne s'appliquait pas, le champ aurait l'air mort
+// dans cet onglet.
+const listeCherchee = element('ul');
+afficherLibres(listeCherchee, etatVoix, undefined, 'yous');
+const textesCherches = listeCherchee.children.map(
+  c => (c.className === 'cast-group' ? c.textContent
+                                     : c.children[0].textContent));
+verifier('un seul moteur reste, avec sa seule voix',
+         listeCherchee.children.length === 2
+         && textesCherches[0] === '\uD83E\uDDEC XTTS v2 \u00b7 1'
+         && textesCherches[1].indexOf('Yousef') === 0,
+         textesCherches.join(' | '));
+const listeSansRien = element('ul');
+afficherLibres(listeSansRien, etatVoix, undefined, 'zzzz');
+verifier('aucun resultat : on le DIT (pas un tiroir vide et muet)',
+         listeSansRien.children.length === 1
+         && listeSansRien.children[0].textContent
+              .indexOf('Aucune voix libre ne correspond') === 0,
+         JSON.stringify(listeSansRien.children.map(c => c.textContent)));
+const listeSansFiltre = element('ul');
+afficherLibres(listeSansFiltre, etatVoix, undefined, '');
+verifier('champ vide : tout le tiroir, exactement comme avant',
+         listeSansFiltre.children.length === 4,
+         String(listeSansFiltre.children.length));
 
 console.log('');
 console.log('2) aucune voix libre : on dit POURQUOI, jamais une liste vide');

@@ -47,6 +47,9 @@ const IDS = [
   // Ligne d'usage de la voix choisie (19/09/2026) : libre, portee par X,
   // partagee... ECRITE, car sur mobile il n'y a ni survol ni appui long.
   'voice-phrase-usage',
+  // Porte vers la fenetre du casting (20/09/2026) : ouvrir la vraie fenetre SUR
+  // le personnage de la phrase, pour tout ce que le panneau ne fait pas.
+  'voice-phrase-cast-btn',
 ];
 IDS.forEach(id => {
   const dansPage = page.includes('id="' + id + '"');
@@ -180,6 +183,46 @@ verifier('elle est affichee sous son NOM, jamais sous son identifiant',
          JSON.stringify(horsListe.options.map(o => o.texte)));
 verifier('elle est signalee comme « voix actuelle »',
          horsListe.options.some(o => o.groupe.indexOf('Voix actuelle') >= 0));
+
+console.log('');
+console.log('5) la porte vers le casting (20/09/2026)');
+// Demande de Laurent : « cette modale est moins riche que casting des voix ».
+// Plutot que d'appauvrir le panneau ou de le remplacer -- il est le SEUL a dire
+// QUI PARLE dans cette phrase -- on ajoute une PORTE vers la vraie fenetre, sur
+// le personnage de la phrase. Ce que le test protege :
+//   - le bouton est CACHE pour la narration : le narrateur n'a pas de ligne
+//     dans le casting (sa voix se change dans le menu du haut) ;
+//   - la porte FERME le panneau avant d'ouvrir : jamais deux fenetres empilees,
+//     et on retrouve sa lecture en fermant le casting ;
+//   - elle remet les filtres d'etat ET la recherche a zero avant d'ouvrir,
+//     sinon elle ouvrirait le casting sur une liste ou le personnage est
+//     invisible -- sans que rien ne l'explique ;
+//   - elle surligne le personnage avec _allerAuPersonnage, soit EXACTEMENT le
+//     reperage des noms cliquables du badge « partagee avec ... » (19/09/2026).
+verifier('le bouton est CACHE pour la narration',
+         source.includes("porteCasting.classList.toggle('hidden', !nom)"));
+// On isole le bloc DE LA PORTE (de son bouton a la fin de son gestionnaire) :
+// le fichier est en fin de ligne Windows (CRLF), donc on evite d'y chercher des
+// retours a la ligne -- et le controle porte ainsi sur ce bloc, pas sur tout le
+// fichier (ou _closeVoicePanel() apparait aussi pour la croix et le fond).
+const debutPorte = source.indexOf(
+  "document.getElementById('voice-phrase-cast-btn').addEventListener");
+const blocPorte = source.slice(debutPorte, source.indexOf('});', debutPorte));
+verifier('la porte existe et ne fait rien sans personnage',
+         debutPorte >= 0
+         && blocPorte.includes("addEventListener('click', async () => {")
+         && blocPorte.includes('const nom = _personnageDePhrase(_voicePhraseIdx);')
+         && blocPorte.includes('if (!nom) return;'));
+verifier('elle ferme le panneau avant d ouvrir le casting',
+         blocPorte.includes('_closeVoicePanel();')
+         && blocPorte.indexOf('_closeVoicePanel();')
+            < blocPorte.indexOf('await _openCastModal();'));
+verifier('elle revient a la liste complete (filtre d etat + recherche)',
+         blocPorte.includes("if (_castEtatFiltre !== 'T' || _castRecherche.trim()) {")
+         && blocPorte.includes("_castEtatFiltre = 'T';")
+         && blocPorte.includes("_castRecherche = '';"));
+verifier('elle surligne le personnage (meme reperage que le badge de partage)',
+         blocPorte.includes('_allerAuPersonnage(nom);'));
 
 console.log('');
 console.log(echecs === 0 ? 'TOUT EST OK' : echecs + ' VERIFICATION(S) EN ECHEC');

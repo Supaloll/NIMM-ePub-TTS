@@ -58,6 +58,35 @@ gratuit** — ils font seulement travailler la carte graphique :
 
 ---
 
+## 🎚️ Ajouter des voix Kokoro au lecteur (ça ÉCRIT — mais avec copie datée)
+
+`_importer_voix_kokoro.py` ajoute au fichier de voix du lecteur
+(`voices-v1.0.bin`) les **timbres** d'un fichier de voix venu de l'atelier
+NIMM Voix (un lecteur Kokoro ne sait pas lire des WAV : il lui faut le timbre).
+
+    python test_voix/_importer_voix_kokoro.py                   -> APERCU, ecrit rien
+    python test_voix/_importer_voix_kokoro.py --quoi accent_allemand --ecrire
+
+Ce qu'il fait **tout seul** : **copie datée** du fichier de voix avant d'écrire,
+refus de tout nom déjà pris (un doublon écraserait une voix existante en
+silence), contrôle de la forme des timbres, puis **relecture du fichier écrit**
+(compte exact, et aucune voix d'avant n'a bougé). Les voix ne sont utilisables
+qu'après leur **ajout dans la liste `KOKORO_VOICES`** — les deux vont ensemble.
+
+`_tester_voix_kokoro_importees.py` vérifie ensuite qu'elles **parlent** vraiment :
+il fait parler le moteur par le **vrai chemin du lecteur** et mesure durée et
+niveau (aucune parole = échec). L'oreille reste juge, dans « 🎧 Écouter les
+voix ».
+
+**Et pour les ICÔNES de l'application** : `_generer_icones_pwa.py` les régénère
+à partir du logo maître (aperçu par défaut, `--ecrire` pour fabriquer les
+fichiers). C'est le geste quand un navigateur **refuse d'installer**
+l'application : la taille annoncée dans `frontend/manifest.json` doit correspondre
+au fichier, sinon Chrome rejette les icônes et n'affiche pas « Installer »
+(vérifié par `test_pwa_manifeste.py`).
+
+---
+
 ## ✅ Les vérifications, sans rien allumer et sans rien payer
 
 ### Python (`python test_voix/nom_du_test.py`)
@@ -66,6 +95,9 @@ gratuit** — ils font seulement travailler la carte graphique :
 |---|---|
 | `test_annotations_voix.py` | annotations d'écoute : critères fixes, enregistrement, refus des valeurs inconnues (sauvegarde et restaure tes notes) |
 | `test_attribution_criteres.py` | attribution des voix par critères : classement, rôles réservés, verrous, déterminisme |
+| `test_cache_audio.py` | le **cache audio** (20/09/2026) : le compte (taille, quota, nombre de fichiers) et la **purge à la main** du bouton « 🧹 Vider le cache » — dans un **dossier temporaire**, jamais le vrai cache (il compare même le nombre de fichiers du vrai cache avant/après pour le prouver), une **écriture en cours** (`.tmp`) n'est jamais coupée, et le cache remarche après un vidage |
+| `test_pwa_manifeste.py` | l'**application installable** (20/09/2026) : le manifeste annonce ce qu'il faut (`standalone`, `start_url`), **chaque icône déclarée EXISTE à la taille annoncée** (c'est ce qui manquait — Chrome refusait donc d'installer l'application), au moins une icône de 192 px et une de 512 px, une icône **maskable**, les liens de la page, et le service worker qui répond aux requêtes |
+| `test_residus_html.py` | les **résidus de balises** dans le texte lu (20/09/2026) : le vrai cas du Tome 5 (« M class="textsuperscript">lle Danglars ») est **nettoyé** — la phrase redevient « laissons Mlle Danglars » —, et le **texte normal n'est jamais touché** (guillemets français, tirets de dialogue, apostrophes, égalités, chevrons, balises légitimes) |
 | `test_borne_babil_xtts.py` | garde-fou anti-babil : bornes de génération du service XTTS |
 | `test_rogner_babil_xtts.py` | coupure du babil isolé par un silence |
 | `test_rogner_queue_xtts.py` | rognage du silence de queue XTTS (0,25 s) |
@@ -88,16 +120,24 @@ gratuit** — ils font seulement travailler la carte graphique :
 
 | Test | Ce qu'il vérifie |
 |---|---|
-| `test_criteres_voix.js` | les menus de critères de la page **et** ceux du serveur sont les mêmes |
-| `test_libelle_voix.js` | le **libellé d'une voix** dans les menus (demande de Laurent, 19/09/2026) : drapeau(s), âge, timbre et moteur — les drapeaux des voix Edge (elles n'en avaient aucun), le 2ᵉ drapeau des accents, les libellés exacts du serveur (« mûr », « très aigu ») |
+| `test_criteres_voix.js` | les menus de critères de la page **et** ceux du serveur sont les mêmes — et depuis le 20/09/2026, **la rubrique est écrite devant chaque menu** (étiquettes exactes « Âge, Timbre, Débit, Accent, Registre, Rôle », étiquette et menu dans le **même groupe**, option vide = tiret, et une **rubrique inconnue** qui retombe sur son libellé complet — 25 contrôles) |
+| `test_libelle_voix.js` | le **libellé d'une voix** dans les menus (demande de Laurent, 19/09/2026) : **symbole du genre** devant le prénom (♀️ / ♂️, **rien** si le genre est inconnu — jamais un genre faux —, sélecteur emoji compris), **icône du moteur** (☁️ Edge, 🎎 Kokoro, 🎶 Piper, ⚡ Kyutai, 🧬 XTTS v2, 🧪 NeuTTS — 20/09/2026), drapeau(s), âge, timbre — les drapeaux des voix Edge (elles n'en avaient aucun), le 2ᵉ drapeau des accents, les libellés exacts du serveur (« mûr », « très aigu ») |
 | `test_etat_casting.js` | badges « à caster » / « voix partagée » — et depuis le 19/09/2026 : **avec qui** une voix est partagée, **quelles voix sont libres** (hors voix génériques et hors voix du narrateur) et **quelle hauteur** appliquer quand on partage (jamais une hauteur déjà prise) |
 | `test_filtre_genre.js` | menus de voix (femmes / hommes) |
+| `test_recherche_casting.js` | la **recherche dans la fenêtre du casting** (20/09/2026, item du BACKLOG du 14/09/2026) : la frappe filtre **sans accents ni casse** (« EDMOND » = « Edmond », « jean luc » = « Jean-Luc »), un personnage trouvé **garde ses alias** et taper un **alias** fait remonter son personnage, l'**article initial n'est pas retiré** (taper « le » filtre, contrairement à la règle du serveur), le tiroir des **voix libres** est filtré par prénom et provenance, et la barre est bien **câblée** (champ, compteur, remise à zéro à la fermeture, croisement avec le filtre d'état) — **33 contrôles**, rien à allumer |
 | `test_tiroir_voix_libres.js` | le **tiroir des voix libres**, le **dépliage des partages**, la modale **« Partager / Déplacer »** et l'**attribution d'une voix libre** (19/09/2026) : voix rangées par moteur, libellés écrits, ▶ d'écoute, tiroir vide qui dit *pourquoi*, badge qui se déplie **au tap**, noms cliquables qui mènent à la fiche, recalcul après un changement de voix, choix Partager / Déplacer (hauteur annoncée, verrou respecté), bouton « Choisir » qui donne la voix au personnage |
 | `test_voix_ecoutables.js` | voix d'un moteur éteint (jamais de substitution silencieuse) |
 | `test_message_reseau.js` | message parlé quand le réseau tombe |
 | `test_chargement_chapitre.js` | le **chargement d'un chapitre** : le chapitre est demandé avant que le lecteur ne change d'état, une panne passagère est retentée, un échec **ne fait plus sauter** le chapitre (phrases vidées, bouton « Réessayer »), et une pause sans signal n'explose plus — exécute le vrai code de la page, sans navigateur |
-| `test_voix_phrase.js` | panneau « voix de cette phrase », et l'**état de la voix choisie écrit sous le menu** (libre / portée par X / partagée — 19/09/2026) |
+| `test_voix_phrase.js` | panneau « voix de cette phrase », l'**état de la voix choisie écrit sous le menu** (libre / portée par X / partagée — 19/09/2026) et la **porte vers le casting** (20/09/2026 : bouton caché pour la narration, panneau fermé avant l'ouverture, filtres remis à zéro, surlignage du personnage) — 34 contrôles |
 | `test_bouton_moteur.js` | bouton de bascule des moteurs de voix |
+| `test_cache_audio.js` | le **libellé du bouton « 🧹 Vider le cache »** (20/09/2026) : la taille lisible (604 Mo, 1,2 Go, 12 Ko — virgule française) et surtout qu'il n'affiche **jamais** « undefined » quand le serveur n'a pas encore répondu |
+| `test_sauts_navigation.js` | les **trois niveaux de saut** de la barre (20/09/2026) : ⏮⏭ le **chapitre**, ⏪⏩ **`_PAS_PARAGRAPHES` paragraphes d'un coup** (le pas est **lu dans `frontend/app.js`**), ◀▶ **une phrase** — et surtout les **bords** : jamais au-delà du dernier paragraphe (un saut trop long y est ramené), jamais avant le début, et le pas de 1 redonne exactement l'ancien comportement |
+| `test_lecteur_media.js` | le **lecteur intégré** et le **lecteur du système** (20/09/2026) : la barre de progression envoyée au téléphone est **bornée** (position hors bornes ramenée, durée jamais 0) et **un refus du système ne casse jamais la lecture** ; la **réserve « à bloc »** s'active quand la page passe en arrière-plan **pendant** une lecture (et pas hors lecture) ; les **7 boutons** du lecteur sont les télécommandes de la barre du bas, et c'est la **barre de progression** qui l'ouvre |
+| `test_navigateur.js` | le **nom du navigateur** affiché par le bouton d'installation (20/09/2026) : Chrome, Firefox, Safari, Edge — et surtout que **Brave et Edge soient reconnus AVANT Chrome** (les deux se présentent comme « Chrome » dans leur chaîne), parce que cette mention sert justement quand quelque chose ne marche pas (une application installée n'a **aucune** barre d'adresse : rien d'autre ne dit dans quel navigateur on est) — et que le bouton ne s'affiche **pas** sur ordinateur |
+| `test_collage_wav.js` | le **collage des phrases en un seul morceau** (20/09/2026) : lecture de l'en-tête WAV, **durée exacte**, fichier tronqué jamais lu au-delà de sa fin, en-tête du morceau collé annonçant la **bonne** taille totale, morceau collé qui se **relit** comme un WAV valide de la bonne durée, silence des pauses inséré, et **refus du collage** entre deux formats différents (le filet qui protège les voix Piper) |
+| `test_pause_casque.js` | la **pause venue de l'extérieur** et le **bouton du casque** (20/09/2026) : une pause qu'Android déclenche sans nous (appel, autre application) remet l'application **en phase avec la réalité** (bouton et lecteur du système sur « Pause ») et **rend la main** ; notre **propre** pause n'est pas prise pour une interruption ; la **fin naturelle** d'un morceau non plus ; et l'écouteur est retiré après la fin |
+| `test_narrateur_par_livre.js` | la **voix du narrateur appartient à chaque livre** (20/09/2026) : un livre sans voix enregistrée reçoit le **défaut et l'enregistre** (fini le narrateur qui « passait » d'un livre à l'autre), un livre avec SA voix la retrouve, une voix indisponible (moteur éteint) affiche un **message** au lieu d'être remplacée en silence — sans écraser le choix du livre, et jamais d'écriture sans livre ouvert (24 contrôles, rien à allumer) |
 
 ### Ceux qui demandent quelque chose d'allumé
 
@@ -129,6 +169,7 @@ aujourd'hui :
 | `_top_repliques_livre.py` | les personnages les plus bavards d'un livre (pour choisir quelles voix créer) |
 | `_cout_casting.py` | coût d'un casting par livre et par jour, avec la formule de l'application |
 | `_lister_backlog.py` | les items du BACKLOG encore à faire, par section |
+| `_chercher_residus_html.py` | **du HTML dans le texte lu** : parcourt les livres de la bibliothèque avec le **vrai parseur** et signale tout résidu (balise, attribut orphelin, entité non décodée) — `--livre 16` pour un seul, `--html` pour voir la **balise d'origine** (c'est ce qui a permis de trouver la conversion cassée du Tome 5) |
 | `_etat_casting_livre.py` | état d'un casting (verrouillés, petits rôles, voix prises) |
 | `_rapprocher_neutts_xtts.py` | quelles voix NeuTTS correspondent à quelles voix déjà cataloguées (pour leur garder les mêmes prénoms et étoiles) |
 | `_etat_familles_voix.py` | combien de personnages lisent avec chaque moteur (Edge, Kokoro, Kyutai, XTTS, NeuTTS, Piper), et combien sont verrouillés — lecture seule |

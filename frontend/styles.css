@@ -19,6 +19,12 @@
   --danger-hover: #a93226;
   --radius:       10px;
   --radius-sm:    6px;
+  /* Boutons de NAVIGATION du lecteur (20/09/2026, demande de Laurent) : fond
+     marron fonce et fleches BLANCHES, pour que les quatre fleches s'accordent
+     au theme sombre (l'accent de l'application est dore : #c8a96e). */
+  --nav-btn:        #4a3a22;
+  --nav-btn-survol: #5c4829;
+  --nav-btn-bord:   #8a7048;
   --shadow:       0 4px 24px rgba(0,0,0,0.5);
   --font-read:    Georgia, 'Times New Roman', serif;
   --font-ui:      -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -112,6 +118,35 @@ body {
 .profile-card:active {
   transform: scale(0.97);
 }
+
+/* Bouton « Installer l'application » (20/09/2026) : discret, en haut de la
+   bibliotheque, et il DISPARAIT quand l'application tourne deja comme une
+   application installee. La note en dessous sert a expliquer ou chercher quand
+   le navigateur ne propose rien (Firefox, par exemple). */
+#installer-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 12px 16px 8px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  text-align: center;
+}
+#installer-btn:hover { border-color: var(--accent); color: var(--accent); }
+#installer-btn.hidden { display: none; }
+
+#installer-note {
+  margin: 0 16px 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+#installer-note.hidden { display: none; }
 
 /* ============================================================
    BIBLIOTHEQUE
@@ -447,21 +482,33 @@ body {
   gap: 8px;
 }
 
-#prev-btn, #next-btn, #rsvp-open-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+/* Barre de navigation du lecteur, refaite le 20/09/2026 (demande de Laurent) :
+   les QUATRE fleches -- chapitre precedent, retour rapide, avance rapide,
+   chapitre suivant -- ont maintenant le MEME look : fond marron fonce, fleche
+   BLANCHE. Pourquoi des SVG et plus les emojis ⏮⏪⏩⏭ : un emoji ne peut pas
+   etre blanc (il garde ses couleurs, ou s'affiche en petit noir et blanc selon
+   le clavier) -- c'est ce qui faisait deux familles de boutons dans la meme
+   barre (chevrons SVG pour les chapitres, emojis pour les phrases). */
+#prev-btn, #next-btn,
+#para-prev-btn, #para-next-btn,
+#sent-prev-btn, #sent-next-btn {
+  background: var(--nav-btn);
+  border: 1px solid var(--nav-btn-bord);
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: #ffffff;
   cursor: pointer;
   width: 40px;
   height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 }
-#prev-btn:hover, #next-btn:hover, #rsvp-open-btn:hover { background: var(--bg-hover); color: var(--text); }
+#prev-btn:hover, #next-btn:hover,
+#para-prev-btn:hover, #para-next-btn:hover,
+#sent-prev-btn:hover, #sent-next-btn:hover { background: var(--nav-btn-survol); }
+/* Chapitre precedent/suivant : assombris aux extremites du livre. */
 #prev-btn:disabled, #next-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 #tts-controls { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; }
@@ -498,7 +545,17 @@ body {
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
+  /* La ligne OUVRE le lecteur (20/09/2026) : cible large pour le doigt, et le
+     petit ⤢ l'annonce sans mot. */
+  cursor: pointer;
 }
+
+#tts-progress-ouvrir {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+#tts-progress-row:hover #tts-progress-ouvrir { color: var(--accent); }
 
 #tts-progress {
   flex: 1;
@@ -558,6 +615,20 @@ body {
 #moteur-etat:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #moteur-etat.moteur-etat-off { opacity: 0.8; }
 
+/* Ligne d'explication de la VOIX DU NARRATEUR du livre ouvert (20/09/2026) :
+   elle apparaît seulement quand le livre a une voix enregistrée qui n'est pas
+   disponible (moteur éteint). Même mise en page que #moteur-etat : sur sa
+   propre ligne ; vide, elle ne prend aucune place. */
+#narrateur-etat {
+  flex-basis: 100%;
+  width: 100%;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 2px 2px 0;
+  line-height: 1.3;
+}
+#narrateur-etat:empty { display: none; }
+
 /* Sur mobile : cible tactile confortable (44 px) pour le bouton de bascule. Il
    occupe sa propre ligne, donc l'agrandir ne serre aucun autre reglage. */
 @media (max-width: 640px) {
@@ -570,12 +641,18 @@ body {
 }
 
 
-/* Boutons d'action de la barre : le MEME look pour les deux, compact.
+/* Boutons d'action de la barre : le MEME look pour les trois, compact.
    « Ecouter les voix » n'avait aucun style : il gardait l'apparence native du
    navigateur (fond clair, police systeme) -- c'est lui qui « faisait blanc »
-   dans le theme sombre (constat de Laurent, 15/09/2026). */
+   dans le theme sombre (constat de Laurent, 15/09/2026).
+   Et « 🔖 Onglets » manquait dans cette regle (constat de Laurent,
+   20/09/2026) : il restait plus GRAND et plus clair que ses deux voisins. Les
+   trois sont maintenant a la meme echelle, cote a cote. */
 #multivoice-btn,
-#voices-open-btn {
+#voices-open-btn,
+#bookmarks-open-btn,
+#rsvp-open-btn,
+#cache-open-btn {
   flex: 0 1 auto;
   min-height: 30px;
   padding: 5px 10px;
@@ -590,7 +667,10 @@ body {
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 #multivoice-btn:hover:not(:disabled),
-#voices-open-btn:hover {
+#voices-open-btn:hover,
+#bookmarks-open-btn:hover,
+#rsvp-open-btn:hover,
+#cache-open-btn:hover {
   border-color: var(--accent-dim);
   color: var(--accent);
 }
@@ -887,6 +967,34 @@ body {
 }
 #cast-propagate-btn:hover:not(:disabled) { background: var(--accent); }
 #cast-propagate-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Barre de recherche des personnages (20/09/2026, item du BACKLOG du
+   14/09/2026). Meme look que la barre d'outils de « Ecouter les voix » : une
+   seule facon de chercher dans toute l'application. Le compteur reste a droite
+   et ne passe jamais a la ligne, comme #voices-recap. */
+#cast-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+#cast-search {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+}
+#cast-search-resume {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 
 /* Filtre par genre des voix proposees dans le casting (Toutes / Femmes /
    Hommes). Avec 135 voix au catalogue, cela evite de chercher une voix
@@ -1673,6 +1781,181 @@ body {
 
 #voice-phrase-note { font-size: 0.78rem; color: var(--text-muted); }
 
+/* PORTE VERS LE CASTING (20/09/2026) : le panneau ne change qu'une voix ; pour
+   le reste (cadenas, curseurs vitesse et hauteur, tiroir des voix libres,
+   badges d'etat), ce bouton ouvre la vraie fenetre sur le personnage. Meme look
+   que le bouton d'ecoute, mais bordure accentuee : c'est une porte, elle doit
+   se voir. Minimum 44 px de haut, comme les autres boutons tactiles. */
+#voice-phrase-cast-btn {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 40px;
+}
+#voice-phrase-cast-btn:hover { border-color: var(--accent); }
+
+/* ============================================================
+   LECTEUR INTEGRE « FACON DEEZER » (20/09/2026)
+   ============================================================
+   Demande de Laurent : « une petite modale qui ressemblerait a la lecture de
+   Deezer », ouverte en tapant la BARRE DE PROGRESSION du lecteur.
+   Meme grammaire que le panneau « Voix de cette phrase » : feuille collee en bas
+   d'ecran sur mobile, petite fenetre centree sur PC. */
+
+#lecteur-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 225;
+  display: flex;
+  align-items: flex-end;               /* mobile : feuille collee en bas */
+  background: rgba(0, 0, 0, 0.45);     /* taper a cote = fermer */
+}
+#lecteur-modal.hidden { display: none; }
+
+#lecteur-inner {
+  width: 100%;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 14px 16px calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-height: 88vh;
+  overflow-y: auto;
+  animation: slide-up 0.2s ease;
+}
+@media (min-width: 641px) {
+  #lecteur-modal { align-items: center; justify-content: center; }
+  #lecteur-inner {
+    max-width: 420px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    animation: none;
+  }
+}
+
+#lecteur-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+#lecteur-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 8px;
+}
+#lecteur-close-btn:hover { color: var(--text); }
+
+/* La couverture : le repere qui fait « vrai lecteur ». Hauteur fixe pour que la
+   fenetre ne saute pas d'un livre a l'autre (le format est presque toujours le
+   meme : 2/3). */
+#lecteur-couverture {
+  width: 150px;
+  height: 225px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  margin-top: 4px;
+}
+#lecteur-couverture.hidden { display: none; }
+
+#lecteur-titre {
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-align: center;
+  margin-top: 8px;
+}
+#lecteur-auteur { font-size: 0.8rem; color: var(--text-muted); text-align: center; }
+#lecteur-chapitre {
+  font-size: 0.76rem;
+  color: var(--accent);
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* Qui parle, et la phrase en cours : ce qui distingue ce lecteur d'un lecteur
+   audio -- on lit un LIVRE, avec des personnages. */
+#lecteur-qui { font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; }
+#lecteur-phrase {
+  font-size: 0.84rem;
+  font-style: italic;
+  text-align: center;
+  max-height: 4.2em;
+  overflow: hidden;
+}
+
+#lecteur-barre {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+#lecteur-barre-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+#lecteur-compteur { font-size: 0.7rem; color: var(--text-dim); }
+
+/* Les sept boutons : meme famille visuelle que la barre du bas (fleches
+   blanches sur marron fonce), et le bouton de lecture en or au centre. */
+#lecteur-boutons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+  width: 100%;
+}
+#lecteur-boutons button {
+  background: var(--nav-btn);
+  border: 1px solid var(--nav-btn-bord);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+#lecteur-boutons button:hover { background: var(--nav-btn-survol); }
+#lecteur-boutons #lecteur-play-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 52px;
+  height: 52px;
+  color: #000;
+}
+#lecteur-boutons #lecteur-play-btn:hover { background: #d4b87a; }
+
+/* Sept boutons + la lecture : on resserre sur les petits ecrans (meme regle que
+   la barre du bas). */
+@media (max-width: 380px) {
+  #lecteur-boutons { gap: 3px; }
+  #lecteur-boutons button { width: 34px; height: 34px; }
+  #lecteur-boutons #lecteur-play-btn { width: 46px; height: 46px; }
+}
+
 /* ============================================================
    UTILITAIRES
    ============================================================ */
@@ -1699,44 +1982,27 @@ select { font-family: var(--font-ui); }
   color: var(--accent);
 }
 
-/* Boutons navigation TTS */
-#tts-nav {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex: 1;
-  justify-content: center;
+/* Six fleches + le bouton de lecture : sur un telephone, on resserre les
+   ecarts. Les boutons gardent leur taille (40 px : c'est la taille confortable
+   pour le doigt, la lecon des icones du casting) ; sous 380 px on les ramene a
+   36 px, sinon la barre deborderait sur les petits ecrans. */
+@media (max-width: 640px) {
+  #reader-nav { gap: 3px; }
+  #tts-controls { gap: 4px; }
+}
+@media (max-width: 380px) {
+  #prev-btn, #next-btn,
+  #para-prev-btn, #para-next-btn,
+  #sent-prev-btn, #sent-next-btn { width: 36px; height: 36px; }
+  #tts-play-btn { width: 44px; height: 44px; }
 }
 
-#para-prev-btn,
-#sent-prev-btn,
-#para-next-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
-  transition: background 0.15s, color 0.15s;
-  flex-shrink: 0;
-}
-
-#para-prev-btn:hover, #sent-prev-btn:hover,
-#para-next-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-#para-prev-btn:disabled, #sent-prev-btn:disabled,
-#para-next-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
+/* Les boutons ⏮ ⏪ ⏭ de la barre avaient leur propre style, avec des EMOJIS :
+   supprime le 20/09/2026, ils sont remplaces par les quatre fleches SVG
+   ci-dessus. Les sauts de PARAGRAPHE n'ont plus de bouton dans la barre : son
+   pas est la PHRASE (demande de Laurent : deux boutons « en arriere » cote a
+   cote semblaient faire la meme chose). Les fonctions
+   `_cursorParaPrev`/`_cursorParaNext` restent dans app.js, pretes a rebrancher. */
 
 /* ============================================================
    RECHERCHE — Panneau chapitres
@@ -2162,6 +2428,21 @@ select { font-family: var(--font-ui); }
 .voice-criteres select.renseigne {
   border-color: var(--accent-dim);
   color: var(--text);
+}
+/* Etiquette de la rubrique, DEVANT son menu (demande de Laurent, 19/09/2026) :
+   « Âge [– ] », « Timbre [grave] ». Sans elle, on lisait « adulte » ou « aigu »
+   sans savoir a quoi ca repondait -- le nom de la rubrique n'existait que sur
+   l'option vide, donc disparaissait des le premier choix.
+   Le groupe etiquette + menu ne se coupe jamais entre deux lignes. */
+.voice-critere-champ {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.voice-critere-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 #voices-bottom-bar {

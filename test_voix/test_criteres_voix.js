@@ -11,6 +11,13 @@
 //   2. ce que la page ENVOIE porte bien les cles attendues par le serveur --
 //      une faute de classe ou d'identifiant perdrait l'annotation en silence.
 //
+// Depuis le 20/09/2026, il verifie AUSSI l'affichage des RUBRIQUES (demande de
+// Laurent : « une fois une valeur choisie, la ligne affiche "adulte" ou "aigu"
+// sans dire de quelle rubrique il s'agit ») : chaque menu porte devant lui une
+// etiquette courte ecrite (« Âge », « Timbre », « Débit »...), qui ne depend
+// pas du choix en cours, et l'option vide n'annonce plus la rubrique (elle
+// affiche un tiret, comme les menus genre/etoiles).
+//
 // Meme technique que test_voix_ecoutables.js : les fonctions sont extraites DU
 // FICHIER REEL (jamais recopiees), avec un faux DOM minimal et un faux fetch.
 //
@@ -197,9 +204,29 @@ verifier('les menus portent les cles du serveur',
 verifier('chaque menu propose « non renseigne » + les valeurs du serveur',
   menusA.every((m, i) => m.children.length === 1 + CRITERES[i].valeurs.length),
   menusA.map(m => m.children.length).join(','));
-verifier('le premier choix annonce le critere (etat vide)',
+verifier('le premier choix est le tiret de « non renseigne »',
   menusA.every((m, i) => m.children[0].value === ''
-    && m.children[0].textContent === CRITERES[i].libelle));
+    && m.children[0].textContent === '\u2013'));
+// Demande de Laurent, 19/09/2026 : « une fois une valeur choisie, la ligne
+// affiche "adulte" ou "aigu" sans dire de quelle rubrique il s'agit ». Le nom
+// de la rubrique est donc ECRIT devant le menu, et il ne depend plus du tout
+// de ce qui est selectionne.
+const etiquettes = a.li.querySelectorAll('.voice-critere-label');
+verifier('chaque menu a son etiquette de rubrique devant',
+  etiquettes.length === CRITERES.length, etiquettes.length);
+verifier('les etiquettes sont courtes, en francais, dans l ordre du serveur',
+  etiquettes.map(l => l.textContent).join(',')
+    === '\u00C2ge,Timbre,D\u00E9bit,Accent,Registre,R\u00F4le',
+  etiquettes.map(l => l.textContent).join(','));
+// L'etiquette et son menu vivent dans le MEME petit groupe : sur un telephone,
+// un passage a la ligne ne doit jamais separer un menu du nom de sa rubrique.
+const groupes = a.li.querySelectorAll('.voice-critere-champ');
+verifier('chaque groupe porte son etiquette PUIS son menu',
+  groupes.length === CRITERES.length
+  && groupes.every((g, i) => g.children.length === 2
+    && g.children[0] === etiquettes[i]
+    && g.children[1] === menusA[i]),
+  groupes.map(g => g.children.length).join(','));
 verifier('les valeurs sont celles du serveur, dans l ordre',
   menusA.every((m, i) => m.children.slice(1).map(o => o.value).join(',')
     === CRITERES[i].valeurs.map(v => v.valeur).join(',')));
@@ -230,6 +257,21 @@ const c = lignePour(VOIX, { timbre: 'rugueux' });
 const menuTimbre = c.li.querySelectorAll('.voice-critere')
   .find(m => m.dataset.critere === 'timbre');
 verifier('valeur inconnue -> menu vide', menuTimbre.value === '', menuTimbre.value);
+
+console.log('');
+console.log('4 bis) une rubrique INCONNUE (ajoutee plus tard cote serveur)');
+// Le serveur est la seule source de verite des criteres : si une 7e rubrique
+// arrive un jour, l'etiquette ne doit pas rester vide -- elle retombe alors sur
+// le libelle complet du serveur. C'est le genre d'oubli qui ne se verrait qu'a
+// l'usage, une fois la rubrique en place.
+const e = lignePour(VOIX, {}, [{ cle: 'nouveau', libelle: 'Rubrique inconnue',
+                                 valeurs: [['a', 'a']] }]);
+const etiquetteInconnue = e.li.querySelectorAll('.voice-critere-label')[0];
+verifier('une rubrique inconnue affiche son libelle complet',
+  !!etiquetteInconnue && etiquetteInconnue.textContent === 'Rubrique inconnue',
+  etiquetteInconnue && etiquetteInconnue.textContent);
+verifier('et son menu existe quand meme',
+  e.li.querySelectorAll('.voice-critere').length === 1);
 
 console.log('');
 console.log('5) ce qui part vers le serveur');

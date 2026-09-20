@@ -9,8 +9,15 @@
   <meta name="theme-color" content="#0d0d0d" />
   <link rel="manifest" href="/static/manifest.json" />
   <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+  <!-- Favicons, avec leur TAILLE REELLE (20/09/2026). Chrome refuse d'installer
+       une application dont les icones declarees ne correspondent pas aux
+       fichiers : les trois entrees du manifeste pointaient sur la meme image
+       512x512 en annoncant 192, 512 et 2048 -- d'ou l'absence de l'option
+       « Installer l'application ». Chaque taille a maintenant SON fichier. -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260919-6" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260920-15" />
 </head>
 <body>
   <div id="app">
@@ -39,6 +46,18 @@
           Ajouter
         </label>
       </header>
+
+      <!-- Installer l'application (20/09/2026) : Laurent cherchait l'option
+           « Installer » dans Chrome sans la trouver (elle n'apparait qu'a
+           certaines conditions, et Chrome ne dit jamais pourquoi). Ce bouton
+           declenche l'installation DEPUIS l'application -- Android affiche
+           alors sa propre fenetre -- et s'il n'y a rien a proposer, il EXPLIQUE
+           ou chercher au lieu de ne rien faire. Il disparait quand
+           l'application tourne deja comme une application installee. -->
+      <button id="installer-btn" class="hidden" type="button">
+        &#x1F4F2; Installer l'application
+      </button>
+      <p id="installer-note" class="hidden"></p>
 
       <div id="upload-progress" class="hidden">
         <div id="upload-bar"></div>
@@ -89,60 +108,108 @@
       <footer id="reader-footer">
         <audio id="tts-audio-player" playsinline></audio>
 
-        <div id="tts-progress-row">
+        <div id="tts-progress-row" role="button" tabindex="0"
+             title="Ouvrir le lecteur (couverture, chapitre, phrase en cours)">
           <div id="tts-progress">
             <div id="tts-progress-fill"></div>
           </div>
           <span id="tts-time-remaining"></span>
+          <!-- Repere « ouvrir le lecteur » (20/09/2026) : la barre de progression
+               est cliquable, ce petit signe le dit sans mot. -->
+          <span id="tts-progress-ouvrir" aria-hidden="true">&#x2922;</span>
         </div>
 
+        <!-- Barre de navigation du lecteur, refaite le 20/09/2026 (demande de
+             Laurent) : SIX fleches symetriques autour du bouton de lecture,
+             toutes en ICONES SVG (fleches blanches sur fond marron fonce), avec
+             TROIS NIVEAUX de saut -- le nombre de triangles dit la taille du
+             pas :
+               ⏮ chapitre precedent   (triangle + barre : la limite)
+               ⏪ retour moyen         (DEUX triangles : 4 paragraphes d'un coup)
+               ◀ phrase precedente    (UN triangle : le pas fin)
+               ▶ LECTURE / PAUSE      (le bouton rond dore, au centre)
+               ▶ phrase suivante      (UN triangle)
+               ⏩ avance moyenne       (DEUX triangles : 4 paragraphes)
+               ⏭ chapitre suivant     (triangle + barre)
+             Pourquoi ce troisieme niveau (idee de Laurent, 20/09/2026) : « le
+             saut de paragraphe correspond tres souvent a un saut de phrase » --
+             donc un saut d'UN paragraphe ne se distinguait pas d'un saut de
+             phrase. ⏪/⏩ sautent donc PLUSIEURS paragraphes (voir
+             _PAS_PARAGRAPHES dans app.js), et la phrase a sa propre paire.
+             Des SVG et non des emojis : un emoji ne peut PAS etre blanc (il
+             garde ses couleurs, ou s'affiche en petit noir et blanc selon le
+             clavier) -- c'est ce qui faisait deux familles de boutons dans la
+             meme barre. -->
         <div id="reader-nav">
-          <button id="prev-btn" aria-label="Chapitre precedent">
+          <button id="prev-btn" aria-label="Chapitre précédent"
+                  title="Chapitre précédent">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"/>
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="5" x2="5" y2="19"/>
+              <polygon points="19 5 9 12 19 19" fill="currentColor" stroke="none"/>
             </svg>
           </button>
 
-          <div id="tts-nav">
-            <button id="para-prev-btn" aria-label="Paragraphe precedent">⏮</button>
-            <button id="sent-prev-btn" aria-label="Phrase precedente">⏪</button>
+          <button id="para-prev-btn" aria-label="Reculer de plusieurs paragraphes"
+                  title="Retour (4 paragraphes d'un coup)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 3 12 11 19" fill="currentColor" stroke="none"/>
+              <polygon points="20 5 12 12 20 19" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
 
-            <div id="tts-controls">
-              <button id="tts-play-btn" aria-label="Lecture / Pause">
-                <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="5 3 19 12 5 21 5 3"/>
-                </svg>
-                <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-                     class="hidden">
-                  <line x1="10" y1="6" x2="10" y2="18"/>
-                  <line x1="14" y1="6" x2="14" y2="18"/>
-                </svg>
-                <svg id="icon-spin" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                     class="hidden">
-                  <path d="M12 2a10 10 0 0 1 10 10"/>
-                </svg>
-              </button>
-            </div>
+          <button id="sent-prev-btn" aria-label="Phrase précédente"
+                  title="Phrase précédente">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="16 4 6 12 16 20" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
 
-            <button id="para-next-btn" aria-label="Paragraphe suivant">⏭</button>
+          <div id="tts-controls">
+            <button id="tts-play-btn" aria-label="Lecture / Pause">
+              <svg id="icon-play" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              <svg id="icon-pause" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                   class="hidden">
+                <line x1="10" y1="6" x2="10" y2="18"/>
+                <line x1="14" y1="6" x2="14" y2="18"/>
+              </svg>
+              <svg id="icon-spin" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                   class="hidden">
+                <path d="M12 2a10 10 0 0 1 10 10"/>
+              </svg>
+            </button>
           </div>
 
-          <button id="next-btn" aria-label="Chapitre suivant">
+          <button id="sent-next-btn" aria-label="Phrase suivante"
+                  title="Phrase suivante">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"/>
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="8 4 18 12 8 20" fill="currentColor" stroke="none"/>
             </svg>
           </button>
 
-          <button id="rsvp-open-btn" aria-label="Mode lecture RSVP" title="Mode RSVP">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <line x1="3" y1="12" x2="21" y2="12"/>
+          <button id="para-next-btn" aria-label="Avancer de plusieurs paragraphes"
+                  title="Avance (4 paragraphes d'un coup)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="4 5 12 12 4 19" fill="currentColor" stroke="none"/>
+              <polygon points="13 5 21 12 13 19" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+
+          <button id="next-btn" aria-label="Chapitre suivant"
+                  title="Chapitre suivant">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 5 15 12 5 19" fill="currentColor" stroke="none"/>
+              <line x1="19" y1="5" x2="19" y2="19"/>
             </svg>
           </button>
         </div>
@@ -161,6 +228,23 @@
                   title="Marquer un endroit et retrouver mes marques">
             🔖 Onglets
           </button>
+          <!-- Mode lecture rapide (RSVP), DEPLACE ICI le 20/09/2026 (demande de
+               Laurent) : il etait range avec les fleches de chapitre, alors que
+               c'est un MODE de lecture — et il gagne une icone lisible :
+               « 👀 Lecture Rapide ». Il partage maintenant le style des trois
+               boutons voisins (meme echelle). -->
+          <button id="rsvp-open-btn" aria-label="Mode lecture rapide (RSVP)"
+                  title="Lecture rapide, mot à mot (RSVP)">
+            👀 Lecture Rapide
+          </button>
+          <!-- Vider le cache audio (demande de Laurent, 18/09/2026) : le cache
+               se purge seul par quota, mais il n'y avait AUCUN moyen de le faire
+               a la main — c'est ce qui manque quand on doute d'un rendu.
+               Le compte est ecrit dans le libelle, rempli par app.js. -->
+          <button id="cache-open-btn" aria-label="Vider le cache audio"
+                  title="Vider le cache audio (l'audio déjà synthétisé sera recréé à la prochaine écoute)">
+            🧹 Vider le cache
+          </button>
           <!-- Les deux menus sont groupes sur leur propre rangee (15/09/2026,
                demande de Laurent : agencement plus compact) : la voix du
                narrateur prend la place restante, la vitesse garde sa taille. -->
@@ -173,6 +257,11 @@
               <option value="+10%">Rapide</option>
               <option value="+25%">Tres rapide</option>
             </select>
+            <!-- Ligne d'explication de la voix du narrateur (20/09/2026) :
+                 elle dit pourquoi le livre ouvert ne lit pas avec la voix qui
+                 lui est enregistree (moteur eteint). Vide en temps normal, donc
+                 invisible (voir #narrateur-etat:empty dans styles.css). -->
+            <span id="narrateur-etat"></span>
           </div>
           <!-- Bouton de bascule des moteurs de voix lourds (Kyutai, XTTS v2),
                rempli par app.js : il dit pourquoi les voix d'un moteur eteint
@@ -229,6 +318,15 @@
         <p id="voice-phrase-usage"></p>
         <div id="voice-phrase-actions">
           <button id="voice-phrase-ecouter-btn" type="button">▶ Écouter</button>
+          <!-- PORTE VERS LE CASTING (20/09/2026, demande de Laurent : « cette
+               modale est moins riche que casting des voix »). Le panneau ne
+               change qu'UNE voix ; pour le reste -- cadenas, vitesse et
+               hauteur, tiroir des voix libres, badges d'etat -- ce bouton
+               ouvre la vraie fenetre SUR ce personnage, mis en evidence.
+               Il est CACHE pour la narration : le narrateur n'a pas de ligne
+               dans le casting (sa voix se change dans le menu du haut). -->
+          <button id="voice-phrase-cast-btn" type="button"
+                  title="Ouvrir la fenêtre du casting sur ce personnage (cadenas, vitesse, hauteur, voix libres)">🎭 Ouvrir dans le casting</button>
           <span id="voice-phrase-note"></span>
         </div>
       </div>
@@ -350,21 +448,23 @@
       <div class="modal-box">
         <p>Quel moteur de voix pour les personnages ?</p>
         <div class="provider-choices">
+          <!-- Icones des moteurs (20/09/2026) : memes reperes que dans les
+               libelles de voix (voir FAMILLES_VOIX, app.js). -->
           <button class="provider-btn" data-moteur="neutts">
-            <span class="provider-name">NeuTTS</span>
+            <span class="provider-name">&#x1F9EA; NeuTTS</span>
             <span class="provider-estimate" id="moteur-detail-neutts"></span>
           </button>
           <button class="provider-btn" data-moteur="xtts">
-            <span class="provider-name">XTTS v2</span>
+            <span class="provider-name">&#x1F9EC; XTTS v2</span>
             <span class="provider-estimate" id="moteur-detail-xtts"></span>
           </button>
           <button class="provider-btn" data-moteur="kyutai">
-            <span class="provider-name">Kyutai</span>
+            <span class="provider-name">&#x26A1;&#xFE0F; Kyutai</span>
             <span class="provider-estimate" id="moteur-detail-kyutai"></span>
           </button>
           <button class="provider-btn" data-moteur="aucun">
             <span class="provider-name">Aucun moteur</span>
-            <span class="provider-estimate">voix Edge, Kokoro et Piper seulement</span>
+            <span class="provider-estimate">voix &#x2601;&#xFE0F; Edge, &#x1F38E; Kokoro et &#x1F3B6; Piper seulement</span>
           </button>
         </div>
         <!-- Rappel affiche au moment du choix : changer de moteur pendant une
@@ -377,12 +477,108 @@
       </div>
     </div>
 
+    <!-- ============ LECTEUR INTEGRE « FACON DEEZER » (20/09/2026) ============ -->
+    <!-- Demande de Laurent : « je vois bien un genre de lecteur en mode PWA, avec
+         la barre de progression qui represente la phrase lue. Une petite modale
+         qui ressemblerait a la lecture de Deezer. »
+         Il s'ouvre en tapant la BARRE DE PROGRESSION du lecteur (le repere
+         naturel : c'est ce qu'on fait partout), et se ferme comme les autres
+         feuilles (croix, tap a cote, Echap).
+         TOUS ses boutons sont des TELECOMMANDES de la barre du bas : ils cliquent
+         sur les vrais boutons, donc il n'y a pas deux logiques de navigation a
+         maintenir. Meme jeu d'icones (fleches blanches sur marron fonce) pour ne
+         rien avoir a reapprendre. -->
+    <div id="lecteur-modal" class="hidden" role="dialog" aria-modal="true"
+         aria-label="Lecteur">
+      <div id="lecteur-inner">
+        <div id="lecteur-header">
+          <span>&#x1F50A; En cours de lecture</span>
+          <button id="lecteur-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+
+        <img id="lecteur-couverture" alt="Couverture du livre" class="hidden" />
+
+        <div id="lecteur-titre"></div>
+        <div id="lecteur-auteur"></div>
+        <div id="lecteur-chapitre"></div>
+
+        <div id="lecteur-qui"></div>
+        <div id="lecteur-phrase"></div>
+
+        <div id="lecteur-barre"><div id="lecteur-barre-fill"></div></div>
+        <div id="lecteur-compteur"></div>
+
+        <div id="lecteur-boutons">
+          <button id="lecteur-prev-chap" aria-label="Chapitre précédent"
+                  title="Chapitre précédent">
+            <svg width="20" height="20" viewBox="0 0 24 24"><line x1="5" y1="5" x2="5" y2="19"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <polygon points="19 5 9 12 19 19" fill="currentColor"/></svg>
+          </button>
+          <button id="lecteur-prev-para" aria-label="Reculer de plusieurs paragraphes"
+                  title="Retour (4 paragraphes d'un coup)">
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <polygon points="11 5 3 12 11 19" fill="currentColor"/>
+              <polygon points="20 5 12 12 20 19" fill="currentColor"/></svg>
+          </button>
+          <button id="lecteur-prev-sent" aria-label="Phrase précédente"
+                  title="Phrase précédente">
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <polygon points="16 4 6 12 16 20" fill="currentColor"/></svg>
+          </button>
+
+          <button id="lecteur-play-btn" aria-label="Lecture / Pause">
+            <svg id="lecteur-icon-play" width="24" height="24" viewBox="0 0 24 24">
+              <polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/></svg>
+            <svg id="lecteur-icon-pause" width="24" height="24" viewBox="0 0 24 24"
+                 class="hidden">
+              <line x1="10" y1="6" x2="10" y2="18" stroke="currentColor"
+                    stroke-width="2.4" stroke-linecap="round"/>
+              <line x1="14" y1="6" x2="14" y2="18" stroke="currentColor"
+                    stroke-width="2.4" stroke-linecap="round"/></svg>
+          </button>
+
+          <button id="lecteur-next-sent" aria-label="Phrase suivante"
+                  title="Phrase suivante">
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <polygon points="8 4 18 12 8 20" fill="currentColor"/></svg>
+          </button>
+          <button id="lecteur-next-para" aria-label="Avancer de plusieurs paragraphes"
+                  title="Avance (4 paragraphes d'un coup)">
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <polygon points="4 5 12 12 4 19" fill="currentColor"/>
+              <polygon points="13 5 21 12 13 19" fill="currentColor"/></svg>
+          </button>
+          <button id="lecteur-next-chap" aria-label="Chapitre suivant"
+                  title="Chapitre suivant">
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <polygon points="5 5 15 12 5 19" fill="currentColor"/>
+              <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor"
+                    stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="cast-modal" class="modal-overlay hidden" role="dialog"
          aria-modal="true" aria-label="Casting des voix">
       <div class="modal-box cast-box">
         <div id="cast-modal-header">
           <h3>Casting des voix</h3>
           <button id="cast-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+        <!-- Barre de recherche des personnages (20/09/2026, item du BACKLOG du
+             14/09/2026). Sur un livre a 176 personnages, retrouver un nom a la
+             main etait long. Meme look que la recherche de « Ecouter les voix »,
+             placee tout en haut pour etre trouvee du premier coup d'oeil.
+             Dans l'onglet « Voix libres », la liste ne montre plus des
+             personnages mais des VOIX : la meme barre cherche alors leur
+             prenom, sinon elle aurait l'air morte. -->
+        <div id="cast-search-bar">
+          <input type="search" id="cast-search"
+                 placeholder="Rechercher un personnage..."
+                 aria-label="Rechercher un personnage">
+          <span id="cast-search-resume"></span>
         </div>
         <div id="cast-saga-bar">
           <input type="text" id="cast-saga-input" list="cast-saga-list"
@@ -396,8 +592,12 @@
           <span>Voix proposées :</span>
           <div id="cast-gender-actions">
             <button type="button" data-genre="T" class="actif">Toutes</button>
-            <button type="button" data-genre="F">Femmes</button>
-            <button type="button" data-genre="M">Hommes</button>
+            <!-- Symboles ecrits avec leur SELECTEUR EMOJI (&#xFE0F;) : sans lui,
+                 ils s'affichent en petit noir et blanc selon les claviers
+                 (piege signale au BACKLOG du 19/09/2026). « Toutes » n'en porte
+                 pas : ce sont les deux genres a la fois. -->
+            <button type="button" data-genre="F">&#x2640;&#xFE0F; Femmes</button>
+            <button type="button" data-genre="M">&#x2642;&#xFE0F; Hommes</button>
           </div>
         </div>
         <!-- Etat des PERSONNAGES (a ne pas confondre avec la barre ci-dessus,
@@ -500,13 +700,19 @@
         <div id="voices-tools">
           <input type="search" id="voices-search"
                  placeholder="Rechercher un prenom..." aria-label="Rechercher une voix">
+          <!-- Les ICONES des moteurs viennent de la meme table que le reste de
+               l'application (`FAMILLES_VOIX`, app.js) : on en change une la-bas,
+               et elle change partout. Ici, on ne fait que l'ecrire.
+               NeuTTS manquait dans cette liste alors que ses voix sont bien
+               proposees : ajoute le 20/09/2026. -->
           <select id="voices-famille" aria-label="Filtrer par moteur">
             <option value="T">Tous les moteurs</option>
-            <option value="edge">Edge (en ligne)</option>
-            <option value="kokoro">Kokoro</option>
-            <option value="piper">Piper</option>
-            <option value="kyutai">Kyutai</option>
-            <option value="xtts">XTTS v2</option>
+            <option value="edge">&#x2601;&#xFE0F; Edge (en ligne)</option>
+            <option value="kokoro">&#x1F38E; Kokoro</option>
+            <option value="piper">&#x1F3B6; Piper</option>
+            <option value="kyutai">&#x26A1;&#xFE0F; Kyutai</option>
+            <option value="xtts">&#x1F9EC; XTTS v2</option>
+            <option value="neutts">&#x1F9EA; NeuTTS</option>
           </select>
           <span id="voices-recap"></span>
         </div>
@@ -533,6 +739,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260919-6"></script>
+  <script src="/static/app.js?v=20260920-15"></script>
 </body>
 </html>

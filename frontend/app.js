@@ -37,6 +37,14 @@ let _castGenreFiltre = 'T';
 // personnages (tous / a caster / voix partagee).
 let _castEtatFiltre = 'T';
 
+// Barre de recherche des PERSONNAGES de la fenetre du casting (20/09/2026,
+// item du BACKLOG du 14/09/2026) : le texte tape dans #cast-search. Il est
+// garde ici, et non lu dans le champ au moment de l'affichage, pour que
+// l'ecran puisse etre reconstruit (filtre d'etat, changement de voix) SANS
+// faire perdre la recherche en cours. Remis a zero a la fermeture : on rouvre
+// toujours la fenetre sur la liste complete.
+let _castRecherche = '';
+
 // Seuil des petits roles : le MEME que MINOR_THRESHOLD cote serveur
 // (modules/voice_casting.py), verifie par test_voix/test_pool_casting.py.
 // Il sert ici a distinguer un petit role normal (voix generique voulue) d'un
@@ -62,6 +70,9 @@ let _messageHorsLigneQuand = 0;
 // (session du 14/09/2026, demande de Laurent).
 let _moteursEtat  = {};
 let _moteursQuand = 0;      // horodatage du dernier chargement reussi
+// Etat du cache audio (20/09/2026) : { octets, quota_octets, fichiers, version },
+// lu par /api/cache_audio. Sert au libelle du bouton « 🧹 Vider le cache ».
+let _cacheEtat    = null;
 const MOTEURS_TTL_MS = 5000;
 
 // Changement de moteur (bouton de bascule, 15/09/2026) : un moteur met 10 a
@@ -238,6 +249,24 @@ function _libelleCritere(cle, valeur) {
   return trouve ? trouve.libelle : String(valeur);
 }
 
+// Symbole du GENRE d'une voix ou d'un personnage, a poser DEVANT un prenom
+// (item du BACKLOG du 19/09/2026, demande de Laurent : « on laisse le prenom,
+// mais on ajoute les symboles, ca sera plus simple a l'oeil »).
+// Fonction PURE (aucun DOM, aucun appel reseau) : verifiee par
+// test_voix/test_libelle_voix.js, qui l'extrait du fichier reel.
+// Deux pieges signales d'avance au BACKLOG, tous les deux evites ici :
+//   - les symboles portent leur SELECTEUR EMOJI (\uFE0F), sinon ils s'affichent
+//     en petit noir et blanc selon les claviers et les polices ;
+//   - un genre INCONNU (ni F, ni M, ni H) ne recoit AUCUN symbole : mieux vaut
+//     rien qu'un genre faux. Les fiches de PERSONNAGE ecrivent « H » pour un
+//     homme (colonne `genre` de la table `voices`, defaut 'H'), les CATALOGUES
+//     de voix ecrivent « M » : les deux sont acceptes.
+function _symboleGenre(genre) {
+  if (genre === 'F') return '\u2640\uFE0F';                  // femme
+  if (genre === 'M' || genre === 'H') return '\u2642\uFE0F'; // homme
+  return '';
+}
+
 function _libelleVoix(v) {
   const annots = (typeof _annotationsVoix === 'undefined') ? {} : _annotationsVoix;
   const annote = annots[v.id] || {};
@@ -250,10 +279,25 @@ function _libelleVoix(v) {
   if (timbre) {
     notes += ' ' + timbre;
   }
-  // Le moteur, nomme comme dans le reste du lecteur (Kokoro, XTTS v2...).
-  const moteur = (typeof _familleDeVoix === 'function')
-    ? ' \u2014 ' + _libelleFamille(_familleDeVoix(v.id)) : '';
-  return v.name + ' ' + DRAPEAU_FR + _secondDrapeauDeVoix(v) + notes + moteur;
+  // Le moteur, montre par son ICONE (20/09/2026) : dans un menu etroit, le nom
+  // (« — Kokoro ») prenait la place du prenom, de l'age et du timbre — c'est
+  // justement ce que Laurent voulait remplacer. Le nom complet reste partout ou
+  // il y a la place : ligne d'une voix dans « Ecouter les voix », en-tete de
+  // groupe du tiroir, menu de filtre des moteurs, bouton des moteurs.
+  // Le `typeof` protege le test node, qui isole cette fonction sans lui fournir
+  // la table des icones : sans icone, aucun tiret orphelin n'est ecrit.
+  const iconeMoteur = (typeof _iconeFamille === 'function')
+    ? _iconeFamille(_familleDeVoix(v.id)) : '';
+  const moteur = iconeMoteur ? ' \u2014 ' + iconeMoteur : '';
+  // Le symbole du genre passe DEVANT le prenom (20/09/2026) : c'est la ou
+  // l'oeil le trouve quand la liste n'est pas deja rangee par genre --
+  // fenetre « Ecouter les voix » (rangee par moteur), tiroir des voix libres,
+  // menu du narrateur. Dans les menus du CASTING, deja groupes « Femmes » /
+  // « Hommes », il est redondant mais jamais faux : on le garde partout pour
+  // que le meme prenom se lise de la meme facon dans toute l'application.
+  const symbole = _symboleGenre(v.gender);
+  return (symbole ? symbole + ' ' : '')
+    + v.name + ' ' + DRAPEAU_FR + _secondDrapeauDeVoix(v) + notes + moteur;
 }
 
 // ---- Etat des moteurs de voix lourds (Kyutai, XTTS v2) ----
@@ -281,9 +325,15 @@ async function loadMoteurs(force) {
 // reel (test_voix/test_bouton_moteur.js).
 function _libelleMoteur(etat) {
   const prets = [], chargements = [];
+  // L'ICONE du moteur accompagne son nom dans le bouton (20/09/2026), comme
+  // partout ailleurs. Le `typeof` protege le test node, qui isole cette
+  // fonction seule (sans la table des icones) : le nom est ecrit dans tous les
+  // cas, l'icone s'ajoute quand elle est connue.
+  const avecIcone = (prefixe, nom) => ((typeof _iconeFamille === 'function')
+    ? _libelleFamilleIcone(prefixe) : nom);
   Object.keys(etat || {}).forEach((prefixe) => {
     const info = (etat || {})[prefixe] || {};
-    const nom  = info.nom || prefixe;
+    const nom  = avecIcone(prefixe, info.nom || prefixe);
     if (info.pret)       prets.push(nom);
     else if (info.actif) chargements.push(nom);
   });
@@ -320,6 +370,83 @@ function _afficherEtatMoteurs() {
   el.textContent = libelle.texte;
   el.classList.toggle('moteur-etat-off', libelle.eteint);
   el.title = 'Changer de moteur de voix (un seul a la fois)';
+}
+
+// ============================================================
+// CACHE AUDIO — compte et purge a la main (20/09/2026)
+// ============================================================
+// Demande de Laurent (18/09/2026) : le cache se purge deja tout seul (quota de
+// 2 Go, et VERSION_CACHE quand le texte envoye au moteur change), mais il
+// n'avait AUCUN bouton pour le forcer -- c'est exactement ce qui manque quand on
+// doute d'un rendu (le 18/09/2026, il a fallu vider le dossier a la main pour
+// ecarter cette piste). Sans danger : le cache ne contient que de l'audio DEJA
+// synthetise, que le moteur refera a l'identique.
+
+// Taille lisible : « 604 Mo », « 1,2 Go », « 12 Ko ». Fonction PURE (aucun DOM,
+// aucun appel reseau) : test_voix/test_cache_audio.js l'extrait du fichier reel.
+function _formatOctets(octets) {
+  const o = Number(octets) || 0;
+  if (o >= 1024 * 1024 * 1024) {
+    return (o / (1024 * 1024 * 1024)).toFixed(1).replace('.', ',') + ' Go';
+  }
+  if (o >= 1024 * 1024) return Math.round(o / (1024 * 1024)) + ' Mo';
+  if (o >= 1024)        return Math.round(o / 1024) + ' Ko';
+  return o + ' o';
+}
+
+// Libelle du bouton : « 🧹 Vider le cache (604 Mo) ». Sans compte connu (serveur
+// pas encore repondu, ou erreur), il reste court et sans chiffre : jamais un
+// « undefined » dans la barre du lecteur.
+function _libelleBoutonCache(etat) {
+  const connu = !!etat && typeof etat.octets === 'number';
+  return '\uD83E\uDDF9 Vider le cache'
+    + (connu ? ' (' + _formatOctets(etat.octets) + ')' : '');
+}
+
+async function _chargerEtatCache() {
+  const btn = document.getElementById('cache-open-btn');
+  if (!btn) return;
+  try {
+    const res = await fetch('/api/cache_audio');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    _cacheEtat = await res.json();
+  } catch (e) {
+    console.error('Erreur lecture du cache audio:', e);
+    _cacheEtat = null;
+  }
+  btn.textContent = _libelleBoutonCache(_cacheEtat);
+  if (_cacheEtat && _cacheEtat.fichiers) {
+    btn.title = _cacheEtat.fichiers + ' phrase(s) déjà synthétisée(s) — quota '
+      + _formatOctets(_cacheEtat.quota_octets) + '.\nLes vider ne perd aucune '
+      + 'donnée : le moteur les recréera à la prochaine écoute.';
+  }
+}
+
+async function _viderCacheAudio() {
+  const btn = document.getElementById('cache-open-btn');
+  let msg = 'Vider le cache audio ?\n\n';
+  if (_cacheEtat && _cacheEtat.octets) {
+    msg += 'Cela libérera ' + _formatOctets(_cacheEtat.octets)
+         + ' (' + _cacheEtat.fichiers + ' phrases déjà synthétisées).\n';
+  }
+  msg += 'Aucune donnée n\'est perdue : c\'est de l\'audio déjà synthétisé, que '
+       + 'le moteur recréera à la prochaine écoute.';
+  if (!window.confirm(msg)) return;
+
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/cache_audio/vider', { method: 'POST' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const r = await res.json();
+    await _chargerEtatCache();          // le compte affiche repart a zero
+    alert('Cache vidé : ' + _formatOctets(r.octets_liberes) + ' libérés ('
+          + r.fichiers_supprimes + ' phrases).');
+  } catch (e) {
+    console.error('Erreur purge du cache audio:', e);
+    alert('Le cache n\'a pas pu être vidé : ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ---- Changement de moteur : fenetre de choix ----
@@ -503,30 +630,83 @@ async function loadVoices() {
 // rechargement », et surtout « je n'ai pas la meme pour Monte-Cristo et pour
 // 22/11/63 ». Elle est donc retenue PAR LIVRE, en base (table books, colonne
 // narrator_voice) : elle suit le livre d'un appareil a l'autre.
+//
+// 20/09/2026 -- DEUX DEFAUTS CORRIGES (constat de Laurent : « la voix narrateur
+// passe d'un livre a l'autre ; chaque livre devrait avoir son narrateur ») :
+//   1. un livre SANS valeur enregistree gardait la voix du livre precedent (la
+//      restauration sortait sans rien faire), et rien n'etait ecrit pour lui.
+//      Il recoit maintenant la voix par DEFAUT, et cette valeur est ENREGISTREE
+//      pour ce livre : chacun a SA voix, et elle le suit.
+//   2. si la voix enregistree n'etait pas proposee (moteur eteint), le menu
+//      gardait l'autre voix EN SILENCE (un console.warn, invisible pour
+//      Laurent) : on repart sur le defaut et on le DIT sous les menus, SANS
+//      ecraser le choix du livre (il revient des que le moteur est rallume).
+const NARRATEUR_VOIX_DEFAUT = 'fr-CH-ArianeNeural';
+
+// Affiche (ou efface) la ligne d'explication sous les menus du lecteur.
+function _messageNarrateur(texte) {
+  const el = document.getElementById('narrateur-etat');
+  if (el) el.textContent = texte || '';
+}
+
+// Enregistre la voix du narrateur pour le LIVRE ouvert (et son proprietaire).
+function _enregistrerVoixNarrateur(voix) {
+  if (!_currentBookId) return;               // aucun livre ouvert : rien a lier
+  fetch('/api/books/' + _currentBookId + '/narrator?user_id=' + _currentUserId, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ voice: voix })
+  }).catch(() => { /* le choix reste valable pour la session en cours */ });
+}
+
+// Met la voix du narrateur dans le menu (si elle est proposee) ; memoriser =
+// garder la trace en memoire du livre ; enregistrer = ecrire pour ce livre.
+function _poserVoixNarrateur(voix, memoriser, enregistrer) {
+  const sel = document.getElementById('voice-select');
+  if (sel && _allVoices.some(v => v.id === voix)) sel.value = voix;
+  if (memoriser && _currentBookData) _currentBookData.narrator_voice = voix;
+  if (enregistrer) _enregistrerVoixNarrateur(voix);
+}
+
 function _restaurerVoixNarrateur(voix) {
   const sel = document.getElementById('voice-select');
-  if (!sel || !voix || sel.value === voix) return;
-  // On ne restaure que si la voix est PROPOSEE (donc si son moteur est
-  // allume) : sinon le menu refuserait la valeur en silence et la lecture
-  // partirait sur la voix par defaut sans que personne ne le sache.
-  if (!_allVoices.some(v => v.id === voix)) {
-    console.warn('Voix du narrateur indisponible pour ce livre :', voix);
+  if (!sel) return;
+
+  const enregistree = (voix || '').trim();
+
+  // (1) Ce livre n'a JAMAIS eu de voix de narrateur : on ne garde pas celle du
+  // livre precedent (elle « passait » d'un livre a l'autre). On remet le defaut
+  // ET on l'enregistre pour ce livre.
+  if (!enregistree) {
+    _poserVoixNarrateur(NARRATEUR_VOIX_DEFAUT, true, true);
+    _messageNarrateur('');
     return;
   }
-  sel.value = voix;
+
+  // (2) La voix du livre existe mais n'est pas proposee : son moteur est sans
+  // doute eteint. On le DIT, on lit au defaut, et on NE TOUCHE PAS au choix du
+  // livre (ni en memoire, ni en base) : il revient des que le moteur est rallume.
+  if (!_allVoices.some(v => v.id === enregistree)) {
+    console.warn('Voix du narrateur indisponible pour ce livre :', enregistree);
+    _poserVoixNarrateur(NARRATEUR_VOIX_DEFAUT, false, false);
+    _messageNarrateur('Voix du narrateur de ce livre : ' + enregistree
+      + ' \u2014 indisponible (moteur \u00e9teint, ou liste des voix non charg\u00e9e). '
+      + 'La voix par d\u00e9faut lit en attendant ; votre choix reste enregistr\u00e9.');
+    return;
+  }
+
+  // (3) Cas normal : ce livre a SA voix, et elle est proposee.
+  _poserVoixNarrateur(enregistree, true, false);
+  _messageNarrateur('');
 }
 
 document.getElementById('voice-select').addEventListener('change', (e) => {
-  if (!_currentBookId) return;               // aucun livre ouvert : rien a lier
   // Memoire locale mise a jour tout de suite (19/09/2026) : sans cela, la
   // fenetre du casting continuait de traiter l'ANCIENNE voix comme celle du
   // narrateur (elle la marquait « · narrateur ») jusqu'au rechargement.
   if (_currentBookData) _currentBookData.narrator_voice = e.target.value;
-  fetch('/api/books/' + _currentBookId + '/narrator?user_id=' + _currentUserId, {
-    method:  'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ voice: e.target.value })
-  }).catch(() => { /* le choix reste valable pour la session en cours */ });
+  _messageNarrateur('');                     // choix explicite : plus d'alerte
+  _enregistrerVoixNarrateur(e.target.value);
 });
 
 // ============================================================
@@ -697,13 +877,17 @@ async function openBook(bookId) {
     _currentBookData = await bookRes.json();
     const progress   = await progRes.json();
 
-    // Chaque livre a SA voix de narration : on restaure celle du livre ouvert
-    // (Monte-Cristo et 22/11/63 n'ont pas la meme, demande du 17/09/2026).
-    _restaurerVoixNarrateur(_currentBookData.narrator_voice);
-
     _currentBookId  = bookId;
     _totalChapters  = _currentBookData.chapter_count;
     _currentChapter = progress.chapter_index || 0;
+
+    // Chaque livre a SA voix de narration : on restaure celle du livre ouvert
+    // (Monte-Cristo et 22/11/63 n'ont pas la meme, demande du 17/09/2026).
+    // Depuis le 20/09/2026, un livre qui n'en a AUCUNE recoit la voix par defaut
+    // ET cette valeur est enregistree : il ne part plus avec la voix du livre
+    // precedent. L'appel vient APRES `_currentBookId` : l'enregistrement vise
+    // bien le livre qu'on ouvre.
+    _restaurerVoixNarrateur(_currentBookData.narrator_voice);
 
     document.getElementById('reader-book-title').textContent =
       _currentBookData.title || 'Sans titre';
@@ -749,6 +933,80 @@ function _formatHz(n) { return (n >= 0 ? '+' : '') + n + 'Hz'; }
 //     c'est le premier a traiter ;
 //   - « partagee » : sa voix est aussi portee par d'autres personnages, a
 //     differencier avec la hauteur (pitch).
+// ============================================================
+// RECHERCHE DANS LA FENETRE DU CASTING (20/09/2026)
+// ============================================================
+// Demande de Laurent (item du BACKLOG du 14/09/2026) : sur un livre a 175
+// personnages, « retrouver un nom a la main devient long ». Le champ de
+// recherche filtre les lignes PENDANT la frappe.
+// Les deux fonctions ci-dessous sont PURES (aucun DOM, aucun appel reseau) :
+// verifiees par test_voix/test_recherche_casting.js.
+
+// Cle de comparaison d'un nom : minuscules, sans accents, apostrophes, tirets
+// et underscores reduits a des espaces. C'est la MEME regle que le serveur
+// (`normalize_character_name`, modules/voice_casting.py), a une difference
+// pres : l'article initial n'est PAS retire (« Le Comte » se trouve en tapant
+// « le »). Dans une recherche en direct, ce qui est tape doit filtrer, pas
+// disparaitre.
+// Volontairement ecrite ici plutot que d'appeler _normalizeSearch (la
+// recherche DANS LE LIVRE, definie plus bas) : la fonction reste autonome,
+// donc verifiable seule par le test.
+function _cleRecherche(s) {
+  return (s || '').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/['\u2019\-_]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+// Lignes du casting retenues par la recherche. On compare le NOM du personnage
+// ET ceux de ses ALIAS : ce sont les variantes du meme nom, elles se lisent
+// ensemble. Dans les deux sens, car une famille est incomplete sinon :
+//   - le personnage trouve garde ses alias (on voit toutes ses appellations) ;
+//   - un alias trouve fait remonter son personnage (sans lui, on ne saurait
+//     pas a qui il appartient : la ligne d'alias s'affiche en retrait SOUS lui).
+// `rows` vient de _lignesPersonnages : chaque principal est suivi de ses alias,
+// dans l'ordre d'affichage -- c'est ce qui permet de reconstituer les familles
+// sans consulter la base.
+function _filtrerPersonnages(rows, recherche) {
+  const liste = rows || [];
+  const q = _cleRecherche(recherche);
+  if (!q) return liste;   // champ vide : rien n'est filtre, comme avant
+
+  const groupes = [];
+  liste.forEach(r => {
+    const dernier = groupes[groupes.length - 1];
+    if (r.isAlias && dernier) dernier.alias.push(r);
+    else groupes.push({ principal: r, alias: [] });
+  });
+
+  const retenues = [];
+  groupes.forEach(g => {
+    if (_cleRecherche(g.principal.nom).indexOf(q) >= 0) {
+      retenues.push(g.principal);
+      g.alias.forEach(a => retenues.push(a));
+      return;
+    }
+    const trouves = g.alias.filter(a => _cleRecherche(a.nom).indexOf(q) >= 0);
+    if (!trouves.length) return;
+    retenues.push(g.principal);
+    trouves.forEach(a => retenues.push(a));
+  });
+  return retenues;
+}
+
+// Meme recherche, appliquee aux VOIX LIBRES du tiroir : la, la liste ne montre
+// plus des personnages mais des VOIX (leur prenom et leur provenance). C'est la
+// meme barre de recherche : selon l'onglet ouvert, elle ne doit pas avoir l'air
+// morte. On passe par _cleRecherche pour que la regle de comparaison (accents,
+// casse, tirets) reste LA MEME partout.
+function _filtrerVoixLibres(voix, recherche) {
+  const liste = voix || [];
+  const q = _cleRecherche(recherche);
+  if (!q) return liste;
+  return liste.filter(v => _cleRecherche(
+    (v.name || '') + ' ' + (v.region || '')).indexOf(q) >= 0);
+}
+
 function _etatCasting(rows, filtre) {
   const estGenerique = (id) => _CAST_VOIX_GENERIQUES.indexOf(id) >= 0;
   const compteParVoix = {};
@@ -1033,7 +1291,7 @@ function _construireMenuVoix(voiceIdActuelle, etatVoix) {
   return select;
 }
 
-async function _openCastModal(rafraichirVoix) {
+async function _openCastModal(rafraichirVoix, listeSeule) {
   // Les voix proposees dependent des moteurs allumes : on rafraichit leur etat
   // AVANT de construire les menus (le moteur a pu etre eteint ou demarre
   // depuis l'affichage de la page).
@@ -1041,17 +1299,35 @@ async function _openCastModal(rafraichirVoix) {
   // et le catalogue complet : sans cela, un moteur allume apres le chargement
   // de la page restait invisible (liste perimee) et ses voix attribuees
   // s'affichaient sous leur identifiant technique (constat du 15/09/2026).
-  await loadMoteurs();
-  if (rafraichirVoix) {
-    await _chargerVoixProposees();
-    await loadCatalogueVoix();
+  // `listeSeule` (20/09/2026) : la barre de recherche reconstruit l'affichage a
+  // CHAQUE lettre tapee. On saute alors tout ce qui parle au serveur (etat des
+  // moteurs, voix proposees, catalogue, suggestions de saga) : rien n'a bouge
+  // depuis l'ouverture de la fenetre, et une requete par lettre rendrait la
+  // frappe molle sur un livre a 176 personnages.
+  if (!listeSeule) {
+    await loadMoteurs();
+    if (rafraichirVoix) {
+      await _chargerVoixProposees();
+      await loadCatalogueVoix();
+    }
   }
   const list    = document.getElementById('cast-list');
   const voices  = (_currentBookData && _currentBookData.voices) || {};
   const aliases = (_currentBookData && _currentBookData.aliases) || {};
 
-  document.getElementById('cast-saga-input').value = (_currentBookData && _currentBookData.saga) || '';
-  _loadSagaSuggestions();
+  if (!listeSeule) {
+    document.getElementById('cast-saga-input').value = (_currentBookData && _currentBookData.saga) || '';
+    _loadSagaSuggestions();
+  }
+
+  // La recherche en cours est ECRITE dans le champ : l'affichage peut etre
+  // reconstruit sans passer par la frappe (filtre d'etat, changement de voix),
+  // et le champ doit toujours montrer ce qui filtre vraiment la liste.
+  const recherche      = _castRecherche.trim();
+  const champRecherche = document.getElementById('cast-search');
+  if (champRecherche && champRecherche.value !== _castRecherche) {
+    champRecherche.value = _castRecherche;
+  }
 
   // Lignes a afficher : chaque principal suivi de ses alias. Construites par
   // _lignesPersonnages (partagee depuis le 19/09/2026 avec le panneau « Voir la
@@ -1076,7 +1352,15 @@ async function _openCastModal(rafraichirVoix) {
   // Etat d'USAGE de chaque voix : libre, prise, partagee, voix du narrateur. Il
   // alimente les badges, les menus deroulants et le tiroir « Voix libres ».
   const etatVoix = _etatVoix(etat, _allVoices, narrateurVoix);
-  const rowsAffichees = etat.rowsFiltrees;
+  // Recherche (20/09/2026) : elle se COMBINE avec le filtre d'etat. Les deux
+  // calculs d'etat ci-dessus restent faits sur TOUT le livre -- sans cela, les
+  // compteurs et les badges « partagee avec ... » mentiraient des la premiere
+  // lettre tapee, car les autres porteurs d'une meme voix disparaitraient du
+  // compte. On garde donc les MEMES objets de ligne : le reste de l'affichage
+  // (badges, regroupement par voix) ne voit aucune difference.
+  const rowsTrouvees = _filtrerPersonnages(rows, recherche);
+  const rowsAffichees = etat.rowsFiltrees
+    .filter(r => rowsTrouvees.indexOf(r) >= 0);
   const resume = document.getElementById('cast-etat-resume');
   if (resume) {
     resume.textContent = rows.length + ' personnages \u00b7 ' + etat.nbCaster
@@ -1098,14 +1382,34 @@ async function _openCastModal(rafraichirVoix) {
 
   list.innerHTML = '';
 
+  // Compteur de la recherche : il dit ce que la liste MONTRE et sur combien de
+  // lignes. Sans lui, un nom mal tape donnerait une liste vide sans que rien
+  // n'explique pourquoi (et sur mobile, aucune infobulle n'est lisible).
+  const resumeRecherche = document.getElementById('cast-search-resume');
+  const ecrireResumeRecherche = (texte) => {
+    if (resumeRecherche) resumeRecherche.textContent = recherche ? texte : '';
+  };
+
   if (_castEtatFiltre === 'libres') {
-    _afficherVoixLibres(list, etatVoix);
+    // Meme barre, autre liste : ici la liste ne montre plus des personnages
+    // mais des VOIX, donc on cherche leur prenom (et leur provenance).
+    _afficherVoixLibres(list, etatVoix, undefined, recherche);
+    const nbLibresAffichees = _filtrerVoixLibres(etatVoix.libres, recherche).length;
+    ecrireResumeRecherche(nbLibresAffichees + ' voix libre'
+      + (nbLibresAffichees > 1 ? 's' : '') + ' sur ' + etatVoix.libres.length);
   } else if (rowsAffichees.length === 0) {
-    list.innerHTML = '<li class="cast-empty">'
-      + (rows.length === 0
+    const vide = document.createElement('li');
+    vide.className = 'cast-empty';
+    vide.textContent = recherche
+      ? 'Aucun personnage ne correspond à « ' + recherche + ' ».'
+      : (rows.length === 0
           ? 'Aucun personnage identifie pour ce livre.'
-          : 'Aucun personnage dans ce filtre.') + '</li>';
+          : 'Aucun personnage dans ce filtre.');
+    list.appendChild(vide);
+    ecrireResumeRecherche('');
   } else {
+    ecrireResumeRecherche(rowsAffichees.length + ' personnage'
+      + (rowsAffichees.length > 1 ? 's' : '') + ' sur ' + rows.length);
     // Vue « Voix partagee » : on GROUPE les lignes par voix. Dans l'ordre
     // habituel (du plus bavard au plus discret), deux personnages qui partagent
     // un timbre ne sont JAMAIS voisins : le partage restait donc invisible.
@@ -1140,8 +1444,18 @@ async function _openCastModal(rafraichirVoix) {
       nameEl.textContent = nom;
       const metaEl = document.createElement('span');
       metaEl.className = 'cast-meta';
-      const genreLabel = v.genre === 'F' ? 'Femme' : 'Homme';
-      metaEl.textContent = genreLabel + ' \u00b7 ' + row.total + ' repliques';
+      // Genre du personnage : SYMBOLE devant, puis le mot en toutes lettres
+      // (item du BACKLOG du 19/09/2026) : « ♀️ Femme · 33 repliques » se
+      // repere d'un coup d'oeil sur un casting de 175 personnages. Le mot reste
+      // pour l'instant ; l'usage dira s'il devient inutile.
+      // Un genre INCONNU n'ecrit NI signe NI mot : avant, l'ancien code
+      // retombait sur « Homme » des que le genre n'etait pas 'F', donc pouvait
+      // annoncer un genre FAUX. Mieux vaut « 33 repliques » que « Homme ».
+      const genreLabel   = (v.genre === 'F') ? 'Femme' : (v.genre ? 'Homme' : '');
+      const symboleGenre = _symboleGenre(v.genre);
+      metaEl.textContent = (genreLabel
+        ? (symboleGenre ? symboleGenre + ' ' : '') + genreLabel + ' \u00b7 '
+        : '') + row.total + ' repliques';
       info.appendChild(nameEl);
       info.appendChild(metaEl);
 
@@ -1593,7 +1907,11 @@ document.addEventListener('keydown', (e) => {
 // `choisir` (facultatif, 19/09/2026) : quand il est fourni, chaque voix gagne un
 // bouton « Choisir » qui attribue cette voix au personnage ouvert -- c'est le
 // meme affichage, reutilise par la fenetre « Voix libres pour <nom> ».
-function _afficherVoixLibres(list, etatVoix, choisir) {
+function _afficherVoixLibres(list, etatVoix, choisir, recherche) {
+  // `recherche` (20/09/2026, facultatif) : la barre de recherche de la fenetre
+  // du casting s'applique ici aussi, ou la liste ne montre plus des personnages
+  // mais des VOIX (leur prenom). Vide ou absent : tout le tiroir, comme avant.
+  const libres = _filtrerVoixLibres(etatVoix.libres, recherche);
   if (!etatVoix.nbProposees) {
     const vide = document.createElement('li');
     vide.className = 'cast-empty';
@@ -1610,14 +1928,27 @@ function _afficherVoixLibres(list, etatVoix, choisir) {
     list.appendChild(vide);
     return;
   }
-  FAMILLES_VOIX.forEach(([cle, libelle]) => {
-    const duMoteur = etatVoix.libres
+  if (!libres.length) {
+    // Recherche sans resultat. A dire : un tiroir vide et muet ferait croire
+    // que toutes les voix sont prises, alors que c'est le filtre qui a parle.
+    const vide = document.createElement('li');
+    vide.className = 'cast-empty';
+    vide.textContent = 'Aucune voix libre ne correspond à « '
+      + (recherche || '').trim() + ' ».';
+    list.appendChild(vide);
+    return;
+  }
+  FAMILLES_VOIX.forEach(([cle, libelle, icone]) => {
+    const duMoteur = libres
       .filter(v => _familleDeVoix(v.id) === cle)
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
     if (!duMoteur.length) return;
     const titre = document.createElement('li');
     titre.className = 'cast-group';
-    titre.textContent = libelle + ' \u00b7 ' + duMoteur.length;
+    // Le nom ET son icone (« 🎎 Kokoro · 12 ») : ici il y a la place, et l'icone
+    // fait le lien avec les libelles des voix, ou elle est seule (20/09/2026).
+    titre.textContent = ((icone || '') ? icone + ' ' : '') + libelle
+      + ' \u00b7 ' + duMoteur.length;
     list.appendChild(titre);
     duMoteur.forEach(v => {
       const li = document.createElement('li');
@@ -1728,8 +2059,12 @@ function _majInfoVoixLibres() {
       compte[f] = (compte[f] || 0) + 1;
     }
   });
+  // Icone + nom : ici c'est une PHRASE, il faut les deux (« 🎎 Kokoro (12 voix)
+  // et 🧬 XTTS v2 (3 voix) »). Garde-fou `typeof` : ce morceau est evalue par un
+  // test node qui peut ne pas fournir la table des icones.
   const noms = Object.keys(compte)
-    .map(f => _libelleFamille(f) + ' (' + compte[f] + ' voix)');
+    .map(f => ((typeof _libelleFamilleIcone === 'function')
+      ? _libelleFamilleIcone(f) : String(f)) + ' (' + compte[f] + ' voix)');
   info.textContent = noms.length
     ? '\u26A0\uFE0F ' + noms.join(' et ') + ' ne sont pas proposées ici : leur '
       + 'moteur est éteint (elles ne sont donc pas forcément prises).'
@@ -1767,6 +2102,13 @@ async function _rafraichirCastingApresChangement() {
 
 function _closeCastModal() {
   document.getElementById('cast-modal').classList.add('hidden');
+  // La recherche ne survit PAS a la fermeture (20/09/2026) : on rouvre toujours
+  // la fenetre sur la liste complete. Sans cela, un personnage cherche la fois
+  // precedente semblerait avoir disparu du livre -- le genre de fausse alerte
+  // qui coute un quart d'heure.
+  _castRecherche = '';
+  const champ = document.getElementById('cast-search');
+  if (champ) champ.value = '';
 }
 
 async function _updateCharacterVoice(characterName, voiceId, rate, pitch) {
@@ -1854,13 +2196,26 @@ async function _previewCharacterVoice(characterName, voiceId, rate, pitch, btn) 
 const PHRASE_ECOUTE = 'Le 24 février 1815, la vigie de Notre-Dame de la Garde '
   + 'signala le trois-mâts le Pharaon, venant de Smyrne, Trieste et Naples.';
 
+// Les moteurs de voix, dans l'ordre d'affichage. Troisieme element : leur
+// ICONE (20/09/2026, demande de Laurent : « trouver des icones pour les
+// moteurs, histoire d'avoir un visuel sur les moteurs plutot que les noms »).
+// UNE SEULE LISTE : on change une icone ici, et elle change partout (libelles
+// des voix, fenetre « Ecouter les voix », tiroir des voix libres, bouton des
+// moteurs). Aucune marque, aucun logo sous licence : des reperes VISIBLES et
+// distincts, choisis pour dire quelque chose du moteur :
+//   - Edge est le seul moteur EN LIGNE  -> le nuage ;
+//   - Kokoro est un modele japonais     -> la poupee japonaise ;
+//   - Piper (le joueur de flute)        -> la note de musique ;
+//   - Kyutai est le moteur LOCAL rapide -> l'eclair ;
+//   - XTTS v2 est le moteur de CLONAGE  -> la molecule ;
+//   - NeuTTS est le plus RECENT         -> la fiole.
 const FAMILLES_VOIX = [
-  ['edge',   'Edge (en ligne)'],
-  ['kokoro', 'Kokoro'],
-  ['piper',  'Piper'],
-  ['kyutai', 'Kyutai'],
-  ['xtts',   'XTTS v2'],
-  ['neutts', 'NeuTTS'],
+  ['edge',   'Edge (en ligne)', '\u2601\uFE0F'],
+  ['kokoro', 'Kokoro',          '\uD83C\uDF8E'],
+  ['piper',  'Piper',           '\uD83C\uDFB6'],
+  ['kyutai', 'Kyutai',          '\u26A1\uFE0F'],
+  ['xtts',   'XTTS v2',         '\uD83E\uDDEC'],
+  ['neutts', 'NeuTTS',          '\uD83E\uDDEA'],
 ];
 
 let _annotationsVoix = {};                       // { voiceId: {genre, stars, note} }
@@ -1877,6 +2232,26 @@ function _familleDeVoix(id) {
 function _libelleFamille(cle) {
   const trouve = FAMILLES_VOIX.find(f => f[0] === cle);
   return trouve ? trouve[1] : cle;
+}
+
+// Icone d'un moteur (« \u2601\uFE0F » pour Edge), ou '' quand la famille est
+// inconnue -- jamais un caractere de remplacement. Fonction PURE : extraite du
+// fichier reel par test_voix/test_libelle_voix.js.
+function _iconeFamille(cle) {
+  const trouve = FAMILLES_VOIX.find(f => f[0] === cle);
+  return (trouve && trouve[2]) ? trouve[2] : '';
+}
+
+// Libelle d'un moteur AVEC son icone (« \uD83C\uDF8E Kokoro ») : pour les
+// endroits ou il y a la place de garder le nom -- en-tete de groupe du tiroir,
+// ligne d'une voix dans « Ecouter les voix », menu de filtre des moteurs,
+// fenetre de choix du moteur. Dans les menus ETROITS (le libelle d'une voix du
+// casting), c'est l'icone SEULE qui sert : le nom y prenait la moitie de la
+// ligne, et c'est justement ce que Laurent voulait remplacer.
+function _libelleFamilleIcone(cle) {
+  const icone = _iconeFamille(cle);
+  const nom   = _libelleFamille(cle);
+  return icone ? icone + ' ' + nom : nom;
 }
 
 async function _chargerAnnotationsVoix() {
@@ -1988,6 +2363,25 @@ function _majStyleCritere(sel) {
 // Une ligne de l'ecouteur : bouton d'ecoute, identite de la voix, puis les
 // notes rapides (genre, etoiles, remarque) et, sur une seconde ligne, les
 // criteres fixes (age, timbre, debit, accent, registre, role).
+// Nom COURT d'une rubrique de critere, ecrit DEVANT son menu (item du BACKLOG
+// du 19/09/2026, demande de Laurent : « une fois une valeur choisie, la ligne
+// affiche "adulte" ou "aigu" sans dire de quelle rubrique il s'agit »).
+// Fonction PURE (aucun DOM, aucun appel reseau) : verifiee par
+// test_voix/test_criteres_voix.js, qui l'extrait du fichier reel.
+// Pourquoi court : six menus doivent tenir sur la ligne d'un telephone.
+// Le libelle COMPLET du serveur reste dans l'infobulle du menu, et une
+// rubrique INCONNUE (ajoutee plus tard cote serveur) retombe dessus -- jamais
+// d'etiquette vide, jamais un menu sans nom.
+const _LIBELLES_COURTS_CRITERES = {
+  age: '\u00C2ge', timbre: 'Timbre', debit: 'D\u00E9bit',
+  accent: 'Accent', registre: 'Registre', role: 'R\u00F4le',
+};
+
+function _libelleCourtCritere(critere) {
+  const c = critere || {};
+  return _LIBELLES_COURTS_CRITERES[c.cle] || c.libelle || c.cle || '';
+}
+
 function _construireLigneVoix(voix) {
   const li = document.createElement('li');
   li.className = 'voice-row';
@@ -2011,7 +2405,12 @@ function _construireLigneVoix(voix) {
   nom.textContent = voix.name || voix.id;
   const meta = document.createElement('span');
   meta.className = 'voice-meta';
-  meta.textContent = _libelleFamille(_familleDeVoix(voix.id))
+  // Icone du moteur PUIS son nom : cette deuxieme ligne est la fiche d'identite
+  // de la voix, il y a la place (20/09/2026). Sans icone (famille inconnue), le
+  // nom seul suffit -- jamais de trou dans le libelle.
+  const famille = _familleDeVoix(voix.id);
+  meta.textContent = ((typeof _libelleFamilleIcone === 'function')
+    ? _libelleFamilleIcone(famille) : _libelleFamille(famille))
     + ' \u00b7 ' + (voix.region || '');
   info.appendChild(nom);
   info.appendChild(meta);
@@ -2057,7 +2456,12 @@ function _construireLigneVoix(voix) {
     sel.className = 'voice-critere';
     sel.dataset.critere = critere.cle;
     sel.title = critere.libelle;
-    const options = [['', critere.libelle]];   // etat vide : le menu s'annonce
+    // Etat vide : un simple tiret, comme les menus « genre » et « etoiles ».
+    // AVANT le 20/09/2026, c'etait le LIBELLE de la rubrique -- et c'est
+    // exactement ce qui posait probleme : il n'apparaissait que tant que rien
+    // n'etait choisi, donc le nom de la rubrique disparaissait des la premiere
+    // valeur selectionnee (constat de Laurent, 19/09/2026).
+    const options = [['', '\u2013']];
     (critere.valeurs || []).forEach(v => options.push([v.valeur, v.libelle]));
     _listeOptions(sel, options, annot[critere.cle] || '');
     _majStyleCritere(sel);
@@ -2066,7 +2470,18 @@ function _construireLigneVoix(voix) {
       _sauverAnnotationVoix(voix.id, li);
     });
     champsCriteres.push(sel);
-    criteres.appendChild(sel);
+    // Le nom de la rubrique est maintenant ECRIT, une fois pour toutes,
+    // DEVANT son menu : « Âge [– ] », « Timbre [grave] ». L'etiquette et son
+    // menu vivent dans le meme petit groupe, pour qu'un passage a la ligne sur
+    // telephone ne les separe jamais.
+    const champ = document.createElement('span');
+    champ.className = 'voice-critere-champ';
+    const etiquette = document.createElement('span');
+    etiquette.className = 'voice-critere-label';
+    etiquette.textContent = _libelleCourtCritere(critere);
+    champ.appendChild(etiquette);
+    champ.appendChild(sel);
+    criteres.appendChild(champ);
   });
 
   // On n'enregistre qu'a la sortie du champ : eviter un appel reseau a chaque
@@ -2517,6 +2932,17 @@ document.getElementById('cast-modal').addEventListener('click', (e) => {
 document.getElementById('cast-recast-btn').addEventListener('click', _recasterLivre);
 document.getElementById('cast-recast-ia-btn').addEventListener('click', _recasterAvecIA);
 document.getElementById('cast-autogroup-btn').addEventListener('click', _autogrouperDoublons);
+
+// Barre de recherche du casting (20/09/2026) : on reconstruit l'affichage a
+// chaque lettre tapee, mais SANS repasser par le serveur (2e argument
+// `listeSeule`) : rien n'a bouge depuis l'ouverture, et une requete par lettre
+// rendrait la frappe molle sur un livre a 176 personnages. Le texte est garde
+// dans _castRecherche pour survivre aux reconstructions (filtre d'etat,
+// changement de voix) : sans cela, il s'effacerait tout seul au premier clic.
+document.getElementById('cast-search').addEventListener('input', (e) => {
+  _castRecherche = e.target.value;
+  _openCastModal(false, true);
+});
 
 // --- Ecouter les voix (listener, 14/09/2026) ---
 document.getElementById('voices-open-btn').addEventListener('click', _ouvrirEcouteurVoix);
@@ -3043,23 +3469,36 @@ function _setCursor(idx) {
   _progressTimer = setTimeout(saveProgress, 3000);
 }
 
-// --- Navigation paragraphe ---
+// --- Navigation paragraphe (et le saut MOYEN de la barre) ---
+// Decision de Laurent, 20/09/2026 : « le saut de paragraphe correspond tres
+// souvent a un saut de phrase » -- donc sauter UN paragraphe ne se distinguait
+// pas d'un saut de phrase. La barre a maintenant TROIS niveaux de saut, et les
+// boutons ⏪ / ⏩ (DEUX triangles) sautent plusieurs paragraphes d'un coup.
+// Une seule ligne a changer pour ajuster le pas.
+const _PAS_PARAGRAPHES = 4;
 
-function _cursorParaNext() {
-  const next = _paragraphStarts.find(s => s > _cursorIdx);
-  if (next !== undefined) {
-    _setCursor(next);
-    if (_ttsState === 'playing') _abortAndRestart();
-  }
+function _cursorParaNext(pas) {
+  const n       = Math.max(1, pas || 1);
+  const suivant = _paragraphStarts.find(s => s > _cursorIdx);
+  if (suivant === undefined) return;          // deja au dernier paragraphe
+  // On part du paragraphe SUIVANT, puis on avance encore (n - 1) -- borne au
+  // dernier paragraphe, on ne depasse jamais la fin du chapitre.
+  const cible = _paragraphStarts[
+    Math.min(_paragraphStarts.indexOf(suivant) + (n - 1),
+             _paragraphStarts.length - 1)];
+  _setCursor(cible);
+  if (_ttsState === 'playing') _abortAndRestart();
 }
 
-function _cursorParaPrev() {
+function _cursorParaPrev(pas) {
+  const n          = Math.max(1, pas || 1);
   const cur        = [..._paragraphStarts].reverse().find(s => s <= _cursorIdx) ?? 0;
   const curParaIdx = _paragraphStarts.indexOf(cur);
-  const target     = (cur < _cursorIdx)
-    ? cur
-    : (curParaIdx > 0 ? _paragraphStarts[curParaIdx - 1] : 0);
-  _setCursor(target);
+  // Regle d'origine conservee : le curseur est DANS un paragraphe -> on recule a
+  // son DEBUT ; il est pile sur un debut -> on recule d'un paragraphe.
+  const base       = (cur < _cursorIdx) ? curParaIdx : Math.max(0, curParaIdx - 1);
+  const cible      = _paragraphStarts[Math.max(0, base - (n - 1))];
+  _setCursor(cible);
   if (_ttsState === 'playing') _abortAndRestart();
 }
 
@@ -3093,28 +3532,81 @@ function toggleTTS() {
   _startTTS();
 }
 
+// Couverture du livre en cours, en URL ABSOLUE : l'ecran verrouille et la
+// notification systeme refusent un chemin relatif.
+function _urlCouvertureLivre() {
+  if (!_currentBookId) return '';
+  return location.origin + '/api/books/' + _currentBookId + '/cover?user_id='
+    + _currentUserId + '&v=2';
+}
+
+// Identite affichee par le SYSTEME (notification + ecran verrouille) : titre du
+// livre, auteur, chapitre, et la COUVERTURE.
+// Demande de Laurent, 20/09/2026 : « un genre de lecteur en mode PWA, avec la
+// barre de progression qui represente la phrase lue... une petite modale qui
+// ressemblerait a la lecture de Deezer ». La couverture et la progression sont
+// les deux reperes qui font qu'Android traite la page comme un VRAI lecteur
+// media -- et c'est aussi ce qui l'aide a rester en vie ecran verrouille.
 function _updateMediaSession() {
   if (!('mediaSession' in navigator)) return;
 
-  const chapterTitle = document.getElementById('chapter-info')
-    ? (document.getElementById('reader-book-title').textContent || 'NIMM ePub')
-    : 'NIMM ePub';
+  const livre = (document.getElementById('reader-book-title')
+    ? document.getElementById('reader-book-title').textContent : '') || 'NIMM ePub';
+  const chapitre = document.getElementById('chapter-title-display')
+    ? document.getElementById('chapter-title-display').textContent : '';
+  const couverture = _urlCouvertureLivre();
 
   navigator.mediaSession.metadata = new MediaMetadata({
-    title:  chapterTitle,
+    title:  livre,
     artist: (_currentBookData && _currentBookData.author) || '',
-    album:  'NIMM ePub'
+    album:  chapitre || 'NIMM ePub',
+    artwork: couverture
+      ? [{ src: couverture, sizes: '512x512', type: 'image/jpeg' }] : []
   });
   navigator.mediaSession.playbackState = 'playing';
 
-  navigator.mediaSession.setActionHandler('play',  () => toggleTTS());
-  navigator.mediaSession.setActionHandler('pause', () => toggleTTS());
-  navigator.mediaSession.setActionHandler('previoustrack', () => document.getElementById('sent-prev-btn').click());
-  // Le bouton ⏩ de la barre a ete retire le 15/09/2026 (doublon avec ⏭ ;
-  // demande de Laurent) : les commandes du casque et de l'ecran verrouille
-  // continuent d'avancer d'UNE PHRASE, comme avant, en appelant directement la
-  // fonction au lieu de cliquer sur un bouton qui n'existe plus.
-  navigator.mediaSession.setActionHandler('nexttrack', () => _cursorSentNext());
+  // Memes pas que la barre du lecteur (voir la section Navigation) :
+  // ◀ / ▶ une phrase, ⏪ / ⏩ quatre paragraphes, ⏮ / ⏭ un chapitre. Le casque
+  // n'utilise que `previoustrack` / `nexttrack` (la phrase) ; l'ecran
+  // verrouille, lui, propose tout ce qu'on declare ici.
+  const lier = (nom, action) => {
+    try {
+      navigator.mediaSession.setActionHandler(nom, action);
+    } catch (e) { /* action non supportee par ce navigateur : on continue */ }
+  };
+  lier('play',          () => toggleTTS());
+  lier('pause',         () => toggleTTS());
+  lier('stop',          () => _stopTTS());
+  lier('previoustrack', () => _cursorSentPrev());
+  lier('nexttrack',     () => _cursorSentNext());
+  lier('seekbackward',  () => _cursorParaPrev(_PAS_PARAGRAPHES));
+  lier('seekforward',   () => _cursorParaNext(_PAS_PARAGRAPHES));
+  // La barre du lecteur systeme, si on la tire : notre echelle est celle du
+  // CHAPITRE, donc un numero de phrase.
+  lier('seekto', (details) => {
+    if (details && typeof details.seekTime === 'number') {
+      _setCursor(Math.round(details.seekTime));
+    }
+  });
+}
+
+// Barre de progression du lecteur SYSTEME (notification + ecran verrouille),
+// demandee par Laurent le 20/09/2026. Echelle : le CHAPITRE -- position =
+// nombre de phrases deja lues, duree = phrases du chapitre. La lecture avancant
+// phrase par phrase, la barre avance d'un cran a chaque phrase, en coherence
+// exacte avec la barre de l'application.
+// `try` : `setPositionState` refuse (TypeError) une position hors bornes, et
+// une barre ne doit JAMAIS pouvoir casser la lecture.
+function _majPositionMediaSession(idx, total) {
+  if (!('mediaSession' in navigator)) return;
+  if (typeof navigator.mediaSession.setPositionState !== 'function') return;
+  const duree = Math.max(1, total || 0);
+  const pos   = Math.min(Math.max(0, idx || 0), duree);
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: duree, position: pos, playbackRate: 1
+    });
+  } catch (e) { /* barre non mise a jour : la lecture continue */ }
 }
 
 function _startTTS() {
@@ -3160,6 +3652,32 @@ function _stopTTS() {
 // lecture continue sur le buffer deja precharge au lieu de s'arreter.
 const PREFETCH_CONCURRENCY     = 2;      // requetes audio simultanees max
 const PREFETCH_MAX_AHEAD_CHARS = 5000;   // fenetre de prechargement max (caracteres ~5-6 min d'audio)
+
+// RESERVE « A BLOC » (20/09/2026, demande de Laurent : « la lecture s'arrete si
+// je verrouille le telephone, c'est aleatoire »). Constat mesure : la reserve
+// normale (~5-6 min) suffit tant que le reseau vit, mais Android coupe plus ou
+// moins vite le reseau d'une page en arriere-plan -- la lecture s'arrete donc
+// quand la reserve est vide, « parfois apres quelques secondes, parfois ca tient
+// longtemps ». Quand la page passe EN ARRIERE-PLAN pendant une lecture, on leve
+// donc le plafond de la fenetre (tout le reste du chapitre) : la reserve se
+// remplit pendant que le reseau repond encore, et la lecture tient ensuite sur
+// la memoire. Bornage volontairement large mais pas infini : sur un chapitre
+// enorme, on ne veut pas remplir la memoire du telephone sans limite.
+const PREFETCH_MAX_AHEAD_CHARS_BURST = 400000;
+
+let _prechargementBurst = false;   // reserve « a bloc » (ecran eteint / verrouille)
+let _pumpCourant = null;           // `pump` de la session de lecture en cours
+
+// Le declencheur : la page passe en arriere-plan (ecran eteint, verrouillage,
+// changement d'application) PENDANT une lecture. On leve le plafond et on
+// relance `pump` immediatement -- sans cela, la fenetre deja atteinte ne se
+// remplirait qu'au fil des phrases lues, donc trop tard.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  if (_ttsState !== 'playing' && _ttsState !== 'loading') return;
+  _prechargementBurst = true;
+  if (_pumpCourant) _pumpCourant();
+});
 const FETCH_TIMEOUT_MS         = 20000;  // abandon d'une requete qui ne repond pas
 // Les voix Kyutai sont calculees par un moteur externe (carte graphique) :
 // une phrase se calcule en gros en deux fois sa duree de lecture. Sans ce
@@ -3389,6 +3907,9 @@ async function _runTTS(startIdx, endIdx) {
   // d'audio sont en memoire -- c'est ce qui permet a la lecture de tenir
   // quand Android suspend le reseau de la page (ecran verrouille).
   const cache   = new Array(units.length).fill(null);
+  // Les blobs DEJA telecharges, accessibles tout de suite : c'est ce qui permet
+  // de coller plusieurs phrases en un seul morceau (voir _collerWav).
+  const blobs   = new Array(units.length).fill(null);
   let readIdx   = -1;      // unite dont la lecture a demarre (-1 = pas encore)
   let nextFetch = 0;       // prochaine unite a demander au serveur
   let inFlight  = 0;       // requetes en vol
@@ -3405,18 +3926,26 @@ async function _runTTS(startIdx, endIdx) {
     const u = units[i];
     cache[i] = _fetchAudio(u.text, u.voice, rate, u.pitch, signal,
                            u.context).then(blob => {
-      if (!blob) cache[i] = null; // echec apres retries : pourra etre retente
+      if (!blob) { cache[i] = null; return null; }  // echec : pourra etre retente
+      blobs[i] = blob;                              // pret pour le collage
       return blob;
     });
     cache[i].then(() => { inFlight--; wakeWaiters(); pump(); });
   }
 
   // Poids en caracteres des unites deja prechargees non encore lues.
+  // `limiteFenetre()` : plafond normal, ou plafond leve quand la page est passée
+  // en arriere-plan (reserve « a bloc », voir _prechargementBurst).
+  function limiteFenetre() {
+    return _prechargementBurst ? PREFETCH_MAX_AHEAD_CHARS_BURST
+                              : PREFETCH_MAX_AHEAD_CHARS;
+  }
+
   function aheadChars() {
     let w = 0;
     for (let i = readIdx + 1; i < nextFetch; i++) {
       w += units[i].text.length + 1;
-      if (w > PREFETCH_MAX_AHEAD_CHARS) break;
+      if (w > limiteFenetre()) break;
     }
     return w;
   }
@@ -3426,11 +3955,16 @@ async function _runTTS(startIdx, endIdx) {
   function pump() {
     if (_ttsSession !== mySession || signal.aborted) return;
     while (inFlight < PREFETCH_CONCURRENCY && nextFetch < units.length) {
-      if (aheadChars() + units[nextFetch].text.length + 1 > PREFETCH_MAX_AHEAD_CHARS) break;
+      if (aheadChars() + units[nextFetch].text.length + 1 > limiteFenetre()) break;
       launchFetch(nextFetch);
       nextFetch++;
     }
   }
+
+  // La reserve « a bloc » doit pouvoir relancer ce `pump` depuis le declencheur
+  // `visibilitychange` (qui vit au niveau du fichier, pas dans cette session).
+  // La session courante sert de garde-fou : un `pump` perime ne fait rien.
+  _pumpCourant = pump;
 
   function waitUnit(i) {
     if (!cache[i]) launchFetch(i);
@@ -3496,15 +4030,23 @@ async function _runTTS(startIdx, endIdx) {
     if (_ttsSession !== mySession || signal.aborted) return;
   }
 
-  // --- Boucle de lecture, phrase par phrase ---
-  for (let i = 0; i < units.length; i++) {
-    if (_ttsSession !== mySession || signal.aborted) break;
-    const u = units[i];
+  // --- Boucle de lecture, par MORCEAUX COLLES (20/09/2026) ---
+  // On ne joue plus phrase par phrase : on colle tout ce qui est DEJA
+  // telecharge (tant que le format est le meme) en un SEUL morceau, joue d'un
+  // trait. C'est ce qui garde la modale de lecture affichee sur le telephone et
+  // supprime les micro-blancs entre les phrases.
+  // Filet : si le collage est impossible (format inattendu), la phrase est jouee
+  // seule, exactement comme avant.
+  const pauseAvant = (k) => (k > 0 && units[k].paraIdx !== units[k - 1].paraIdx)
+    ? PARAGRAPH_PAUSE_MS : 0;
 
-    // Le blob doit etre pret (il l'est en quasi permanence grace au
-    // prefetcher). En cas de coupure reseau, on attend sans arreter.
-    const blob = await waitUnitNetworkRetry(i);
-    if (!blob || _ttsSession !== mySession || signal.aborted) break;
+  for (let i = 0; i < units.length; ) {
+    if (_ttsSession !== mySession || signal.aborted) break;
+
+    // Le premier blob du morceau doit etre pret (coupure reseau : on attend sans
+    // arreter, comme avant).
+    const premier = await waitUnitNetworkRetry(i);
+    if (!premier || _ttsSession !== mySession || signal.aborted) break;
 
     // Reprise apres une attente reseau : on repasse en lecture.
     if (_ttsState !== 'playing') {
@@ -3512,29 +4054,43 @@ async function _runTTS(startIdx, endIdx) {
       setTTSUI('playing');
     }
 
-    // Pause silencieuse quand on change de paragraphe (ex: apres un titre)
-    if (i > 0 && u.paraIdx !== units[i - 1].paraIdx) {
-      await _pause(PARAGRAPH_PAUSE_MS, signal);
-      if (_ttsSession !== mySession || signal.aborted) break;
+    // Tout ce qui est deja en memoire, tant que le format reste le meme.
+    const parties = [];
+    let fin = i;
+    while (fin < units.length) {
+      const blob = (fin === i) ? premier : blobs[fin];
+      if (!blob) break;                     // pas encore telecharge : on s'arrete
+      const entete = await _enteteDeBlob(blob);
+      if (!entete) break;                   // format inattendu : on s'arrete
+      if (parties.length && !_memesFormats(parties[0].entete, entete)) break;
+      parties.push({ blob: blob, entete: entete, pauseAvantMs: pauseAvant(fin) });
+      fin++;
     }
 
-    readIdx = i;
+    const morceau = _collerWav(parties);
 
-    // Surbrillance : on pose le curseur sur la phrase dont l'audio va
-    // reellement demarrer, et on n'y touche plus pendant toute sa duree.
-    // Finie l'estimation timeupdate dans un bloc fusionne (qui faisait
-    // avancer la surbrillance en avance sur la voix).
-    if (u.sentIdx !== _cursorIdx) {
-      _setCursor(u.sentIdx);
-      _updateTTSProgress(u.sentIdx, _sentences.length);
+    // Memoire : le morceau colle GARDE les donnees d'origine (Blob.slice ne copie
+    // rien, il pointe dessus), on peut donc relacher nos references.
+    for (let k = i; k < fin; k++) { cache[k] = null; blobs[k] = null; }
+    readIdx = fin - 1;   // la fenetre de prechargement repart de la FIN du
+    pump();              // morceau, sinon elle croirait avoir deja tout
+
+    if (!morceau) {
+      // Filet : collage impossible -> la phrase seule, comme avant.
+      if (units[i].sentIdx !== _cursorIdx) _setCursor(units[i].sentIdx);
+      _updateTTSProgress(units[i].sentIdx, _sentences.length);
+      await _playBlob(premier, signal);
+      i++;
+      continue;
     }
 
-    await _playBlob(blob, signal);
+    await _jouerMorceauColle(morceau, units, i, parties, signal);
+    i = fin;
 
-    // Memoire liberee sur l'unite lue, puis la fenetre de prechargement
-    // glisse d'un cran vers la suite.
-    cache[i] = null;
-    pump();
+    // Une pause venue d'ailleurs (casque, appel telephonique, autre application)
+    // arrete proprement la session ICI : la suite repartira du curseur a la
+    // prochaine pression de lecture, sans reprendre toute seule au milieu.
+    if (_ttsState === 'paused') break;
 
     if (_ttsSession !== mySession || signal.aborted) break;
   }
@@ -3556,7 +4112,124 @@ async function _runTTS(startIdx, endIdx) {
 function _updateTTSProgress(idx, total) {
   const pct = total > 0 ? Math.round((idx / total) * 100) : 0;
   document.getElementById('tts-progress-fill').style.width = pct + '%';
+  // La MEME progression alimente les deux autres ecrans de lecture (20/09/2026) :
+  // le lecteur du systeme (notification + ecran verrouille) et le lecteur
+  // integre « facon Deezer », s'il est ouvert.
+  _majPositionMediaSession(idx, total);
+  if (typeof _majLecteurIntegre === 'function') _majLecteurIntegre(idx, total);
 }
+
+// ============================================================
+// LECTEUR INTEGRE « FACON DEEZER » (20/09/2026)
+// ============================================================
+// Demande de Laurent : « je vois bien un genre de lecteur en mode PWA, avec la
+// barre de progression qui represente la phrase lue. Une petite modale qui
+// ressemblerait a la lecture de Deezer. »
+// Ouverture : la BARRE DE PROGRESSION du lecteur (le repere naturel -- c'est ce
+// qu'on fait partout), qui porte un petit ⤢ pour l'annoncer sans mot.
+// Utile et pas decoratif : la fenetre dit QUI PARLE et QUELLE PHRASE est en
+// cours, ce qui n'existe dans aucun lecteur audio.
+
+function _lecteurOuvert() {
+  const m = document.getElementById('lecteur-modal');
+  return !!m && !m.classList.contains('hidden');
+}
+
+function _ouvrirLecteur() {
+  // On REMPLIT avant d'afficher : sinon la fenetre s'ouvrirait vide un instant.
+  _majLecteurIntegre(_cursorIdx, _sentences.length);
+  _majLecteurEtat(_ttsState);
+  document.getElementById('lecteur-modal').classList.remove('hidden');
+}
+
+function _fermerLecteur() {
+  document.getElementById('lecteur-modal').classList.add('hidden');
+}
+
+// Etat du bouton de lecture (▶️ / ⏸), comme la barre du bas. Pendant un
+// chargement, l'icone reste celle de la lecture et c'est le titre qui dit
+// « Chargement » -- jamais un etat invente.
+function _majLecteurEtat(state) {
+  if (!_lecteurOuvert()) return;
+  const enLecture = (state === 'playing');
+  const play  = document.getElementById('lecteur-icon-play');
+  const pause = document.getElementById('lecteur-icon-pause');
+  if (play)  play.classList.toggle('hidden', enLecture);
+  if (pause) pause.classList.toggle('hidden', !enLecture);
+  const btn = document.getElementById('lecteur-play-btn');
+  if (btn) {
+    btn.title = (state === 'loading') ? 'Chargement en cours…'
+              : (enLecture ? 'Pause' : 'Lecture');
+  }
+}
+
+// Tout ce que la fenetre affiche : le livre, le chapitre, qui parle, la phrase
+// en cours, et la progression du chapitre.
+function _majLecteurIntegre(idx, total) {
+  if (!_lecteurOuvert()) return;
+  const el = (id) => document.getElementById(id);
+  const livre = (el('reader-book-title') || {}).textContent || '';
+  el('lecteur-titre').textContent = livre;
+  el('lecteur-auteur').textContent =
+    (_currentBookData && _currentBookData.author) || '';
+  const chapitre = (el('chapter-title-display') || {}).textContent || '';
+  el('lecteur-chapitre').textContent = 'Chapitre ' + (_currentChapter + 1)
+    + ' / ' + _totalChapters + (chapitre ? ' · ' + chapitre : '');
+
+  const nom = _personnageDePhrase(idx);
+  el('lecteur-qui').textContent = nom ? '\uD83D\uDDE3\uFE0F ' + nom
+                                     : '\uD83C\uDF99\uFE0F Narrateur';
+  const texte = (_sentences[idx] && _sentences[idx].text) || '';
+  el('lecteur-phrase').textContent =
+    (texte.length > 160) ? texte.slice(0, 157) + '\u2026' : texte;
+
+  const pct = total > 0 ? Math.round((idx / total) * 100) : 0;
+  el('lecteur-barre-fill').style.width = pct + '%';
+  el('lecteur-compteur').textContent = total > 0
+    ? (idx + 1) + ' / ' + total + ' phrases · ' + pct + ' %' : '';
+
+  // La couverture, seulement si le livre en a une : jamais de cadre vide.
+  const img = el('lecteur-couverture');
+  if (img) {
+    const url = _urlCouvertureLivre();
+    const aCouverture = !!(_currentBookData && _currentBookData.cover_path);
+    if (url && aCouverture) {
+      if (img.getAttribute('src') !== url) img.src = url;
+      img.classList.remove('hidden');
+    } else {
+      img.removeAttribute('src');
+      img.classList.add('hidden');
+    }
+  }
+}
+
+// --- Branchements du lecteur ---
+document.getElementById('lecteur-close-btn').addEventListener('click', _fermerLecteur);
+document.getElementById('lecteur-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'lecteur-modal') _fermerLecteur();   // clic a cote
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && _lecteurOuvert()) _fermerLecteur();
+});
+// La barre de progression OUVRE le lecteur (au doigt comme au clavier).
+document.getElementById('tts-progress-row').addEventListener('click', _ouvrirLecteur);
+document.getElementById('tts-progress-row').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _ouvrirLecteur(); }
+});
+// Les boutons du lecteur sont des TELECOMMANDES de la barre du bas : on clique
+// sur les VRAIS boutons. Une seule logique de navigation a maintenir, et les pas
+// sont forcement les bons (◀ ▶ la phrase, ⏪ ⏩ quatre paragraphes, ⏮ ⏭ le
+// chapitre, et le bouton de lecture partage l'etat de la barre).
+[['lecteur-prev-chap', 'prev-btn'],
+ ['lecteur-prev-para', 'para-prev-btn'],
+ ['lecteur-prev-sent', 'sent-prev-btn'],
+ ['lecteur-play-btn',  'tts-play-btn'],
+ ['lecteur-next-sent', 'sent-next-btn'],
+ ['lecteur-next-para', 'para-next-btn'],
+ ['lecteur-next-chap', 'next-btn']].forEach(([boutonLecteur, boutonBarre]) => {
+  const b = document.getElementById(boutonLecteur);
+  if (b) b.addEventListener('click', () => document.getElementById(boutonBarre).click());
+});
 
 // L'identifiant du livre OUVERT (0 si aucun). Il part avec chaque demande de
 // synthese : le serveur s'en sert pour remettre en casse normale les mots TOUT
@@ -3618,6 +4291,238 @@ async function _fetchAudio(text, voice, rate, pitch, signal, context) {
 // temps : depuis que la lecture est phrase par phrase, la frontière entre
 // deux phrases est exacte (le curseur est posé quand l'audio démarre, il
 // n'y a plus rien à estimer pendant la lecture).
+// ============================================================
+// COLLAGE DES PHRASES EN UN SEUL MORCEAU (20/09/2026)
+// ============================================================
+// Demande de Laurent : « la modale de lecture disparait entre deux paragraphes,
+// puisqu'il n'y a plus de voix... c'est comme si j'avais une playlist de
+// centaines de morceaux de quelques secondes ». C'est exactement ce que faisait
+// le lecteur : un petit fichier audio PAR PHRASE -- plus de son pendant la
+// preparation de la suivante, et Android range sa modale des qu'il n'y a plus
+// de son. Correction : COLLER les phrases en UN SEUL long morceau, joue d'un
+// trait. Deux effets : la modale du telephone reste affichee (comme pour une
+// video) et le son n'a plus de micro-blanc entre les phrases.
+//
+// Les fichiers du lecteur sont des WAV (audio non compresse) : on peut donc les
+// recoller EXACTEMENT, en fabriquant une seule en-tete et en pointant sur les
+// donnees d'origine. `Blob.slice` ne COPIE rien : le collage ne consomme pas de
+// memoire en plus. Les fonctions de lecture d'en-tete sont PURES (un tableau
+// d'octets en entree) : verifiees par test_voix/test_collage_wav.js.
+
+// Lit l'en-tete d'un WAV : format, canaux, cadence, resolution, et ou commence
+// le son. Retourne null si ce n'est pas un WAV lisible.
+// `tailleFichier` (facultatif) : la taille REELLE du fichier, quand on n'a lu
+// que son DEBUT (c'est ce que fait _enteteDeBlob : 64 octets suffisent pour
+// l'en-tete). Sans elle, on ne peut pas savoir si le fichier est complet --
+// et croire qu'un morceau de 2 minutes ne fait que 64 octets serait une drole
+// d'idee (c'est l'erreur que le test du collage a attrapee le 20/09/2026).
+function _enteteWav(octets, tailleFichier) {
+  const vue = new DataView(octets.buffer, octets.byteOffset, octets.byteLength);
+  const txt = (pos, n) => {
+    let s = '';
+    for (let i = 0; i < n; i++) s += String.fromCharCode(vue.getUint8(pos + i));
+    return s;
+  };
+  if (vue.byteLength < 44 || txt(0, 4) !== 'RIFF' || txt(8, 4) !== 'WAVE') return null;
+
+  const dispo = (tailleFichier === undefined) ? vue.byteLength : tailleFichier;
+  let pos = 12;
+  let entete = null;
+  while (pos + 8 <= vue.byteLength) {
+    const nom    = txt(pos, 4);
+    const taille = vue.getUint32(pos + 4, true);
+    const debut  = pos + 8;
+    if (nom === 'fmt ' && debut + 16 <= vue.byteLength) {
+      entete = {
+        format:  vue.getUint16(debut, true),        // 1 = PCM, 3 = flottant
+        canaux:  vue.getUint16(debut + 2, true),
+        cadence: vue.getUint32(debut + 4, true),
+        bits:    vue.getUint16(debut + 14, true),
+      };
+    } else if (nom === 'data') {
+      if (!entete) return null;
+      entete.debutDonnees  = debut;
+      // Un fichier tronque (ecriture interrompue) ne doit pas nous tromper :
+      // on garde la plus petite des deux tailles.
+      entete.tailleDonnees = Math.min(taille, Math.max(0, dispo - debut));
+      return entete;
+    }
+    pos = debut + taille + (taille % 2);   // les morceaux sont alignes sur 2 octets
+  }
+  return null;   // pas de bloc de donnees : on ne sait pas coller ca
+}
+
+// Duree exacte (en secondes) du son decrit par une en-tete : nombre d'octets
+// divises par le debit. C'est CE calcul qui remplace l'estimation quand on joue
+// un morceau colle (la surbrillance reste donc exacte).
+function _dureeWav(entete) {
+  if (!entete || !entete.cadence || !entete.canaux || !entete.bits) return 0;
+  const debit = entete.cadence * entete.canaux * (entete.bits / 8);
+  return debit > 0 ? (entete.tailleDonnees / debit) : 0;
+}
+
+// Deux morceaux ne se collent que s'ils ont EXACTEMENT le meme format : c'est ce
+// qui protege des voix Piper (22050 Hz) qui ne peuvent pas etre collees aux
+// autres (24000 Hz). Elles mettent simplement fin au morceau en cours.
+function _memesFormats(a, b) {
+  return !!a && !!b && a.format === b.format && a.canaux === b.canaux
+      && a.cadence === b.cadence && a.bits === b.bits;
+}
+
+// Fabrique l'en-tete du morceau colle (meme format que le premier morceau), en
+// annoncant la taille TOTALE du son. Format classique de 44 octets : RIFF,
+// fmt (16 octets), data.
+function _enteteWavColle(entete, tailleDonnees) {
+  const vue = new DataView(new ArrayBuffer(44));
+  const ecrire = (pos, s) => {
+    for (let i = 0; i < s.length; i++) vue.setUint8(pos + i, s.charCodeAt(i));
+  };
+  const debit = entete.cadence * entete.canaux * (entete.bits / 8);
+  ecrire(0, 'RIFF');
+  vue.setUint32(4, 36 + tailleDonnees, true);
+  ecrire(8, 'WAVE');
+  ecrire(12, 'fmt ');
+  vue.setUint32(16, 16, true);
+  vue.setUint16(20, entete.format, true);
+  vue.setUint16(22, entete.canaux, true);
+  vue.setUint32(24, entete.cadence, true);
+  vue.setUint32(28, debit, true);
+  vue.setUint16(32, entete.canaux * (entete.bits / 8), true);   // alignement
+  vue.setUint16(34, entete.bits, true);
+  ecrire(36, 'data');
+  vue.setUint32(40, tailleDonnees, true);
+  return new Uint8Array(vue.buffer);
+}
+
+// Un petit morceau de SILENCE : il garde la pause entre deux paragraphes A
+// L'INTERIEUR du morceau colle (sans lui, elle disparaitrait : il n'y a plus de
+// silence entre deux fichiers, puisqu'il n'y a plus qu'UN fichier).
+function _blobSilence(entete, dureeMs) {
+  const debit  = entete.cadence * entete.canaux * (entete.bits / 8);
+  const taille = Math.max(0, Math.round(debit * (dureeMs / 1000)));
+  return new Blob([new Uint8Array(taille)], { type: 'audio/wav' });
+}
+
+// Colle une suite de phrases en UN SEUL blob WAV.
+// `parties` : [{ blob, entete, pauseAvantMs }].
+// Retourne null si les formats ne sont pas compatibles : l'appelant repart alors
+// en lecture phrase par phrase (le filet, jamais un silence).
+function _collerWav(parties) {
+  if (!parties || !parties.length) return null;
+  const entete = parties[0].entete;
+  if (!entete || !parties.every(p => _memesFormats(entete, p.entete))) return null;
+
+  const morceaux = [];
+  let total = 0;
+  parties.forEach((p, i) => {
+    if (i > 0 && p.pauseAvantMs > 0) {
+      const silence = _blobSilence(entete, p.pauseAvantMs);
+      morceaux.push(silence);
+      total += silence.size;
+    }
+    morceaux.push(p.blob.slice(p.entete.debutDonnees));
+    total += p.entete.tailleDonnees;
+  });
+  return new Blob([_enteteWavColle(entete, total)].concat(morceaux),
+                  { type: 'audio/wav' });
+}
+
+// En-tete d'un blob audio (on ne lit que le DEBUT du fichier : c'est tout ce dont
+// on a besoin, et ca reste rapide meme sur un morceau long). La taille REELLE du
+// fichier est transmise : sans elle, un fichier de 2 minutes semblerait ne durer
+// que 64 octets.
+async function _enteteDeBlob(blob) {
+  try {
+    const debut = new Uint8Array(await blob.slice(0, 64).arrayBuffer());
+    return _enteteWav(debut, blob.size);
+  } catch (e) {
+    return null;
+  }
+}
+
+// Joue un morceau COLLE et fait suivre la surbrillance. Les durees sont
+// CALCULEES (taille du son / cadence) et non estimees : c'est ce qui permet de
+// revenir a un seul morceau sans perdre la precision du curseur (le probleme qui
+// avait fait abandonner les blocs fusionnes le 15/09/2026).
+async function _jouerMorceauColle(blob, units, debut, parties, signal) {
+  const url   = URL.createObjectURL(blob);
+  const audio = document.getElementById('tts-audio-player');
+
+  // Bornes de chaque phrase dans le morceau (en secondes, pauses comprises).
+  const bornes = [];
+  let t = 0;
+  parties.forEach((p, k) => {
+    t += (p.pauseAvantMs || 0) / 1000;
+    const duree = _dureeWav(p.entete);
+    bornes.push({ debut: t, duree: duree, unit: units[debut + k] });
+    t += duree;
+  });
+
+  // Le curseur est pose AVANT de jouer : la surbrillance ne doit jamais arriver
+  // en retard sur la voix.
+  if (bornes.length && bornes[0].unit.sentIdx !== _cursorIdx) {
+    _setCursor(bornes[0].unit.sentIdx);
+  }
+  _updateTTSProgress(bornes.length ? bornes[0].unit.sentIdx : _cursorIdx,
+                     _sentences.length);
+
+  await new Promise(resolve => {
+    let termine = false;
+    const cleanup = () => {
+      if (termine) return;
+      termine = true;
+      audio.onended      = null;
+      audio.onerror      = null;
+      audio.onpause      = null;
+      audio.ontimeupdate = null;
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    audio.onended = cleanup;
+    audio.onerror = cleanup;
+    signal.addEventListener('abort', () => { audio.pause(); cleanup(); });
+
+    // PAUSE VENUE D'AILLEURS (20/09/2026) : un appel telephonique, une autre
+    // application qui prend le son, le systeme... L'element audio s'arrete SANS
+    // evenement de fin : le lecteur attendait alors pour toujours, et le bouton
+    // continuait d'afficher « Pause » alors que plus rien ne jouait (constat de
+    // Laurent, le soir meme). On remet donc l'etat de l'application EN PHASE avec
+    // la realite. Et c'est ce qui rend le bouton du CASQUE utile : a la pression
+    // suivante, l'application se sait en pause -- donc elle REPREND la lecture.
+    audio.onpause = () => {
+      // Notre propre pause est deja annoncee (`_ttsState` vaut 'paused'), et une
+      // fin naturelle du morceau declenche aussi 'pause' : aucun des deux ne doit
+      // etre pris pour une interruption.
+      if (_ttsState !== 'playing' || audio.ended) return;
+      _ttsState = 'paused';
+      setTTSUI('paused');
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+      cleanup();
+    };
+
+    let courante = -1;
+    audio.ontimeupdate = () => {
+      const tc = audio.currentTime;
+      let idx = 0;
+      while (idx + 1 < bornes.length && tc >= bornes[idx + 1].debut) idx++;
+      const b = bornes[idx];
+      if (idx !== courante) {
+        courante = idx;
+        if (b.unit.sentIdx !== _cursorIdx) _setCursor(b.unit.sentIdx);
+        _updateTTSProgress(b.unit.sentIdx, _sentences.length);
+      }
+      // Barre du lecteur systeme : elle avance en DOUCEUR (phrase + fraction de
+      // phrase) au lieu de sauter d'une phrase a l'autre.
+      const dansPhrase = b.duree > 0
+        ? Math.max(0, Math.min(1, (tc - b.debut) / b.duree)) : 0;
+      _majPositionMediaSession(b.unit.sentIdx + dansPhrase, _sentences.length);
+    };
+
+    audio.src = url;
+    audio.play().catch(cleanup);
+  });
+}
+
 async function _playBlob(blob, signal) {
   if (!blob) return;
   const url   = URL.createObjectURL(blob);
@@ -3938,6 +4843,19 @@ function _openVoicePanel(sentIdx) {
   // que le script (cache) -- on ne veut jamais empecher le panneau de s'ouvrir.
   const ligneUsage = document.getElementById('voice-phrase-usage');
   if (ligneUsage) ligneUsage.textContent = etatVoix.phrase(voixId);
+
+  // PORTE VERS LE CASTING (20/09/2026) : le panneau ne fait que changer une
+  // voix ; pour le reste (cadenas 🔒, curseurs vitesse et hauteur, tiroir 🗣️ des
+  // voix libres, badges d'etat), le bouton juste a cote ouvre la vraie fenetre
+  // SUR ce personnage, mis en evidence.
+  // Elle est CACHEE pour la NARRATION : le narrateur n'a pas de ligne dans le
+  // casting (sa voix se change dans le menu du haut), le bouton n'aurait donc
+  // rien a viser.
+  // `if` : comme pour la ligne d'usage juste au-dessus, on ne veut jamais
+  // empecher le panneau de s'ouvrir (page plus ancienne que le script, cache).
+  const porteCasting = document.getElementById('voice-phrase-cast-btn');
+  if (porteCasting) porteCasting.classList.toggle('hidden', !nom);
+
   document.getElementById('voice-phrase-panel').classList.remove('hidden');
 }
 
@@ -3998,6 +4916,33 @@ document.getElementById('voice-phrase-ecouter-btn')
 
 document.getElementById('voice-phrase-close-btn')
   .addEventListener('click', _closeVoicePanel);
+
+// PORTE VERS LE CASTING (20/09/2026, demande de Laurent : « cette modale est
+// moins riche que casting des voix »). Le panneau ne change qu'UNE voix ; pour
+// le reste, on ouvre la vraie fenetre SUR le personnage, mis en evidence.
+// Trois precautions :
+//   - la NARRATION n'a pas de ligne dans le casting : le bouton est cache (voir
+//     _openVoicePanel), et ce garde-fou evite un clic dans le vide ;
+//   - on FERME le panneau avant d'ouvrir : jamais deux fenetres empilees, et on
+//     retrouve sa lecture en fermant le casting ;
+//   - la porte ramene TOUJOURS au personnage : si un filtre d'etat (« a
+//     caster », « voix partagee », « voix libres ») ou la recherche le cachait,
+//     on revient d'abord a la liste complete. Sans cela, la fenetre s'ouvrirait
+//     sans rien montrer -- et sans que rien n'explique pourquoi.
+// Le surlignage reutilise _allerAuPersonnage : c'est EXACTEMENT le reperage des
+// noms cliquables du badge « partagee avec ... » (19/09/2026), rien de nouveau
+// a apprendre.
+document.getElementById('voice-phrase-cast-btn').addEventListener('click', async () => {
+  const nom = _personnageDePhrase(_voicePhraseIdx);
+  if (!nom) return;
+  _closeVoicePanel();
+  if (_castEtatFiltre !== 'T' || _castRecherche.trim()) {
+    _castEtatFiltre = 'T';
+    _castRecherche = '';
+  }
+  await _openCastModal();
+  _allerAuPersonnage(nom);
+});
 
 // Taper a cote de la feuille ferme le panneau (le fond couvre l'ecran).
 document.getElementById('voice-phrase-panel').addEventListener('click', (e) => {
@@ -4084,7 +5029,132 @@ function setTTSUI(state) {
   play.classList.toggle('hidden',  state !== 'idle' && state !== 'paused');
   pause.classList.toggle('hidden', state !== 'playing');
   spin.classList.toggle('hidden',  state !== 'loading');
+  // Le lecteur integre, s'il est ouvert, suit le MEME etat (son bouton de
+  // lecture ne doit jamais montrer ▶️ pendant que ca joue).
+  if (typeof _majLecteurEtat === 'function') _majLecteurEtat(state);
 }
+
+// ============================================================
+// INSTALLER L'APPLICATION (PWA) — 20/09/2026
+// ============================================================
+// Pourquoi : Laurent cherchait l'option « Installer » dans Chrome sans la
+// trouver (Chrome ne la propose qu'a certaines conditions, et ne dit JAMAIS
+// pourquoi il refuse). Ce bouton sert dans les deux cas :
+//   - le navigateur sait installer (Chromium) : il declenche SA fenetre
+//     d'installation, sans avoir a chercher l'icone dans la barre d'adresse ;
+//   - il ne propose rien (Firefox, ou navigateur qui ne juge pas l'application
+//     installable) : le bouton EXPLIQUE ou chercher, au lieu de ne rien faire.
+// Le bouton disparait quand l'application tourne DEJA comme une application
+// installee (`display-mode: standalone`).
+
+let _inviteInstallation = null;   // l'invitation du navigateur, gardee pour le clic
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // On empeche la mini-banniere automatique du navigateur : c'est NOTRE bouton
+  // qui propose, au moment ou Laurent est dans l'application.
+  e.preventDefault();
+  _inviteInstallation = e;
+});
+
+window.addEventListener('appinstalled', () => {
+  _inviteInstallation = null;
+  const btn  = document.getElementById('installer-btn');
+  const note = document.getElementById('installer-note');
+  if (btn) btn.classList.add('hidden');
+  if (note) {
+    note.textContent = 'Application installée : ouvre-la depuis son icône '
+      + '(elle s\'ouvrira en plein écran, sans les barres du navigateur).';
+    note.classList.remove('hidden');
+  }
+});
+
+// L'application tourne-t-elle DEJA comme une application installee ?
+function _applicationInstallee() {
+  const modeApp = (typeof window.matchMedia === 'function')
+    && window.matchMedia('(display-mode: standalone)').matches;
+  return !!modeApp || window.navigator.standalone === true;
+}
+
+// L'appareil est-il un telephone / une tablette ? Le bouton d'installation n'a
+// pas de raison d'apparaitre sur un ORDINATEUR (les navigateurs y proposent deja
+// l'installation dans leur barre d'adresse) : constat de Laurent, 20/09/2026
+// (« elle s'affiche maintenant sur la version PC »). Fonction PURE : verifiee par
+// test_voix/test_navigateur.js.
+function _appareilMobile(userAgent, tactile, largeur) {
+  const ua = userAgent
+    || (typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '');
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  // Les iPad recents se declarent comme un Mac : ils ont le toucher et un petit
+  // ecran, ce qui suffit a les reconnaitre (et evite de priver un ordinateur
+  // tactile grand ecran de... rien du tout, puisque le navigateur s'en charge).
+  const toucher = (tactile !== undefined) ? tactile
+    : (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
+  const petit = (largeur !== undefined) ? largeur
+    : (typeof window !== 'undefined' ? window.innerWidth : 0);
+  return !!(toucher && petit > 0 && petit <= 900);
+}
+
+function _majBoutonInstaller() {
+  const btn = document.getElementById('installer-btn');
+  if (!btn) return;
+  // Deux raisons de ne PAS montrer ce bouton : l'application est deja installee,
+  // ou on est sur un ordinateur.
+  btn.classList.toggle('hidden',
+                       _applicationInstallee() || !_appareilMobile());
+}
+
+// Nom du navigateur en cours : on le DIT quand l'installation coince, parce que
+// Laurent ne pouvait pas savoir dans lequel il se trouvait (constat du
+// 20/09/2026 : une application installee n'affiche AUCUNE barre d'adresse, donc
+// rien ne dit qui l'heberge). Fonction PURE (elle ne lit que la chaine du
+// navigateur) : verifiee par test_voix/test_navigateur.js.
+// Ordre important : Brave et Edge se presentent comme « Chrome » dans leur
+// chaine, il faut donc les reconnaitre AVANT.
+function _nomNavigateur(userAgent) {
+  const ua = userAgent
+    || (typeof navigator !== 'undefined' ? (navigator.userAgent || '') : '');
+  if (typeof navigator !== 'undefined' && navigator.brave) return 'Brave';
+  if (/Firefox|FxiOS/i.test(ua)) return 'Firefox';
+  if (/EdgA|Edg\//i.test(ua))    return 'Edge';
+  if (/OPR|Opera/i.test(ua))     return 'Opera';
+  if (/Chrome|CriOS/i.test(ua))  return 'Chrome';
+  if (/Safari/i.test(ua))        return 'Safari';
+  return 'ce navigateur';
+}
+
+async function _proposerInstallation() {
+  const note = document.getElementById('installer-note');
+  if (!_inviteInstallation) {
+    // Le navigateur n'a rien propose : on dit OU chercher, et POURQUOI il n'y a
+    // rien -- la cause n° 1 (constat de Laurent, 20/09/2026) est qu'on est dans
+    // le navigateur INTEGRE d'une autre application (un lien ouvert depuis NIMM
+    // ou depuis le launcher, par exemple) : ces fenetres ne savent PAS installer
+    // d'application, et c'est une limite d'Android, pas un defaut de l'atelier.
+    // On NOMME aussi le navigateur en cours : rien d'autre ne le dit a l'ecran
+    // quand l'application installée n'a plus de barre d'adresse.
+    if (note) {
+      note.textContent = 'Installation non proposée ici (tu es dans '
+        + _nomNavigateur() + '). Deux causes possibles : (1) tu es dans le '
+        + 'navigateur INTÉGRÉ à une autre application (page ouverte depuis NIMM '
+        + 'ou le launcher) : ces fenêtres ne savent pas installer — ouvre '
+        + 'l\'adresse directement dans Chrome ou Brave ; (2) sinon, ouvre son menu '
+        + '(⋮) puis « Installer l\'application ». (Firefox, lui, n\'installe '
+        + 'qu\'un raccourci.)';
+      note.classList.remove('hidden');
+    }
+    return;
+  }
+  _inviteInstallation.prompt();
+  const choix = await _inviteInstallation.userChoice;
+  _inviteInstallation = null;
+  if (note && choix && choix.outcome === 'dismissed') {
+    note.textContent = 'Installation annulée : tu peux la reprendre quand tu veux.';
+    note.classList.remove('hidden');
+  }
+}
+
+document.getElementById('installer-btn').addEventListener('click', _proposerInstallation);
+_majBoutonInstaller();
 
 // ============================================================
 // NAVIGATION VUES
@@ -4658,12 +5728,24 @@ function bindEvents() {
 
   document.getElementById('tts-play-btn').addEventListener('click', () => toggleTTS());
 
-  // Curseur glitch — navigation
-  // (le bouton « phrase suivante » ⏩ a ete retire le 15/09/2026 : il faisait
-  // doublon avec ⏭, le paragraphe suivant, demande de Laurent.)
-  document.getElementById('para-prev-btn').addEventListener('click', _cursorParaPrev);
-  document.getElementById('para-next-btn').addEventListener('click', _cursorParaNext);
+  // Curseur glitch — navigation (barre refaite le 20/09/2026, demande de
+  // Laurent) : SIX fleches symetriques, et TROIS niveaux de saut --
+  //   ⏮ / ⏭  chapitre precedent / suivant ;
+  //   ⏪ / ⏩  saut MOYEN : _PAS_PARAGRAPHES paragraphes d'un coup ;
+  //   ◀ / ▶  phrase precedente / suivante (le pas fin).
+  // Pourquoi le saut moyen existe (motif de Laurent) : « le saut de paragraphe
+  // correspond tres souvent a un saut de phrase » -- un saut d'UN paragraphe ne
+  // se distinguait donc pas d'un saut de phrase ; en sautant plusieurs
+  // paragraphes, les trois niveaux sont vraiment distincts.
+  // Les fonctions `_cursorSentPrev/Next` sont aussi celles du CASQUE
+  // (`navigator.mediaSession`, previoustrack/nexttrack) : le pas du casque et
+  // celui des fleches ◀/▶ restent ainsi identiques.
   document.getElementById('sent-prev-btn').addEventListener('click', _cursorSentPrev);
+  document.getElementById('sent-next-btn').addEventListener('click', _cursorSentNext);
+  document.getElementById('para-prev-btn')
+    .addEventListener('click', () => _cursorParaPrev(_PAS_PARAGRAPHES));
+  document.getElementById('para-next-btn')
+    .addEventListener('click', () => _cursorParaNext(_PAS_PARAGRAPHES));
 
   document.getElementById('chapters-btn').addEventListener('click', openChaptersPanel);
   document.getElementById('chapters-close-btn').addEventListener('click', closeChaptersPanel);
@@ -4717,4 +5799,11 @@ function bindEvents() {
   document.querySelectorAll('#moteur-modal .provider-btn').forEach(btn => {
     btn.addEventListener('click', () => _basculerMoteur(btn.dataset.moteur));
   });
+
+  // --- Cache audio : compte affiche et purge a la main (20/09/2026) ---
+  // Le compte est lu une fois au demarrage (et remis a jour apres une purge) :
+  // sur un cache de 2 Go, la taille change lentement, inutile de l'interroger
+  // en boucle.
+  document.getElementById('cache-open-btn').addEventListener('click', _viderCacheAudio);
+  _chargerEtatCache();
 }
