@@ -45,6 +45,20 @@ let _castEtatFiltre = 'T';
 // toujours la fenetre sur la liste complete.
 let _castRecherche = '';
 
+// --- Filtre par AGE DE LA VOIX et par GENRE DU PERSONNAGE (21/09/2026) ---
+// Demande de Laurent : « Des boutons juste pour trier les voix par age [...]
+// Cliquer sur "jeune" n'affiche que les jeunes. Les boutons qui sont actifs
+// affichent la categorie. Idealement un filtre ; Homme / Femme et les 4 ages. »
+// Troisieme filtre de LIGNES (avec l'etat et la recherche) -- a ne pas
+// confondre avec _castGenreFiltre, qui filtre les VOIX des menus deroulants.
+//   _castAgeFiltre   : 'T' ou 'enfant' / 'jeune' / 'adulte' / 'vieux' -- l'age
+//                      annote de la VOIX que porte le personnage ;
+//   _castPersoGenre  : 'T', 'F' ou 'H' -- le genre de la FICHE du personnage.
+// Les deux se combinent avec l'etat et la recherche, et sont remis a zero a la
+// fermeture (comme la recherche : on rouvre toujours sur la liste complete).
+let _castAgeFiltre  = 'T';
+let _castPersoGenre = 'T';
+
 // Seuil des petits roles : le MEME que MINOR_THRESHOLD cote serveur
 // (modules/voice_casting.py), verifie par test_voix/test_pool_casting.py.
 // Il sert ici a distinguer un petit role normal (voix generique voulue) d'un
@@ -320,56 +334,74 @@ async function loadMoteurs(force) {
   _afficherEtatMoteurs();
 }
 
-// Texte du bouton de bascule selon l'etat des moteurs. Fonction PURE (aucun
-// acces au DOM, aucun appel reseau) : c'est elle que le test extrait du fichier
-// reel (test_voix/test_bouton_moteur.js).
+// Texte du voyant « Réparer les moteurs de voix » selon l'etat des moteurs.
+// Fonction PURE (aucun acces au DOM, aucun appel reseau) : c'est elle que le
+// test extrait du fichier reel (test_voix/test_bouton_moteur.js).
+//
+// Depuis le 21/09/2026, elle ne parle QUE des moteurs ATTENDUS (`attendu`,
+// calcule par le serveur : Pocket TTS, qui cohabite avec tout le monde, et le
+// moteur lourd RETENU dans data/moteur_voix.txt). Sinon le voyant crierait pour
+// XTTS eteint VOLONTAIREMENT (Kyutai est le moteur en service) : un voyant qui
+// crie en permanence ne dit plus rien.
 function _libelleMoteur(etat) {
-  const prets = [], chargements = [];
-  // L'ICONE du moteur accompagne son nom dans le bouton (20/09/2026), comme
-  // partout ailleurs. Le `typeof` protege le test node, qui isole cette
-  // fonction seule (sans la table des icones) : le nom est ecrit dans tous les
-  // cas, l'icone s'ajoute quand elle est connue.
-  const avecIcone = (prefixe, nom) => ((typeof _iconeFamille === 'function')
+  // L'ICONE du moteur accompagne son nom (comme partout ailleurs). Le `typeof`
+  // protege le test node, qui isole cette fonction seule (sans la table des
+  // icones) : le nom est ecrit dans tous les cas, l'icone s'ajoute quand elle
+  // est connue.
+  const avecIcone = (prefixe, nom) => ((typeof _libelleFamilleIcone === 'function')
     ? _libelleFamilleIcone(prefixe) : nom);
+  const prets = [], chargements = [], eteints = [];
   Object.keys(etat || {}).forEach((prefixe) => {
     const info = (etat || {})[prefixe] || {};
-    const nom  = avecIcone(prefixe, info.nom || prefixe);
+    if (!info.attendu) return;
+    const nom = avecIcone(prefixe, info.nom || prefixe);
     if (info.pret)       prets.push(nom);
     else if (info.actif) chargements.push(nom);
+    else                 eteints.push(nom);
   });
 
-  if (prets.length) {
-    return { texte: '\uD83C\uDF99\uFE0F Voix de personnages : ' + prets.join(' + ')
-                    + (prets.length > 1 ? ' prets' : ' pret') + ' \u2014 changer',
-             eteint: false };
+  if (eteints.length) {
+    return { texte: '\u26A0\uFE0F ' + eteints.join(' + ')
+                    + ' \u00E9teint' + (eteints.length > 1 ? 's' : '')
+                    + ' \u2014 appuyer pour r\u00E9parer',
+             eteint: true };
   }
   if (chargements.length) {
     return { texte: '\u23F3 ' + chargements.join(' + ') + ' : chargement en cours...',
              eteint: false };
   }
-  return { texte: '\uD83C\uDF99\uFE0F Voix de personnages : moteur eteint '
-                  + '\u2014 en allumer un',
-           eteint: true };
+  if (prets.length) {
+    return { texte: '\uD83D\uDEE0\uFE0F Moteurs de voix : ' + prets.join(' + ')
+                    + ' en marche',
+             eteint: false };
+  }
+  // Rien d'attendu (aucun moteur retenu, et Pocket TTS pas installe) : aucun
+  // voyant du tout, plutot qu'un voyant qui ne dit rien.
+  return { texte: '', eteint: false };
 }
 
-// Bouton sous les reglages du lecteur. Sans lui, l'absence des voix d'un
-// moteur eteint ressemblerait a un bug, et un moteur en cours de chargement
-// (10 a 20 s) ressemblerait a une panne. Depuis le 15/09/2026 il sert aussi a
-// CHANGER de moteur (demande de Laurent : un seul a la fois).
+// Voyant sous les reglages du lecteur. Sans lui, l'absence des voix d'un moteur
+// eteint ressemblerait a un bug ; et Laurent n'aurait AUCUN moyen de rallumer un
+// moteur depuis son telephone. Il remplace (21/09/2026) l'ancien bouton de
+// CHANGEMENT de moteur, qui etait un piege : un clic par erreur dessus eteignait
+// un moteur en marche, et ses voix disparaissaient du casting (panne du
+// 21/09/2026, les 18 voix Pocket TTS).
 function _afficherEtatMoteurs() {
-  const el = document.getElementById('moteur-etat');
+  const el = document.getElementById('reparer-open-btn');
   if (!el) return;
 
   if (_moteurMessage) {
     el.textContent = _moteurMessage;
-    el.classList.remove('moteur-etat-off');
+    el.classList.remove('reparer-etat-off');
     return;
   }
 
   const libelle = _libelleMoteur(_moteursEtat);
   el.textContent = libelle.texte;
-  el.classList.toggle('moteur-etat-off', libelle.eteint);
-  el.title = 'Changer de moteur de voix (un seul a la fois)';
+  el.classList.toggle('reparer-etat-off', libelle.eteint);
+  el.title = libelle.eteint
+    ? 'Réparer les moteurs de voix : relancer ce qui s\'est éteint'
+    : 'Réparer les moteurs de voix';
 }
 
 // ============================================================
@@ -449,18 +481,28 @@ async function _viderCacheAudio() {
   }
 }
 
-// ---- Changement de moteur : fenetre de choix ----
+// ---- Réparer les moteurs de voix : fenêtre de réparation ----
+// Demande de Laurent (21/09/2026) : « un bouton qui me propose de relancer
+// START.bat, comme ca si quelque chose cloche je peux le relancer depuis
+// l'application ». C'est un vrai trou qu'on comble : le lanceur du PC REFUSE de
+// relancer quand le lecteur tourne déjà (« déjà en marche, rien à lancer »),
+// donc un moteur éteint ou planté était intouchable depuis le téléphone.
+//
+// Deux gestes, du plus doux au plus fort : relancer les moteurs de voix, ou
+// redémarrer NIMM ePub en entier. AUCUN des deux n'ÉTEINT un moteur : c'est ce
+// qui rend impossible la panne du 21/09/2026, où un clic par erreur sur
+// l'ancien bouton avait fait disparaître les 18 voix Pocket TTS du casting.
 
-async function _ouvrirMoteurModal() {
+async function _ouvrirReparerModal() {
   // Etat frais : on ne propose pas a l'aveugle (le moteur a pu etre allume ou
   // eteint depuis l'affichage de la page, par exemple par un lanceur a la main).
   await loadMoteurs(true);
-  _remplirMoteurModal();
-  document.getElementById('moteur-modal').classList.remove('hidden');
+  _remplirReparerModal();
+  document.getElementById('reparer-modal').classList.remove('hidden');
 }
 
-function _fermerMoteurModal() {
-  document.getElementById('moteur-modal').classList.add('hidden');
+function _fermerReparerModal() {
+  document.getElementById('reparer-modal').classList.add('hidden');
 }
 
 // Detail affiche sous chaque moteur : allume et pret, en chargement, ou eteint.
@@ -471,80 +513,138 @@ function _detailMoteur(prefixe) {
   return '\u00E9teint';
 }
 
-function _remplirMoteurModal() {
-  ['neutts', 'xtts', 'kyutai'].forEach((prefixe) => {
-    const el = document.getElementById('moteur-detail-' + prefixe);
-    if (el) el.textContent = _detailMoteur(prefixe);
-  });
-  const note = document.getElementById('moteur-modal-note');
+// Etat de chaque moteur ECRIT dans la fenetre : c'est lui qui dit pourquoi une
+// voix n'est pas proposee dans les menus (moteur eteint ou en chargement).
+function _remplirReparerModal() {
+  const detail = document.getElementById('relancer-moteurs-detail');
+  if (detail) {
+    const lignes = Object.keys(_moteursEtat || {}).map((prefixe) => {
+      const info = _moteursEtat[prefixe] || {};
+      const nom  = (typeof _libelleFamilleIcone === 'function')
+        ? _libelleFamilleIcone(prefixe) : (info.nom || prefixe);
+      return nom + ' : ' + _detailMoteur(prefixe);
+    });
+    detail.textContent = lignes.join(' · ');
+  }
+  const note = document.getElementById('reparer-modal-note');
   if (!note) return;
-  // Pendant une ecoute, changer de moteur arrete la lecture : la suite des
-  // phrases appartenait a l'autre moteur. On le dit AVANT le clic.
+  // Pendant une ecoute : le geste doux ne coupe rien, le geste fort si. On le
+  // dit AVANT le clic, jamais apres.
   note.textContent = (_ttsState === 'playing' || _ttsState === 'paused')
-    ? 'Changer de moteur arr\u00EAte la lecture en cours.'
+    ? 'Relancer les moteurs ne coupe pas la lecture. Red\u00E9marrer NIMM ePub, si.'
     : '';
 }
 
-// Bascule d'un moteur a l'autre : le SERVEUR eteint l'autre AVANT d'allumer
-// celui-ci, et attend qu'il ait rendu la carte graphique. Les deux ne tiennent
-// pas ensemble (environ 3,8 Go chacun sur une carte de 8 Go).
-async function _basculerMoteur(cible) {
-  _fermerMoteurModal();
-  _moteurMessage = '';
-  _afficherEtatMoteurs();
-
+// GESTE DOUX : demander au serveur de rallumer les moteurs ATTENDUS (Pocket TTS
+// qui cohabite, et le moteur lourd retenu). Il ne touche PAS au lecteur : la
+// lecture en cours continue, et l'audio deja pret n'est pas refait.
+async function _relancerMoteurs() {
+  const btn = document.getElementById('relancer-moteurs-btn');
+  btn.disabled = true;
   try {
-    const res = await fetch('/api/moteur/basculer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ moteur: cible }),
-    });
+    const res = await fetch('/api/moteurs/relancer', { method: 'POST' });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      _moteurMessage = '\u26A0\uFE0F ' + (data.detail || 'changement impossible');
-      _afficherEtatMoteurs();
-      return;
-    }
+    if (!res.ok) throw new Error(data.detail || ('HTTP ' + res.status));
 
     _moteursEtat  = data.etat || _moteursEtat;
     _moteursQuand = Date.now();
-    if (data.demarre && _moteursEtat[cible]) {
-      // Il vient d'etre lance : son modele charge encore.
-      _moteursEtat[cible] = Object.assign({}, _moteursEtat[cible],
-                                          { actif: true, pret: false });
-    }
+    _moteurMessage = '\uD83D\uDEE0\uFE0F ' + (data.message || 'relance demand\u00E9e');
     _afficherEtatMoteurs();
-    await loadVoices();             // les voix de l'autre moteur disparaissent
-    if (cible === 'aucun') return;
-    _surveillerMoteur(cible);
+    _remplirReparerModal();
+    _surveillerReparation();
   } catch (e) {
-    console.error('Erreur changement de moteur de voix:', e);
-    _moteurMessage = '\u26A0\uFE0F serveur injoignable';
+    console.error('Erreur relance des moteurs de voix:', e);
+    _moteurMessage = '\u26A0\uFE0F ' + e.message;
     _afficherEtatMoteurs();
+  } finally {
+    btn.disabled = false;
   }
 }
 
-// Surveille le chargement du moteur, puis recharge les voix : elles viennent
-// d'apparaitre dans les menus (un moteur non pret n'en propose aucune).
-function _surveillerMoteur(cible) {
+// Surveille les moteurs relances, puis recharge les voix : un moteur qui charge
+// encore son modele ne propose AUCUNE voix (c'est ce qui faisait croire a une
+// panne, le 21/09/2026). Au-dela de MOTEUR_ATTENTE_MAX_MS, on le DIT au lieu de
+// tourner en boucle sans rien dire.
+function _surveillerReparation() {
   if (_moteurPollTimer) clearInterval(_moteurPollTimer);
   const fin = Date.now() + MOTEUR_ATTENTE_MAX_MS;
   _moteurPollTimer = setInterval(async () => {
     await loadMoteurs(true);
-    const info = (_moteursEtat || {})[cible] || {};
-    if (info.pret) {
+    _remplirReparerModal();
+    const enAttente = Object.keys(_moteursEtat || {}).filter((prefixe) => {
+      const info = _moteursEtat[prefixe] || {};
+      return info.attendu && !info.pret;
+    });
+    if (!enAttente.length) {
       clearInterval(_moteurPollTimer);
       _moteurPollTimer = null;
       _moteurMessage = '';
       _afficherEtatMoteurs();
-      await loadVoices();
+      await loadVoices();          // les voix disparues reviennent dans les menus
     } else if (Date.now() > fin) {
       clearInterval(_moteurPollTimer);
       _moteurPollTimer = null;
-      _moteurMessage = '\u26A0\uFE0F le moteur ne r\u00E9pond pas';
+      _moteurMessage = '\u26A0\uFE0F un moteur ne r\u00E9pond pas \u2014 relancer depuis le PC';
       _afficherEtatMoteurs();
     }
   }, MOTEUR_POLL_MS);
+}
+
+// GESTE FORT : redemarrer NIMM ePub en entier. Le SERVEUR lance START.bat comme
+// un double-clic sur le PC : il arrete le serveur en cours (donc CETTE page perd
+// sa connexion) et en demarre un neuf, avec le code a jour. C'est le geste qui
+// manquait depuis le telephone : le lanceur du PC, lui, refuse de relancer tant
+// que le lecteur tourne.
+async function _redemarrerServeur() {
+  const question = 'Red\u00E9marrer NIMM ePub ?\n\n'
+    + 'La lecture en cours s\u2019arr\u00EAte. La page se rechargera toute seule dans '
+    + 'une quinzaine de secondes.\n'
+    + 'Ta position de lecture est enregistr\u00E9e : tu reprendras o\u00F9 tu en es.\n\n'
+    + 'Une fen\u00EAtre de commande s\u2019ouvrira sur le PC (comme un double-clic sur '
+    + 'START.bat).';
+  if (!window.confirm(question)) return;
+
+  const btn = document.getElementById('redemarrer-serveur-btn');
+  btn.disabled = true;
+  _fermerReparerModal();
+  try {
+    const res = await fetch('/api/serveur/redemarrer', { method: 'POST' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch (e) {
+    console.error('Erreur redemarrage du serveur:', e);
+    btn.disabled = false;
+    alert('Le red\u00E9marrage n\u2019a pas pu \u00EAtre demand\u00E9 : ' + e.message
+          + '\n\nRelance NIMM ePub depuis le PC (START.bat).');
+    return;
+  }
+  await _attendreLeServeur();
+}
+
+// Attend le retour du serveur, puis recharge la page. Pendant l'attente, un
+// voile couvre l'ecran et dit ce qui se passe (sinon l'ecran resterait fige sans
+// rien expliquer). Au-dela d'une minute et demie, on envoie Laurent sur le PC.
+async function _attendreLeServeur() {
+  const voile = document.getElementById('redemarrage-voile');
+  if (voile) voile.classList.remove('hidden');
+  const fin = Date.now() + 90000;
+  while (Date.now() < fin) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const res = await fetch('/api/moteurs?apres=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        location.reload();
+        return;
+      }
+    } catch (e) {
+      // Le serveur est encore eteint : c'est NORMAL pendant une quinzaine de
+      // secondes (START.bat arrete l'ancien, puis demarre le nouveau). On
+      // reessaie, sans rien dire a l'ecran.
+    }
+  }
+  if (voile) voile.classList.add('hidden');
+  alert('Le serveur n\u2019est pas revenu au bout d\u2019une minute et demie.\n\n'
+        + 'Rouvre NIMM ePub sur le PC (START.bat) : la fen\u00EAtre de commande dit '
+        + 'ce qui s\u2019est pass\u00E9.');
 }
 
 // Catalogue COMPLET des voix : toutes les familles, moteurs eteints compris.
@@ -994,6 +1094,42 @@ function _filtrerPersonnages(rows, recherche) {
   return retenues;
 }
 
+// Filtre par AGE de la VOIX et par GENRE du PERSONNAGE (21/09/2026).
+// Fonctions PURES (aucun DOM, aucun appel reseau) : extraites du fichier reel
+// par test_voix/test_filtre_age_casting.js, comme _filtrerPersonnages.
+//
+// L'AGE vient des ANNOTATIONS D'ECOUTE de la voix portee (la fenetre « Ecouter
+// les voix »), pas du personnage : c'est la voix qui a un age. Une voix jamais
+// annotee n'a donc PAS d'age -- et elle ne passe pas un filtre d'age, ce qui est
+// voulu : on cherche ce qu'on a entendu, pas ce qu'on ne sait pas.
+// Le GENRE vient de la FICHE du personnage (colonne `genre` : 'H' par defaut,
+// 'F' pour une femme). On accepte 'M' comme masculin : les CATALOGUES de voix
+// ecrivent « M », les fiches ecrivent « H » (meme tolerance que _symboleGenre).
+function _ageDeLaVoix(voiceId) {
+  const annotations = (typeof _annotationsVoix === 'undefined')
+    ? {} : _annotationsVoix;
+  const annote = annotations[voiceId || ''] || {};
+  return annote.age || '';
+}
+
+function _lignePasseFiltres(row, ageFiltre, genreFiltre) {
+  if (!row) return false;
+  const fiche = row.v || {};
+
+  if (ageFiltre && ageFiltre !== 'T') {
+    if (_ageDeLaVoix(fiche.voice_id) !== ageFiltre) return false;
+  }
+
+  if (genreFiltre && genreFiltre !== 'T') {
+    const genre = String(fiche.genre || '').toUpperCase();
+    const estFemme = genre === 'F';
+    const estHomme = genre === 'H' || genre === 'M';
+    if (genreFiltre === 'F' && !estFemme) return false;
+    if (genreFiltre === 'H' && !estHomme) return false;
+  }
+  return true;
+}
+
 // Meme recherche, appliquee aux VOIX LIBRES du tiroir : la, la liste ne montre
 // plus des personnages mais des VOIX (leur prenom et leur provenance). C'est la
 // meme barre de recherche : selon l'onglet ouvert, elle ne doit pas avoir l'air
@@ -1360,7 +1496,25 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
   // (badges, regroupement par voix) ne voit aucune difference.
   const rowsTrouvees = _filtrerPersonnages(rows, recherche);
   const rowsAffichees = etat.rowsFiltrees
-    .filter(r => rowsTrouvees.indexOf(r) >= 0);
+    .filter(r => rowsTrouvees.indexOf(r) >= 0)
+    // Troisieme filtre (21/09/2026) : age de la VOIX et genre du PERSONNAGE.
+    // Il se combine avec les deux autres, et il ne compte PAS dans les badges ni
+    // dans les partages : ceux-ci restent calcules sur tout le livre.
+    .filter(r => _lignePasseFiltres(r, _castAgeFiltre, _castPersoGenre));
+
+  // Compteur du filtre d'age / de genre : il dit ce que la liste MONTRE, et sur
+  // combien de personnages -- sans lui, une liste vide n'expliquerait rien.
+  const resumeFiltre = document.getElementById('cast-filtre-resume');
+  if (resumeFiltre) {
+    const filtreActif = _castAgeFiltre !== 'T' || _castPersoGenre !== 'T';
+    if (filtreActif && _castEtatFiltre !== 'libres') {
+      resumeFiltre.textContent = rowsAffichees.length + ' personnage'
+        + (rowsAffichees.length > 1 ? 's' : '') + ' affich\u00E9'
+        + (rowsAffichees.length > 1 ? 's' : '') + ' sur ' + rows.length;
+    } else {
+      resumeFiltre.textContent = '';
+    }
+  }
   const resume = document.getElementById('cast-etat-resume');
   if (resume) {
     resume.textContent = rows.length + ' personnages \u00b7 ' + etat.nbCaster
@@ -1666,6 +1820,16 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
   // Barre de filtre par etat des personnages : meme mise en evidence.
   document.querySelectorAll('#cast-etat-actions button').forEach(b => {
     b.classList.toggle('actif', b.dataset.etat === _castEtatFiltre);
+  });
+
+  // Barre de filtre par age de la voix et par genre du personnage (21/09/2026) :
+  // meme mise en evidence -- c'est ce qui montre d'un coup d'oeil la categorie
+  // choisie, comme Laurent l'a demande.
+  document.querySelectorAll('#cast-age-actions button').forEach(b => {
+    b.classList.toggle('actif', b.dataset.age === _castAgeFiltre);
+  });
+  document.querySelectorAll('#cast-perso-genre-actions button').forEach(b => {
+    b.classList.toggle('actif', b.dataset.perso === _castPersoGenre);
   });
 
   document.getElementById('cast-modal').classList.remove('hidden');
@@ -2109,6 +2273,11 @@ function _closeCastModal() {
   _castRecherche = '';
   const champ = document.getElementById('cast-search');
   if (champ) champ.value = '';
+  // Les filtres d'AGE et de GENRE non plus (21/09/2026) : meme raison -- on
+  // rouvre toujours la fenetre sur la liste complete, jamais sur un filtre
+  // oublie (un « jeune » resté actif ferait croire a des personnages disparus).
+  _castAgeFiltre  = 'T';
+  _castPersoGenre = 'T';
 }
 
 async function _updateCharacterVoice(characterName, voiceId, rate, pitch) {
@@ -2981,6 +3150,26 @@ document.querySelectorAll('#cast-etat-actions button').forEach(btn => {
   });
 });
 
+// --- Filtre par age de la VOIX et par genre du PERSONNAGE (21/09/2026) ---
+// Deux groupes de boutons dans la MEME barre : l'age annote de la voix que
+// porte le personnage, et le genre de sa fiche. Comme les deux autres barres,
+// chaque clic reconstruit la fenetre : les quatre filtres se combinent (etat,
+// recherche, age, genre), et aucun ne touche aux badges ni aux compteurs de
+// voix -- ceux-ci restent calcules sur tout le livre.
+document.querySelectorAll('#cast-age-actions button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _castAgeFiltre = btn.dataset.age;
+    _openCastModal();
+  });
+});
+
+document.querySelectorAll('#cast-perso-genre-actions button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _castPersoGenre = btn.dataset.perso;
+    _openCastModal();
+  });
+});
+
 async function _loadSagaSuggestions() {
   try {
     const res = await fetch('/api/sagas?user_id=' + _currentUserId);
@@ -3333,7 +3522,9 @@ async function loadChapter(index, scrollTo, cursorTo = 0, autoPlay = false) {
 // DOIT rester identique à `ABREVIATIONS` dans modules/decoupage.py — le test
 // test_voix/test_decoupage_phrases.py compare les deux fichiers.
 const ABREVIATIONS_SANS_FIN = ['M', 'MM', 'Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr',
-                               'Dr', 'Pr', 'St', 'Ste', 'Mr', 'Mx'];
+                               'Dr', 'Pr', 'St', 'Ste', 'Mr', 'Mx', 'Mrs',
+                               'MR', 'MRS', 'MME', 'MMES', 'MLLE', 'MLLES',
+                               'MGR', 'DR', 'PR'];
 // Celles qui s'écrivent sans point mais ne finissent pas une phrase non plus.
 const ABREVIATIONS_SANS_POINT = ['Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr'];
 
@@ -3802,10 +3993,44 @@ function _voiceForSentence(idx) {
 // surbrillance de coller a la voix (frontiere exacte entre deux phrases) et
 // au rythme de lecture d'etre regulier.
 // Nombre de MOTS de la phrase precedente envoyes comme CONTEXTE au moteur
-// Kyutai (idee de Laurent, 17/09/2026). Mesure du meme jour : 6 mots suffisent
-// pour que la voix ne demarre plus a froid, et une phrase ENTIERE de contexte
-// sature la fenetre du moteur, qui TRONQUE alors la phrase a lire.
-const CONTEXTE_MOTS = 8;
+// Kyutai (idee de Laurent, 17/09/2026). But : que la voix ne demarre plus a
+// froid (hauteur qui « part » differemment d'une phrase a l'autre, phrases
+// courtes qui manquent de matiere).
+//
+// 8 -> 3 le 21/09/2026, MESURE (la demande de Laurent : « peut-etre envoyer
+// moins de contexte glissant, par exemple 3 mots au lieu de 8 ? »).
+// Le service COUPE l'audio pour ne garder que la phrase ; quand la coupe tombe
+// un peu tot, la fin du contexte reste et s'entend (« Je ne pense pas. Pense
+// pas Mais tu as peut etre raison »), et quand elle tombe tard, c'est le debut
+// de la phrase qui est mange. Mesure du 21/09/2026 (duree de PAROLE, qui est
+// le bon signal -- les silences, eux, varient) sur SIX cas reels :
+//
+//   contexte de 8 mots : 4 cas sur 6 laissaient un residu (+0,40 a +0,73 s),
+//                        dont le tiret de dialogue et les guillemets fermants
+//                        (ce que Laurent soupconnait : « plus recurrent avec
+//                        de la ponctuation ») ;
+//   contexte de 3 mots : AUCUN residu, aucun rognage sur les six cas ;
+//   contexte de 2 mots : aucun probleme non plus.
+//
+// Et une decouverte utile : le moteur Kyutai n'est PAS deterministe (deux
+// demandes identiques donnent deux audios differents) -- c'est ce qui explique
+// que le defaut n'arrive que « de temps en temps ».
+//
+// Le contexte garde son role (demarrer « en cours de lecture ») : 3 mots
+// suffisent a donner l'elan, et il y a moins de matiere a couper de travers.
+// Si les debuts de phrase paraissaient a nouveau « a froid », la valeur a
+// essayer est 5 ou 6 (une seule ligne a changer).
+//
+// VERDICT D'OREILLE DE LAURENT (21/09/2026, sur le lot
+// `test_voix/ecoute_contexte_20260921_1835` : phrase seule / 3 mots / 8 mots) :
+// « Le 3 mots part avec un peu de retard, mais c'est tres bien. Le "seul" part
+// presque en avalant le premier phoneme, le premier son. Le 8 ressemble pas mal
+// au 3. Je pense que le reglage est tres bien. » -- donc : le contexte SERT
+// (sans lui, l'attaque est ecrasee), et 3 mots suffisent.
+// NOTE UTILE POUR PLUS TARD : si un debut de phrase semble « mange », le premier
+// reflexe est de regarder si cette phrase avait un contexte -- il n'y en a PAS
+// apres un saut de paragraphe ni quand le locuteur change (voir _buildPlaylist).
+const CONTEXTE_MOTS = 3;
 
 // Le contexte envoye : les derniers mots de l'unite precedente.
 function _contexteDe(texte) {
@@ -5827,7 +6052,7 @@ function bindEvents() {
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     closeChaptersPanel();
-    _fermerMoteurModal();
+    _fermerReparerModal();
     document.getElementById('delete-modal').classList.add('hidden');
   });
 
@@ -5849,17 +6074,18 @@ function bindEvents() {
     document.getElementById('rsvp-speed-label').textContent = speedSlider.value + ' mots/min';
   });
 
-  // --- Bouton de bascule des moteurs de voix (Kyutai / XTTS v2) ---
-  // Le voyant du bas de la fenetre de lecture est le bouton : il ouvre le
-  // choix, et le serveur eteint l'autre moteur avant d'allumer celui-ci.
-  document.getElementById('moteur-etat').addEventListener('click', _ouvrirMoteurModal);
-  document.getElementById('moteur-cancel-btn').addEventListener('click', _fermerMoteurModal);
-  document.getElementById('moteur-modal').addEventListener('click', e => {
-    if (e.target.id === 'moteur-modal') _fermerMoteurModal();   // clic a cote
+  // --- Réparer les moteurs de voix (21/09/2026) ---
+  // Le voyant du bas de la fenetre de lecture ouvre le panneau. Il ne CHANGE
+  // plus de moteur (choix de Laurent : la bascule se fait sur le PC, par le
+  // lanceur de chaque moteur) : il ne sait que RALLUMER ce qui s'est eteint.
+  // Aucun geste de ce panneau ne peut donc eteindre un moteur par erreur.
+  document.getElementById('reparer-open-btn').addEventListener('click', _ouvrirReparerModal);
+  document.getElementById('reparer-cancel-btn').addEventListener('click', _fermerReparerModal);
+  document.getElementById('reparer-modal').addEventListener('click', e => {
+    if (e.target.id === 'reparer-modal') _fermerReparerModal();   // clic a cote
   });
-  document.querySelectorAll('#moteur-modal .provider-btn').forEach(btn => {
-    btn.addEventListener('click', () => _basculerMoteur(btn.dataset.moteur));
-  });
+  document.getElementById('relancer-moteurs-btn').addEventListener('click', _relancerMoteurs);
+  document.getElementById('redemarrer-serveur-btn').addEventListener('click', _redemarrerServeur);
 
   // --- Cache audio : compte affiche et purge a la main (20/09/2026) ---
   // Le compte est lu une fois au demarrage (et remis a jour apres une purge) :

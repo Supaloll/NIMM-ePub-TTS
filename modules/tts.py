@@ -12,6 +12,22 @@ from modules import audio_rate as _audio_rate
 from modules import audio_gain as _audio_gain
 from modules import incises as _incises
 from modules import majuscules as _majuscules
+from modules import prononciation as _prononciation
+
+# ==============================================================
+# NIVEAU DE PAROLE VISE (mesure du 21/09/2026)
+# ==============================================================
+# `modules/audio_gain.py` ramene la parole DANS UNE FOURCHETTE de +/- 3 dB
+# autour de la cible d'Edge TTS (8,5 %), commune a tous les moteurs : c'est le
+# niveau que Laurent n'a jamais trouve faible.
+# Mesure du 21/09/2026 (`test_voix/_mesurer_pocket_defauts.py`, dix phrases d'un
+# long paragraphe de 22/11/63, lues une par une comme en lecture) :
+#   - Kyutai : niveau median 6,6 % (de 3,8 a 10,8 %) -- eparpille a la sortie du
+#     moteur (9,1 dB d'ecart), RAMENE a ~2 dB par le module ;
+#   - Pocket : median 9,6 % (de 7,5 a 12,8 %) -- 4,6 dB d'ecart, ramene a ~3,6 dB.
+# Autrement dit : le module fait deja l'essentiel (il remonte les phrases
+# faibles) ; la fourchette ajoutee le 21/09/2026 corrige le RESTE, ce qui est
+# au-dessus de +3 dB de la cible (les phrases a 12,8 % de Pocket).
 
 # ==============================================================
 # CONFIGURATION
@@ -58,6 +74,30 @@ def ensure_kokoro_loaded():
     l'appli pendant le chargement (quelques secondes)."""
     import threading
     threading.Thread(target=_load_kokoro, daemon=True).start()
+
+
+# --- Kokoro : on donne les PHONEMES, pas le texte (21/09/2026) --------------
+# Cause etablie le 20/09/2026 (mesure + verdict d'oreille, atelier NIMM Voix) :
+# pour `lang=fr-fr`, Kokoro n'a pas de phonemiseur francais -- il appelle
+# espeak-ng, dont les dictionnaires de toutes les langues cohabitent. Quand un
+# mot est reconnu dans le dictionnaire ANGLAIS (« Andrea », « Marthe »...),
+# espeak-ng change de langue et MARQUE la frontiere dans sa sortie :
+# `(en)ˈandɹiə(fr)`. Le tokenizer de kokoro-onnx GARDE ces caracteres, qui sont
+# dans son vocabulaire : Laurent entendait « énAndréa fe ».
+# En phonemisant NOUS-MEMES, en retirant ces marques, puis en donnant les
+# phonemes au moteur (`is_phonemes=True`), plus aucune syllabe inventee -- y
+# compris sur les mots que `modules/prononciation.py` ne connait pas.
+#
+# Le motif est VOLONTAIREMENT etroit (`(en)`, `(fr)`, `(en-us)`...) : un motif
+# large comme `\([^)]*\)` mangerait tout ce qu'il y a entre deux parentheses du
+# texte. Les codes de langue d'espeak-ng font deux ou trois lettres.
+MARQUE_LANGUE = re.compile(r"\([a-z]{2}(?:-[a-z]{2})?\)")
+
+
+def _phonemes_kokoro(text: str) -> str:
+    """Phonemes francais d'un texte, SANS les marques de langue d'espeak-ng."""
+    phonemes = _kokoro.tokenizer.phonemize(text, "fr-fr")
+    return MARQUE_LANGUE.sub("", phonemes)
 
 
 # Catalogue complet des 54 voix Kokoro, taguees par pays/langue d'origine
@@ -232,19 +272,25 @@ MAX_CHUNK_CHARS = 4000
 #   - les mots commencant par St/Pr/Dr (Stéphane, Proust, Drouot...) ne
 #     sont pas touches car il n'y a pas de frontiere de mot apres l'abreviation
 ABBREVIATION_RULES = [
-    (re.compile(r"\bMM\.(?=\s|$|»|\")"), "Messieurs"),
+    # Les premieres lettres sont rendues INSENSIBLES A LA CASSE ([Mm] et non
+    # « M ») : un texte traduit de l'anglais ecrit « MR. CURRIE » (constat de
+    # Laurent, 21/09/2026, 22/11/63 chapitre 10) -- sans cela, le moteur recevait
+    # « MR. » tel quel et INVENTAIT un son (« [féè] »). Les garde-fous du haut
+    # restent : frontiere de mot, et lookahead (l'abreviation doit etre un mot
+    # complet), donc « mer », « Proust » ou « amr » ne sont jamais touches.
+    (re.compile(r"\b[Mm][Mm]\.(?=\s|$|»|\")"), "Messieurs"),
     (re.compile(r"(?<![.\w])M\b\.?(?=\s+[A-ZÀ-ÖØ-Ý])"), "Monsieur"),
     (re.compile(r"(?<![.\w])M\.(?=\s|$|»|\")"), "Monsieur"),
-    (re.compile(r"\bMr\.?(?=\s|$|»|\")"), "Monsieur"),
-    (re.compile(r"\bMgr\b\.?(?=\s|$|»|\")"), "Monseigneur"),
-    (re.compile(r"\bMmes\b\.?(?=\s|$|»|\")"), "Mesdames"),
-    (re.compile(r"\bMme\b\.?(?=\s|$|»|\")"), "Madame"),
-    (re.compile(r"\bMlles\b\.?(?=\s|$|»|\")"), "Mesdemoiselles"),
-    (re.compile(r"\bMlle\b\.?(?=\s|$|»|\")"), "Mademoiselle"),
-    (re.compile(r"\bDr\b\.?(?=\s|$|»|\")"), "Docteur"),
-    (re.compile(r"\bPr\b\.?(?=\s|$|»|\")"), "Professeur"),
-    (re.compile(r"\bSte\b\.?(?=\s|$|»|\")"), "Sainte"),
-    (re.compile(r"\bSt\b\.?(?=\s|$|»|\")"), "Saint"),
+    (re.compile(r"\b[Mm][Rr]\.?(?=\s|$|»|\")"), "Monsieur"),
+    (re.compile(r"\b[Mm][Gg][Rr]\b\.?(?=\s|$|»|\")"), "Monseigneur"),
+    (re.compile(r"\b[Mm][Mm][Ee][Ss]\b\.?(?=\s|$|»|\")"), "Mesdames"),
+    (re.compile(r"\b[Mm][Mm][Ee]\b\.?(?=\s|$|»|\")"), "Madame"),
+    (re.compile(r"\b[Mm][Ll][Ll][Ee][Ss]\b\.?(?=\s|$|»|\")"), "Mesdemoiselles"),
+    (re.compile(r"\b[Mm][Ll][Ll][Ee]\b\.?(?=\s|$|»|\")"), "Mademoiselle"),
+    (re.compile(r"\b[Dd][Rr]\b\.?(?=\s|$|»|\")"), "Docteur"),
+    (re.compile(r"\b[Pp][Rr]\b\.?(?=\s|$|»|\")"), "Professeur"),
+    (re.compile(r"\b[Ss][Tt][Ee]\b\.?(?=\s|$|»|\")"), "Sainte"),
+    (re.compile(r"\b[Ss][Tt]\b\.?(?=\s|$|»|\")"), "Saint"),
     (re.compile(r"(?<!\w)N°(?=\s|$|»|\"|\d)"), "numéro"),
     (re.compile(r"(?<!\w)n°(?=\s|$|»|\"|\d)"), "numéro"),
 ]
@@ -615,6 +661,15 @@ async def synthesize_kokoro(text: str, voice: str, rate: str = "+0%", pitch: str
     if not text:
         return b""
 
+    # Prononciation francaise imposee (21/09/2026) : les mots que le
+    # phonemiseur prendrait pour de l'anglais sont reecrits pour la LECTURE
+    # (`modules/prononciation.py`), et l'apostrophe courbe redevient droite
+    # (espeak-ng ne reconnait pas « d’aujourd’hui »). Le texte AFFICHE n'est
+    # jamais touche : on ne modifie que ce qui part vers le moteur.
+    # Comme la cle du cache porte sur le texte transforme, changer la table ne
+    # peut PAS resservir un ancien audio.
+    text = _prononciation.pour_lecture(text)
+
     # Cache disque : un passage deja genere (texte + voix + rate + pitch)
     # est renvoye sans recharger le modele ni re-synthetiser.
     cached = _tts_cache.get_audio(text, voice, rate, pitch, "wav")
@@ -632,8 +687,12 @@ async def synthesize_kokoro(text: str, voice: str, rate: str = "+0%", pitch: str
         import io
         import soundfile as sf
         with _kokoro_infer_lock:
+            # On donne les PHONEMES (voir `_phonemes_kokoro`) : le moteur ne
+            # phonemise plus lui-meme, donc les marques de langue d'espeak-ng
+            # ne peuvent plus finir dans l'audio.
+            phonemes = _phonemes_kokoro(text)
             samples, sample_rate = _kokoro.create(
-                text, voice=voice_id, speed=speed, lang="fr-fr"
+                phonemes, voice=voice_id, speed=speed, is_phonemes=True
             )
         buffer = io.BytesIO()
         sf.write(buffer, samples, sample_rate, format="WAV")
@@ -716,6 +775,12 @@ async def synthesize_piper(text: str, voice: str, rate: str = "+0%", pitch: str 
     text = _clean_text(text, vocabulaire)
     if not text:
         return b""
+
+    # Prononciation francaise imposee (21/09/2026) : Piper RETIRE les marques de
+    # langue d'espeak-ng (donc pas de syllabes inventees), mais il garde la
+    # PRONONCIATION anglaise (« Marthe » -> *marth*, mesure du 20/09/2026).
+    # Meme table que Kokoro, et meme regle : le texte affiche ne bouge pas.
+    text = _prononciation.pour_lecture(text)
 
     # Cache disque : un passage deja genere (texte + voix + rate + pitch)
     # est renvoye sans recharger le modele ni re-synthetiser.
@@ -917,11 +982,10 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
 
     # Niveau : le moteur Kyutai ne regle pas son volume de sortie, et ses
-    # phrases sortaient jusqu'a 8 dB sous celles d'Edge (mesure du 18/09/2026,
-    # voir modules/audio_gain.py). On ramene la parole au niveau des autres
-    # moteurs ICI, apres la vitesse et la hauteur, pour que ce soit le niveau
-    # definitif qui parte au cache : une phrase relue ne redevient jamais
-    # faible.
+    # phrases s'eparpillent a la sortie (mesure du 21/09/2026 : de 3,8 a 10,8 %
+    # de la pleine echelle, soit 9,1 dB d'ecart -- le module les ramene a ~2 dB).
+    # On corrige ICI, apres la vitesse et la hauteur, pour que ce soit le niveau
+    # definitif qui parte au cache : une phrase relue ne redevient jamais faible.
     wav_bytes = _audio_gain.normaliser_wav_parole(wav_bytes)
 
     _tts_cache.put_audio(cle, voice, rate, pitch, "wav", wav_bytes)
@@ -1492,9 +1556,10 @@ async def synthesize_pocket(text: str, voice: str, rate: str = "+0%",
     wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
 
-    # Niveau : le moteur ne regle pas son volume de sortie et ses prises
-    # varient (mesure du 20/09/2026). On ramene la parole au niveau des autres
-    # moteurs AVANT la mise en cache : une phrase relue ne redevient pas faible.
+    # Niveau : le moteur ne regle pas son volume de sortie et ses prises varient
+    # (mesure du 21/09/2026 : de 7,5 a 12,8 %, soit 4,6 dB d'ecart ; le module
+    # ramene les phrases fortes dans la fourchette). On corrige AVANT la mise en
+    # cache : une phrase relue ne redevient pas faible.
     wav_bytes = _audio_gain.normaliser_wav_parole(wav_bytes)
 
     _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)

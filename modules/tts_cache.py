@@ -105,7 +105,26 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       remis en casse normale avant l'envoi au moteur (« c'est LUI » ne sonne
 #       plus comme un sigle). Les vrais sigles (« JFK », « FBI ») restent
 #       intacts. Le vocabulaire du livre est appris une fois (main.py).
-VERSION_CACHE = 14
+#  15 = 21/09/2026 : PRONONCIATION FRANCAISE IMPOSEE. Kokoro recoit desormais
+#       les PHONEMES au lieu du texte, sans les marques de langue d'espeak-ng
+#       (« (en)ˈandɹiə(fr) » etaient PRONONCEES : « énAndréa fe »), et les mots
+#       que le phonemiseur prend pour de l'anglais sont reecrits pour la lecture
+#       (`modules/prononciation.py`, Kokoro ET Piper). Les phrases deja
+#       ecoutees doivent donc etre refaites : sans ce numero, le cache
+#       resservirait l'ancien defaut -- c'est la lecon du 17/09/2026.
+#  16 = 21/09/2026 : NIVEAU DES PHRASES DANS LES DEUX SENS. `modules/audio_gain.py`
+#       ne fait plus que REMONTER les phrases faibles : il ramene aussi les
+#       phrases TROP FORTES vers la cible (jamais plus de -6 dB, pour ne rien
+#       ecraser), afin qu'aucune phrase ne « decroche » a cote de ses voisines
+#       (mesure : de 7,5 a 12,8 % chez Pocket, 3,6 dB d'ecart apres l'ancienne
+#       regle). Meme raison que les fois precedentes : une phrase deja en cache
+#       porte l'ancien niveau.
+#  17 = 21/09/2026, meme jour : le cache est purge une seconde fois parce que la
+#       mise au point a change la regle en cours de route (une bande de +/- 3 dB
+#       avait ete essayee, puis abandonnee -- elle laissait 3,7 dB d'ecart, soit
+#       le defaut lui-meme). Aucun fichier livre ne portait cette version : c'est
+#       un nettoyage de l'essai, pas un nouveau reglage.
+VERSION_CACHE = 17
 
 
 def _hash_key(text, voice, rate, pitch):

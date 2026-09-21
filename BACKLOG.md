@@ -11,6 +11,306 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
+- [x] **Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS
+  redémarre avec le lecteur** — livré le **21/09/2026**. Retour d'écoute de
+  Laurent (6 h) : « j'ai cliqué par erreur sur la ligne tout en bas, qui me
+  permet de changer de serveur, apparemment ça a coupé le moteur POCKET TTS. Je
+  ne trouve plus les voix à l'intérieur du casting. Il faudrait retirer ce
+  bouton, de toutes façons je ne changerais de moteur que depuis le PC. »
+  *Les deux causes, trouvées en lisant l'état de la machine* :
+  1. `data/moteur_voix.txt` contenait bien `kyutai` : le clic n'avait **rien
+     cassé** ;
+  2. mais **`START.bat` n'a jamais allumé Pocket TTS** : son bloc vivait
+     **après** le bloc Kyutai, dont **tous** les chemins finissent par
+     `goto lecteur`. Il était donc **inatteignable**. Le PC avait redémarré à
+     05:53 (le service Pocket s'était tu à 01:25, **sans message d'arrêt** :
+     arrêt machine, pas panne), et à 09:46 `START.bat` a allumé Kyutai puis
+     sauté le bloc Pocket. Or le casting ne propose que les voix **écoutables
+     tout de suite** : sans service, plus une seule des 18 voix Pocket TTS — et
+     **aucun moyen de les rallumer en les demandant**.
+  *Ce qui a été livré* :
+  1. **le bouton de changement de moteur est retiré** (`index.html`, `app.js`,
+     `styles.css`) : la bascule se fait sur le PC, par le lanceur de chaque
+     moteur. Le test vérifie maintenant que **rien** de l'ancien dispositif ne
+     subsiste ;
+  2. **`START.bat` allume Pocket TTS AVANT le choix du moteur lourd** (label
+     `:pocket_pret`, plus aucun `goto lecteur` dans ce chemin) ;
+  3. **le lecteur VEILLE sur Pocket TTS** : une ronde discrète (30 s, fil de
+     fond `_veiller_moteurs`) le rallume s'il le trouve éteint, **en le disant**
+     dans la console, sans essais en rafale (repos de 60 s, puis 10 min après
+     6 échecs). C'est la réponse à la vraie difficulté : un rallumage **à la
+     demande** est impossible, puisque ses voix ne sont plus dans le casting
+     quand il est éteint ;
+  4. **l'endormissement du service passe de 30 min à 3 h**
+     (`NIMM_POCKET_TTS_INACTIF`) : à 30 min, il s'endormait **en pleine journée
+     d'écoute** (c'est exactement ce qui est arrivé ce matin) ;
+  5. **le voyant devient « 🛠️ Réparer les moteurs de voix »** : son libellé ne
+     parle **que des moteurs ATTENDUS** (Pocket TTS, qui cohabite, et le moteur
+     lourd retenu) — sinon il crierait en permanence pour XTTS éteint
+     volontairement. Il ouvre un panneau à **deux gestes** : « 🛠️ Relancer les
+     moteurs » (doux : rallume ce qui manque, **sans couper la lecture**) et
+     « 🔄 Redémarrer NIMM ePub » (fort : lance `START.bat` comme un double-clic,
+     **après confirmation**, avec voile de redémarrage et rechargement
+     automatique de la page). **Aucun des deux n'éteint un moteur** : la panne
+     du jour ne peut plus se reproduire par un clic ;
+  6. deux routes nouvelles : `POST /api/moteurs/relancer` et
+     `POST /api/serveur/redemarrer`. Le lanceur du PC, lui, **refuse** de
+     relancer quand le lecteur tourne déjà (« déjà en marche, rien à lancer ») :
+     c'est exactement le trou que le geste fort comble.
+  *Vérifications* : **30 contrôles** nouveaux (`test_voix/test_reparer_moteurs.py`,
+  rien à allumer) et `test_bouton_moteur.js` réécrit (voyant, disparition de
+  l'ancien bouton, câblage des deux gestes) ; **19 tests JavaScript** et les
+  tests Python légers au vert. **Contrôle en vrai** : `START.bat` relancé à la
+  main → port 8085 ouvert, `/api/moteurs` → `pocket actif=true pret=true
+  ATTENDU=true` et `kyutai ATTENDU=true`, `/api/voices` → **163 voix dont 18
+  Pocket TTS**. La preuve du correctif est dans `test_start_moteur.py` : il
+  vérifie que le port **8085 est testé avant le 8082**, et qu'aucun
+  `goto lecteur` ne saute plus le bloc.
+  *Deux pièges d'atelier trouvés le même jour, et corrigés* (ils dormaient
+  depuis le 16/09/2026) :
+  - **`test_start_moteur.py` tuait le lecteur de Laurent** : sa « copie
+    neutre » de `START.bat` ne neutralisait pas le garde-fou du 18/09/2026
+    (« on arrête le serveur qui écoute sur 8081 »), donc le test arrêtait pour
+    de vrai le serveur en marche. Deux autres motifs ne matchaient plus rien
+    (ils dataient de l'époque NeuTTS) : le test **lançait aussi le lanceur de
+    Kyutai pour de vrai**, sept fois. Il neutralise maintenant **tout**
+    (5 remplacements) et **vérifie** qu'aucun lancement ne reste possible dans
+    la copie ;
+  - **le nom court ne suffit plus pour lancer un `.bat`** : depuis Python 3.11,
+    les processus enfants reçoivent `NoDefaultCurrentDirectoryInExePath=1`, donc
+    `cmd /c _test.bat` échoue (« n'est pas reconnu ») là où le **chemin
+    complet** fonctionne. Leçon écrite dans le test.
+  *Effet de bord à connaître* : `test_start_moteur.py` écrit dans le **vrai**
+  `data/moteur_voix.txt` (c'est ce que fait `START.bat`) et le restaure à la
+  fin. **Ne pas lancer deux fois en même temps** : deux instances se marchent
+  dessus et laissent le pense-bête sale (constaté le 21/09/2026, remis à la
+  main). `main.py` tolère désormais un BOM en tête de ce fichier (piège
+  PowerShell).
+  *Deux pièges de plus, trouvés en testant le geste FORT (et corrigés)* :
+  - **un nom court ne se résout plus dans un `cmd` lancé par le lecteur** : le
+    bouton « Redémarrer » ouvrait bien une fenêtre, mais elle disait
+    « `START.bat` n'est pas reconnu » — et le lecteur **n'était jamais
+    relancé**. Cause : `start "..." /D ... cmd /k START.bat` passe un **nom
+    court**, et depuis Python 3.11 les processus enfants reçoivent
+    `NoDefaultCurrentDirectoryInExePath=1` (cmd ne cherche plus dans le dossier
+    courant). Corrigé **aux deux endroits** (`_lancer_start_bat_apres_reponse`
+    et `_relancer_moteur_voix`, qui portait le même défaut latent depuis le
+    15/09/2026) : le lanceur est appelé par son **chemin complet**, avec
+    `CREATE_NEW_CONSOLE` — le double-clic exact. **Vérifié en vrai** : lecteur
+    relancé, **PID changé** (12876 → 11380), Pocket TTS intact ;
+  - **une copie de `START.bat` écrite par Python en LF seul fait DÉRAILLER
+    cmd** : la copie de diagnostic, écrite avec des fins de ligne LF, a été
+    « lue de travers » par cmd, qui a **exécuté le texte de ses propres
+    commentaires** — jusqu'à lancer `neutts_service\DEMARRER_NEUTTS.bat`, donc
+    le moteur **NeuTTS**, que personne n'avait demandé (et qui a écrit
+    `neutts` dans le pense-bête). Leçon : **un `.bat` s'écrit TOUJOURS en
+    CRLF**. `START.bat` lui-même est sain (178 lignes en CRLF, vérifié) : la
+    faute était dans mon script de diagnostic, jetable.
+
+- [x] **🎒 Pocket TTS : volume qui s'affaisse dans un long paragraphe, et débuts
+  de mots mangés** — **réglé le 21/09/2026** (voir la mise au point en fin
+  d'item ; les deux symptômes ont été mesurés, puis l'un corrigé et l'autre
+  expliqué). Relevé par Laurent le **21/09/2026**, à l'oreille, sur son
+  PC : « Pocket TTS a tendance à diminuer le volume si le paragraphe est très
+  long, et à manger les débuts de mots en début de phrase. »
+  *MESURE DU 21/09/2026* (`test_voix/_mesurer_pocket_defauts.py` : le paragraphe
+  le plus long d'un chapitre de 22/11/63, **1115 caractères**, demandé **phrase
+  par phrase** comme le fait la lecture — le niveau est celui de la **parole**,
+  et l'attaque est comparée au niveau habituel de la **même** phrase). **Le
+  résultat dément l'attribution** :
+  - **Pocket TTS est STABLE** : niveaux des dix phrases `42 39 38 40 30 37 40 34
+    29 38` → de la première à la dernière **−1,1 dB seulement** (une oscillation
+    normale de ±1,5 dB). **Il n'y a pas d'affaissement.**
+  - **Kyutai, lui, décroche** : `25 35 28 38 **9** 33 28 33 23 30` → une phrase
+    sort à **8,8 %** là où ses voisines sont à **~30 %**, soit **−10 dB** : c'est
+    *exactement* l'impression d'un « volume qui baisse » dans un long passage.
+    Écart total du moteur sur ce paragraphe : de 8,8 % à 37,5 %, **12,6 dB**.
+  - **Pourquoi le correctif existant n'aide pas** : `modules/audio_gain.py`
+    (18/09/2026) a été écrit pour **remonter** les phrases trop faibles
+    (« on n'atténue JAMAIS », cible **8,5 %**). Or les sorties brutes de Kyutai
+    et Pocket sont **au-dessus** de cette cible (25 à 42 %) : le module ne
+    **fait donc rien** sur la plupart d'entre elles, et surtout il **n'égalise
+    pas** les phrases entre elles. Une phrase faible reste faible à côté de ses
+    voisines fortes.
+  - **Les débuts de mots mangés ne sont pas propres à Pocket** : sur les reprises
+    de phrase précédées d'un silence, **2 sur 5** sont sous −6 dB chez Pocket
+    (−10,9 et −8,5 dB) et **3 sur 7** chez Kyutai (−16,4 dB sur « Il n'était
+    pas… »). *Réserve honnête* : la mesure ne sait pas distinguer une **attaque
+    vraiment écrasée** d'un **premier son naturellement doux** (un mot qui
+    commence par « l », « s », « f ») — il faudra affiner avant de conclure.
+  *MISE AU POINT DU 21/09/2026 (soir) — la mesure a corrigé le diagnostic, deux
+  fois* :
+  1. **l'échelle de mesure n'était pas la bonne** : mon premier outil mesurait la
+     **crête** par tranche de 2 s, alors que le module du lecteur mesure la
+     **moyenne par fenêtre de 30 ms**. Sur la bonne échelle, les niveaux sont
+     bien plus bas que ce que j'annonçais — Kyutai de **3,8 à 10,8 %** (médiane
+     6,6), Pocket de **7,5 à 12,8 %** (médiane 9,6) — et **le module faisait déjà
+     l'essentiel** (il remontait les phrases faibles vers 8,5 %). Mon affirmation
+     « il ne fait rien sur ces moteurs » était **fausse** ;
+  2. **une « bande de ± 3 dB » a été essayée, puis ABANDONNÉE** : elle laissait
+     en place les petites variations — mesuré, il restait **3,7 dB d'écart**
+     entre les phrases d'un même paragraphe, soit **le défaut lui-même**. Ces
+     variations ne sont pas des nuances voulues : c'est l'instabilité du moteur.
+  *CORRECTIF LIVRÉ* (`modules/audio_gain.py`) : la correction va maintenant
+  **dans les deux sens** — une phrase trop faible est remontée **jusqu'à la
+  cible** (comme avant), une phrase trop forte est **ramenée vers la cible**,
+  sans jamais perdre plus de **−6 dB** (`GAIN_MIN`), pour ne rien écraser. Une
+  correction inaudible (moins de 2 %) n'est pas appliquée.
+  *Le bug attrapé au passage* : l'ancien garde-fou `gain <= 1,02` rejetait
+  **toutes** les atténuations, puisque le gain est désormais **inférieur** à 1 ;
+  il compare maintenant l'**écart** (`abs(gain − 1) < 0,02`). **C'est le test qui
+  l'a trouvé**, avant toute écoute — l'intérêt de réécrire les tests quand la
+  règle change.
+  *RÉSULTAT MESURÉ, de bout en bout* (les dix phrases du paragraphe de 22/11/63,
+  demandées au **lecteur**, comme en lecture) :
+  ```
+  AVANT (sortie brute du moteur) : 10.8 7.3 6.0 7.2 3.8 5.6 5.4 5.5 7.1 6.6  -> écart 9,1 dB
+  APRES (module du lecteur)      : 8.5 8.4 8.5 8.4 8.4 8.5 7.9 8.5 8.1 8.5  -> écart 0,7 dB
+  ```
+  `VERSION_CACHE` passe à **17** (16 = le réglage, 17 = la purge de l'essai
+  abandonné) : les phrases déjà écoutées sont refaites, sinon elles garderaient
+  l'ancien niveau (leçon du 17/09/2026).
+  *Vérifications* : `test_voix/test_niveau_audio.py` réécrit pour la nouvelle
+  règle (**14 contrôles** : une phrase vraiment faible atteint la cible, une
+  phrase déjà à la cible n'est pas touchée, une phrase trop forte est ramenée
+  mais jamais de plus de 6 dB, les garde-fous tiennent) ; **36 tests** au vert.
+  *LES DÉBUTS DE MOTS MANGÉS : QUESTION CLOSE (21/09/2026)*. Verdict d'écoute de
+  Laurent, après le lot : « je ne les ai entendus que dans les extraits que tu
+  m'as fait écouter tout à l'heure. Dans le livre, les débuts de paragraphes sont
+  ok. Je n'entends rien de particulier. » Et la mesure explique **pourquoi** :
+  l'attaque écrasée apparaît sur une phrase envoyée **SANS CONTEXTE** — c'est
+  précisément ce que faisait le lot (des phrases isolées), alors que la lecture
+  réelle en envoie un (3 mots, réglage du même jour) dès que la phrase précédente
+  a le même locuteur et le même paragraphe. **Ce n'est donc pas un défaut du
+  moteur : c'est le démarrage à froid**, celui que le contexte glissant corrige
+  et dont l'absence s'entend dans un lot d'écoute. Rien à corriger.
+  *Note de Laurent, à garder* : il avait déjà observé ce phénomène ailleurs, sur
+  de **longs textes** où des personnages se donnent la réplique — la voix
+  commençait normalement puis **devenait un murmure**, jusqu'à presque
+  disparaître. C'est le même défaut de fond (une génération auto-régressive
+  **dérive** sur un long texte) — et **l'architecture du lecteur s'en protège
+  déjà** en découpant **phrase par phrase** : chaque requête repart avec un
+  contexte court, et le module de niveau ramène chaque phrase à la cible (mesure
+  du 21/09/2026 : **écart entre phrases 0,7 dB**). C'est un argument de plus en
+  faveur du découpage, à ne pas « optimiser » un jour en envoyant des paragraphes
+  entiers.
+
+- [x] **⚡ Kyutai : les derniers mots de la phrase d'avant s'entendent parfois
+  au début de la suivante** — **corrigé le 21/09/2026** (contexte glissant de
+  **8 à 3 mots**, validé à l'oreille ; voir le détail en fin d'item). Relevé par
+  Laurent le **21/09/2026** : « les mots sont parfois mangés, surtout au début
+  d'une phrase, et parfois le TTS répète les derniers mots de la phrase qui
+  finit » (exemple de son écoute :
+  « Je ne pense pas. **Pense pas** Mais tu as peut être raison »).
+  *Cause probable, lue dans le code* : le **contexte glissant** de Kyutai
+  (`_buildPlaylist` → `_fetchAudio` → `synthetize_kyutai` →
+  `kyutai_service/servir_kyutai.py`). Pour la phrase B, le moteur génère
+  « les 8 derniers mots de A, puis B », et le service **coupe** ce qu'il faut
+  jeter en cherchant un silence (`SILENCE_COUPE_S = 0,12 s`,
+  `MARGE_CONTEXTE_S = 0,25 s`). Si la coupe tombe **trop tard**, la fin du
+  contexte s'entend (« Pense pas ») ; **trop tôt**, c'est le début de B qui est
+  mangé. Les deux défauts décrits par Laurent, d'un seul coup.
+  *Ce n'est pas Kokoro* : `main.py` ne transmet `context` **qu'à la branche
+  Kyutai** — vérifié le 21/09/2026. *(L'oreille de Laurent le confirme : « pour
+  les répétitions, c'est clairement Kyutai ».)*
+  *Piste de Laurent (21/09/2026)* : « peut-être envoyer moins de contexte
+  glissant, par exemple 3 mots au lieu de 8 ? Et j'ai l'impression que c'est
+  plus récurrent quand il y a de la ponctuation comme des ; ou des « ou des ... ».
+  »
+  **MESURE ET CORRECTIF DU MÊME JOUR** (Laurent a donné son feu vert pour
+  avancer sans lui). D'abord la mécanique, pour mémoire : le service **ne sait
+  pas** « lire le contexte sans le dire ». Il génère **« contexte + phrase »**
+  d'un seul tenant, puis **coupe** l'audio dans un silence pour ne livrer que la
+  phrase. Deux façons de se tromper : **couper trop tôt** → la fin du contexte
+  reste et s'entend (« Pense pas ») ; **couper trop tard** → le début de la
+  phrase est mangé. La mesure porte donc sur la **durée de PAROLE** (les moments
+  où l'on parle, sans les silences : la durée totale, elle, bouge avec les
+  respirations).
+  *Sur six cas construits* (l'exemple de Laurent, un point-virgule, des points
+  de suspension, un tiret de dialogue, un guillemet fermant, une phrase
+  précédente longue) :
+  - **8 mots** : **4 cas sur 6** gardaient un **résidu** (+0,40 à **+0,73 s**) —
+    le tiret de dialogue et le guillemet fermant en tête, ce qui confirme son
+    intuition sur la ponctuation ;
+  - **3 mots** : **aucun** résidu, aucun rognage ;
+  - 2 mots : aucun problème non plus.
+  *Sur quatre phrases RÉELLES de 22/11/63* (outil : `test_voix/_ecouter_contexte_kyutai.py`,
+  qui produit un lot d'écoute phrase seule / 3 mots / 8 mots **à travers le vrai
+  service** ; mesure des fichiers : parole identique à ±0,2 s avec **3 mots**,
+  mais **rognage** de **−0,63 s** et **−0,37 s** avec **8 mots** — l'autre
+  moitié du symptôme, « les mots mangés en début de phrase »).
+  *Découverte au passage* : **le moteur Kyutai n'est PAS déterministe** (deux
+  demandes identiques rendent deux audios différents) — c'est ce qui explique
+  que le défaut n'arrive que « de temps en temps » : selon le tirage, la coupe
+  tombe bien ou mal.
+  *CORRECTIF LIVRÉ* : `CONTEXTE_MOTS` passe de **8 à 3** dans `frontend/app.js`
+  (une ligne — la demande de Laurent — avec toute la mesure dans le
+  commentaire). Reversible : si les débuts de phrase paraissaient à nouveau « à
+  froid », la valeur à essayer est **5 ou 6**.
+  **VERDICT D'OREILLE DE LAURENT (21/09/2026)**, sur le lot
+  `test_voix/ecoute_contexte_20260921_1835` (phrase seule / 3 mots / 8 mots, à
+  travers le vrai service) : « **Le 3 mots part avec un peu de retard, mais c'est
+  très bien. Le "seul" part presque en avalant le premier phonème, le premier
+  son. Le 8 ressemble pas mal au 3. Je pense que le réglage est très bien.** »
+  → **le réglage est validé**, et son oreille apporte la preuve que le contexte
+  **sert** : sans lui, **l'attaque est écrasée** (c'est le « démarrage à froid »
+  que le contexte glissant était venu corriger, 17/09/2026).
+  *Note utile pour la suite* : si un **début de phrase** semble « mangé », le
+  **premier réflexe** est de regarder si cette phrase **avait un contexte** — il
+  n'y en a **pas** après un saut de paragraphe, ni quand le locuteur change
+  (`_buildPlaylist`, frontend/app.js). C'est écrit dans le commentaire du code,
+  à l'endroit où la valeur se règle.
+  *PISTE OUVERTE PAR SON OREILLE* : ces phrases **sans contexte** sont donc
+  **nombreuses** dans un livre de dialogues (chaque réplique ouvre souvent un
+  paragraphe), et **toutes** ont l'attaque écrasée. Or on ne peut pas leur
+  prêter le contexte d'un **autre** personnage (décision du 17/09 : « un locuteur
+  prêterait son élan à un autre »). Idée à éprouver, si Laurent trouve ces
+  attaques gênantes à l'usage : leur donner une **amorce neutre**, prononcée
+  **avec la voix du nouveau venu** (le moteur lit ce qu'on lui donne, dans la
+  voix demandée) — l'élan serait là **sans** emprunter la voix d'un autre.
+  À mesurer comme le reste (durée de parole + lot d'écoute), et à ne lancer que
+  si le besoin se confirme à l'oreille.
+  *RESTE OUVERT* : améliorer la **coupe du service** (`servir_kyutai.py`,
+  `_ou_commence_la_phrase`) pour garder un contexte long **sans** résidu. La
+  cause est déjà écrite dans le code : `fin_contexte` est mesuré sur le contexte
+  rendu **seul**, alors que suivi d'une phrase il est lu un peu plus lentement →
+  la coupe tombe trop tôt. Piste : repérer le **silence long** créé par le
+  séparateur « … » (le service génère déjà « contexte ... phrase ») au lieu de se
+  fier à une estimation proportionnelle. Niveau 3, à valider à l'oreille avec le
+  lot ci-dessus.
+
+  **LA QUESTION DU « POINT FIXE » — réponse mesurée (21/09/2026)**. Laurent :
+  « Est-ce qu'il existe une ponctuation qui est traitée toujours de la même façon
+  par Kyutai ? Si oui, on aurait un point fixe de secondes, toujours le même [...]
+  Le truc c'est qu'il faut une ponctuation qui ne provoque pas de coupure dans le
+  contexte qu'on lui aurait donné. »
+  *Mesure* (`test_voix/_essai_separateur.py`, étendu pour l'occasion : **3 essais
+  par séparateur** — c'est la **constance** qui compte, pas seulement l'existence
+  d'une pause) : on glisse un signe entre 3 mots de contexte et la phrase, et on
+  relève la **plus longue pause** de chaque essai.
+  - **points de suspension** : 0,90 / 0,94 / 0,88 s → **0,91 s, écart 0,06 s** —
+    le plus régulier, **mais seulement quand le contexte finit proprement** ;
+  - **point** : 0,88 / 0,84 / 0,93 s → écart 0,09 s ;
+  - **point d'interrogation** : 0,97 / 0,78 / **0,12 s** → écart 0,85 s : il ne
+    fait parfois **aucune** pause ;
+  - **point-virgule** : 0,85 / 0,84 / **0,29 s** → écart 0,56 s ;
+  - **deux-points** 0,34 s, **saut de ligne** 0,12 s : pauses trop courtes (le
+    saut de ligne est transformé en espace par le nettoyage) ;
+  - et **le piège que Laurent redoutait est réel** : avec **une virgule dans le
+    contexte** (« pas, alors »), la virgule fait une pause de **~0,5 s** qui
+    arrive **avant** celle du séparateur — les points de suspension tombent alors
+    à 0,28 / 0,43 / 0,70 s.
+  **Conclusion : aucun signe ne donne une pause constante.** La durée dépend du
+  **contexte** (longueur, dernière lettre, virgule interne) et de la phrase qui
+  suit, et le moteur n'est pas déterministe. **Le point fixe est donc écarté,
+  mesure à l'appui — pas par principe.** Ce qui reste vrai : les points de
+  suspension sont le repère le plus fiable (le service les utilise déjà), et un
+  contexte de **3 mots est trop court pour contenir une pause gênante** — c'est
+  déjà en place depuis le même jour.
+  *Piste gardée pour plus tard* (seulement si un défaut revient à l'oreille) :
+  situer la frontière par **alignement** — le service génère déjà la phrase seule
+  **et** « contexte + phrase » — au lieu de se fier à une durée.
+
 - [x] **Volume des voix Kyutai : niveau ramené à celui des autres moteurs** —
   livré le **18/09/2026**. Constat de Laurent : « le volume des voix Kyutai est
   très, très faible ».
@@ -1264,6 +1564,111 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *À valider avant de coder* : l'ergonomie (où mettre le bouton, comment afficher
   la liste) — c'est du **niveau 3** (nouvelle table en base + écran).
 
+- [x] **« MR. CURRIE » lu « MR[féè]. CURRIE » — corrigé** — livré le **21/09/2026**.
+  Retour d'écoute de Laurent : « J'ai encore des bizarreries, avec le passage
+  "MR. CURIE" (moteur Kyutai) lit : "Et l'étiquette sur son bureau indiquait
+  MR[féè]. CURRIE" » (22/11/63 de Stephen King, chapitre 10 ; le vrai mot est
+  **CURRIE**, avec deux R).
+  *Cause, trouvée dans le texte réel* : le livre écrit « **MR.** » suivi d'une
+  **espace insécable** puis « CURRIE » (une étiquette anglaise, traduite telle
+  quelle). Or **`MR` en capitales n'était reconnu nulle part** :
+  - le **découpage** coupait donc la phrase juste avant le nom → le moteur
+    recevait un morceau finissant par « MR. », **seul devant trois lettres**, et
+    il **inventait un son** (« [féè] ») ; le nom partait ensuite dans un second
+    morceau de **six caractères** ;
+  - le **nettoyage** ne développait pas « MR. » (les règles ne connaissaient que
+    « Mr. » et « M. ») : le moteur ne lisait donc jamais « Monsieur ».
+  *Corrigé aux trois endroits* : `ABREVIATIONS` (`modules/decoupage.py`) **et**
+  sa copie de la page (`frontend/app.js`, que le test compare) reçoivent les
+  formes **en capitales** (`MR`, `MME`, `MMES`, `MLLE`, `MLLES`, `MGR`, `DR`,
+  `PR`), et `ABBREVIATION_RULES` (`modules/tts.py`) devient **insensible à la
+  casse** pour ces civilités (`[Mm][Rr]` et non « Mr »). Résultat vérifié : la
+  phrase redevient **une seule**, et le moteur reçoit « … indiquait **Monsieur**
+  CURRIE. »
+  *Effet de bord MESURÉ avant de garder la correction* : changer le découpage
+  **déplace la numérotation des phrases**, donc le « qui parle »
+  (`speaker_attribution.sentence_idx`). Balayage des **340 chapitres** des
+  13 livres : **17 chapitres** concernés — **tous dans 22/11/63** (le chapitre 9
+  pour « MR. CURRIE », seize autres pour « **Mrs** ») — et ce livre **est casté**.
+  - **« Mrs » : la pause, mesurée AVANT de décider** (moteur Kyutai, la voix du
+    narrateur de 22/11/63, une phrase réelle lue en quatre variantes) : tel quel
+    **5,76 s**, **sans le point 5,84 s** (le point n'est donc **pas** coupable),
+    écrit « Madame » 6,24 s, **coupé en deux morceaux 6,48 s** — le second
+    morceau s'ouvrant sur **0,46 s de silence**. C'est la **coupure** qui crée la
+    grande pause entendue : « Mrs » rejoint donc la liste, comme les capitales.
+  - **La LECTURE de « Mrs » n'est PAS touchée**, et c'est un choix argumenté : en
+    français « Mrs » = *Messieurs*, en anglais « Mrs » = *Misses* (Madame). Le
+    scanner tranche pour **ses** livres (42 fois sur 42, toujours suivi d'un nom :
+    *Mrs. Symonds*, *Starrett*, *Levesque*, *Bowie*, *Clayton*…), mais un livre
+    qui mêlerait les deux usages ne peut pas être tranché automatiquement. Le
+    moteur dit « Misses », ce qui lui convient, et le remède (« Madame ») reste
+    **une ligne dans le nettoyage** — sans aucun effet sur les index.
+  - **Migration faite le 21/09/2026** (son choix : « on y va »), avec un outil
+    écrit pour l'occasion — `test_voix/_migrer_phrases_abreviations.py` : il
+    compare la liste **privée des nouvelles formes** à l'état actuel, et non
+    l'ancienne règle du 18/09, sinon il migrerait **deux fois**. Résultat :
+    **42 fusions**, 13 023 → **12 981** lignes, **1 cas** à locuteurs mélangés
+    (signalé : une réplique de Marnie Cullum réunie à de la narration — le
+    locuteur le plus long est gardé), **1 position de lecture** recalée, et
+    **vérification passée** (autant de lignes que de phrases, index uniques et
+    dans les bornes). Copie de la base avant écriture :
+    `data/nimm_epub.db.bak_avant_migration_abreviations_20260921_1822`.
+  *Vérifications* : `test_voix/test_decoupage_phrases.py` (+4 cas : `MR.`,
+  `Mr.`, `MME.` restent dans leur phrase) et `test_voix/test_nettoyage_tts.py`
+  (+2 cas : `MR.` → « Monsieur », `MME.` → « Madame ») ; les tests voisins
+  (`test_ids_ecran.py`, `test_majuscules.py`, `test_incise_seule.py`) au vert.
+
+- [x] **Les syllabes inventées autour des prénoms : CORRIGÉ (étape 1)** — livré le
+  **21/09/2026**. Retour d'écoute de Laurent : « les voix Kokoro ont certainement
+  des balises qui font prononcer certains mots comme ceci (`enAndréafe`). Ça doit
+  être `EN_Andréa_FR` qui est prononcé par Kokoro. C'est très présent sur les
+  prénoms, mais sur certains mots également. »
+  *Ce qui a été livré, en deux mécanismes* (`modules/prononciation.py` et
+  `modules/tts.py`) :
+  1. **Kokoro reçoit les PHONÈMES, plus le texte** (`is_phonemes=True`) : on
+     phonémise nous-mêmes, puis on **retire les marques de langue**
+     (`(en)ˈandɹiə(fr)`) qu'espeak-ng insère et que le tokenizer de
+     kokoro-onnx **prononçait**. Fini les « én … fe », **partout** — y compris
+     sur les mots que la table ne connaît pas ;
+  2. **une table de prononciation** pour les mots que le phonémiseur revendique
+     (Kokoro **et** Piper) : la phrase est réécrite pour la **lecture seule** —
+     `Andrea → Andréa`, `Marthe → Marte`, `Arthur → Artur`, `Nathan → Natan`
+     (les quatre **validés à l'oreille** le 20/09/2026), plus `Ethan → Étan`,
+     `Maëlys → Maélis`, `Mathis → Matis`, `Noah → Noa` et `dos → dô`
+     (proposés, **en attente de son oreille**). L'apostrophe courbe redevient
+     droite au passage (« d’aujourd’hui » partait en anglais).
+  *Mesure* (`test_voix/sortie_ecoute_prononciation/mesure_phonemes.txt`) : les
+  neuf mots passent d'un son **anglais marqué** à un son **français**
+  (`andrea : (en)ˈandɹiə(fr)` → `ɑ̃dʁeˈa` ; `dos : (en)dˈɒs(fr)` → `dˈoː`). Et
+  dans le lot, la phrase entière **maigrit de 35 %** (368 Ko → 238 Ko) : c'est le
+  temps des syllabes en trop qui disparaît.
+  *Vérifications* : **31 contrôles** (`test_voix/test_prononciation_kokoro.py`),
+  dont un **garde-fou de la table** — chaque graphie doit cesser de basculer en
+  anglais **et** son mot d'origine doit basculer, sinon l'entrée ne sert à rien
+  et le test le signale. `VERSION_CACHE` passe à **15** : les phrases déjà
+  écoutées doivent être refaites (leçon du 17/09).
+  **VERDICT D'OREILLE DE LAURENT, le 21/09/2026 : « tous les "après" sont ok.
+  C'est parfait ! »** — les neuf entrées de la table sont donc **validées**, et
+  la correction est **en service** (vérifié sur le lecteur en marche : la phrase
+  d'exemple passe de 2,62 s à 2,18 s, et l'audio renvoyé est exactement le
+  fichier « après » du lot).
+  *Ce qui reste* : l'**étape 2** — le scanner qui parcourt un livre et propose la
+  liste des mots à corriger (il existe côté NIMM Voix, à rapatrier) ; et, si un
+  jour un mot résiste, l'ajouter à la table après l'avoir **mesuré et écouté**
+  (le lot se regénère par `test_voix/ECOUTER_PRONONCIATION.bat`).
+
+- [ ] **Le scanner de prononciation d'un livre (étape 2)** — suite de l'item
+  « syllabes inventées », livré le 21/09/2026. Aujourd'hui la table de
+  `modules/prononciation.py` se remplit **à la main**, mot par mot, après mesure
+  au phonémiseur et écoute. L'étape 2 est un **outil qui parcourt un livre** et
+  rend la **liste des mots à corriger** — « 12 mots dans ce livre, voici
+  lesquels » — avec leur fréquence : de quoi traiter un nouveau livre en quelques
+  minutes au lieu de tout relire. **L'outil existe déjà côté NIMM Voix**
+  (`scripts/tester_prenoms_kokoro.py`, sa partie scanner, et le lanceur
+  `CHERCHER_PRENOMS_DUN_LIVRE.cmd` qui prend un EPUB par glisser-déposer) : il
+  s'agit de le **rapatrier** — ou de reprendre sa méthode — et de le brancher sur
+  les livres de la bibliothèque. Rien à décider, juste à faire : niveau 2.
+
 - [ ] **Les prénoms prononcés « à l'anglaise », et des syllabes inventées autour**
   — chantier ouvert le **20/09/2026**, **cause trouvée** (question de Laurent :
   « quand Kokoro prononce un prénom, genre *Andréa*, j'entends `[énAndréafe]` — il
@@ -1318,6 +1723,77 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   d'abord, sans coder** — la correction n'est pas lancée.
 
 ## 🟠 Priorité 2 — Voix & casting
+
+- [ ] **🎭 Casting : tri par âge, libellé plus court dans les fenêtres étroites,
+  et une voix qui ne doit pas être remplacée en silence** — trois demandes de
+  Laurent, notées le **21/09/2026** (retour d'écoute de 6 h).
+  1. **Tri par âge** : « des boutons juste pour trier les voix par âge pour le
+     moment : Enfant 👦, Jeune 👨‍🦱, Adulte 🧑‍🦲, Vieux 👴 ». Les valeurs
+     existent déjà dans ses **annotations d'écoute** (`CRITERES_VOIX["age"]` :
+     `enfant`, `jeune`, `adulte`, `mur`, `vieux`) — **335 voix annotées** au
+     21/09/2026 (enfant 7, jeune 84, adulte 157, **mûr 73**, vieux 14).
+     **✅ LIVRÉ le 21/09/2026** :
+     - **c'est un FILTRE** : quatre boutons 👦 Enfant / 👨‍🦱 Jeune / 🧑‍🦲 Adulte /
+       👴 Vieux, plus « Tous les âges » ; cliquer sur « Jeune » **n'affiche que
+       les jeunes**, et le bouton actif affiche la catégorie choisie ;
+     - **un filtre Homme / Femme** sur les mêmes lignes (♀️ Femmes / ♂️ Hommes /
+       « Hommes et femmes ») : l'âge est celui de la **voix portée**, le genre
+       celui de la **fiche** du personnage ;
+     - **« mûr » est retiré** : la valeur disparaît de `CRITERES_VOIX`
+       (`main.py`), et les **73 voix** qui la portaient ont été **migrées vers
+       « adulte »** (`data/annotations_voix.json`, copie datée
+       `...bak_avant_4_ages_20260921_1904`) — sans cette migration, l'API aurait
+       refusé toute modification sur ces 73 fiches (elle rejette les valeurs hors
+       liste). Âges après migration : **adulte 230, jeune 84, vieux 14,
+       enfant 7** ;
+     - parce que le serveur sert **une seule liste**, les 4 âges valent **aussi**
+       pour les menus d'annotation de la fenêtre **« Écouter les voix »** (c'est
+       la question de Laurent : « tu peux modifier dans "écouter voix" également ? »
+       → oui, et **sans double travail**) ;
+     - une ligne jamais annotée (âge inconnu) **ne passe aucun filtre d'âge** :
+       c'est voulu — on cherche ce qu'on a entendu, pas ce qu'on ignore ;
+     - le filtre **se combine** avec la recherche et avec la barre d'état, et il
+       est **remis à zéro** à la fermeture de la fenêtre (comme la recherche :
+       jamais de filtre oublié qui ferait croire à des personnages disparus).
+     *Vérifications* : `test_voix/test_filtre_age_casting.js` (**30 contrôles**,
+     rien à allumer) ; `test_ids_ecran.py`, `test_lire_moi.py` et les autres tests
+     au vert (**36 tests** au total).
+     **Ses décisions, dans ses mots** (21/09/2026) :
+     - c'est un **FILTRE**, pas un tri : « On filtre selon le critère
+       sélectionné. Cliquer sur "jeune" n'affiche que les jeunes. Les boutons
+       qui sont actifs affichent la catégorie. » ;
+     - **« mûr » disparaît** des voix : « On garde juste enfant ; jeune ;
+       adulte ; vieux » → les **73 voix annotées « mûr » sont rangées dans
+       Adulte** (migration de `data/annotations_voix.json`, **avec copie datée**
+       — et la valeur est retirée de la liste proposée, sinon elle réapparaît
+       dans les menus) ;
+     - **en plus, un filtre Homme / Femme** : « Idéalement un filtre ; Homme /
+       Femme et les 4 âges. »
+     *Où* : sur les **lignes de personnages** du casting (leur voix a un âge et
+     un genre), à côté des deux barres existantes (« Femmes / Hommes » des voix
+     proposées, « État des personnages »).
+  2. **Le texte de l'aperçu des voix est trop long** dans les fenêtres étroites :
+     « le texte est très gros, avant il tenait sur une ligne ». Diagnostic : ce
+     n'est pas la police, c'est le **libellé** — `♀️ Amélie 🇫🇷🇬🇧 Mûre grave — 🎎`
+     (symbole de genre + prénom + deux drapeaux + âge + timbre + icône du
+     moteur) dans un menu large de **45 %** (`.cast-voice-select`) ; avant,
+     « Amélie 🇫🇷 — Kokoro » tenait sur une ligne. Correctif proposé : **libellé
+     court** (symbole + prénom + drapeau) dans les deux fenêtres étroites
+     (casting et « Voir qui parle »), **libellé complet** là où il y a la place
+     (fenêtre « Écouter les voix »).
+  3. **Une voix ne doit pas être remplacée toute seule** : quand le moteur
+     Pocket TTS s'est endormi (panne du matin), Laurent a retrouvé **une autre
+     voix** sur son personnage — « ça m'oblige à re-sélectionner la voix pocket
+     et la remettre sur le personnage ». Cause **à établir** : le menu d'une
+     ligne de personnage dont la voix n'est pas proposée retombe sur sa première
+     option — reste à voir si cette valeur est **enregistrée** au passage.
+     C'est exactement ce que la règle du 14/09/2026 interdit : *jamais de
+     substitution silencieuse*. Son idée, notée telle quelle : un bouton
+     **« sauvegarder le casting »**, pour pouvoir revenir à un état connu.
+  *Vérifications à prévoir* : un test JS sur le **libellé court** et sur les
+  **boutons d'âge** (même méthode que `test_recherche_casting.js`), et un test
+  qui **échoue** si la voix d'un personnage change sans que Laurent l'ait
+  demandé.
 
 - [x] **La vitesse réglée sur un personnage n'était JAMAIS appliquée — corrigé** —
   livré le **20/09/2026** (choix **A1** validé par Laurent ; **la règle a été
@@ -5368,6 +5844,14 @@ désert) :
 
 
 ## 🟢 Priorité 4 — Produit
+
+- [ ] **Un tableau de bord des moteurs de voix** (idée du 21/09/2026) — qui
+  tourne, **depuis quand**, quelle mémoire, quel moteur est « attendu » et lequel
+  dort. L'information existe déjà (le voyant **🛠️ Réparer**, `/api/moteurs`, les
+  journaux de chaque service) mais elle est **dispersée** : sur le PC il faut
+  ouvrir les fenêtres des moteurs, et sur le téléphone seul le voyant parle. Ce
+  serait le premier endroit où regarder quand « quelque chose cloche sans qu'on
+  sache quoi ». À faire **après** ce qui sert tous les jours : niveau 4.
 
 - [ ] **Exporter un livre en MP3 (livre audio figé, avec le casting validé)** —
   idée de Laurent, 15/09/2026, pour plus tard : « si j'arrive à un résultat

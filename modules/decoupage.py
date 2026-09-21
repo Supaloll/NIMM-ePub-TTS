@@ -43,8 +43,18 @@ MIN_PARAGRAPHE = 6  # plus de 5 caracteres
 # Les abréviations françaises APRÈS lesquelles un point ne finit JAMAIS une
 # phrase. Écrire « M. » ou « Mme » est une civilité : le nom qui suit fait
 # partie de la même phrase.
+# Les formes TOUT EN MAJUSCULES sont là aussi : un texte traduit de l'anglais
+# écrit « MR. CURRIE » (constat de Laurent, 21/09/2026, 22/11/63 chapitre 10).
+# Sans elles, la phrase était COUPÉE juste avant le nom : le moteur recevait un
+# morceau finissant par « MR. » et INVENTAIT un son (« [féè] »), et le nom
+# partait dans un second morceau de six caractères.
+# « Mrs » est là pour la même raison (constat du même jour) : NON reconnu, il
+# coupait la phrase après « Mrs. », et Laurent entendait une **grande pause**
+# avant le nom. On ne touche PAS à sa lecture (le moteur dit « Misses », ce qui
+# lui convient) : ici, c'est seulement la frontière de phrase qui change.
 ABREVIATIONS = ('M', 'MM', 'Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr', 'Dr', 'Pr',
-                'St', 'Ste', 'Mr', 'Mx')
+                'St', 'Ste', 'Mr', 'Mx', 'Mrs',
+                'MR', 'MRS', 'MME', 'MMES', 'MLLE', 'MLLES', 'MGR', 'DR', 'PR')
 
 # Celles qui s'écrivent SANS point mais ne finissent pas une phrase pour autant.
 ABREVIATIONS_SANS_POINT = ('Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr')

@@ -378,6 +378,35 @@ définitif est celui qui part au cache. Effet mesuré sur 120 phrases réelles :
 niveau de parole médian **5,4 % → 8,2 %** (≈ +3,6 dB), gain médian ×1,45.
 Vérification : `test_voix/test_niveau_audio.py`.
 
+**Révision du 21/09/2026 — la correction va maintenant dans les DEUX SENS.**
+Retour d'écoute de Laurent : « le volume baisse dans un long paragraphe ».
+Mesure du jour (`test_voix/_mesurer_pocket_defauts.py`, dix phrases d'un long
+paragraphe de 22/11/63 demandées **une par une**, comme en lecture) : Kyutai
+sort de **3,8 à 10,8 %** (médiane 6,6) et Pocket de **7,5 à 12,8 %** (médiane
+9,6). L'ancienne règle **remontait** les phrases faibles vers 8,5 % — elle
+faisait donc déjà l'essentiel — mais laissait les phrases **fortes** au-dessus :
+chez Pocket, une phrase à 12,8 % restait **3,6 dB au-dessus** de ses voisines.
+
+La correction est donc **bornée des deux côtés** : une phrase trop forte est
+**ramenée** vers la cible, sans jamais perdre plus de `GAIN_MIN` (**−6 dB**),
+pour ne rien écraser. Une *bande de ± 3 dB* a été essayée puis **abandonnée** :
+elle laissait 3,7 dB d'écart, c'est-à-dire le défaut lui-même — ces variations
+ne sont pas des nuances voulues, c'est l'instabilité des moteurs.
+
+**Deux pièges corrigés le même jour, à connaître** :
+1. l'ancien garde-fou « correction inaudible » (`gain <= 1.02`) rejetait
+   **toutes** les atténuations, puisque le gain est désormais **inférieur** à 1 :
+   il compare maintenant l'**écart** (`abs(gain − 1) < 0.02`) ;
+2. l'échelle de mesure : le module mesure la **moyenne** par fenêtre de 30 ms,
+   mon premier outil mesurait la **crête** — d'où un diagnostic faux au départ
+   (« le module ne fait rien »). Un tableau de mesure ne vaut que par l'unité
+   qu'il emploie.
+
+**Résultat mesuré de bout en bout** (les mêmes dix phrases, demandées au
+**lecteur**) : écart entre phrases **9,1 dB → 0,7 dB** (niveaux finaux de 7,9 à
+8,5 %). `VERSION_CACHE` : **17** — les phrases déjà écoutées sont refaites,
+sinon elles garderaient l'ancien niveau (leçon du 17/09/2026).
+
 ### Le découpage en phrases — une seule règle, et sa migration (18/09/2026)
 
 La règle était écrite **quatre fois** (page, casting, re-cast, recherche) et
@@ -408,6 +437,45 @@ Bilan du 18/09/2026 : **1 075 fusions** sur 107 101 phrases (296 chapitres,
 14 livres), **28 cas** à locuteurs mélangés, **0 attribution sans cible**, et
 **0 index hors bornes** après écriture (option `--verifier`). Copie de la base
 avant écriture : `data/nimm_epub.db.bak_avant_migration_20260918`.
+
+**Ajout du 21/09/2026 : les civilités en CAPITALES et « Mrs ».** Un texte traduit
+de l'anglais écrit `MR. CURRIE` (22/11/63, chapitre 10) — et ces formes-là
+n'étaient reconnues **nulle part** : la phrase était **coupée** juste avant le
+nom. Le moteur recevait alors un morceau finissant par « MR. », **seul devant
+trois lettres**, et **inventait un son** (« [féè] ») ; le nom partait dans un
+second morceau de **six caractères**. La liste reçoit donc **`MR`, `MRS`, `MME`,
+`MMES`, `MLLE`, `MLLES`, `MGR`, `DR`, `PR`** (découpage serveur **et** page : les
+deux copies restent identiques) ainsi que **`Mrs`**, et `ABBREVIATION_RULES`
+(`modules/tts.py`) devient **insensible à la casse** pour ces civilités
+(`MR.` → « Monsieur »).
+
+**La pause après « Mrs », mesurée le même jour** (moteur Kyutai, la voix du
+narrateur de 22/11/63, une phrase réelle lue en quatre variantes) : tel quel
+**5,76 s**, **sans le point 5,84 s** (le point n'est donc **pas** coupable),
+écrit « Madame » 6,24 s, et **coupé en deux morceaux 6,48 s** — le second morceau
+s'ouvrant sur **0,46 s de silence**. C'est donc la **coupure** qui crée la pause
+entendue : d'où l'ajout de `Mrs` à la liste.
+
+**La migration de ce même jour** (`test_voix/_migrer_phrases_abreviations.py`,
+écrit pour l'occasion : il compare la liste actuelle **privée des nouvelles
+formes** à l'état actuel, et non l'ancienne règle du 18/09 — sinon il migrerait
+**deux fois**) : **17 chapitres** concernés, **tous dans 22/11/63** — **42
+fusions**, 13 023 → **12 981** lignes, **1 cas** à locuteurs mélangés (une
+réplique de Marnie Cullum réunie à de la narration : le locuteur de la phrase la
+plus longue est gardé), **1 position de lecture** recalée, et vérification
+passée (autant de lignes que de phrases, index uniques et dans les bornes).
+Copie de la base avant écriture :
+`data/nimm_epub.db.bak_avant_migration_abreviations_20260921_1822`.
+
+**Ce qui n'a PAS été touché, et pourquoi** : la **lecture** de « Mrs ». En
+français « Mrs » = *Messieurs* ; en anglais « Mrs » = *Misses* (Madame). Le
+scanner de ses livres tranche : **42 fois sur 42, c'est l'anglais** (toujours
+suivi d'un nom — *Mrs. Symonds*, *Starrett*, *Levesque*, *Bowie*, *Clayton*,
+*Knowles*, *Holloway*, *Oswald*, *Hall*…), et le moteur dit « Misses », ce qui
+convient à Laurent. Le remède serait **une ligne dans le nettoyage** (aucun effet
+sur les index) : il reste disponible, mais un livre qui mêlerait les deux usages
+ne peut pas être tranché automatiquement — donc on laisse tel quel, et c'est
+écrit ici.
 
 ---
 
@@ -2816,6 +2884,59 @@ machine à l'autre si besoin.
 (backlog, voir plus bas) ne pourra s'appliquer qu'aux voix Edge TTS,
 pas aux voix Kokoro.
 
+### 🗣️ Prononciation française imposée — Kokoro et Piper (21/09/2026)
+
+**Le défaut, tel que Laurent l'a entendu** : « quand Kokoro prononce un prénom,
+genre Andréa, j'entends `[énAndréa fe]` — il invente des syllabes. » Cause établie
+le 20/09/2026 à l'atelier NIMM Voix (mesure et verdict d'oreille dans son
+`ARCHITECTURE.md`) : pour `lang=fr-fr`, Kokoro **n'a pas** de phonémiseur
+français, il appelle **espeak-ng**, un moteur **multi-langues**. Quand un mot est
+reconnu dans le dictionnaire **anglais**, espeak-ng **change de langue** et
+**marque la frontière** : `(en)ˈandɹiə(fr)`. Le tokenizer de **kokoro-onnx**
+garde ces caractères (ils sont dans son vocabulaire) → le moteur **prononce la
+marque** : « én » … « fe ».
+
+**Deux conséquences à ne pas confondre** : la marque lue à voix haute est un
+défaut **en plus** du mauvais son ; même quand elle est retirée, le mot reste
+**prononcé à l'anglaise** — c'est le cas de **Piper**, qui la retire
+(`Marthe` → *marth*, `Nathan` → *néythane*).
+
+**Ce qui a été livré, en deux mécanismes** :
+
+| Mécanisme | Où | Ce qu'il corrige |
+|---|---|---|
+| **les phonèmes au moteur** : on phonémise nous-mêmes, on retire les marques de langue (`MARQUE_LANGUE`, motif **volontairement étroit** — `(en)`, `(fr)`, `(en-us)`… : un motif large mangerait ce qu'il y a entre deux parenthèses du texte), puis `create(..., is_phonemes=True)` | `modules/tts.py`, `_phonemes_kokoro` | les syllabes inventées, **partout** — même sur les mots que la table ne connaît pas |
+| **la table de prononciation** : le mot est réécrit dans la version **PARLÉE seule**, jamais dans le texte affiché (même patron que les abréviations et les majuscules) | `modules/prononciation.py`, appelé par Kokoro **et** Piper | le **son** : `Andrea → Andréa`, `Marthe → Marte`, `Arthur → Artur`, `Nathan → Natan` (validés à l'oreille le 20/09), plus cinq propositions en attente de verdict |
+
+**Trois garde-fous, appris des pièges déjà payés** :
+
+1. la table ne touche que des **mots entiers** : « Andreas » et « dosages » ne
+   sont pas touchés par les entrées « andrea » et « dos » ;
+2. un mot **tout en majuscules** est ramené en casse de titre, jamais laissé en
+   capitales : espeak-ng **épelle** les mots en capitales ;
+3. la **clé du cache porte sur le texte transformé** : changer la table ne peut
+   donc pas resservir un ancien audio. `VERSION_CACHE` passe quand même à **15**,
+   car le changement des phonèmes, lui, n'apparaît pas dans le texte.
+
+**Mesure** (`test_voix/sortie_ecoute_prononciation/mesure_phonemes.txt`) : les
+neuf mots passent d'un son **anglais marqué** à un son **français** —
+`andrea : (en)ˈandɹiə(fr)` → `ɑ̃dʁeˈa`, `dos : (en)dˈɒs(fr)` → `dˈoː`,
+`maëlys : (en)mˈaɛliz(fr)` → `maelˈi`. Et dans le lot, la phrase qui contient
+tous les mots **maigrit de 35 %** (368 Ko → 238 Ko) : c'est le temps des syllabes
+en trop qui disparaît.
+
+**Vérifications** : `test_voix/test_prononciation_kokoro.py` — **31 contrôles**,
+dont un **garde-fou de la table** : chaque graphie doit cesser de basculer en
+anglais **et** son mot d'origine doit basculer, sinon l'entrée ne sert à rien et
+le test le signale (règle : on n'ajoute une entrée **qu'après l'avoir mesurée**).
+Le phonémiseur seul est utilisé : le modèle de 300 Mo n'est **pas** chargé, donc
+le test tourne en une seconde.
+
+**Ce qui reste** : le **verdict d'oreille** de Laurent sur les cinq entrées
+proposées (`test_voix/ECOUTER_PRONONCIATION.bat`, lot A/B avec la vraie voix
+Kokoro), puis l'**étape 2** : un scanner qui parcourt un livre et propose les mots
+à corriger (il existe côté NIMM Voix).
+
 ### 🎬 Prochaine session — pistes ouvertes
 - **🎚️ Réglage du pitch depuis la fenêtre du casting** — demande de
   Laurent le 21/08/2026, pas encore implémenté. Principe : ajouter un
@@ -3035,10 +3156,14 @@ c'est seulement une fois prêt que le moteur sait vraiment parler.
 - `loadMoteurs()` charge `/api/moteurs` **avant** de construire un menu de
   voix (le moteur a pu être éteint ou démarré depuis l'affichage de la page),
   avec la même mémoire de 5 s côté navigateur ;
-- **voyant** `#moteur-etat` sous les réglages du lecteur : « Voix de
-  personnages : Kyutai pret » / « chargement en cours… » / « moteur eteint » ;
-  depuis le 15/09/2026 c'est un **bouton** qui ouvre le choix du moteur
-  (voir « Changer de moteur » plus bas) ;
+- **voyant** `#reparer-open-btn` sous les réglages du lecteur : « ⚠️ Pocket TTS
+  éteint — appuyer pour réparer » / « ⏳ … : chargement en cours… » /
+  « 🛠️ Moteurs de voix : … en marche ». Il ne parle **que des moteurs
+  ATTENDUS** (`attendu`, calculé par le serveur : Pocket TTS, qui cohabite, et
+  le moteur lourd retenu dans `data/moteur_voix.txt`) — sinon il crierait en
+  permanence pour XTTS éteint **volontairement**. Depuis le **21/09/2026** il
+  ouvre le panneau « Réparer les moteurs de voix » : il ne CHANGE plus de moteur
+  (voir « 🛠️ Réparer les moteurs de voix » plus bas) ;
 - dans la fenêtre du casting, `_construireMenuVoix()` distingue désormais
   **trois** cas au lieu de deux : la voix est proposée normalement ; la voix
   appartient à un moteur **non prêt** → groupe « ⚠️ Pas de voix (Kyutai
@@ -3074,6 +3199,14 @@ côté serveur, sans navigateur) et `test_voix/test_voix_ecoutables.js`
 dont **0 Kyutai**, Ariane (narrateur) toujours proposée.
 
 ### 🎛️ Changer de moteur de voix : un seul à la fois — session du 15/09/2026
+
+> **REMPLACÉ À L'ÉCRAN le 21/09/2026.** Ce bouton n'existe plus dans la page :
+> Laurent l'a retiré après avoir éteint un moteur **par erreur**, d'un simple
+> clic, et vu les 18 voix Pocket TTS disparaître du casting (voir
+> « 🛠️ Réparer les moteurs de voix » ci-dessous). La **règle** décrite ici et la
+> **route** `POST /api/moteur/basculer` restent vraies et en service : elles sont
+> simplement appelées autrement — par le panneau « Réparer », qui ne sait que
+> **rallumer**, et par les lanceurs des moteurs, sur le PC.
 
 Demande de Laurent : « un bouton sur le message qui est aujourd'hui en bas de la
 fenêtre, qui ferait office de switch sur un moteur ou l'autre ». Raison
@@ -3114,18 +3247,186 @@ en repli. On **cible la ligne de commande** (`servir_xtts` / `DEMARRER_XTTS`,
 `servir_kyutai` / `DEMARRER_KYUTAI`) : jamais un python au hasard, et la fenêtre
 du moteur est fermée avec ses enfants (`taskkill /F /T`).
 
-**Garde-fou au démarrage (`START.bat`)** : chaque branche teste d'abord le port
-de **l'AUTRE** moteur. S'il tourne déjà, **rien n'est lancé** et la fenêtre le
-dit (« pour changer de moteur : bouton en bas de la fenêtre du lecteur »). Le
-test `test_voix/test_start_moteur.py` a été complété en conséquence : il vérifie
-que chaque branche teste bien les **deux** ports, **l'autre avant le sien**.
+**Garde-fou au démarrage (`START.bat`)** : chaque moteur est testé **avant**
+d'être lancé (port **8085** pour Pocket TTS, **8082** pour Kyutai) : s'il tourne
+déjà, rien n'est lancé et la fenêtre le dit. **Depuis le 21/09/2026, Pocket TTS
+est testé et lancé AVANT le choix du moteur lourd** : son bloc vivait après les
+`goto lecteur` de Kyutai et n'était donc **jamais atteint** — c'est la panne du
+matin (voir « 🛠️ Réparer les moteurs de voix », plus bas). Le test
+`test_voix/test_start_moteur.py` vérifie désormais que le port **8085 est testé
+avant le 8082**, et qu'aucun `goto lecteur` ne saute ce bloc.
 
 **Vérifications livrées** : `test_voix/test_bascule_moteur.py` (50 contrôles,
 **sans rien lancer** — les deux moteurs sont simulés en mémoire et le fichier de
 réglage est redirigé vers un témoin, remis en place à la fin) et
 `test_voix/test_bouton_moteur.js` (31 contrôles : libellé extrait du **vrai**
-`app.js`, présence du bouton et de la fenêtre de choix dans `index.html`,
-branchements).
+`app.js`, présence du voyant et de la fenêtre dans `index.html`, branchements —
+**réécrit le 21/09/2026** pour le voyant « Réparer », voir plus bas).
+
+### 🛠️ Réparer les moteurs de voix, et un moteur qui ne se perd plus — 21/09/2026
+
+**Ce qui a déclenché le chantier.** Laurent, après une écoute de 6 h : « j'ai
+cliqué par erreur sur la ligne tout en bas, qui me permet de changer de
+serveur, apparemment ça a coupé le moteur POCKET TTS. Je ne trouve plus les
+voix à l'intérieur du casting. » Deux constats, tirés de l'état réel de la
+machine :
+
+1. le clic n'avait **rien cassé** (`data/moteur_voix.txt` contenait bien
+   `kyutai`) ;
+2. **`START.bat` n'a jamais allumé Pocket TTS** : son bloc était **après** le
+   bloc Kyutai, dont **tous** les chemins se terminent par `goto lecteur`. Il
+   était donc **inatteignable**. Le PC avait redémarré à **05:53**, et à
+   **09:46** `START.bat` a lancé Kyutai puis sauté Pocket (les processus portent
+   ces heures).
+
+**Pourquoi c'est grave, et pas seulement désagréable** : la page ne propose que
+les voix **écoutables tout de suite** (`/api/voices`). Moteur éteint, ses
+18 voix **disparaissent des menus** — donc **aucune demande** ne peut plus
+partir vers lui : un « rallumage à la demande » est **impossible par
+construction**. C'est cette impasse que le chantier ferme.
+
+**Les quatre pièces livrées** :
+
+| Pièce | Ce qu'elle fait |
+|---|---|
+| `START.bat` | le bloc **Pocket TTS passe AVANT le choix du moteur lourd** (label `:pocket_pret`) : il démarre à chaque lancement, sans fenêtre. Le commentaire explique le piège, pour qu'il ne revienne pas |
+| le **veilleur** (`main.py`, `_veiller_moteurs`) | un fil de fond, lancé avec le lecteur : toutes les 30 s il regarde Pocket TTS et le **rallume** s'il est éteint (modèle chargé en **1,7 s** mesurés, et ce moteur tourne sur le **processeur**). Garde-fous : repos de 60 s entre deux essais, 10 min après 6 échecs, message clair dans la console |
+| le **voyant « 🛠️ Réparer »** | remplace le bouton de bascule. Il ne parle que des moteurs **attendus** et ouvre un panneau à deux gestes |
+| l'**endormissement à 3 h** | `NIMM_POCKET_TTS_INACTIF` passe de 30 min à **180** : à 30 min, le moteur s'endormait **en pleine journée d'écoute** |
+
+**Le panneau « Réparer » — deux gestes, aucun ne peut éteindre :**
+
+1. **🛠️ Relancer les moteurs** → `POST /api/moteurs/relancer` : rallume Pocket
+   TTS (`_assurer_pocket_vivant`, lancé **sans fenêtre**, sortie redirigée vers
+   ses journaux) **et** le moteur lourd **retenu** s'il est éteint (via
+   `basculer_moteur_voix`, donc toujours **un seul** moteur lourd). La lecture
+   en cours **n'est pas coupée** ;
+2. **🔄 Redémarrer NIMM ePub** → `POST /api/serveur/redemarrer` : lance
+   `START.bat` **comme un double-clic**, après confirmation. Le serveur
+   **répond d'abord**, et `START.bat` part **1,5 s plus tard**
+   (`_lancer_start_bat_apres_reponse`) : sinon le garde-fou de `START.bat` tue
+   le serveur avant qu'il ait envoyé sa réponse. La page affiche un **voile de
+   redémarrage** (`#redemarrage-voile`), puis **se recharge toute seule** dès
+   que le serveur répond (toutes les 2 s, 90 s au maximum, avec un message clair
+   si ça ne revient pas).
+
+**Pourquoi ce geste manquait vraiment** : le lanceur du PC
+(`G:\NIMM_LAUNCHER`) **refuse** de relancer quand le port est occupé (« NIMM
+ePub est déjà en marche : rien à lancer »). Or le cas où l'on a besoin de
+relancer est justement celui où le lecteur tourne… mais mal.
+
+**« Attendu », la notion qui fait taire le voyant à bon escient**
+(`moteurs_attendus()`) : sont attendus **Pocket TTS** (il cohabite) et le
+**moteur lourd retenu** (`data/moteur_voix.txt`). XTTS ou NeuTTS éteints **par
+choix** ne font donc plus crier le voyant — un voyant qui crie en permanence ne
+dit plus rien. `/api/moteurs` renvoie désormais `cohabite` et `attendu` pour
+chaque moteur, et `_moteur_lourd_retenu()` tolère un **BOM** en tête du fichier
+(piège PowerShell).
+
+**Deux pièges d'atelier corrigés au passage** (`test_start_moteur.py`) :
+
+- sa « copie neutre » de `START.bat` **tuait le lecteur en marche** : le
+  garde-fou du 18/09/2026 (« on arrête le serveur qui écoute sur 8081 ») n'était
+  pas neutralisé. Deux motifs de remplacement ne matchaient plus rien (ils
+  dataient de l'époque NeuTTS) : le test **lançait aussi le lanceur de Kyutai**
+  pour de vrai, sept fois. Il neutralise maintenant **tout** et **vérifie**
+  (section « 2 bis ») qu'aucun lancement ne reste possible ;
+- **un nom court ne suffit plus pour lancer un `.bat`** : depuis Python 3.11,
+  les processus enfants reçoivent `NoDefaultCurrentDirectoryInExePath=1`, donc
+  `cmd /c _test.bat` échoue là où le **chemin complet** fonctionne.
+
+**Le geste fort, testé pour de vrai — et deux défauts trouvés là** :
+
+1. **Le nom court ne se résout plus dans un `cmd` lancé par le lecteur.** Le
+   bouton ouvrait une fenêtre qui disait « `START.bat` n'est pas reconnu », et
+   le lecteur n'était **jamais** relancé (même cause que ci-dessus, héritée par
+   l'enfant). Corrigé **aux deux endroits** — `_lancer_start_bat_apres_reponse`
+   **et** `_relancer_moteur_voix` (défaut latent depuis le 15/09/2026) : le
+   lanceur est appelé par son **chemin complet**, avec `CREATE_NEW_CONSOLE`,
+   soit le double-clic exact. *Vérifié* : lecteur relancé, **PID changé**
+   (12876 → 11380), Pocket TTS intact.
+2. **Un `.bat` écrit en LF seul fait dérailler cmd.** Une copie de diagnostic
+   écrite par Python (donc en LF, parce que `read_text()` convertit les CRLF en
+   LF) a été lue « de travers » par cmd : il a **exécuté le texte de ses propres
+   commentaires**, jusqu'à lancer `neutts_service\DEMARRER_NEUTTS.bat` — donc le
+   moteur **NeuTTS**, que personne n'avait demandé (il a même écrit `neutts`
+   dans `data/moteur_voix.txt`, remis à la main ensuite). **Règle** : un `.bat`
+   s'écrit **toujours en CRLF** ; `START.bat` est sain (178 lignes CRLF,
+   vérifié).
+
+**Vérifications** : `test_voix/test_reparer_moteurs.py` (**30 contrôles**, rien
+à lancer : `START.bat`, « attendu », veilleur, commande de lancement, routes,
+réglages) ; `test_voix/test_bouton_moteur.js` réécrit (voyant, disparition de
+l'ancien dispositif, câblage des deux gestes) ; `test_voix/test_start_moteur.py`
+remis au goût du jour (il décrivait encore la règle NeuTTS du 16/09/2026).
+**Contrôle en vrai** : `START.bat` relancé → port **8085** ouvert, `pocket
+actif=true pret=true attendu=true`, `/api/voices` → **163 voix dont 18 Pocket
+TTS** ; puis le **geste fort** joué depuis la page → nouveau lecteur, moteurs
+intacts.
+
+### 🎭 Filtres du casting : âge de la voix et genre du personnage — 21/09/2026
+
+**Demande de Laurent** : « Des boutons juste pour trier les voix par âge pour le
+moment : Enfant 👦, Jeune 👨‍🦱, Adulte 🧑‍🦲, Vieux 👴 [...] On filtre selon le
+critère sélectionné. Cliquer sur "jeune" n'affiche que les jeunes. Les boutons
+qui sont actifs affichent la catégorie. Idéalement un filtre ; Homme / Femme et
+les 4 âges. » Et sa question du même jour : « tu peux modifier dans "écouter
+voix" également ? » — **oui, sans double travail** : c'est **une seule liste**
+(`CRITERES_VOIX`, `main.py`) qui sert les deux fenêtres.
+
+**Troisième barre de filtres, dans la fenêtre du casting** (`#cast-filtre-bar`,
+`frontend/index.html`) — la troisième « famille » de filtres, à ne pas confondre
+avec les deux autres :
+
+| Barre | Ce qu'elle filtre |
+|---|---|
+| « Voix proposées : » (`#cast-gender-bar`) | les **voix des menus déroulants** |
+| « Personnages : » (`#cast-etat-bar`) | les **lignes** (à caster, voix partagée, voix libres) |
+| « Voix des personnages : » (`#cast-filtre-bar`, 21/09/2026) | les **lignes**, par **âge de la voix** (👦 👨‍🦱 🧑‍🦲 👴) et par **genre du personnage** (♀️ ♂️) |
+
+**Où le filtre lit ce qu'il faut** (`frontend/app.js`) :
+
+- l'**âge** vient des **annotations d'écoute de la voix que porte le
+  personnage** (`_ageDeLaVoix`, table `_annotationsVoix` : la fenêtre « Écouter
+  les voix »). Une voix **jamais annotée** n'a pas d'âge, donc elle **ne passe
+  aucun filtre d'âge** : c'est voulu — on cherche ce qu'on a entendu, pas ce
+  qu'on ignore ;
+- le **genre** vient de la **fiche du personnage** (colonne `genre` : `H` par
+  défaut, `F` pour une femme). `M` est accepté comme masculin, parce que les
+  **catalogues** de voix écrivent « M » là où les **fiches** écrivent « H »
+  (même tolérance que `_symboleGenre`) ;
+- `_lignePasseFiltres(row, age, genre)` est **pure** et testée (`test_voix/test_filtre_age_casting.js`),
+  comme `_filtrerPersonnages` ;
+- le filtre s'applique **après** les deux autres, et il ne touche **pas** aux
+  badges ni aux compteurs de voix : ceux-ci restent calculés sur **tout le
+  livre** (sinon un badge « partagée avec … » mentirait dès le premier clic) ;
+- un **compteur** (`#cast-filtre-resume`) dit ce que la liste montre : « 12
+  personnages affichés sur 176 » ;
+- les filtres sont **remis à zéro à la fermeture** de la fenêtre, comme la
+  recherche : jamais un « jeune » oublié qui ferait croire à des personnages
+  disparus.
+
+**« mûr » disparaît des âges** (décision de Laurent : « On garde juste enfant ;
+jeune ; adulte ; vieux »). Deux gestes, dans cet ordre :
+
+1. **migration** des **73 voix** annotées « mûr » vers **« adulte »**
+   (`data/annotations_voix.json`, copie datée
+   `annotations_voix.json.bak_avant_4_ages_20260921_1904`). Sans elle, l'API
+   aurait **refusé** d'enregistrer la moindre modification sur ces 73 fiches :
+   elle rejette toute valeur hors liste. Âges après migration : **adulte 230,
+   jeune 84, vieux 14, enfant 7** ;
+2. **retrait de la valeur** de `CRITERES_VOIX` (`main.py`), avec le commentaire
+   qui explique la migration — c'est ce qui la fait disparaître des **deux**
+   fenêtres (annotation et filtre) en une seule fois.
+
+Dans `modules/voice_casting.py`, les entrées « mur » restantes (timbres, débits)
+**ne servent plus** et sont **gardées** telles quelles : elles ne gênent pas, et
+elles redeviendraient utiles si la valeur revenait un jour. C'est écrit sur place.
+
+**Vérifications** : `test_voix/test_filtre_age_casting.js` — **30 contrôles**
+(l'âge lu sur la voix, une voix sans âge qui ne passe rien, `H`/`M` pour les
+hommes, la combinaison des deux filtres, les cas tordus, la barre et son
+branchement) ; **36 tests** au vert au total.
 
 ### 🎙️ Moteur XTTS v2 installé comme service séparé — session du 14/09/2026
 

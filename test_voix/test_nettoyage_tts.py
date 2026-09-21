@@ -81,6 +81,14 @@ def main():
          'Ils attendirent MM.', 'Ils attendirent Messieurs')
     egal('Dr en fin de morceau',
          'Il appela le Dr', 'Il appela le Docteur')
+    # Cas de Laurent (21/09/2026, 22/11/63 chapitre 10) : le texte ecrit
+    # « MR. CURRIE » (etiquette anglaise traduite telle quelle). Le moteur
+    # recevait « MR. » et INVENTAIT un son (« [féè] »).
+    egal('MR. en capitales devient Monsieur',
+         'Et l\u2019etiquette indiquait MR. CURRIE.',
+         'Et l\u2019etiquette indiquait Monsieur CURRIE.')
+    egal('MME. en capitales devient Madame',
+         'MME. Dupont arriva.', 'Madame Dupont arriva.')
 
     print('')
     print('3) une phrase ordinaire garde son point final')

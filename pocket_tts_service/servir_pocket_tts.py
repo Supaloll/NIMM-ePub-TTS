@@ -62,10 +62,16 @@ ESSAIS_MAX = 4
 # AUTO-EXTINCTION : le service tourne SANS fenetre (lance par START.bat), donc
 # rien ne rappelle a Laurent qu'il est la. Sans ce garde-fou il resterait
 # allume indefiniment, avec ~2,3 Go de memoire pris pour rien. Apres ce nombre
-# de minutes SANS UNE SEULE PHRASE demandee, il s'arrete de lui-meme ; la
-# prochaine lecture le rallumera (START.bat) ou le lecteur le relancera.
+# de minutes SANS UNE SEULE PHRASE demandee, il s'arrete de lui-meme.
+#
+# 30 min -> 3 h le 21/09/2026 : a 30 min, le moteur s'endormait EN PLEINE
+# JOURNEE d'ecoute (constat de Laurent : « j'ai ecoute une voix Pocket TTS, puis
+# le moteur s'est eteint, et la voix a disparu du casting »). Le lecteur sait
+# maintenant le rallumer tout seul (voir le veilleur, main.py), mais autant
+# qu'il n'ait pas a le faire : la memoire n'est liberee que si le lecteur reste
+# ouvert sans qu'on ecoute pendant 3 h.
 # 0 = jamais (utile pour les essais et les mesures).
-INACTIF_MIN = int(os.environ.get("NIMM_POCKET_TTS_INACTIF", "30") or "30")
+INACTIF_MIN = int(os.environ.get("NIMM_POCKET_TTS_INACTIF", "180") or "180")
 
 DERNIERE_ACTIVITE = time.time()   # mise a jour a chaque phrase demandee
 

@@ -592,11 +592,14 @@ body {
   align-items: center;
 }
 
-/* Etat des moteurs de voix lourds (Kyutai, XTTS v2) : sur sa propre ligne, sous
-   les reglages. Sans lui, l'absence des voix d'un moteur eteint ressemblerait a
-   un bug. Depuis le 15/09/2026 c'est aussi un BOUTON : il ouvre le choix du
-   moteur (un seul a la fois), d'ou le contour au survol. */
-#moteur-etat {
+/* Réparer les moteurs de voix (21/09/2026) : sur sa propre ligne, sous les
+   réglages. Sans lui, l'absence des voix d'un moteur éteint ressemblerait à un
+   bug ; et sans lui, Laurent n'avait AUCUN moyen de rallumer un moteur depuis
+   son téléphone (le lanceur du PC refuse de relancer quand le lecteur tourne
+   déjà -- c'est justement le cas où l'on en a besoin).
+   Il REMPLACE l'ancien bouton de CHANGEMENT de moteur, qui partait d'un simple
+   clic : ici, rien ne peut être éteint, seulement rallumé. */
+#reparer-open-btn {
   flex-basis: 100%;
   width: 100%;
   font-family: inherit;
@@ -610,15 +613,19 @@ body {
   line-height: 1.3;
   cursor: pointer;
 }
-#moteur-etat:empty { display: none; }
-#moteur-etat:hover { border-color: var(--accent); color: var(--text); }
-#moteur-etat:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-#moteur-etat.moteur-etat-off { opacity: 0.8; }
+#reparer-open-btn:empty { display: none; }
+#reparer-open-btn:hover { border-color: var(--accent); color: var(--text); }
+#reparer-open-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#reparer-open-btn.reparer-etat-off {
+  opacity: 0.85;
+  color: var(--text);
+  font-weight: 600;
+}
 
 /* Ligne d'explication de la VOIX DU NARRATEUR du livre ouvert (20/09/2026) :
    elle apparaît seulement quand le livre a une voix enregistrée qui n'est pas
-   disponible (moteur éteint). Même mise en page que #moteur-etat : sur sa
-   propre ligne ; vide, elle ne prend aucune place. */
+   disponible (moteur éteint). Même mise en page que le voyant « Réparer »
+   ci-dessus : sur sa propre ligne ; vide, elle ne prend aucune place. */
 #narrateur-etat {
   flex-basis: 100%;
   width: 100%;
@@ -629,15 +636,54 @@ body {
 }
 #narrateur-etat:empty { display: none; }
 
-/* Sur mobile : cible tactile confortable (44 px) pour le bouton de bascule. Il
+/* Sur mobile : cible tactile confortable (44 px) pour le bouton « Réparer ». Il
    occupe sa propre ligne, donc l'agrandir ne serre aucun autre reglage. */
 @media (max-width: 640px) {
-  #moteur-etat {
+  #reparer-open-btn {
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
   }
+  /* Le flex ci-dessus l'emporterait sur la regle « :empty » plus haut (meme
+     specificite, mais ecrite avant) : sans cette ligne, un bouton vide
+     prendrait 44 px de haut pour rien. */
+  #reparer-open-btn:empty { display: none; }
+}
+
+/* ============================================================
+   VOILE DE REDÉMARRAGE (21/09/2026)
+   ============================================================
+   Pendant un redémarrage demandé DEPUIS l'application, la page n'a plus de
+   serveur en face d'elle quelques secondes : ce voile couvre l'écran et DIT ce
+   qui se passe, au lieu d'un écran figé qu'on croirait planté. Il disparaît
+   tout seul, au rechargement de la page. */
+#redemarrage-voile {
+  position: fixed;
+  inset: 0;
+  z-index: 400;                     /* au-dessus de toutes les autres fenêtres */
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#redemarrage-voile.hidden { display: none; }
+#redemarrage-boite {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 26px;
+  text-align: center;
+  max-width: 320px;
+  box-shadow: var(--shadow);
+}
+#redemarrage-titre { font-weight: 600; margin: 0 0 6px; }
+#redemarrage-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
 }
 
 
@@ -1006,7 +1052,8 @@ body {
    meme chose : la premiere filtre les voix proposees dans les menus, la
    seconde filtre les lignes de personnages. */
 #cast-gender-bar,
-#cast-etat-bar {
+#cast-etat-bar,
+#cast-filtre-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1018,11 +1065,21 @@ body {
   flex-shrink: 0;
 }
 #cast-etat-bar { flex-wrap: wrap; }
+/* La barre des ages et du genre (21/09/2026) porte DEUX groupes de boutons :
+   elle passe donc a la ligne sur un ecran etroit, comme celle des etats. */
+#cast-filtre-bar { flex-wrap: wrap; justify-content: flex-start; }
+#cast-age-actions,
+#cast-perso-genre-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+#cast-age-actions { margin-right: 10px; }
+#cast-filtre-resume { flex-basis: 100%; font-size: 0.7rem; }
+#cast-filtre-resume:empty { display: none; }
 #cast-etat-resume { font-size: 0.7rem; color: var(--text-muted); }
 #cast-gender-actions,
 #cast-etat-actions { display: flex; gap: 6px; }
 #cast-gender-actions button,
-#cast-etat-actions button {
+#cast-etat-actions button,
+#cast-age-actions button,
+#cast-perso-genre-actions button {
   background: var(--bg-card);
   color: var(--text-muted);
   border: 1px solid var(--border);
@@ -1033,9 +1090,13 @@ body {
   font-family: var(--font-ui);
 }
 #cast-gender-actions button:hover,
-#cast-etat-actions button:hover { color: var(--text); }
+#cast-etat-actions button:hover,
+#cast-age-actions button:hover,
+#cast-perso-genre-actions button:hover { color: var(--text); }
 #cast-gender-actions button.actif,
-#cast-etat-actions button.actif {
+#cast-etat-actions button.actif,
+#cast-age-actions button.actif,
+#cast-perso-genre-actions button.actif {
   background: var(--accent-dim);
   color: var(--text);
   border-color: var(--accent);

@@ -1488,8 +1488,12 @@ def lire_annotations_voix() -> dict:
 
 
 # Age de voix souhaite pour un age de personnage, du plus proche au plus
-# eloigne. Les fiches du casting n'ont que trois ages (jeune, adulte, age),
-# les voix en ont cinq.
+# eloigne. Les fiches du casting n'ont que trois ages (jeune, adulte, age) ;
+# les voix en ont QUATRE depuis le 21/09/2026 (enfant, jeune, adulte, vieux --
+# « mur » a ete retire a la demande de Laurent, et ses 73 voix migrees vers
+# « adulte »). Les entrees « mur » qui restent plus bas (timbres, debits) ne
+# servent donc plus : elles sont GARDEES telles quelles -- elles ne genent pas, et
+# elles redeviendraient utiles si la valeur revenait un jour.
 AGES_PAR_PERSONNAGE = {
     "enfant": ["enfant", "jeune", "adulte"],
     "jeune":  ["jeune", "enfant", "adulte"],

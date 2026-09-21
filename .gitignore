@@ -69,6 +69,16 @@ test_voix/point_*/
 test_voix/point_large_*/
 test_voix/aveugle_*/
 test_voix/stabilite_*/
+# Lot d'ecoute de la PRONONCIATION (21/09/2026) : regenerable par
+# `test_voix/ECOUTER_PRONONCIATION.bat` (mode d'emploi A_LIRE.txt inclus).
+test_voix/sortie_ecoute_prononciation/
+# Rapport de migration des index de phrases (21/09/2026) : il cite des extraits
+# du livre -- on le garde sur le PC, comme les autres listes d'atelier.
+test_voix/_migrer_abreviations_rapport.txt
+# Rapports des mesures de niveau (21/09/2026) : ils citent eux aussi des extraits
+# des livres mesures.
+test_voix/_mesurer_pocket_defauts.txt
+test_voix/_mesurer_contexte_mots.txt
 
 # Moteur Kyutai TTS (environnement Python 3.12 + voix + poids, non
 # versionnes : voir kyutai_service/LIRE_MOI.md pour les recreer)

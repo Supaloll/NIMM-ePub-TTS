@@ -1,12 +1,29 @@
 # -*- coding: utf-8 -*-
-"""Quel separateur force une VRAIE pause entre le contexte et la phrase ?
+"""Quel separateur fait une pause FRANCHE, et TOUJOURS LA MEME, entre le contexte
+et la phrase ?
 
-Le modele enchainait parfois contexte et phrase SANS pause detectable : la coupe
-n'avait alors aucun reperage fiable (constat de Laurent, 17/09/2026). Ce script
-essaie trois separateurs ecrits entre les deux et montre, pour chacun, ou se
-trouve le premier silence franc APRES le contexte.
+QUESTION DE LAURENT (21/09/2026) : « Est-ce qu'il existe une ponctuation qui est
+traitee toujours de la meme facon par Kyutai ? Si oui, on aurait un point fixe de
+secondes, toujours le meme, sans que ca ne deforme la phrase [...] Le truc c'est
+qu'il faut une ponctuation qui ne provoque pas de coupure dans le contexte qu'on
+lui aurait donne. »
 
-Usage : python test_voix/_essai_separateur.py
+C'est exactement le bon raisonnement : quand la coupe se fie a une ESTIMATION
+(la part du contexte dans le total), elle tombe bien ou mal selon le tirage --
+le moteur n'est pas deterministe. Avec un separateur dont la pause est CONSTANTE
+et RECONNAISSABLE, la coupe devient mecanique : on cherche ce silence-la, on
+coupe a sa fin, et la phrase commence.
+
+Ce que ce script mesure, pour chaque separateur, sur PLUSIEURS ESSAIS (c'est la
+nouveaute : la constance, pas seulement l'existence) :
+  - la duree de la PREMIERE pause franche apres le contexte (le repere) ;
+  - sa position, et l'ecart entre le plus court et le plus long des essais.
+
+A LIRE : un bon separateur fait une pause LONGUE, toujours de la meme longueur
+(ecart faible), et plus longue que n'importe quelle pause naturelle des trois
+mots de contexte -- sinon on couperait au mauvais endroit.
+
+Le moteur doit etre allume. Usage : python test_voix/_essai_separateur.py
 """
 
 import io
@@ -21,16 +38,25 @@ SERVICE = "http://127.0.0.1:8082"
 VOIX = "2114_1656_000053-0001"
 SEUIL = 0.012
 PAS_S = 0.01
+ESSAIS = 3                       # combien de fois on redemande la meme chose
 
-CONTEXTE = ("D'abord il y a une montagne, puis il n'y en a plus, puis il y a de "
-            "nouveau une montagne.")
+# Les trois mots de contexte tels que la page les envoie aujourd'hui
+# (CONTEXTE_MOTS = 3), puis la phrase a lire.
+CONTEXTE = "une montagne."
+CONTEXTE_PIEGE = "pas, alors"
 PHRASE = "Va faire un petit tour, avait dit Al."
 
 SEPARATEURS = [
-    ("espace simple (actuel)", " "),
+    ("espace seule", " "),
+    ("virgule", " , "),
+    ("point", " . "),
     ("points de suspension", " ... "),
-    ("saut de ligne", "\n"),
+    ("point d'interrogation", " ? "),
+    ("point d'exclamation", " ! "),
     ("point-virgule", " ; "),
+    ("deux-points", " : "),
+    ("saut de ligne", "\n"),
+    ("tiret cadratin", " \u2014 "),
 ]
 
 
@@ -62,32 +88,69 @@ def blocs(octets):
             len(echantillons) / frequence)
 
 
+def une_passe(titre_passe, contexte, separateurs=None):
+    """Le tableau d'une passe : un separateur par ligne, ESSAIS essais chacun."""
+    separateurs = separateurs or SEPARATEURS
+    print('')
+    print(titre_passe)
+    print('  contexte : « %s »' % contexte)
+    print('')
+    print('  %-24s %-40s %8s %8s' % ('separateur', 'plus longs silences (essais)',
+                                     'moyenne', 'ecart'))
+    print('  ' + '-' * 86)
+
+    for titre, separateur in separateurs:
+        texte = contexte + separateur + PHRASE
+        pauses = []
+        details = []
+        for _ in range(ESSAIS):
+            trouves, _duree = blocs(demander(texte))
+            silences = []
+            for rang in range(1, len(trouves)):
+                longueur = trouves[rang][0] - trouves[rang - 1][1]
+                if longueur >= 0.10:
+                    silences.append((longueur, trouves[rang][0]))
+            if silences:
+                # On regarde la pause LA PLUS LONGUE : c'est celle du separateur
+                # si elle est bien plus longue que les pauses naturelles du
+                # contexte (une virgule en fait une de ~0,5 s).
+                pauses.append(max(silences)[0])
+                details.append('%.2f@%.2f' % max(silences))
+            else:
+                details.append('AUCUNE')
+        if pauses:
+            moyenne = sum(pauses) / len(pauses)
+            ecart = max(pauses) - min(pauses)
+        else:
+            moyenne = ecart = 0.0
+        print('  %-24s %-40s %7.2fs %7.2fs'
+              % (titre, ', '.join(details), moyenne, ecart))
+
+
 def main():
     print('')
-    print('=' * 78)
-    print('QUEL SEPARATEUR FORCE UNE PAUSE FRANCHE APRES LE CONTEXTE ?')
-    print('=' * 78)
-    print('contexte (%d car.) : « %s »' % (len(CONTEXTE), CONTEXTE[:60]))
-    print('phrase   : « %s »' % PHRASE)
-    print('')
+    print('=' * 88)
+    print('QUEL SEPARATEUR FAIT UNE PAUSE FRANCHE, ET TOUJOURS LA MEME ?')
+    print('=' * 88)
+    print('Phrase a lire : « %s »' % PHRASE)
+    print('%d essais par separateur : c est la CONSTANCE qui compte.' % ESSAIS)
 
-    for titre, separateur in SEPARATEURS:
-        texte = CONTEXTE + separateur + PHRASE
-        trouves, duree = blocs(demander(texte))
-        # Les silences internes, du plus long au plus court.
-        silences = []
-        for rang in range(1, len(trouves)):
-            longueur = trouves[rang][0] - trouves[rang - 1][1]
-            if longueur >= 0.10:
-                silences.append((round(longueur, 2), round(trouves[rang][0], 2)))
-        silences.sort(reverse=True)
-        print('  %-26s duree %5.2fs  silences : %s'
-              % (titre, duree,
-                 ', '.join('%.2fs a %.2fs' % (longueur, debut)
-                           for longueur, debut in silences[:4]) or 'AUCUN'))
+    une_passe('1) Contexte SANS ponctuation interne (« une montagne. »)', CONTEXTE)
+    # Passe 2 : les trois candidats les plus prometteurs seulement -- c'est la
+    # question que Laurent se pose (« et si la ponctuation du contexte elle-meme
+    # faisait une pause ? »). La virgule interne est dans le contexte.
+    une_passe('2) Contexte AVEC une virgule (« pas, alors ») : la virgule du '
+              'contexte',
+              CONTEXTE_PIEGE,
+              [candidat for candidat in SEPARATEURS
+               if candidat[0] in ("espace seule", "points de suspension",
+                                  "point d'exclamation")])
+
     print('')
-    print('A LIRE : un separateur interessant fait apparaitre un silence franc')
-    print('juste apres le contexte (donc un repere fiable pour la coupe).')
+    print('A LIRE : chaque essai s ecrit « duree@position ». Un bon separateur')
+    print('donne une pause LONGUE, un ECART FAIBLE entre les essais, et une pause')
+    print('PLUS LONGUE que celle de la virgule interne du contexte (passe 2) --')
+    print('sinon la coupe tomberait dans le contexte, ce que Laurent redoutait.')
     return 0
 
 

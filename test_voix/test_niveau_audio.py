@@ -5,16 +5,24 @@ A lancer avec le Python du LECTEUR (aucun moteur necessaire) :
     python test_voix/test_niveau_audio.py
 
 Ce qui est verifie, apres la journee d'ecoute du 18/09/2026 (« le volume des
-voix Kyutai est tres, tres faible ») :
+voix Kyutai est tres, tres faible ») et la MESURE du 21/09/2026 (dans un long
+passage, les phrases vont de 25 a 42 %, avec une phrase a 8,8 % : -10 dB a cote
+de ses voisines) :
 
-  1. une phrase trop faible est RAMENEE au niveau des autres moteurs ;
-  2. une phrase deja au bon niveau n'est PAS touchee (on ne baisse jamais) ;
-  3. le gain est plafonne et la crete bornee : jamais de saturation ;
-  4. le fichier reste lisible : meme frequence, meme duree, meme format ;
-  5. un fichier illisible ou d'un autre format revient INCHANGE (aucune
-     lecture cassee).
+  1. une phrase TROP FAIBLE (hors fourchette) est RAMENEE vers la cible du
+     moteur, sans y etre collee : elle gagne BANDE_DB au plus ;
+  2. une phrase DANS LA FOURCHETTE (moins de +/- 3 dB autour de la cible) n'est
+     PAS touchee du tout : c'est ce qui garde les nuances entre les voix ;
+  3. une phrase TROP FORTE est ramenee elle aussi, mais jamais de plus de
+     -6 dB (GAIN_MIN) : on ne l'ecrase pas ;
+  4. le gain est plafonne et la crete bornee : jamais de saturation ;
+  5. le fichier reste lisible : meme frequence, meme duree, meme format ;
+  6. un fichier illisible ou d'un autre format revient INCHANGE (aucune lecture
+     cassee).
 """
 
+import io
+import math
 import sys
 import wave
 from array import array
@@ -72,24 +80,52 @@ def main():
     avant_bytes = EXEMPLE.read_bytes()
 
     print('')
-    print('1) une phrase trop faible est remontee')
-    avant = _parole(avant_bytes)
-    apres_bytes = audio_gain.normaliser_wav_parole(avant_bytes)
-    apres = _parole(apres_bytes)
+    print('1) une phrase VRAIMENT faible (hors fourchette) est remontee')
+    # Une phrase de synthese tres faible : 3,5 % environ, soit 7,7 dB sous la
+    # cible de 8,5 % -- largement hors de la fourchette de +/- 3 dB.
+    faible = _wav_de(amplitude=0.05)
+    avant_faible = _parole(faible)
+    apres_faible = _parole(audio_gain.normaliser_wav_parole(faible))
     print('        niveau de parole : %.1f %% -> %.1f %% (cible %.1f %%)'
-          % (avant, apres, audio_gain.CIBLE_POURCENT))
-    verifier('la phrase gagne du niveau', apres > avant * 1.15,
-             '%.1f -> %.1f' % (avant, apres))
-    verifier('la cible est approchee (a 25 %% pres)',
-             abs(apres - audio_gain.CIBLE_POURCENT) <= 0.25 * audio_gain.CIBLE_POURCENT,
-             '%.1f' % apres)
+          % (avant_faible, apres_faible, audio_gain.CIBLE_POURCENT))
+    verifier('la phrase gagne du niveau', apres_faible > avant_faible * 1.4,
+             '%.1f -> %.1f' % (avant_faible, apres_faible))
+    ecart_db = 20 * math.log10(apres_faible / audio_gain.CIBLE_POURCENT)
+    verifier('elle ATTEINT la cible', abs(ecart_db) <= 1.0,
+             '%.1f dB' % ecart_db)
 
     print('')
-    print('2) le fichier reste lisible et intact')
-    with wave.open(str(EXEMPLE), 'rb') as f:
+    print('2) une phrase DEJA a la cible n est pas touchee')
+    # ~8,5 % : exactement la cible.
+    dans = _wav_de(amplitude=0.12)
+    verifier('elle revient INCHANGEE',
+             audio_gain.normaliser_wav_parole(dans) == dans,
+             '%.1f %%' % _parole(dans))
+    verifier('une vraie phrase Kyutai a %.1f %% est remontee vers la cible'
+             % _parole(avant_bytes),
+             _parole(audio_gain.normaliser_wav_parole(avant_bytes))
+             > _parole(avant_bytes))
+
+    print('')
+    print('3) une phrase TROP FORTE est ramenee, sans etre ecrasee')
+    fort = _wav_de(amplitude=0.60)          # ~42 % : 14 dB au-dessus de la cible
+    modifie = audio_gain.normaliser_wav_parole(fort)
+    niveau_fort = _parole(modifie)
+    print('        niveau de parole : %.1f %% -> %.1f %%' % (_parole(fort),
+                                                             niveau_fort))
+    verifier('la phrase perd du niveau', niveau_fort < _parole(fort),
+             '%.1f' % niveau_fort)
+    verifier('mais jamais plus de %.0f dB (GAIN_MIN)'
+             % abs(20 * math.log10(audio_gain.GAIN_MIN)),
+             niveau_fort >= _parole(fort) * audio_gain.GAIN_MIN * 0.98,
+             '%.1f' % niveau_fort)
+
+    print('')
+    print('4) le fichier reste lisible et intact')
+    with wave.open(io.BytesIO(fort), 'rb') as f:
         freq_avant = f.getframerate()
         n_avant = f.getnframes()
-    with wave.open(__import__('io').BytesIO(apres_bytes), 'rb') as f:
+    with wave.open(io.BytesIO(modifie), 'rb') as f:
         freq_apres = f.getframerate()
         n_apres = f.getnframes()
         canaux = f.getnchannels()
@@ -101,15 +137,19 @@ def main():
              '%s canal(aux), %s octet(s)' % (canaux, largeur))
 
     print('')
-    print('3) les garde-fous tiennent')
-    crete = max(max(audio_gain._lire_wav(apres_bytes)[3]),
-                -min(audio_gain._lire_wav(apres_bytes)[3]))
+    print('5) les garde-fous tiennent')
+    crete = max(max(audio_gain._lire_wav(modifie)[3]),
+                -min(audio_gain._lire_wav(modifie)[3]))
     verifier('aucune saturation (crete sous la limite)',
              crete <= audio_gain.CRETE_MAX_POURCENT / 100.0 * 32767 + 1,
              crete)
-    fort = _wav_de(amplitude=0.95)
-    verifier('une phrase deja forte n\'est pas modifiee',
-             audio_gain.normaliser_wav_parole(fort) == fort)
+    # Un sinus tres fort est desormais RAMENE vers la cible (les deux sens),
+    # mais borne : il ne doit jamais perdre plus de 6 dB (GAIN_MIN).
+    tres_fort = _wav_de(amplitude=0.95)
+    ramene = _parole(audio_gain.normaliser_wav_parole(tres_fort))
+    verifier('une phrase tres forte ne perd pas plus de 6 dB',
+             ramene >= _parole(tres_fort) * audio_gain.GAIN_MIN * 0.98,
+             '%.1f' % ramene)
     verifier('un fichier vide revient vide',
              audio_gain.normaliser_wav_parole(b'') == b'')
     verifier('un fichier illisible revient inchange',

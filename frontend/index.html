@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260921-1" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260921-2" />
 </head>
 <body>
   <div id="app">
@@ -263,13 +263,17 @@
                  invisible (voir #narrateur-etat:empty dans styles.css). -->
             <span id="narrateur-etat"></span>
           </div>
-          <!-- Bouton de bascule des moteurs de voix lourds (Kyutai, XTTS v2),
-               rempli par app.js : il dit pourquoi les voix d'un moteur eteint
-               ne sont pas proposees, et il permet de passer d'un moteur a
-               l'autre (demande de Laurent, 15/09/2026 : un seul a la fois,
-               allumer l'un eteint l'autre). -->
-          <button type="button" id="moteur-etat"
-                  aria-label="Changer de moteur de voix des personnages"></button>
+          <!-- Réparer les moteurs de voix (21/09/2026, demande de Laurent).
+               Remplace l'ancien bouton de CHANGEMENT de moteur : un simple
+               clic par erreur dessus (c'est la ligne tout en bas de la
+               fenêtre) pouvait éteindre un moteur en marche, et ses voix
+               disparaissaient alors de tout le casting. Ici, rien de tel --
+               le panneau qu'il ouvre ne sait que RALLUMER ce qui manque.
+               La bascule des moteurs se fait maintenant sur le PC, par le
+               lanceur de chaque moteur.
+               Rempli par app.js : vide, il ne prend aucune place. -->
+          <button type="button" id="reparer-open-btn"
+                  aria-label="Réparer les moteurs de voix (relancer un moteur éteint)"></button>
         </div>
 
       </footer>
@@ -438,41 +442,38 @@
       </div>
     </div>
 
-    <!-- ============ MODALE CHANGEMENT DE MOTEUR DE VOIX ============ -->
-    <!-- Ouverte par le bouton du bas de la fenetre de lecture. Un seul moteur
-         lourd a la fois : allumer l'un eteint l'autre (les deux ne tiennent pas
-         ensemble sur la carte graphique). Le moteur choisi est aussi note pour
-         le prochain demarrage de NIMM ePub. -->
-    <div id="moteur-modal" class="modal-overlay hidden" role="dialog"
-         aria-modal="true" aria-label="Changer de moteur de voix">
+    <!-- ============ MODALE RÉPARER LES MOTEURS DE VOIX ============ -->
+    <!-- Ouverte par le voyant du bas de la fenetre de lecture (21/09/2026).
+         Demande de Laurent : « un bouton qui me propose de relancer START.bat,
+         comme ca si quelque chose cloche je peux le relancer depuis
+         l'application ». Deux gestes, du plus doux au plus fort :
+           - « Relancer les moteurs » : rallume ce qui s'est eteint (Pocket TTS
+             s'endort tout seul apres 3 h sans phrase, un moteur peut planter),
+             SANS toucher a la lecture en cours ;
+           - « Redémarrer NIMM ePub » : lance START.bat comme un double-clic sur
+             le PC (le serveur redemarre, la page se recharge toute seule).
+         Aucun des deux n'ETEINT un moteur : ce panneau ne peut donc pas casser
+         une ecoute par erreur, contrairement a l'ancien bouton de CHANGEMENT
+         de moteur qui vivait ici. -->
+    <div id="reparer-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Réparer les moteurs de voix">
       <div class="modal-box">
-        <p>Quel moteur de voix pour les personnages ?</p>
+        <p>Réparer les moteurs de voix</p>
         <div class="provider-choices">
-          <!-- Icones des moteurs (20/09/2026) : memes reperes que dans les
-               libelles de voix (voir FAMILLES_VOIX, app.js). -->
-          <button class="provider-btn" data-moteur="neutts">
-            <span class="provider-name">&#x1F9EA; NeuTTS</span>
-            <span class="provider-estimate" id="moteur-detail-neutts"></span>
+          <button class="provider-btn" id="relancer-moteurs-btn" type="button">
+            <span class="provider-name">&#x1F6E0;&#xFE0F; Relancer les moteurs</span>
+            <span class="provider-estimate" id="relancer-moteurs-detail"></span>
           </button>
-          <button class="provider-btn" data-moteur="xtts">
-            <span class="provider-name">&#x1F9EC; XTTS v2</span>
-            <span class="provider-estimate" id="moteur-detail-xtts"></span>
-          </button>
-          <button class="provider-btn" data-moteur="kyutai">
-            <span class="provider-name">&#x26A1;&#xFE0F; Kyutai</span>
-            <span class="provider-estimate" id="moteur-detail-kyutai"></span>
-          </button>
-          <button class="provider-btn" data-moteur="aucun">
-            <span class="provider-name">Aucun moteur</span>
-            <span class="provider-estimate">voix &#x2601;&#xFE0F; Edge, &#x1F38E; Kokoro et &#x1F3B6; Piper seulement</span>
+          <button class="provider-btn" id="redemarrer-serveur-btn" type="button">
+            <span class="provider-name">&#x1F504; Redémarrer NIMM ePub</span>
+            <span class="provider-estimate" id="redemarrer-serveur-detail">La lecture s'arrête, la page se recharge seule (une quinzaine de secondes). Une fenêtre s'ouvre sur le PC.</span>
           </button>
         </div>
-        <!-- Rappel affiche au moment du choix : changer de moteur pendant une
-             ecoute arrete la lecture en cours (la suite depend de l'autre
-             moteur). -->
-        <p id="moteur-modal-note"></p>
+        <!-- Etat des moteurs ECRIT (et non au survol) : c'est lui qui dit
+             pourquoi une voix n'est pas proposee dans les menus. -->
+        <p id="reparer-modal-note"></p>
         <div class="modal-actions">
-          <button id="moteur-cancel-btn" class="btn-secondary">Fermer</button>
+          <button id="reparer-cancel-btn" class="btn-secondary">Fermer</button>
         </div>
       </div>
     </div>
@@ -622,6 +623,36 @@
                de suite). Sans ce message, on croirait qu'elles sont prises. -->
           <span id="cast-libres-info"></span>
         </div>
+        <!-- Filtre par AGE DE LA VOIX et par GENRE DU PERSONNAGE (21/09/2026).
+             Demande de Laurent : « Un filtre ; Homme / Femme et les 4 âges.
+             Cliquer sur "jeune" n'affiche que les jeunes. Les boutons qui sont
+             actifs affichent la catégorie. »
+             A NE PAS CONFONDRE avec la barre « Voix proposées » plus haut : elle
+             ne filtre que les voix des menus déroulants, celle-ci fait
+             disparaître des LIGNES de personnages. L'âge est celui de la VOIX
+             portée (les quatre catégories de ses annotations d'écoute, servies
+             par une seule liste côté serveur) ; le genre est celui de la FICHE
+             du personnage. -->
+        <div id="cast-filtre-bar">
+          <span>Voix des personnages :</span>
+          <div id="cast-age-actions">
+            <button type="button" data-age="T" class="actif">Tous les âges</button>
+            <!-- Les quatre âges, avec les repères demandés par Laurent. Les
+                 emojis sont écrits en entités, avec leur SÉLECTEUR EMOJI
+                 (&#xFE0F;) là où il en faut un : sans lui, ils s'affichent en
+                 petit noir et blanc selon les claviers (piège du 19/09/2026). -->
+            <button type="button" data-age="enfant">&#x1F466; Enfant</button>
+            <button type="button" data-age="jeune">&#x1F468;&#x200D;&#x1F9B1; Jeune</button>
+            <button type="button" data-age="adulte">&#x1F9D1;&#x200D;&#x1F9B2; Adulte</button>
+            <button type="button" data-age="vieux">&#x1F474; Vieux</button>
+          </div>
+          <div id="cast-perso-genre-actions">
+            <button type="button" data-perso="T" class="actif">Hommes et femmes</button>
+            <button type="button" data-perso="F">&#x2640;&#xFE0F; Femmes</button>
+            <button type="button" data-perso="H">&#x2642;&#xFE0F; Hommes</button>
+          </div>
+          <span id="cast-filtre-resume"></span>
+        </div>
         <ul id="cast-list" role="list"></ul>
         <div id="cast-recast-bar">
           <span id="cast-recast-hint">&#x1F512; = garder cette voix au re-cast</span>
@@ -738,8 +769,20 @@
       </div>
     </div>
 
+    <!-- =========== VOILE DE REDÉMARRAGE (21/09/2026) =========== -->
+    <!-- Quand la page demande un redémarrage de NIMM ePub, la connexion est
+         coupée quelques secondes (le serveur s'arrête, puis revient). Sans ce
+         voile, l'écran resterait figé sans rien dire : il annonce ce qui se
+         passe, et il disparaît tout seul au rechargement de la page. -->
+    <div id="redemarrage-voile" class="hidden" role="alert">
+      <div id="redemarrage-boite">
+        <p id="redemarrage-titre">NIMM ePub redémarre…</p>
+        <p id="redemarrage-note">La page se rechargera toute seule.</p>
+      </div>
+    </div>
+
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260921-1"></script>
+  <script src="/static/app.js?v=20260921-2"></script>
 </body>
 </html>

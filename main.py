@@ -230,8 +230,15 @@ async def lifespan(app: FastAPI):
     from modules.tts import ensure_kokoro_loaded, ensure_piper_loaded
     ensure_kokoro_loaded()
     ensure_piper_loaded()
+    # Le lecteur VEILLE SUR POCKET TTS (21/09/2026, panne constatee par
+    # Laurent) : ce moteur s'endort tout seul apres 3 h sans phrase, et comme le
+    # casting ne propose que les voix ECOUTABLES TOUT DE SUITE, ses 18 voix
+    # disparaissaient des menus -- sans aucun moyen de les rallumer depuis le
+    # telephone. Voir _veiller_moteurs : une ronde discrete, toutes les 30 s.
+    tache_veilleur = asyncio.create_task(_veiller_moteurs())
     print("NIMM ePub demarre sur http://0.0.0.0:8081")
     yield
+    tache_veilleur.cancel()
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
@@ -417,9 +424,79 @@ async def get_moteurs():
 
     Sert au voyant affiche sous les reglages du lecteur : sans lui, l'absence
     des voix d'un moteur eteint ressemblerait a un bug, et un moteur encore en
-    train de charger son modele ressemblerait a une panne.
+    train de charger son modele ressemblerait a une panne. Depuis le
+    21/09/2026, chaque moteur porte aussi `cohabite` (il vit avec les autres,
+    comme Pocket TTS sur le processeur) et `attendu` (il DEVRAIT tourner
+    maintenant) : le voyant ne parle que de ceux-la.
     """
     return etat_moteurs_voix()
+
+
+@app.post("/api/moteurs/relancer")
+async def relancer_moteurs():
+    """Rallume les moteurs qui DEVRAIENT tourner -- sans jamais en eteindre un.
+
+    Demande de Laurent (21/09/2026) : « si quelque chose cloche, je peux le
+    relancer depuis l'application ». Les deux cas reels :
+      - Pocket TTS s'endort tout seul, et comme le casting ne propose que les
+        voix ECOUTABLES TOUT DE SUITE, ses 18 voix disparaissent des menus --
+        donc impossible de les rallumer en les demandant (c'est le veilleur qui
+        s'en charge, mais ce bouton permet aussi de le faire a la main) ;
+      - un moteur a plante, ou Laurent a ferme sa fenetre.
+
+    Le moteur LOURD passe par `basculer_moteur_voix`, qui n'en laisse qu'un seul
+    (la regle de la carte graphique) ; Pocket TTS, lui, cohabite.
+    """
+    messages = []
+
+    # 1. Pocket TTS : il tourne sur le processeur, donc il est TOUJOURS attendu.
+    resultat = await asyncio.to_thread(_assurer_pocket_vivant, True)
+    if resultat.get("message"):
+        messages.append(resultat["message"])
+
+    # 2. Le moteur LOURD retenu (data/moteur_voix.txt) : un seul a la fois.
+    retenu = _moteur_lourd_retenu()
+    etat = await asyncio.to_thread(etat_moteurs_voix, True)
+    if retenu and not (etat.get(retenu) or {}).get("pret"):
+        bascule = await asyncio.to_thread(basculer_moteur_voix, retenu)
+        nom = MOTEURS_VOIX[retenu]["nom"]
+        messages.append(nom + " : " + str(bascule.get("message")))
+        if not bascule.get("ok"):
+            raise HTTPException(
+                status_code=400,
+                detail="{} ; {}".format(" ; ".join(messages),
+                                        "pour voir l'erreur, lance son lanceur "
+                                        "sur le PC"))
+
+    if not messages:
+        messages.append("rien a relancer : tout tourne")
+    return {"ok": True, "message": " ; ".join(messages),
+            "etat": etat_moteurs_voix(force=True)}
+
+
+@app.post("/api/serveur/redemarrer")
+async def redemarrer_serveur():
+    """Relance START.bat -- le geste « je repars de zero », depuis l'application.
+
+    Demande de Laurent (21/09/2026). Ce que fait START.bat, exactement comme un
+    double-clic sur le PC : il ARRETE le serveur qui ecoute sur 8081 (donc celui
+    qui repond a cette requete) puis en demarre un neuf, avec le code a jour.
+    La page perd donc sa connexion une quinzaine de secondes -- elle est prevue
+    pour : elle affiche un voile et se recharge des que le serveur repond.
+
+    On repond D'ABORD, et START.bat part 1,5 s plus tard (voir
+    `_lancer_start_bat_apres_reponse`) : sinon le serveur serait tue avant
+    d'avoir envoye sa reponse, et la page croirait a un echec.
+    """
+    if not START_BAT_PATH.exists():
+        raise HTTPException(status_code=404,
+                            detail="START.bat est introuvable : relance depuis le PC")
+    if _redemarrage_en_cours["demande"]:
+        return {"ok": True, "message": "redemarrage deja demande"}
+    _redemarrage_en_cours["demande"] = True
+    asyncio.create_task(_lancer_start_bat_apres_reponse())
+    return {"ok": True, "message": "NIMM ePub redemarre : la page se rechargera "
+                                   "toute seule"}
 
 
 class BasculeMoteurRequest(BaseModel):
@@ -490,9 +567,19 @@ async def vider_cache_audio():
 # et garde ce libelle-ci en INFOBULLE -- les deux se completent, aucune liste a
 # tenir en double cote serveur.
 CRITERES_VOIX = [
+    # QUATRE ages depuis le 21/09/2026 (demande de Laurent : « On retire mur sur
+    # les voix. On garde juste enfant ; jeune ; adulte ; vieux »). La valeur
+    # « mur » disparait donc de cette liste, et les **73 voix** qui la portaient
+    # ont ete migrees vers « adulte » (data/annotations_voix.json, copie datée
+    # `...bak_avant_4_ages_20260921_1904`) : sans cette migration, ce controle
+    # aurait refuse d'enregistrer la moindre modification sur ces fiches, car il
+    # rejette toute valeur hors liste.
+    # Cette liste sert DEUX choses, et c'est voulu (une seule source de verite) :
+    # les menus d'annotation de la fenetre « Ecouter les voix », et les boutons
+    # de filtre de la fenetre du casting.
     ("age", "Âge perçu", [
         ("enfant", "enfant"), ("jeune", "jeune"), ("adulte", "adulte"),
-        ("mur", "mûr"), ("vieux", "vieux"),
+        ("vieux", "vieux"),
     ]),
     # « tres grave » et « tres aigu » ajoutes le 19/09/2026 (demande de
     # Laurent) : ses notes couvraient trois hauteurs (grave / medium / aigu),
@@ -899,17 +986,66 @@ def _sante_moteur(sante: str) -> dict:
         return {"actif": False, "pret": False}
 
 
+def _moteur_lourd_retenu() -> str:
+    """Le moteur de voix LOURD note dans data/moteur_voix.txt ("" si aucun).
+
+    C'est le pense-bete que START.bat relit au demarrage, et que l'ancien bouton
+    de bascule du lecteur ecrivait. Les moteurs qui COHABITENT (Pocket TTS) n'y
+    sont jamais : eux ne remplacent personne.
+    """
+    try:
+        valeur = MOTEUR_VOIX_PATH.read_text(encoding="utf-8").strip().lower()
+    except Exception:
+        return ""
+    # Un fichier ecrit par PowerShell peut commencer par un BOM (caractere
+    # invisible) : il collerait au mot et l'empecherait de correspondre. On le
+    # retire, comme les espaces (constate le 21/09/2026, en remettant ce
+    # fichier a la main).
+    valeur = valeur.lstrip("\ufeff").strip()
+    if valeur in MOTEURS_VOIX and not MOTEURS_VOIX[valeur].get("cohabite"):
+        return valeur
+    return ""
+
+
+def moteurs_attendus() -> list:
+    """Les moteurs qui DEVRAIENT tourner maintenant.
+
+    Deux familles :
+      - ceux qui COHABITENT (Pocket TTS : processeur, il ne gene personne, et
+        START.bat l'allume a chaque demarrage) ;
+      - le moteur de voix LOURD retenu dans data/moteur_voix.txt.
+
+    Sert au voyant du lecteur : lui seul peut dire « il manque quelque chose ».
+    Sans cette liste, le voyant crierait pour XTTS eteint VOLONTAIREMENT (Kyutai
+    est le moteur en service), et un voyant qui crie tout le temps ne dit plus
+    rien.
+    """
+    attendus = [p for p, infos in MOTEURS_VOIX.items() if infos.get("cohabite")]
+    retenu = _moteur_lourd_retenu()
+    if retenu and retenu not in attendus:
+        attendus.append(retenu)
+    return attendus
+
+
 def etat_moteurs_voix(force: bool = False) -> dict:
-    """Etat des moteurs de voix lourds : {prefixe: {nom, actif, pret}}."""
+    """Etat des moteurs de voix : {prefixe: {nom, actif, pret, cohabite, attendu}}.
+
+    `cohabite` : le moteur vit AVEC les autres (Pocket TTS tourne sur le
+    processeur) ; il n'entre jamais dans la regle « un seul moteur lourd a la
+    fois ». `attendu` : il devrait tourner maintenant (voir moteurs_attendus).
+    """
     maintenant = time.time()
     if (not force and _ETAT_MOTEURS["etat"] is not None
             and maintenant - _ETAT_MOTEURS["quand"] < ETAT_MOTEURS_TTL_S):
         return _ETAT_MOTEURS["etat"]
 
+    attendus = moteurs_attendus()
     etat = {}
     for prefixe, infos in MOTEURS_VOIX.items():
         detail = _sante_moteur(infos["sante"])
         detail["nom"] = infos["nom"]
+        detail["cohabite"] = bool(infos.get("cohabite"))
+        detail["attendu"] = prefixe in attendus
         etat[prefixe] = detail
 
     _ETAT_MOTEURS["quand"] = maintenant
@@ -956,17 +1092,23 @@ def _arreter_moteur_voix(prefixe: str) -> bool:
 
 def _relancer_moteur_voix(prefixe: str) -> bool:
     """Rallume un moteur de voix dans sa propre fenetre, exactement comme le
-    fait START.bat (meme dossier, meme lanceur, meme titre de fenetre)."""
+    fait START.bat (meme dossier, meme lanceur).
+
+    Le lanceur est appele par son **CHEMIN COMPLET**, avec une console neuve
+    (`CREATE_NEW_CONSOLE`) : c'est le double-clic exact. On n'ecrit donc PAS
+    « start ... cmd /k DEMARRER_XXX.bat » : un nom court, dans une console
+    heritee du lecteur, ne se resout plus -- lecon du 21/09/2026, depuis que
+    Python met `NoDefaultCurrentDirectoryInExePath=1` dans l'environnement de
+    ses processus enfants (cmd ne cherche alors plus dans le dossier courant).
+    """
     infos = MOTEURS_VOIX[prefixe]
     dossier = BASE_DIR / infos["dossier"]
     bat = dossier / infos["lanceur"]
     if not bat.exists():
         return False
     try:
-        subprocess.Popen(
-            'start "NIMM ePub - moteur de voix {}" /D "{}" cmd /k {}'.format(
-                infos["nom"], dossier, infos["lanceur"]),
-            shell=True, cwd=str(dossier))
+        subprocess.Popen([str(bat)], cwd=str(dossier),
+                         creationflags=subprocess.CREATE_NEW_CONSOLE)
         return True
     except Exception as e:
         print("   Impossible de relancer le moteur {} : {}".format(
@@ -999,6 +1141,160 @@ def _moteur_voix_installe(prefixe: str) -> bool:
     sans son environnement, son lanceur ne pourrait rien demarrer."""
     return (BASE_DIR / MOTEURS_VOIX[prefixe]["dossier"] / ".venv" / "Scripts"
             / "python.exe").exists()
+
+
+
+# --- Pocket TTS : LE LECTEUR VEILLE SUR LUI (21/09/2026) --------------------
+# Panne constatee par Laurent le 21/09/2026 : il lance NIMM ePub, ecoute une
+# voix Pocket TTS... puis le moteur s'endort (il s'arrete tout seul apres
+# plusieurs minutes sans phrase, c'est prevu) et ses 18 voix DISPARAISSENT du
+# casting -- normal, le casting ne propose que les voix ECOUTABLES TOUT DE
+# SUITE. Mais alors impossible de les rallumer en les demandant : plus aucun
+# menu ne les montre. Il fallait revenir au PC.
+#
+# Deux reponses, complementaires :
+#   1. START.bat allume Pocket TTS a CHAQUE demarrage (son bloc etait
+#      inatteignable jusqu'ici : il vivait apres le choix de Kyutai, dont tous
+#      les chemins faisaient « goto lecteur ») ;
+#   2. le lecteur lui-meme rallume le moteur s'il le trouve eteint : c'est ce
+#      veilleur-ci. Cout mesure : le modele se charge en 1,7 s, et ce moteur
+#      tourne sur le PROCESSEUR (il ne prend pas un octet de carte graphique).
+#
+# Pourquoi il ne peut pas y avoir de va-et-vient sans fin : le moteur ne
+# s'endort qu'apres NIMM_POCKET_TTS_INACTIF minutes sans phrase (3 h depuis le
+# 21/09/2026, contre 30 min avant -- a 30 min, il s'endormait EN PLEINE JOURNEE
+# d'ecoute, et les voix disparaissaient sous les yeux de Laurent).
+POCKET_TENTATIVES_MAX = 6        # apres 6 essais sans reponse, on espace
+POCKET_REPOS_S = 60.0            # jamais deux essais a moins d'une minute
+POCKET_REPOS_LONG_S = 600.0      # apres POCKET_TENTATIVES_MAX echecs
+VEILLEUR_INTERVALLE_S = 30.0     # la ronde : 4 appels /sante toutes les 30 s
+VEILLEUR_PREMIER_PASSAGE_S = 15.0   # on laisse START.bat finir son travail
+_veilleur_pocket = {"dernier_essai": 0.0, "echecs": 0, "lancements": 0}
+
+
+def _demarrer_pocket_sans_fenetre() -> bool:
+    """Allume le service Pocket TTS SANS FENETRE (meme commande que START.bat).
+
+    Sa sortie est REDIRIGEE vers ses journaux : sans console, un `print` de
+    Python ecrirait dans le vide et ferait tomber le service au premier message
+    (ce service annonce ce qu'il fait, et il journalise chaque phrase generee).
+    """
+    dossier = BASE_DIR / MOTEURS_VOIX["pocket"]["dossier"]
+    python = dossier / ".venv" / "Scripts" / "python.exe"
+    if not python.exists():
+        return False
+    try:
+        journal = open(dossier / "journal_service.txt", "ab", buffering=0)
+        erreurs = open(dossier / "journal_service_err.txt", "ab", buffering=0)
+        subprocess.Popen([str(python), "servir_pocket_tts.py"], cwd=str(dossier),
+                         stdout=journal, stderr=erreurs,
+                         creationflags=subprocess.CREATE_NO_WINDOW)
+        return True
+    except Exception as e:
+        print("   Pocket TTS n'a pas pu etre lance : {}".format(str(e)[:120]))
+        return False
+
+
+def _assurer_pocket_vivant(force: bool = False) -> dict:
+    """Rallume Pocket TTS s'il est eteint. Rend {lance, message}.
+
+    `force=True` vient d'un clic de Laurent (le bouton « Relancer les
+    moteurs ») : on ne respecte alors pas le delai de repos du veilleur.
+    """
+    etat = etat_moteurs_voix(force=True)
+    if (etat.get("pocket") or {}).get("actif"):
+        return {"lance": False, "message": "Pocket TTS repond deja"}
+    if not _moteur_voix_installe("pocket"):
+        return {"lance": False,
+                "message": "Pocket TTS n'est pas installe : ses voix resteront "
+                           "indisponibles"}
+    maintenant = time.time()
+    if not force:
+        repos = (POCKET_REPOS_LONG_S
+                 if _veilleur_pocket["echecs"] >= POCKET_TENTATIVES_MAX
+                 else POCKET_REPOS_S)
+        if maintenant - _veilleur_pocket["dernier_essai"] < repos:
+            return {"lance": False, "message": ""}   # trop tot : on se tait
+    _veilleur_pocket["dernier_essai"] = maintenant
+    if not _demarrer_pocket_sans_fenetre():
+        return {"lance": False, "message": "Pocket TTS n'a pas pu etre lance"}
+    _veilleur_pocket["lancements"] += 1
+    return {"lance": True,
+            "message": "Pocket TTS relance (ses voix reviennent dans les menus "
+                       "dans quelques secondes)"}
+
+
+async def _veiller_moteurs() -> None:
+    """Ronde discrete du lecteur : Pocket TTS doit tourner.
+
+    C'est un FIL DE FOND du serveur (lance au demarrage, arrete avec lui) : il
+    ne bloque jamais une requete, et il se tait quand tout va bien.
+    """
+    await asyncio.sleep(VEILLEUR_PREMIER_PASSAGE_S)
+    while True:
+        try:
+            await _veiller_une_fois()
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            print("   Veilleur des moteurs : {}".format(str(e)[:120]))
+        await asyncio.sleep(VEILLEUR_INTERVALLE_S)
+
+
+async def _veiller_une_fois() -> None:
+    """Un tour de ronde : Pocket TTS tourne-t-il ? Sinon, on le rallume."""
+    etat = await asyncio.to_thread(etat_moteurs_voix, True)
+    if (etat.get("pocket") or {}).get("actif"):
+        _veilleur_pocket["echecs"] = 0
+        return
+    if not _moteur_voix_installe("pocket"):
+        return                                  # pas installe : rien a rallumer
+    resultat = await asyncio.to_thread(_assurer_pocket_vivant)
+    if not resultat.get("lance"):
+        return
+    # On compte l'echec si le tour SUIVANT le trouve encore eteint : le compte
+    # repart a zero des qu'il repond (voir plus haut).
+    _veilleur_pocket["echecs"] += 1
+    print("Pocket TTS s'etait eteint : le lecteur le rallume tout seul.")
+    if _veilleur_pocket["echecs"] == POCKET_TENTATIVES_MAX:
+        print("Pocket TTS ne repond toujours pas apres {} essais : ses voix "
+              "resteront indisponibles.\n  Pour voir l'erreur : "
+              "pocket_tts_service\\DEMARRER_POCKET_TTS.bat".format(
+                  POCKET_TENTATIVES_MAX))
+
+
+# --- Redemarrer NIMM ePub depuis l'application (21/09/2026) ----------------
+# Demande de Laurent : « un bouton qui me propose de relancer START.bat, comme
+# ca si quelque chose cloche je peux le relancer depuis l'application ». Le
+# lanceur du PC, lui, REFUSE de relancer quand le lecteur tourne deja (« deja
+# en marche, rien a lancer ») : c'est exactement le cas ou l'on en a besoin.
+START_BAT_PATH = BASE_DIR / "START.bat"
+_redemarrage_en_cours = {"demande": False}
+
+
+async def _lancer_start_bat_apres_reponse() -> None:
+    """Lance START.bat comme un double-clic, 1,5 s APRES la reponse HTTP.
+
+    Pourquoi attendre : START.bat ARRETE le serveur qui ecoute sur 8081 -- celui
+    qui vient de repondre a la demande. Le tuer avant que la reponse soit partie
+    ferait croire, dans la page, que la demande a echoue.
+    """
+    await asyncio.sleep(1.5)
+    dossier = str(BASE_DIR)
+    try:
+        # CHEMIN COMPLET du lanceur + console neuve : le double-clic exact.
+        # Passer par « start "..." /D ... cmd /k START.bat » (nom court) NE
+        # MARCHE PAS depuis le lecteur : le cmd enfant herite de
+        # `NoDefaultCurrentDirectoryInExePath=1` (Python depuis 3.11), donc il
+        # ne cherche plus dans le dossier courant. Panne constatee le
+        # 21/09/2026 : la fenetre s'ouvrait en disant « START.bat n'est pas
+        # reconnu... », et le lecteur n'etait jamais relance.
+        subprocess.Popen([str(START_BAT_PATH)], cwd=dossier,
+                         creationflags=subprocess.CREATE_NEW_CONSOLE)
+        print("Redemarrage demande depuis le lecteur : START.bat est lance.")
+    except Exception as e:
+        _redemarrage_en_cours["demande"] = False
+        print("   Redemarrage impossible : {}".format(str(e)[:160]))
 
 
 def _ecrire_moteur_retenu(valeur: str) -> None:

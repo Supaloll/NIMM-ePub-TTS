@@ -77,6 +77,17 @@ def main():
     egal('Mgr et Dr gardent leur phrase',
          phrases('Mgr l eveque et le Dr Rieux arriverent.'),
          ['Mgr l eveque et le Dr Rieux arriverent.'])
+    # Cas de Laurent (21/09/2026, 22/11/63 chapitre 10) : un texte traduit de
+    # l'anglais ecrit « MR. CURRIE ». Non reconnu, « MR. » coupait la phrase
+    # juste avant le nom -- et le moteur, seul devant ce morceau, inventait un
+    # son (« [féè] »). Les formes en capitales sont donc dans la liste.
+    egal('MR. en capitales reste dans sa phrase',
+         phrases('Et l\u2019etiquette sur son bureau indiquait MR.\u00a0CURRIE.'),
+         ['Et l\u2019etiquette sur son bureau indiquait MR. CURRIE.'])
+    egal('la variante Mr. aussi',
+         phrases('Il salua Mr.\u00a0Currie.'), ['Il salua Mr. Currie.'])
+    egal('MME. en capitales aussi',
+         phrases('Il salua MME.\u00a0Dupont.'), ['Il salua MME. Dupont.'])
 
     print('')
     print('2) mais une VRAIE fin de phrase coupe toujours')
