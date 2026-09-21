@@ -68,15 +68,17 @@ def fabriquer_copie_neutre():
     remplacements = [
         ('start "NIMM ePub - appareil de voix Kyutai" /D "%~dp0kyutai_service" cmd /k DEMARRER_KYUTAI.bat',
          'echo [NEUTRE] ici serait lance : Kyutai'),
+        # Pocket TTS a sa FENETRE depuis le 21/09/2026 (fermer la fenetre eteint
+        # le moteur, comme Kyutai) : la ligne se neutralise donc comme celle de
+        # Kyutai. Avant, elle passait par un PowerShell « Start-Process ...
+        # -WindowStyle Hidden » et un motif regulier.
+        ('start "NIMM ePub - appareil de voix Pocket TTS" /D "%~dp0pocket_tts_service" cmd /k DEMARRER_POCKET_TTS.bat',
+         'echo [NEUTRE] ici serait lance : Pocket TTS (dans sa fenetre)'),
         ('python main.py', 'echo [NEUTRE] ici le lecteur demarrerait'),
         ('pause', ''),
     ]
     for avant, apres in remplacements:
         source = source.replace(avant, apres)
-    # Pocket TTS : lancee par PowerShell, en arriere-plan (une seule ligne).
-    source = re.sub(r'(?m)^powershell -NoProfile -Command "Start-Process.*pocket_tts_service.*$',
-                    'echo [NEUTRE] ici serait lance : Pocket TTS (sans fenetre)',
-                    source)
     # Le GARDE-FOU du 18/09/2026 arrete le serveur qui ecoute sur 8081 -- donc,
     # dans cette copie, il ARRETAIT POUR DE VRAI le lecteur de Laurent
     # (constate le 21/09/2026 : le lecteur est mort pendant le test, deux fois).
@@ -209,17 +211,23 @@ def test_garde_fou_deja_en_marche():
              '127.0.0.1:8085/sante' in source
              and source.index('127.0.0.1:8085/sante')
              < source.index('127.0.0.1:8082/sante'))
-    # Ce controle porte sur le VRAI START.bat : dans la copie neutre, la ligne
-    # de lancement de Pocket TTS est justement remplacee par un affichage.
+    # Ce controle porte sur le VRAI START.bat : dans la copie neutre, les lignes
+    # de lancement sont justement remplacees par des affichages.
     original = (RACINE / "START.bat").read_text(encoding='utf-8', errors='replace')
-    verifier('Pocket TTS est lance SANS FENETRE',
-             '-WindowStyle Hidden' in original)
+    verifier('Pocket TTS a sa FENETRE (fermer la fenetre eteint le moteur)',
+             'appareil de voix Pocket TTS' in original
+             and 'cmd /k DEMARRER_POCKET_TTS.bat' in original)
+    verifier('le marqueur d arret volontaire est efface au demarrage',
+             'arrete_volontaire.txt' in original)
     verifier('le bloc Pocket TTS ne saute plus vers le lecteur',
              ':pocket_pret' in source)
     verifier('les anciens blocs :moteur_xtts / :moteur_kyutai ont disparu',
              ':moteur_xtts' not in source and ':moteur_kyutai' not in source)
-    verifier('un seul moteur lourd est lance automatiquement : Kyutai',
-             original.count('start "') == 1
+    # Depuis le 21/09/2026, les DEUX moteurs automatiques ont leur fenetre :
+    # Kyutai (comme avant) et Pocket TTS (pour pouvoir l'eteindre en la fermant).
+    verifier('les deux moteurs automatiques ont leur fenetre (Pocket et Kyutai)',
+             original.count('start "') == 2
+             and 'cmd /k DEMARRER_POCKET_TTS' in original
              and 'cmd /k DEMARRER_KYUTAI' in original
              and 'cmd /k DEMARRER_XTTS' not in original
              and 'cmd /k DEMARRER_NEUTTS' not in original,

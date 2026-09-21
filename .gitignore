@@ -173,3 +173,10 @@ _m.txt
 _ctx*.txt
 _l.txt
 _le.txt
+# Journaux et artefacts des essais du 21/09/2026 (regenerables : outils d'essai).
+_tests_*.txt
+_avant_*.txt
+_apres_*.txt
+_passe*.txt
+APERCU_CADENAS_*.html
+_essais/

@@ -131,15 +131,31 @@ def verifications():
     verifier('la fillette a une voix feminine',
              index.get(attribution['Fillette']['voice_id'], {}).get('genre') == 'F',
              attribution['Fillette'])
-    verifier('aucune voix notee 0 etoile n a ete attribuee',
+    # Les deux voix GENERIQUES des petits roles sont HORS de cet index, par
+    # construction : `_index_voix()` ne couvre que les familles du pool
+    # automatique (Edge, Kokoro, Kyutai), et Piper n'en fait pas partie. Ces
+    # deux voix sont CHOISIES, pas piochees (decision de Laurent du 21/09/2026 :
+    # Jessica 3 etoiles, Pierre 1 etoile) : le controle des 0 etoile porte donc
+    # sur les voix DEDIEES, pas sur elles.
+    generiques = (voice_casting.GENERIC_VOICE_F, voice_casting.GENERIC_VOICE_M)
+    verifier('aucune voix notee 0 etoile n a ete attribuee (hors generiques)',
              all((index.get(a['voice_id'], {}).get('stars') or 0) > 0
-                 for a in attribution.values() if a['voice_id']))
+                 for a in attribution.values()
+                 if a['voice_id'] and a['voice_id'] not in generiques))
     grands = ('Vieux_seigneur', 'Jeune_ecuyer', 'Dame_mure', 'Fillette')
     verifier('les 4 grands roles ont des voix DIFFERENTES',
              len({attribution[n]['voice_id'] for n in grands}) == 4,
              [attribution[n]['voice_id'] for n in grands])
-    verifier('le petit role (< 8 repliques) reste SANS voix (narrateur)',
-             attribution['Figurant']['voice_id'] == '', attribution['Figurant'])
+    verifier('le petit role (< 8 repliques) recoit la voix GENERIQUE de son genre',
+             attribution['Figurant']['voice_id'] == voice_casting.GENERIC_VOICE_M,
+             attribution['Figurant'])
+    verifier('cette voix generique est bien Pierre (Piper, hommes)',
+             voice_casting.GENERIC_VOICE_M == 'piper:upmc:1',
+             voice_casting.GENERIC_VOICE_M)
+    verifier('et le petit role a bien la voix de son genre (femmes = Jessica)',
+             voice_casting.GENERIC_VOICE_F == 'piper:upmc:0'
+             and voice_casting._voix_generique('F') == 'piper:upmc:0'
+             and voice_casting._voix_generique('H') == 'piper:upmc:1')
     verifier('la hauteur suit l age (personnage age = -15 Hz)',
              attribution['Vieux_seigneur']['pitch'] == '-15Hz',
              attribution['Vieux_seigneur']['pitch'])

@@ -4,7 +4,8 @@
 Repond en un coup d'oeil aux questions qu'on se pose avant un re-cast :
     - combien de personnages, combien VERROUILLES (ils garderont leur voix) ;
     - combien de PETITS ROLES (< seuil de repliques) : aujourd'hui ils portent
-      la voix generique Piper (siwis/tom), partagee par genre ;
+      la voix generique Piper de leur genre (Jessica pour les femmes, Pierre
+      pour les hommes -- decision de Laurent du 21/09/2026) ;
     - quelles voix du catalogue sont deja prises, et lesquelles ne le sont pas.
 
 Usage : python test_voix/_etat_casting_livre.py <book_id>

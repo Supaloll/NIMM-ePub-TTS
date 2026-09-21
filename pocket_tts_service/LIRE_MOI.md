@@ -32,9 +32,13 @@ toucher au lecteur**.
 | `INSTALLER_POCKET_TTS.bat` | **une seule fois** | crée l'environnement dédié et installe PyTorch **CPU** + `pocket-tts` (5 à 15 min). Relançable sans risque |
 | `DEMARRER_POCKET_TTS.bat` | pour allumer le moteur **seul** (essai, diagnostic) | affiche ce que dit le moteur, sur le port **8085**. Fermer la fenêtre l'éteint |
 
-Tout est écrit dans `journal_installation.txt`, `journal_service.txt` et
-`journal_console.txt`. En usage normal, c'est **`START.bat`** qui allume le
-moteur — **sans fenêtre**, en arrière-plan (voir « Le service » plus bas).
+Tout est écrit dans `journal_installation.txt` (l'installation) et
+`journal_console.txt` (l'allumage à la main). En usage normal, c'est
+**`START.bat`** qui allume le moteur, **dans sa fenêtre** (depuis le 21/09/2026,
+demande de Laurent : fermer la fenêtre éteint le moteur, comme pour Kyutai).
+Le service écrit aussi `arrete_volontaire.txt` quand sa fenêtre se ferme : c'est
+le marqueur qui dit au lecteur « ne me rallume pas tout seul » (voir « Le
+service » plus bas).
 
 **Le modèle français n'est PAS téléchargé par l'installation** : il se charge au
 premier usage (641 Mo), et il est **déjà dans le cache Hugging Face de cette

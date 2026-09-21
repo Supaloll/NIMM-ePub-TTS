@@ -154,6 +154,113 @@ def main():
          ['Il salua M. Dupont.', 'Puis il partit.'])
 
     print('')
+    print('8) regle « dialogue » (21/09/2026) : le beat revient au narrateur')
+    from modules.decoupage import (REGLE_DIALOGUE, introduit_une_replique,
+                                   VERBES_DE_PAROLE)
+    cas_de_laurent = (
+        "Avant que j'aie pu répondre, Richie est intervenu : «Non, c'est pas "
+        "ça. C'est… Je sais pas. Vous cherchez….»")
+    avant = phrases(cas_de_laurent)
+    egal('la regle actuelle colle la narration au debut de la replique',
+         avant[0],
+         "Avant que j'aie pu répondre, Richie est intervenu : «Non, c'est pas ça.")
+    apres = phrases(cas_de_laurent, REGLE_DIALOGUE)
+    egal('la regle dialogue separe le beat', apres[0],
+         "Avant que j'aie pu répondre, Richie est intervenu :")
+    egal('et la replique commence par le guillemet', apres[1],
+         "«Non, c'est pas ça.")
+    egal('une phrase de plus', len(apres), len(avant) + 1)
+    # Les trois garde-fous : une citation racontee, un deux-points sans verbe de
+    # parole, un beat sans deux-points ne sont JAMAIS coupes.
+    citation = "J'ai jamais eu « la larme facile », comme on dit."
+    egal('citation racontee : un seul morceau',
+         phrases(citation, REGLE_DIALOGUE), [citation])
+    egal('deux-points SANS verbe de parole : la coupe s applique quand meme',
+         phrases("Le sujet que j'avais donné était : « Le jour qui a changé "
+                 "ma vie.»", REGLE_DIALOGUE),
+         ["Le sujet que j'avais donné était :", "« Le jour qui a changé ma vie.»"])
+    # Cas de Laurent (21/09/2026 au soir, chapitre d'essai de 22/11/63) : un
+    # beat SANS verbe de parole -- « Puis : « D'accord… » » -- restait colle a
+    # la replique, donc lu par le personnage. Le deux-points juste avant la
+    # citation suffit desormais (mesure : 4 cas dans ce chapitre).
+    egal('un beat sans verbe est coupe : « Puis : « … » »',
+         phrases('Puis : « D’accord, j’ai pu le faire.', REGLE_DIALOGUE),
+         ['Puis :', '« D’accord, j’ai pu le faire.'])
+    egal('et le cas long : « …une seconde tentative : « Ambulance. »',
+         phrases('Je me suis cramponné pour faire une seconde tentative : '
+                 '« Ambulance.', REGLE_DIALOGUE),
+         ['Je me suis cramponné pour faire une seconde tentative :',
+          '« Ambulance.'])
+    egal('un verbe de parole suffit, meme sans deux-points',
+         phrases('Il murmura « comme ça », puis partit.', REGLE_DIALOGUE),
+         ['Il murmura', '« comme ça », puis partit.'])
+    egal('mais un morceau sans deux-points NI verbe reste entier',
+         phrases('Il sourit « comme ça », puis partit.', REGLE_DIALOGUE),
+         ['Il sourit « comme ça », puis partit.'])
+    verifier('le garde-fou repond oui/non comme il faut',
+             introduit_une_replique('Et le More, riant, répondit :')
+             and introduit_une_replique('Puis :')
+             and not introduit_une_replique("J'ai jamais eu")
+             and not introduit_une_replique('un long silence passa'))
+    # Bug constate par Laurent le 21/09/2026 (« Lazarille de Tormes ») : avec
+    # l'apostrophe TYPOGRAPHIQUE (’), « s’écria : » n'était PAS reconnu -> le
+    # beat restait collé à la réplique, et c'était le personnage qui lisait la
+    # narration. Les deux apostrophes doivent donc être traitées pareil.
+    beat_typo = ('Frère Mariano, qui jusqu’à ce moment avait eu grand’peine de '
+                 's’empêcher de rire, s’écria :')
+    verifier('apostrophe TYPOGRAPHIQUE reconnue (s’écria)',
+             introduit_une_replique(beat_typo))
+    egal('et le beat typographique est bien separe de la replique',
+         phrases(beat_typo + ' « Jésus ! Jésus !', REGLE_DIALOGUE)[0], beat_typo)
+    egal('apostrophe droite aussi (s\'écria)',
+         phrases("Il s'écria : « Non !", REGLE_DIALOGUE)[0], "Il s'écria :")
+    # Second cas de Laurent (meme soiree) : « se mit à CRIER, … : « Maman, la
+    # bete ! » ». La liste contenait « cria » mais pas « crier » (l'infinitif) :
+    # le beat n'etait pas reconnu, restait colle a la replique, et l'IA donnait
+    # le tout au personnage.
+    beat_crier = ('Et je me souviens qu’un jour que mon noir beau-père jouait '
+                  'avec l’enfant, celui-ci se mit à crier, le montrant du doigt '
+                  'avec terreur :')
+    verifier('« se mit à crier : » est reconnu (infinitif)',
+             introduit_une_replique(beat_crier))
+    egal('et ce beat est separe de la replique',
+         phrases(beat_crier + ' « Maman, la bête !', REGLE_DIALOGUE)[0],
+         beat_crier)
+
+    print('')
+    print('9) regle « dialogue » : positions justes, aucun texte perdu')
+    extrait = ('Il entra. Le vieux leva les yeux et dit : « Qui va là ? »\n\n'
+               'Personne ne repondit.')
+    positions_extraites = phrases_avec_positions(extrait, REGLE_DIALOGUE)
+    verifier('chaque morceau correspond au texte a [debut:fin]',
+             all(extrait[d:f] == t for d, f, t in positions_extraites))
+    verifier('le beat et la replique sont bien separes',
+             'Le vieux leva les yeux et dit :' in
+             [t for _d, _f, t in positions_extraites]
+             and '« Qui va là ?' in [t for _d, _f, t in positions_extraites],
+             [t for _d, _f, t in positions_extraites])
+    lu_extraite = ''.join(t for _d, _f, t in positions_extraites)
+    verifier('aucun texte perdu avec la regle dialogue',
+             sans_ponctuation(lu_extraite) == sans_ponctuation(extrait),
+             sans_ponctuation(lu_extraite))
+
+    print('')
+    print('10) la page connait la meme regle (verbes de parole identiques)')
+    verbes_js = re.search(r'const VERBES_DE_PAROLE\s*=\s*\[(.*?)\];', js, re.S)
+    verifier('la liste des verbes de parole existe dans app.js',
+             verbes_js is not None)
+    if verbes_js:
+        # Les apostrophes sont echappees en JavaScript (« 's\'ecri' ») : on les
+        # remet en clair avant de comparer a la liste Python.
+        valeurs_js = [v.replace("\\'", "'")
+                      for v in re.findall(r"'((?:[^'\\]|\\.)*)'",
+                                          verbes_js.group(1))]
+        egal('liste des verbes identique a celle du serveur',
+             tuple(valeurs_js), VERBES_DE_PAROLE)
+    verifier('la page a bien sa fonction de garde',
+             '_introduitUneReplique' in js and 'decoupeDialogue' in js)
+
+    print('')
     print('%d controles, %d en echec' % (CONTROLES, ECHECS))
     print('TOUT EST OK' if ECHECS == 0
           else '%d VERIFICATION(S) EN ECHEC' % ECHECS)

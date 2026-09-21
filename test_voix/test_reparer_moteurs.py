@@ -65,9 +65,11 @@ def main_test():
         verifier('aucun « goto lecteur » ne saute plus ce bloc',
                  'goto lecteur' not in bloc, bloc[:120])
         verifier('le bloc lance bien le service Pocket TTS',
-                 'servir_pocket_tts.py' in bloc)
-    verifier('le service est lance SANS FENETRE',
-             '-WindowStyle Hidden' in bat)
+                 'DEMARRER_POCKET_TTS.bat' in bloc)
+    verifier('le service a sa FENETRE (fermer la fenetre eteint le moteur)',
+             'cmd /k DEMARRER_POCKET_TTS.bat' in bat)
+    verifier('START.bat efface le marqueur d arret volontaire',
+             'arrete_volontaire.txt' in bat)
 
     # --- 2. Quels moteurs sont ATTENDUS ? --------------------------------
     print('')
@@ -116,7 +118,7 @@ def main_test():
     # --- 4. Le veilleur rallume Pocket TTS -------------------------------
     print('')
     print('4) le veilleur rallume Pocket TTS, sans essais en rafale')
-    vrai_demarrer = main._demarrer_pocket_sans_fenetre
+    vrai_demarrer = main._demarrer_pocket_avec_fenetre
     vrai_etat = main.etat_moteurs_voix
     vrai_installe = main._moteur_voix_installe
     try:
@@ -126,7 +128,7 @@ def main_test():
             rallumes.append(1)
             return True
 
-        main._demarrer_pocket_sans_fenetre = faux_demarrer
+        main._demarrer_pocket_avec_fenetre = faux_demarrer
         main._moteur_voix_installe = lambda prefixe: True
         main.etat_moteurs_voix = lambda force=False: {
             "pocket": {"actif": False, "pret": False, "cohabite": True,
@@ -165,16 +167,41 @@ def main_test():
         verifier('moteur non installe : refus clair, aucun lancement',
                  resultat5.get('lance') is False
                  and 'installe' in str(resultat5.get('message')), resultat5)
+
+        # NOUVEAU (21/09/2026) : un arret VOLONTAIRE -- la fenetre du moteur a
+        # ete fermee -- ne doit pas etre contredit par le veilleur. Sans ce
+        # controle, Laurent fermait la fenetre et le moteur revenait moins d'une
+        # minute plus tard : le geste n'aurait servi a rien.
+        vrai_marqueur = main._pocket_arrete_volontairement
+        main._pocket_arrete_volontairement = lambda: True
+        main._moteur_voix_installe = lambda prefixe: True
+        main.etat_moteurs_voix = lambda force=False: {
+            "pocket": {"actif": False, "pret": False, "cohabite": True,
+                       "attendu": True}}
+        main._veilleur_pocket.update(
+            {"dernier_essai": 0.0, "echecs": 0, "lancements": 0})
+        avant = len(rallumes)
+        resultat6 = main._assurer_pocket_vivant()
+        verifier('arret volontaire : le veilleur ne rallume RIEN',
+                 resultat6.get('lance') is False
+                 and 'volontairement' in str(resultat6.get('message')),
+                 resultat6)
+        verifier('et aucun lancement n a eu lieu', len(rallumes) == avant,
+                 len(rallumes))
+        resultat7 = main._assurer_pocket_vivant(force=True)
+        verifier('mais un clic de Laurent (« Relancer les moteurs ») rallume',
+                 resultat7.get('lance') is True, resultat7)
+        main._pocket_arrete_volontairement = vrai_marqueur
     finally:
-        main._demarrer_pocket_sans_fenetre = vrai_demarrer
+        main._demarrer_pocket_avec_fenetre = vrai_demarrer
         main.etat_moteurs_voix = vrai_etat
         main._moteur_voix_installe = vrai_installe
         main._veilleur_pocket.update(
             {"dernier_essai": 0.0, "echecs": 0, "lancements": 0})
 
-    # --- 5. La commande de lancement sans fenetre -------------------------
+    # --- 5. La commande de lancement AVEC fenetre -------------------------
     print('')
-    print('5) la commande de lancement sans fenetre')
+    print('5) la commande de lancement (fenetre visible, comme Kyutai)')
     vraie_popen = subprocess.Popen
     captures = []
 
@@ -191,13 +218,13 @@ def main_test():
     verifier('un seul processus demande', len(captures) == 1, len(captures))
     if captures:
         argv = captures[0][0]
-        verifier('c est le python DU SERVICE qui est utilise',
-                 '.venv' in argv[0] and 'python.exe' in argv[0], argv[0])
-        verifier('c est bien servir_pocket_tts.py',
-                 argv[1] == 'servir_pocket_tts.py', argv[1])
-        verifier('aucune fenetre ne s ouvre (creationflags)',
-                 'creationflags' in captures[0][1],
-                 sorted(captures[0][1].keys()))
+        verifier('c est le LANCEUR du service qui est appele',
+                 argv[0] == 'cmd' and argv[-1] == 'DEMARRER_POCKET_TTS.bat',
+                 argv)
+        verifier('la fenetre du moteur s ouvre (CREATE_NEW_CONSOLE)',
+                 captures[0][1].get('creationflags')
+                 == subprocess.CREATE_NEW_CONSOLE,
+                 captures[0][1].get('creationflags'))
 
     # --- 6. Les routes du panneau ----------------------------------------
     print('')

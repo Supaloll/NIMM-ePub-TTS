@@ -25,6 +25,8 @@ Tu n'as **pas** besoin de savoir taper des commandes : les actions utiles ont un
 | `LANCER_BANC_ECOUTE_XTTS.bat` | fabrique un **lot d'écoute XTTS** (qualité des phrases : attaque, incise, tiret, phrase courte, fin de phrase) sur deux voix |
 | `LANCER_BANC_PONCTUATION.bat` | fabrique un **lot d'écoute sur la ponctuation du « ! »** (point / virgule / suspension / rien) **et sur les incises** (gardées ou retirées), sur les mêmes phrases réelles d'un livre — **Kyutai allumé**. Tu écoutes et tu classes, je règle ensuite |
 | `LANCER_OU_SONT_MES_VOIX.bat` | affiche **où en sont tes voix** : combien de personnages lisent avec chaque moteur, combien sont verrouillés, et si chaque voix attribuée existe bien dans le catalogue (rien n'est modifié) |
+| `MIGRER_PETITS_ROLES.bat` | 🎭 **donne Jessica (femmes) et Pierre (hommes) à tous les petits rôles** (moins de 8 répliques) des livres **déjà castés** (21/09/2026) : il montre d'abord ce qu'il ferait (essai), puis, si tu réponds **O**, il applique — avec **copie datée de la base avant d'écrire** |
+| `MODE_DIALOGUE.bat` | ✂️ **sépare la narration des répliques, LIVRE PAR LIVRE** (21/09/2026) : dans « Richie est intervenu : «Non…» », le beat revient au narrateur et la réplique au personnage. Il affiche la liste des livres, puis demande le numéro et **A** (activer) ou **D** (revenir au découpage d'origine). Attention : un livre **déjà casté** doit être **re-casté** après, car les numéros de phrases changent |
 | `LANCER_BANC_ECOUTE_NEUTTS.bat` | fabrique un **lot d'écoute NeuTTS** (livre et chapitre au choix) pour comprendre où la voix dérape : vraies phrases du livre, signes de dialogue avec/sans, phrases courtes, phrase longue d'un bloc puis coupée en deux — **le moteur NeuTTS doit être allumé** |
 | `LANCER_BANC_ECOUTE_KYUTAI.bat` | le **même lot sur Kyutai** (mêmes phrases, mêmes voix : les deux moteurs partagent les mêmes extraits) pour **comparer** les deux — **Kyutai allumé, NeuTTS éteint** (ils ne cohabitent pas sur la carte graphique) |
 | `_PAYANT_lancer_test_attribution.bat` | ⚠️ **payant** : appelle de vraies API d'IA — il demande confirmation avant de partir |
@@ -86,6 +88,39 @@ fichiers). C'est le geste quand un navigateur **refuse d'installer**
 l'application : la taille annoncée dans `frontend/manifest.json` doit correspondre
 au fichier, sinon Chrome rejette les icônes et n'affiche pas « Installer »
 (vérifié par `test_pwa_manifeste.py`).
+
+---
+
+## 🎭 Les PETITS RÔLES : Jessica (femmes) et Pierre (hommes) — ça ÉCRIT aussi
+
+Décision de Laurent du 21/09/2026 : tout personnage de **moins de 8 répliques**
+est joué par une voix générique selon son genre — **Jessica** (`piper:upmc:0`)
+et **Pierre** (`piper:upmc:1`), les deux en Piper — et **chacun reçoit sa
+propre variante** de hauteur et de vitesse : **11 hauteurs × 13 vitesses =
+143 variantes par voix**. Avant, ces petits rôles n'avaient **aucune** voix :
+c'était le **narrateur** qui les lisait.
+
+`migrer_petits_roles.py` applique cette décision aux **livres déjà castés** :
+
+    python test_voix/migrer_petits_roles.py             -> ESSAI, n'ecrit rien
+    python test_voix/migrer_petits_roles.py --appliquer -> ecrit (copie datee)
+
+Ce qu'il fait **tout seul** : d'abord un **essai** (livre par livre, avec des
+exemples de la répartition : quel personnage, quelle voix, quelle hauteur,
+quelle vitesse), puis — seulement avec `--appliquer` — une **copie datée de la
+base AVANT d'écrire**, l'écriture de **trois colonnes** (`voice_id`, `pitch`,
+`rate`), et une **relecture** de contrôle (aucune ligne ne doit rester à mettre
+en forme).
+
+Ce qu'il ne touche **jamais** : les rôles de 8 répliques et plus, et les lignes
+**verrouillées** (un verrou veut dire « je garde cette voix »). Les variantes
+sont réparties **par livre et par genre**, si bien que deux petits rôles du même
+livre **n'ont jamais la même voix au timbre près** (jusqu'à 143 par genre ; le
+plus gros besoin mesuré est de 85, dans Monte-Cristo T6).
+
+Le lanceur double-clic **`MIGRER_PETITS_ROLES.bat`** fait l'essai, demande
+« J'applique ? (O/N) », puis applique et affiche le nom de la copie de retour
+arrière. **Recharge la page** du lecteur ensuite, pour voir le nouveau casting.
 
 ---
 

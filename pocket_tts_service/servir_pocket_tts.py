@@ -42,6 +42,13 @@ sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 ICI = Path(__file__).resolve().parent
 DOSSIER_VOIX = ICI / "voix"
+# Le fichier qui dit « Pocket TTS a ete eteint VOLONTAIREMENT » : ecrit quand la
+# FENETRE du moteur se ferme, il est lu par le veilleur du lecteur (`main.py`).
+# Sans lui, le veilleur rallumait le moteur 30 secondes plus tard, et le geste
+# naturel de Laurent -- fermer la fenetre pour l'eteindre -- ne servait a rien
+# (constat du 21/09/2026 : « Pocket TTS reste allume, je n'ai pas moyen de
+# l'eteindre »). Il est efface des que le moteur redemarre.
+MARQUEUR_ARRET = ICI / "arrete_volontaire.txt"
 
 PORT = int(os.environ.get("NIMM_POCKET_TTS_PORT", "8085") or "8085")
 HOTE = os.environ.get("NIMM_POCKET_TTS_HOST", "127.0.0.1") or "127.0.0.1"
@@ -394,13 +401,24 @@ def _moteur_deja_en_route() -> bool:
 
 
 def _surveiller_la_console():
-    """Eteint le moteur si sa fenetre disparait (lancement a la main seulement).
+    """Eteint le moteur si sa fenetre disparait (fenetre fermee).
 
-    Le service est prevu pour tourner SANS fenetre (`START.bat` le lance cache) :
-    le gardien ne s'active donc pas dans ce cas, et c'est normal -- sans fenetre,
-    c'est le lecteur qui allume et eteint le moteur (il le fait par le port). Il
-    n'a de sens que si Laurent double-clique sur `DEMARRER_POCKET_TTS.bat` pour
-    un essai : fermer la fenetre doit alors vraiment eteindre le moteur.
+    Pourquoi : sous Windows, un programme qui n'ecrit jamais dans sa console ne
+    s'apercoit pas que celle-ci a ete fermee -- le moteur continuait alors de
+    tourner alors que Laurent croyait l'avoir eteint (constate le 12/09/2026
+    pour Kyutai). Ce gardien rend le geste naturel -- fermer la fenetre --
+    vraiment efficace.
+
+    Depuis le 21/09/2026, `START.bat` ouvre CETTE fenetre (il lancait le moteur
+    cache auparavant) : le gardien s'active donc aussi en usage normal, et
+    fermer la fenetre eteint vraiment Pocket TTS. Il laisse en partant le
+    MARQUEUR_ARRET, que lit le veilleur du lecteur pour ne pas rallumer le
+    moteur tout seul.
+
+    Le gardien ne s'active que si le moteur tourne dans une VRAIE console
+    (fenetre) : lance sans console (outils, tests, stdin redirige), il ne
+    s'active pas. La variable NIMM_POCKET_TTS_SURVEILLER_CONSOLE=1 force
+    l'activation, ce qui permet de tester le mecanisme.
     """
     force = os.environ.get("NIMM_POCKET_TTS_SURVEILLER_CONSOLE", "") == "1"
     try:
@@ -419,6 +437,13 @@ def _surveiller_la_console():
         if touche == "":
             print("")
             print("Fenetre fermee : arret du moteur de voix Pocket TTS.")
+            try:
+                # On laisse une trace : le moteur s'arrete VOLONTAIREMENT, et le
+                # veilleur du lecteur ne doit pas le rallumer tout seul.
+                MARQUEUR_ARRET.write_text(
+                    time.strftime("%Y-%m-%d %H:%M:%S"), encoding="utf-8")
+            except Exception:
+                pass
             sys.stdout.flush()
             os._exit(0)
 
@@ -453,6 +478,16 @@ def main():
         print("ARRET : un moteur Pocket TTS repond deja sur %s:%d." % (HOTE, PORT))
         print("Rien a faire : le moteur deja allume suffit.")
         sys.exit(1)
+
+    # Le moteur (re)demarre : le marqueur d'arret volontaire n'a plus lieu
+    # d'etre. C'est ce qui permet de le rallumer a la main (ou par START.bat)
+    # apres l'avoir eteint en fermant sa fenetre.
+    try:
+        MARQUEUR_ARRET.unlink()
+    except FileNotFoundError:
+        pass
+    except Exception:
+        pass
 
     # On ouvre le port AVANT de charger le modele (1,7 s mesure) : START.bat
     # voit ainsi tout de suite que le moteur est en route et ne le relance pas ;

@@ -65,8 +65,11 @@ let _castPersoGenre = 'T';
 // personnage qui parle beaucoup et n'a pas encore de voix a lui : « a caster ».
 const _CAST_MINOR_THRESHOLD = 8;
 
-// Les deux voix generiques partagees des petits roles (cf. GENERIC_VOICE_F/M).
-const _CAST_VOIX_GENERIQUES = ['piper:siwis:0', 'piper:tom:0'];
+// Les deux voix generiques partagees des petits roles (cf. GENERIC_VOICE_F/M
+// cote serveur) : Jessica pour les femmes, Pierre pour les hommes -- deux voix
+// Piper, choisies par Laurent le 21/09/2026. L'ORDRE compte : [0] = femmes,
+// [1] = hommes (c'est ce que lit _deplacerAutresVersGenerique).
+const _CAST_VOIX_GENERIQUES = ['piper:upmc:0', 'piper:upmc:1'];
 
 // --- Message audio « pas de reseau » (15/09/2026) ---
 // _messageHorsLigne : URL (blob) du message prepare, ou null si pas encore pret.
@@ -1221,7 +1224,7 @@ function _pitchPartageLibre(pitchesUtilises) {
 //   - « LIBRE »     : aucun personnage ne la porte -> c'est la ou piocher ;
 //   - « partagee »  : plusieurs personnages la portent (les noms sont donnes) ;
 //   - « narrateur » : elle lit la narration de ce livre, donc elle est prise ;
-//   - « generique » : voix des petits roles (Piper siwis/tom), partagee par
+//   - « generique » : voix des petits roles (Piper Jessica/Pierre), partagee par
 //     construction : jamais comptee comme libre.
 function _etatVoix(etatCasting, voixProposees, voixNarrateur) {
   const generique   = (id) => _CAST_VOIX_GENERIQUES.indexOf(id) >= 0;
@@ -1318,11 +1321,14 @@ function _construireMenuVoix(voiceIdActuelle, etatVoix) {
   const select = document.createElement('select');
   select.className = 'cast-voice-select';
 
-  // Personnage SANS voix dediee (petit role, < 8 repliques depuis le
-  // 15/09/2026) : ses repliques sont lues par le NARRATEUR. On l'affiche
-  // clairement, sinon le menu montrerait la premiere voix du catalogue comme
-  // si elle lui etait attribuee. Choisir cette entree redonne au personnage
-  // la voix du narrateur (voice_id vide) ; choisir une voix l'en detache.
+  // Personnage SANS voix dediee : ses repliques sont lues par le NARRATEUR.
+  // C'est l'etat qu'avaient les PETITS ROLES jusqu'au 21/09/2026 (ils portent
+  // maintenant la voix generique de leur genre : voir _CAST_VOIX_GENERIQUES) ;
+  // il reste possible a la main, et pour un livre pas encore migre. On
+  // l'affiche clairement, sinon le menu montrerait la premiere voix du
+  // catalogue comme si elle lui etait attribuee. Choisir cette entree redonne
+  // au personnage la voix du narrateur (voice_id vide) ; choisir une voix l'en
+  // detache.
   if (!voiceIdActuelle) {
     const groupe = document.createElement('optgroup');
     groupe.label = '\uD83D\uDDE3\uFE0F Sans voix dediee';
@@ -1657,10 +1663,8 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
       const lockBtn = document.createElement('button');
       lockBtn.type = 'button';
       lockBtn.className = 'cast-lock-btn' + (v.locked ? ' locked' : '');
-      lockBtn.textContent = v.locked ? '\uD83D\uDD12' : '\uD83D\uDD13';
-      lockBtn.title = v.locked
-        ? 'Voix verrouillee : elle sera conservee lors du re-cast.'
-        : 'Verrouiller cette voix pour la conserver lors du re-cast.';
+      // Cadenas DESSINE (ferme / ouvert) : voir _peindreCadenas.
+      _peindreCadenas(lockBtn, !!v.locked);
       lockBtn.addEventListener('click', () => _toggleCharacterLock(nom, lockBtn));
 
       top.appendChild(info);
@@ -2026,8 +2030,8 @@ async function _deplacerAutresVersGenerique(autres) {
   }
   for (let i = 0; i < autres.length; i++) {
     const fiche = (_currentBookData.voices || {})[autres[i].nom] || {};
-    // La voix generique depend du GENRE : piper:siwis:0 (femmes) ou
-    // piper:tom:0 (hommes) -- les deux constantes du casting.
+    // La voix generique depend du GENRE : piper:upmc:0 = Jessica (femmes) ou
+    // piper:upmc:1 = Pierre (hommes) -- les deux constantes du casting.
     const generique = (fiche.genre === 'F')
       ? _CAST_VOIX_GENERIQUES[0] : _CAST_VOIX_GENERIQUES[1];
     const ok = await _updateCharacterVoice(autres[i].nom, generique,
@@ -2746,6 +2750,42 @@ function _fermerEcouteurVoix() {
   document.getElementById('voices-modal').classList.add('hidden');
 }
 
+// ============================================================
+// CADENAS DES VOIX : un DESSIN, plus un emoji (21/09/2026)
+// ============================================================
+// Retour de Laurent : sur le telephone, verrouille et deverrouille se
+// ressemblaient -- seule l'aura doree du bouton disait l'etat, alors que sur
+// PC les deux emojis se distinguent. Un emoji ne se dessine pas de la meme
+// facon selon l'appareil, et on ne peut rien y changer depuis le code : c'est
+// le meme constat que les fleches du lecteur (20/09/2026), remplacees par des
+// SVG. Ici donc, un cadenas DESSINE, qui prend la couleur du bouton
+// (currentColor) : FERME = verrouille, OUVERT = deverrouille, identique
+// partout. Le bouton garde son aura : elle souligne l'etat, elle ne le porte
+// plus seule.
+function _svgCadenas(verrouille) {
+  const anse = verrouille
+    ? '<path d="M7 11V7a5 5 0 0 1 10 0v4"/>'   // anse rabattue : cadenas ferme
+    : '<path d="M7 11V7a5 5 0 0 1 9.9-1"/>';   // anse relevee : cadenas ouvert
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+       + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+       + ' aria-hidden="true">'
+       + '<rect x="3" y="11" width="18" height="10" rx="2"/>'
+       + anse
+       + '</svg>';
+}
+
+// Peint l'etat du cadenas sur son bouton : dessin, infobulle et libelle
+// d'accessibilite. Un seul endroit, donc l'affichage et le clic ne peuvent
+// pas se contredire.
+function _peindreCadenas(btn, verrouille) {
+  btn.innerHTML = _svgCadenas(verrouille);
+  btn.title = verrouille
+    ? 'Voix verrouillee : elle sera conservee lors du re-cast.'
+    : 'Verrouiller cette voix pour la conserver lors du re-cast.';
+  btn.setAttribute('aria-label', verrouille
+    ? 'Voix verrouillee' : 'Voix non verrouillee');
+}
+
 // Verrouille / deverrouille la voix d'un personnage (case "garder").
 // Un personnage verrouille conserve sa voix lors d'un re-cast.
 async function _toggleCharacterLock(characterName, btn) {
@@ -2766,10 +2806,8 @@ async function _toggleCharacterLock(characterName, btn) {
     if (!res.ok) throw new Error('Echec verrouillage');
     if (v) v.locked = newLocked ? 1 : 0;
     btn.classList.toggle('locked', newLocked);
-    btn.textContent = newLocked ? '\uD83D\uDD12' : '\uD83D\uDD13';
-    btn.title = newLocked
-      ? 'Voix verrouillee : elle sera conservee lors du re-cast.'
-      : 'Verrouiller cette voix pour la conserver lors du re-cast.';
+    // Dessin + infobulle + libelle : un seul endroit pour les trois.
+    _peindreCadenas(btn, newLocked);
   } catch (e) {
     console.error('Erreur verrouillage voix personnage:', e);
   } finally {
@@ -3492,7 +3530,14 @@ async function loadChapter(index, scrollTo, cursorTo = 0, autoPlay = false) {
   // --- Chargement RÉUSSI : c'est seulement ici que le chapitre change ------
   _currentChapter = index;
   _chapterSpeakers = data.speakers || {};
-  renderChapterContent(data.text || '');
+  // Mode « dialogue » du livre (21/09/2026) : le découpage de la page doit être
+  // EXACTEMENT celui du serveur, sinon les phrases attribuées à un personnage ne
+  // seraient plus les bonnes. Le réglage appartient au LIVRE, pas à la page :
+  // les livres déjà castés gardent le découpage d'origine (drapeau à 0).
+  // Le `typeof` protège les tests node qui isolent ce bloc du reste de app.js.
+  const modeDialogue = (typeof _currentBookData !== 'undefined')
+    && !!(_currentBookData && _currentBookData.decoupe_dialogue);
+  renderChapterContent(data.text || '', modeDialogue);
   content.scrollTop = scrollTo || 0;
 
   document.getElementById('chapter-title-display').textContent = data.title || '';
@@ -3539,10 +3584,76 @@ function _finitParAbreviation(morceau) {
   return dernier.endsWith('.') || ABREVIATIONS_SANS_POINT.indexOf(sansPoint) !== -1;
 }
 
-function _buildSentences(text) {
+// --- Règle « dialogue » (21/09/2026) : jumelle de modules/decoupage.py ------
+// Un morceau qui COLLE une narration et le début d'une réplique
+// (« Avant que j'aie pu répondre, Richie est intervenu : «Non, c'est pas ça. »)
+// doit donner DEUX phrases : le beat revient au narrateur, la réplique au
+// personnage. La coupe ne s'applique QU'À un vrai dialogue introduit par un
+// beat -- jamais à une citation racontée (« J'ai jamais eu « la larme
+// facile », comme on dit. »), qui doit rester d'un seul morceau.
+//
+// DOIT rester identique à VERBES_DE_PAROLE / introduit_une_replique dans
+// modules/decoupage.py : le test test_voix/test_decoupage_phrases.py compare
+// les deux listes. Chaque radical commence par une lettre ASCII, sinon le
+// motif \b ne se comporte pas pareil en JavaScript et en Python.
+const VERBES_DE_PAROLE = ['dit', 'dis', 'dirent', 'répond', 'repond',
+  'répliqu', 'repliqu', 's\'écri', 's\'ecri', 'ecria', 'cria', 'crie',
+  'crièrent', 'crierent', 'demand', 'repri', 'reprend', 'ajout', 'murmur',
+  'poursuiv', 'poursuit', 'continua', 'hasard', 'observ', 'remarqu', 'souffl',
+  'soupir', 'grommel', 'grond', 'tonna', 'vocifér', 'vocifer', 'interromp',
+  'interv', 'interven', 'fit', 'firent', 'répét', 'repet', 'avou', 'déclar',
+  'declar', 'conclut', 'conclu', 'achev', 'commença', 'commenca', 'termina',
+  'insista', 'object', 'ripost', 'rispost', 'répartit', 'repartit',
+  'interroge', 'questionn', 'exige', 'ordonna', 'supplia', 'pria', 'songea',
+  'gémit', 'gemit', 'sanglota', 'plaida', 'protest', 'appel', 'conseilla',
+  'enchain', 'enchaîn', 'renchér', 'rench', 'gliss', 'lâch', 'lach',
+  'rétorqu', 'retorqu', 'approuv', 'précis', 'precis', 'expliqu', 'annonc',
+  'annonç', 'marmonn', 'bougonn', 'rican', 'exclam', 'lança', 'lanca',
+  'balbuti', 'bredouill', 'prononç', 'prononc', 'chuchot', 'articul',
+  'se demanda', 'se dit', 'pensa', 'pensai'];
+const MOTIF_VERBE_PAROLE = new RegExp(
+  '\\b(?:' + VERBES_DE_PAROLE.join('|') + ')', 'i');
+
+// Le texte AVANT une ouverture de citation introduit-il une réplique ?
+function _introduitUneReplique(avant) {
+  if (!avant) return false;
+  // L'apostrophe typographique (’) est ramenée à l'apostrophe droite, comme
+  // dans modules/decoupage.py : sans cela, « s’écria : » n'est pas reconnu, et
+  // le beat reste collé à la réplique (bug constaté le 21/09/2026).
+  const beat = avant.replace(/\s+$/, '').replace(/\u2019/g, "'");
+  if (!beat.replace(/[ \t:;,.\u2014\u2013-]/g, '')) return false;
+  // Deux-points juste avant la citation (« Puis : « … » »), OU verbe de parole
+  // (styles sans deux-points). Le deux-points seul suffit : les quatre cas
+  // mesurés le 21/09/2026 au soir (« Puis : », « …deux secondes de répit,
+  // puis : », « …crié : », « …une seconde tentative : ») n'ont aucun verbe.
+  return beat.charAt(beat.length - 1) === ':'
+      || MOTIF_VERBE_PAROLE.test(beat);
+}
+
+function _buildSentences(text, decoupeDialogue) {
   const paras    = text.split(/\n\n+/).map(p => p.trim()).filter(p => p.length > 5);
   const sentences    = [];
   const paraStarts   = [];
+
+  // Règle « dialogue » : une phrase qui colle un beat et une réplique compte
+  // pour DEUX phrases. Le nombre et l'ordre des phrases doivent être
+  // EXACTEMENT ceux du serveur (les index de speaker_attribution s'appuient
+  // dessus) : c'est pour cela que la règle est recopiée ici, mot pour mot.
+  const pousser = (morceau, paraIdx) => {
+    if (!decoupeDialogue) {
+      sentences.push({ text: morceau, paraIdx });
+      return;
+    }
+    const ouverture = morceau.indexOf('«');
+    if (ouverture > 0
+        && _introduitUneReplique(morceau.slice(0, ouverture))) {
+      const beat = morceau.slice(0, ouverture).replace(/\s+$/, '');
+      sentences.push({ text: beat, paraIdx });
+      sentences.push({ text: morceau.slice(ouverture), paraIdx });
+    } else {
+      sentences.push({ text: morceau, paraIdx });
+    }
+  };
 
   paras.forEach((para, paraIdx) => {
     paraStarts.push(sentences.length);
@@ -3559,18 +3670,18 @@ function _buildSentences(text) {
       if (!s) return;
       courant = courant ? courant + ' ' + s : s;
       if (!_finitParAbreviation(courant)) {
-        if (courant.length > 3) sentences.push({ text: courant, paraIdx });
+        if (courant.length > 3) pousser(courant, paraIdx);
         courant = '';
       }
     });
-    if (courant.length > 3) sentences.push({ text: courant, paraIdx });
+    if (courant.length > 3) pousser(courant, paraIdx);
   });
 
   return { sentences, paraStarts };
 }
 
-function renderChapterContent(text) {
-  const { sentences, paraStarts } = _buildSentences(text);
+function renderChapterContent(text, decoupeDialogue) {
+  const { sentences, paraStarts } = _buildSentences(text, decoupeDialogue);
   _sentences       = sentences;
   _paragraphStarts = paraStarts;
   _cursorIdx       = 0;

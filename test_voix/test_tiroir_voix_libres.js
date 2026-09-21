@@ -400,10 +400,21 @@ const apiPartage = new Function(
   // Retouche demandee par Laurent le 19/09/2026 : une TETE QUI PARLE, jamais un
   // cadenas ouvert -- 🔓 dit deja « deverrouille » sur le bouton d'a cote, dans
   // la meme ligne. Deux sens pour une icone, c'etait une confusion de plus.
-  verifier('l icone est 🗣️, et le verrou garde bien 🔒/🔓 pour lui seul',
+  verifier('l icone est 🗣️, et le verrou garde son dessin a lui seul',
            source.indexOf("libreBtn.textContent = '\\uD83D\\uDDE3\\uFE0F'") >= 0
-           && source.indexOf("lockBtn.textContent = v.locked ? "
-                            + "'\\uD83D\\uDD12' : '\\uD83D\\uDD13'") >= 0);
+           && source.indexOf('_peindreCadenas(lockBtn, !!v.locked)') >= 0);
+  // Retour de Laurent le 21/09/2026 : sur son telephone, verrouille et
+  // deverrouille se ressemblaient -- un emoji ne se dessine pas de la meme
+  // facon selon l'appareil, et seule l'aura doree du bouton disait l'etat. Le
+  // cadenas est donc DESSINE (SVG) : anse rabattue = verrouille, anse relevee =
+  // deverrouille, et il prend la couleur du bouton.
+  verifier('le cadenas est dessine : anse rabattue (verrouille) et anse relevee',
+           source.indexOf('function _svgCadenas(verrouille)') >= 0
+           && source.indexOf('M7 11V7a5 5 0 0 1 10 0v4') >= 0
+           && source.indexOf('M7 11V7a5 5 0 0 1 9.9-1') >= 0);
+  verifier('l etat se peint en UN seul endroit (dessin et infobulle ensemble)',
+           source.indexOf('function _peindreCadenas(btn, verrouille)') >= 0
+           && source.indexOf('_peindreCadenas(btn, newLocked)') >= 0);
   verifier('elle dit combien de voix sont libres, et quoi faire',
            source.indexOf("' voix que personne n\\u2019utilise encore : \\u25B6 '") >= 0);
   verifier('« Choisir » enregistre la voix PUIS recalcule le casting',

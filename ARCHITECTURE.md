@@ -2092,7 +2092,9 @@ restent choisissables à la main) ; l'item de BACKLOG porte le détail.
 Garde-fous inchangés : la voix XTTS **écartée à l'écoute** (`stars: 0`) est
 exclue du pool ; les **petits rôles** (moins de `MINOR_THRESHOLD` = 8
 répliques) reçoivent une voix générique **Piper** (`piper:siwis:0` /
-`piper:tom:0`).
+`piper:tom:0`). ⚠️ **Remplacé le 21/09/2026** : ce sont désormais **Jessica /
+Pierre** (`piper:upmc:0` / `piper:upmc:1`) — voir « Les petits rôles : une voix
+par genre » plus bas.
 
 **Ordre du pool automatique (session du 12/09/2026 — Kyutai en tête)**
 Décision de Laurent : les **35 voix Kyutai** (timbres français natifs,
@@ -2334,6 +2336,182 @@ répliques décroissant) ; un personnage peut donc retomber sur la même voix,
 et l'appli ne peut pas distinguer un ancien choix manuel d'une ancienne
 attribution automatique (l'ancien casting utilisait une autre liste de voix).
 D'où le verrou explicite : c'est l'utilisateur qui désigne ce qu'il garde.
+
+**Le cadenas du casting est un DESSIN, plus un emoji (21/09/2026).** Retour de
+Laurent : « sur mobile, le cadenas apparaît avec une aura quand la voix est
+verrouillée, et sans son aura quand elle ne l'est pas ; je préférerais ces deux
+icônes 🔒 / 🔓, comme sur PC ». Le code envoyait bien **les deux emojis** — c'est
+leur **dessin** qui change d'un appareil à l'autre (constat déjà fait pour
+⏮⏪⏩⏭ le 20/09/2026), assez peu lisibles sur son téléphone pour que **seule
+l'aura dorée du bouton** dise l'état. Même remède que les flèches du lecteur :
+un **SVG**, qui ne dépend d'aucune police.
+
+- `_svgCadenas(verrouille)` (`frontend/app.js`) : le corps (`rect`) et l'anse en
+  `stroke="currentColor"` — **anse rabattue = verrouillé**, **anse relevée =
+  déverrouillé**. Le dessin prend donc la **couleur du bouton** : accent doré
+  quand la voix est verrouillée, gris sinon, avec la même géométrie partout.
+- `_peindreCadenas(btn, verrouille)` peint **ensemble** le dessin, l'infobulle
+  et l'`aria-label` ; le bouton n'a plus de texte propre, donc l'affichage et le
+  clic ne peuvent pas se contredire. Il est appelé aux **deux** endroits :
+  construction de la ligne et bascule (`_toggleCharacterLock`).
+- L'aura du bouton (`.cast-lock-btn.locked`) est **conservée** : elle souligne
+  l'état, elle ne le porte plus seule. `styles.css` centre les deux boutons à
+  icône (`display: flex`) et donne sa taille au SVG — **16 px** sur PC, **22 px**
+  sur mobile (bouton de 44 px, cible du doigt).
+- Les emojis de cadenas qui sont du **TEXTE** ne changent pas : le filtre
+  « 🔓 Voix libres (n) » et les phrases de confirmation du re-cast. Ils sont
+  écrits, pas cliqués.
+
+*Vérifications* : `test_voix/test_tiroir_voix_libres.js` (les deux anses, l'appel
+unique `_peindreCadenas(btn, newLocked)`) et la suite complète — **36 tests,
+TOUT EST OK**. Copies de retour arrière datées :
+`frontend/app.js.bak_avant_cadenas_svg_20260921`, idem `styles.css` et
+`index.html`.
+
+### 🎭 Les petits rôles : une voix par genre (Jessica / Pierre) — 21/09/2026
+
+Décision de Laurent : tout personnage de **moins de `MINOR_THRESHOLD` (8)
+répliques** est joué par une **voix générique selon son genre** — **Jessica**
+pour les femmes, **Pierre** pour les hommes, toutes les deux en **Piper**.
+
+Le terrain était prêt : depuis le **15/09/2026**, cette branche renvoyait un
+`voice_id` **VIDE** (les petits rôles étaient lus par le **narrateur**, après le
+verdict « inaudibles, vraiment moches » porté sur les voix génériques d'alors,
+Siwis/Tom), et le code gardait **deux emplacements vides exprès**
+(`GENERIC_VOICE_F/M`) avec ce commentaire : « le jour où Laurent aura choisi
+deux voix neutres, il suffira de les y mettre, puis de re-caster ».
+
+- **Les deux voix** : `piper:upmc:0` = **Jessica** (femme, **3 étoiles** à
+  l'écoute) et `piper:upmc:1` = **Pierre** (homme, **1 étoile**), toutes les deux
+  dans le modèle **studio** Piper `fr_FR-upmc-medium`. Ce ne sont PAS les voix
+  refusées (Siwis/Tom) ; l'homonyme à ne pas confondre est `kokoro:af_jessica`,
+  une Jessica **américaine** du catalogue Kokoro.
+- `modules/voice_casting.py` : `GENERIC_VOICE_F/M` remplis, et `assign_voices()`
+  appelle la nouvelle fonction `_voix_generique(genre)` au lieu d'écrire un vide.
+  Un genre inconnu part sur **Pierre**, comme partout ailleurs (le genre par
+  défaut d'une fiche est `H`). La hauteur reste `+0Hz` (voir « reste possible »).
+- `frontend/app.js` : `_CAST_VOIX_GENERIQUES = ['piper:upmc:0', 'piper:upmc:1']`
+  — **l'ordre compte** ([0] femmes, [1] hommes, cf.
+  `_deplacerAutresVersGenerique`). Sans cette mise à jour, Jessica et Pierre
+  auraient été comptées comme « voix partagée » des centaines de fois.
+- Piper reste **hors du pool automatique** : il ne sert qu'ici, et pour ces deux
+  voix.
+
+**Livres déjà castés — migration ciblée (l'option choisie par Laurent).**
+`test_voix/migrer_petits_roles.py`, avec son lanceur double-clic
+`MIGRER_PETITS_ROLES.bat`, réécrit **une seule colonne** (`voice_id`) sur les
+lignes de moins de 8 répliques, et **rien d'autre** : les lignes **verrouillées**
+sont laissées telles quelles (**34** sur les 11 livres castés), les **hauteurs et
+vitesses** de chaque personnage sont **conservées** — deux petits rôles d'une
+même scène ne sonnent donc pas exactement pareil —, et les rôles de 8 répliques
+et plus ne sont pas regardés du tout. L'outil fait d'abord un **essai** (aucune
+écriture), puis, avec `--appliquer`, une **copie datée de la base avant
+d'écrire** (API de sauvegarde de SQLite : copie cohérente même si le lecteur
+tourne) et une **relecture de contrôle**. Appliqué le **21/09/2026** :
+**643 lignes sur 11 livres** (copie
+`nimm_epub.db.bak_avant_petits_roles_20260921_2128`), et l'outil est
+**rejouable** (un second passage dit « Rien à faire »).
+
+*Vérifications* : `test_voix/test_pool_casting.py` (§6 : un petit rôle homme
+reçoit Pierre, une femme reçoit Jessica ; §7 : les deux listes client/serveur
+doivent être **identiques et dans le même ordre**) et
+`test_voix/test_attribution_criteres.py`. Ce dernier **ne tournait plus** : il
+manquait à la liste `TESTS_PY` du lanceur de tests, et son contrôle « aucune voix
+à 0 étoile attribuée » comptait Jessica/Pierre comme telles alors que Piper est
+**hors** de l'index du pool automatique (et que Pierre est noté **1 étoile**).
+Réparé **et ajouté à la suite** : **37 tests, TOUT EST OK**.
+
+*À savoir* : le **serveur** ne prend le nouveau code qu'après un **redémarrage**
+(bouton « 🔄 Redémarrer NIMM ePub » du panneau Réparer, ou `START.bat`) — la
+migration, elle, est **déjà en base**.
+
+**Les variantes de timbre (même jour).** Question de Laurent : « on a combien de
+variations possibles entre la vitesse et la hauteur ? » Réponse mesurée, bornes
+des curseurs du casting : **hauteur** de -20 à +20 Hz par pas de 4 → **11
+crans** ; **vitesse** de -30 à +30 % par pas de 5 → **13 crans** ; soit
+**11 × 13 = 143 couples (hauteur, vitesse) pour une même voix**
+(`PITCH_VARIANTES`, `RATE_VARIANTES`, `NB_VARIANTES_GENERIQUES` et
+`_variante_generique` dans `modules/voice_casting.py`). Chaque petit rôle reçoit
+**sa propre variante**, répartie **par livre et par genre**.
+
+- L'**ordre** des crans est choisi pour le dialogue : les hauteurs, à grands
+  écarts (0, +8, -8, +16, -16, +4, -4, +12, -12, +20, -20), sont parcourues
+  **avant** les vitesses — deux petits rôles **voisins** dans la liste ont donc
+  toujours une hauteur différente.
+- **Couverture** : le plus gros besoin mesuré le 21/09/2026 est de **85 petits
+  rôles d'un même genre** (Monte-Cristo T6) : **143 suffit, avec 58 de marge**.
+  Au-delà, on recommence au début — deux petits rôles partageraient alors
+  exactement la même voix (accepté par Laurent).
+- **Pourquoi c'était utile** : avant cette répartition, **422 petits rôles** de
+  la base étaient **exactement identiques** (`+0Hz` **et** `+0%`) — une foule de
+  Pierre et de Jessica interchangeables.
+- Les rôles **dédiés** ne changent pas : ils gardent la vitesse neutre (`+0%`) et
+  ne se distinguent que par la hauteur (`PITCH_BY_AGE`).
+- Les bornes des variantes sont **volontairement** celles des curseurs : une
+  valeur hors bornes serait ramenée par le curseur à l'affichage, et la fiche
+  montrerait autre chose que ce qui est enregistré. Un test le verrouille
+  (`test_pool_casting.py` §6b).
+
+*À savoir sur l'outil de migration* : depuis cette répartition, il écrit **trois
+colonnes** ensemble (`voice_id`, `pitch`, `rate`), et il reste **rejouable** —
+une ligne déjà conforme n'est pas retouchée. Les 34 lignes verrouillées ne sont
+jamais touchées.
+
+### ✂️ Mode dialogue : la narration séparée des répliques — 21/09/2026
+
+Demande de Laurent : « des marqueurs nets sur "dialogue" et "narrateur" […]
+c'est vraiment la seule chose qui manque cruellement pour une immersion
+totale. » Dans son exemple — `Avant que j'aie pu répondre, Richie est intervenu :
+«Non, c'est pas ça.»` — tout était **un seul morceau**, et comme la consigne 8 du
+prompt donne un morceau mixte au personnage, c'est **Richie** qui lisait la
+narration.
+
+**Le levier n'est pas l'IA.** Le découpage est une **règle locale**
+(`modules/decoupage.py`, jumelle de `_buildSentences` dans la page) ; Gemini ne
+fait qu'**étiqueter** des morceaux déjà numérotés — il ne peut pas en couper un
+en deux. Améliorer le découpage est donc **gratuit**.
+
+**Règle ajoutée** (`REGLE_DIALOGUE`, valeurs mesurées sur « 22/11/63 ») :
+
+- `VERBES_DE_PAROLE` (radicaux) et `introduit_une_replique(avant)` : la coupe n'a
+  lieu que si le texte avant la citation **finit par deux-points** ET **contient
+  un verbe de parole** ;
+- trois garde-fous : une **citation racontée** (`J'ai jamais eu « la larme
+  facile », comme on dit.`) reste intacte, un **deux-points sans verbe**
+  (`Le sujet que j'avais donné était : …`) ne coupe pas, un **beat sans
+  deux-points** non plus. La variante large (298 morceaux dans « 22/11/63 »,
+  contre **166** pour la version retenue) attrapait les citations racontées ;
+- chaque radical commence par une **lettre ASCII** : `\b` n'a pas la même
+  signification en Python (Unicode) et en JavaScript (ASCII) ;
+- `_couper_avant_replique()` rend **deux morceaux aux positions exactes**
+  (`debut`/`fin`) : la migration des index de `speaker_attribution` s'appuie
+  dessus.
+
+**Un mode PAR LIVRE, jamais global** : colonne `books.decoupe_dialogue` (ajout
+non destructif, 0 par défaut). Les livres déjà castés gardent le découpage
+d'origine **caractère pour caractère** — indispensable, leurs numéros de phrases
+étant enregistrés dans `speaker_attribution`. La règle voyage avec le livre
+partout où le texte est découpé : `main.py` (`_mode_dialogue`, `_regle_du_livre`),
+le casting (`voice_casting.analyze_chapter(..., regle=)`, `analyze_chapters`),
+l'estimation de coût (`estimate_cast_cost`), l'extrait de répliques et la
+recherche. La page la reçoit dans `/api/books/{id}` (`decoupe_dialogue`) et la
+passe à `_buildSentences(text, decoupeDialogue)`.
+
+*Outil* : `test_voix/MODE_DIALOGUE.bat` (+ `regler_mode_dialogue.py`) — liste des
+livres, activation/désactivation, **copie datée de la base** avant écriture.
+
+*Vérifications* : `test_voix/test_decoupage_phrases.py` — **36 contrôles** : la
+règle et ses trois garde-fous, l'exemple exact de Laurent, les positions exactes,
+aucun texte perdu, et l'identité des listes de verbes entre Python et la page.
+
+*Prix* : un appel IA coûte **0,0047 €** (journal des appels) ; un livre entier
+≈ **1,15 €** (estimation calibrée sur une facture réelle). L'essai complet sur le
+livre de test — castage en mode origine, puis re-cast en mode dialogue — revient
+à ≈ **0,15 $**.
+
+*À faire* : l'essai à l'oreille sur « Lazarille de Tormes » (livre neuf, choisi
+par Laurent pour ne toucher à aucun livre casté), puis la décision **livre par
+livre** : migration **gratuite** des index, ou re-cast (~1 $/livre).
 
 **Rattachement MANUEL des pseudonymes (12/09/2026)**
 La règle automatique ne peut **pas** deviner que « Le comte de Monte-Cristo »,
@@ -3628,7 +3806,8 @@ Décisions de Laurent à l'arrivée de XTTS v2 dans le pool automatique
 **Personnages secondaires** (moins de `MINOR_THRESHOLD` = 8 répliques) :
 `GENERIC_VOICE_F/M` passe d'Éloise/Fabrice (Edge) à **Siwis/Tom** (Piper) —
 Piper reste hors du pool automatique principal, mais sert désormais cette
-voix générique partagée.
+voix générique partagée. *(Changement **remplacé le 21/09/2026** : **Jessica /
+Pierre**, voir « Les petits rôles : une voix par genre ».)*
 
 Aucun livre déjà casté n'est affecté : `assign_voices` ne s'applique qu'aux
 nouveaux castings (les voix déjà enregistrées ne sont jamais réécrites).
@@ -3947,17 +4126,39 @@ exactement le contrat des autres : `GET /sante` (`pret: true/false`),
 - **4 cœurs** par défaut (`NIMM_POCKET_TTS_COEURS`) : les 2 autres restent au
   lecteur, à Kokoro et à Piper — mesuré le 20/09/2026, **brider ne coûte rien**
   (ratio 0,82 avec 6 cœurs comme avec 4) ;
-- **auto-extinction** après **30 min sans une seule phrase**
-  (`NIMM_POCKET_TTS_INACTIF`) : il tourne **sans fenêtre**, donc rien ne
-  rappellerait à Laurent qu'il est là — il ne doit pas garder 2,3 Go pour rien.
+- **auto-extinction** après **180 min sans une seule phrase**
+  (`NIMM_POCKET_TTS_INACTIF`, porté de 30 à 180 min le 21/09/2026 : à 30 min il
+  s'endormait **en pleine journée d'écoute**, et ses voix disparaissaient du
+  casting sous les yeux de Laurent) — il ne doit pas garder 2,3 Go pour rien.
 
-**Démarrage** : `START.bat` le lance **sans fenêtre** (`Start-Process
--WindowStyle Hidden`, journal dans `pocket_tts_service/journal_service.txt`),
-en même temps que Kyutai — demande de Laurent du 21/09/2026. Comme pour Kyutai :
-s'il tourne déjà on ne le relance pas, et s'il n'est pas installé le lecteur
-démarre quand même. Pour un essai à la main,
-`pocket_tts_service/DEMARRER_POCKET_TTS.bat` (avec fenêtre, et la fermer
-l'éteint).
+**Démarrage** : `START.bat` le lance **dans SA FENÊTRE**, comme Kyutai
+(`start "NIMM ePub - appareil de voix Pocket TTS" /D pocket_tts_service cmd /k
+DEMARRER_POCKET_TTS.bat`), en même temps que Kyutai — demande de Laurent du
+21/09/2026. Comme pour Kyutai : s'il tourne déjà on ne le relance pas, et s'il
+n'est pas installé le lecteur démarre quand même.
+
+**Pourquoi une fenêtre et pas un lancement caché** (changement du 21/09/2026 au
+soir, demande de Laurent : *« Pocket TTS reste allumé, je n'ai pas moyen de
+l'éteindre »*) : **fermer la fenêtre est le seul geste du projet pour éteindre un
+moteur de voix** (règle du 12/09/2026). Le service **avait déjà** son gardien de
+console (`_surveiller_la_console`), mais lancé caché il n'avait **aucune fenêtre
+à fermer** : il tournait indéfiniment. La fenêtre rend donc ce gardien actif, et
+**fermer la fenêtre éteint vraiment** Pocket TTS.
+
+**L'arrêt volontaire est RESPECTÉ** (même soir) : quand sa fenêtre se ferme, le
+service écrit `pocket_tts_service/arrete_volontaire.txt`, et **le veilleur du
+lecteur ne le rallume plus** (`main._pocket_arrete_volontairement`). Sans ce
+marqueur, il le rallumait **30 secondes plus tard** : le geste de Laurent
+n'aurait servi à rien. Le marqueur disparaît dès que le moteur redémarre,
+`START.bat` l'efface à chaque nouveau démarrage, et le bouton **« Relancer les
+moteurs »** (un clic explicite) le force aussi.
+
+**Le lecteur le rallume lui aussi dans une fenêtre**
+(`main._demarrer_pocket_avec_fenetre`, ex-`_sans_fenetre` : `CREATE_NEW_CONSOLE`
+→ `DEMARRER_POCKET_TTS.bat`) : sinon un Pocket TTS rallumé par le lecteur
+n'aurait, de nouveau, aucun geste d'arrêt. Conséquence : les journaux
+`journal_service*.txt` ne grandissent plus (la fenêtre montre tout) —
+`journal_installation.txt` reste le journal de l'installation.
 
 **Dans le lecteur** : `POCKET_VOICES` (18 entrées, identifiants `pocket:<fichier>`),
 un client `synthesize_pocket()` / `_demander_au_moteur_pocket()` et une branche

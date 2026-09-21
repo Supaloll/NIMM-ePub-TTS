@@ -61,6 +61,121 @@ ABREVIATIONS_SANS_POINT = ('Mme', 'Mmes', 'Mlle', 'Mlles', 'Mgr')
 
 REGLE_ANCIENNE = 'ancienne'
 REGLE_ACTUELLE = 'actuelle'
+# Regle « dialogue » (21/09/2026) : REGLE_ACTUELLE, PLUS une coupe de la
+# narration d'avec la replique quand un VRAI dialogue est introduit par un beat.
+REGLE_DIALOGUE = 'dialogue'
+
+# --- Pourquoi cette troisieme regle -----------------------------------------
+# Demande de Laurent : un morceau qui MELANGE narration et dialogue --
+# « Avant que j'aie pu repondre, Richie est intervenu : «Non, c'est pas ca. » --
+# doit etre coupe en deux, pour que le beat revienne au NARRATEUR et la replique
+# au PERSONNAGE. Aujourd'hui, comme le prompt donne un morceau mixte au
+# personnage (consigne 8), c'est le personnage qui lit la narration.
+#
+# La coupe ne s'applique QU'A UN VRAI DIALOGUE introduit par un beat, jamais a
+# une citation racontee : « J'ai jamais eu « la larme facile », comme on dit. »
+# doit rester d'un seul morceau, sinon la phrase serait lue en deux fois, avec
+# deux intonations finales. Mesure sur « 22/11/63 » : 606 morceaux contiennent
+# du texte avant un «, mais la moitie sont des citations racontees.
+#
+# Discriminant retenu, mesure le 21/09/2026 sur « 22/11/63 » (166 morceaux, dont
+# 159 attribues a un personnage a tort) : le texte avant la citation finit par
+# DEUX-POINTS et contient un VERBE DE PAROLE. Les variantes plus larges
+# attrapaient des citations apres deux-points sans verbe de parole
+# (« Le sujet que j'avais donne etait : « Le jour qui a change ma vie. » »).
+#
+# Les radicaux sont donnes au RADICAL : « repond », attrape « repondit »,
+# « repondirent », « repondait ». La liste de reference du projet pour les
+# verbes de parole reste `modules/incises.py` (VERBES), qui sert a RETIRER une
+# incise du texte parle ; ici, il s'agit seulement de reconnaitre un beat.
+#
+# CONTRAINTE (21/09/2026) : chaque radical commence par une lettre ASCII. Ce
+# n'est pas cosmetique : le motif utilise `\b`, qui ne se comporte pas pareil en
+# Python (Unicode) et en JavaScript (ASCII) devant une lettre accentuee. Un
+# radical commence par « e » serait trouve en Python et jamais en JavaScript.
+# C'est pour cela que « écria » n'y est pas (les formes courantes sont
+# « s'écria », couvertes par "s'écri").
+VERBES_DE_PAROLE = (
+    'dit', 'dis', 'dirent', 'répond', 'repond', 'répliqu', 'repliqu',
+    "s'écri", "s'ecri", 'ecria', 'cria', 'crie', 'crièrent', 'crierent',
+    'demand', 'repri', 'reprend', 'ajout', 'murmur', 'poursuiv', 'poursuit',
+    'continua', 'hasard', 'observ', 'remarqu', 'souffl', 'soupir', 'grommel',
+    'grond', 'tonna', 'vocifér', 'vocifer', 'interromp', 'interv', 'interven',
+    'fit', 'firent', 'répét', 'repet', 'avou', 'déclar', 'declar', 'conclut',
+    'conclu', 'achev', 'commença', 'commenca', 'termina', 'insista',
+    'object', 'ripost', 'rispost', 'répartit', 'repartit', 'interroge',
+    'questionn', 'exige', 'ordonna', 'supplia', 'pria', 'songea', 'gémit',
+    'gemit', 'sanglota', 'plaida', 'protest', 'appel', 'conseilla',
+    'enchain', 'enchaîn', 'renchér', 'rench', 'gliss', 'lâch', 'lach',
+    'rétorqu', 'retorqu', 'approuv', 'précis', 'precis', 'expliqu', 'annonc',
+    'annonç', 'marmonn', 'bougonn', 'rican', 'exclam', 'lança', 'lanca',
+    'balbuti', 'bredouill', 'prononç', 'prononc', 'chuchot', 'articul',
+    'se demanda', 'se dit', 'pensa', 'pensai',
+)
+MOTIF_VERBE_PAROLE = re.compile(r'\b(?:%s)' % '|'.join(VERBES_DE_PAROLE),
+                                re.IGNORECASE)
+RE_FIN_DEUX_POINTS = re.compile(r':\s*$')
+
+
+def introduit_une_replique(avant):
+    """Le texte AVANT une ouverture de citation introduit-il une REPLIQUE ?
+
+    « Et le More, riant, repondit : » -> oui.
+    « Puis : » -> oui.
+    « J'ai jamais eu » -> non (ni deux-points, ni verbe de parole).
+    « Le sujet que j'avais donne etait : » -> oui, par prudence (voir plus bas).
+
+    HISTORIQUE (21/09/2026 au soir) : la regle exigeait d'abord un VERBE DE PAROLE
+    apres les deux-points. Laurent a entendu ce qu'elle laissait passer --
+    « Puis : « D'accord, j'ai pu le faire. » » restait UN morceau, lu par le
+    personnage. Les quatre cas du chapitre d'essai, lus un par un, montrent que
+    le DEUX-POINTS juste avant la citation suffit :
+        « Puis : »
+        « Je lui ai accordé deux secondes de répit, puis : »
+        « Elle m'a décoché un sourire carnassier puis a tourné la tête et crié : »
+          (et « crié », participe, n'était pas reconnu non plus)
+        « Je me suis cramponné… pour faire une seconde tentative : »
+    Aucun n'a besoin d'un verbe. La regle est donc : **deux-points**, OU
+    **verbe de parole** (pour les styles sans deux-points : « il murmura « Non » »).
+
+    Les apostrophes TYPOGRAPHIQUES (’), celles des textes bien composes, sont
+    ramenees a l'apostrophe droite AVANT l'analyse. Sans cela, les verbes
+    pronominaux (s'ecria, s'ecrierent, s'exclama) passaient inapercus, le beat
+    n'etait donc pas coupe et la narration restait collee a la replique -- donc
+    lue par le personnage. Constat de Laurent le 21/09/2026, sur « Lazarille de
+    Tormes » : « Frère Mariano, …, s’écria : « Jésus ! » » etait un seul
+    morceau.
+
+    Fonction PURE : c'est le garde-fou de la regle « dialogue », verifie par
+    test_voix/test_decoupage_phrases.py.
+    """
+    if not avant:
+        return False
+    beat = avant.rstrip().replace('\u2019', "'")
+    if not beat.strip(' \t:;,.\u2014\u2013-'):
+        return False                      # rien avant la citation
+    return beat.endswith(':') or bool(MOTIF_VERBE_PAROLE.search(beat))
+
+
+def _couper_avant_replique(morceau):
+    """Coupe (debut, fin, texte) en DEUX morceaux si c'est un vrai dialogue.
+
+    Renvoie [morceau] quand la coupe ne s'applique pas -- c'est le cas normal.
+    Les POSITIONS des deux moities restent exactes : la migration des index
+    (`test_voix/_migrer_index_phrases.py`) en depend.
+    """
+    debut, fin, texte = morceau
+    ouverture = texte.find('«')
+    if ouverture <= 0:
+        return [morceau]
+    avant = texte[:ouverture]
+    if not introduit_une_replique(avant):
+        return [morceau]
+    beat = avant.rstrip()
+    blanc = len(avant) - len(beat)
+    return [(debut, debut + len(beat), beat),
+            (debut + len(beat) + blanc, fin, texte[len(beat) + blanc:])]
+
 
 
 def _finit_par_abreviation(morceau):
@@ -126,6 +241,11 @@ def _phrases_du_paragraphe(paragraphe, base, regle):
             courant = None
     if courant is not None and len(courant[2]) > 3:
         sortie.append((courant[0], courant[1], courant[2]))
+    if regle == REGLE_DIALOGUE:
+        # Regle « dialogue » : on separe le beat de narration de la replique,
+        # morceau par morceau (voir introduit_une_replique ci-dessus).
+        sortie = [piece for morceau in sortie
+                  for piece in _couper_avant_replique(morceau)]
     return sortie
 
 
@@ -137,7 +257,9 @@ def phrases_avec_positions(texte, regle=REGLE_ACTUELLE):
     (migration des index, `test_voix/_migrer_index_phrases.py`).
 
     Avec `REGLE_ANCIENNE`, les morceaux coupés après une abréviation restent
-    séparés (l'ancien comportement) ; avec `REGLE_ACTUELLE`, ils sont recollés.
+    séparés (l'ancien comportement) ; avec `REGLE_ACTUELLE`, ils sont recollés ;
+    avec `REGLE_DIALOGUE`, ils sont recollés ET la narration est séparée de la
+    réplique quand un vrai dialogue est introduit par un beat.
     """
     resultat = []
     texte = texte or ''
@@ -158,7 +280,6 @@ def phrases_avec_positions(texte, regle=REGLE_ACTUELLE):
 def phrases(texte, regle=REGLE_ACTUELLE):
     """La liste des phrases d'un chapitre (le texte seul)."""
     return [phrase for _debut, _fin, phrase in phrases_avec_positions(texte, regle)]
-
 
 def phrases_d_un_paragraphe(paragraphe, regle=REGLE_ACTUELLE):
     """Les phrases d'UN paragraphe déjà isolé (recherche dans le livre)."""

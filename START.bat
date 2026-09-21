@@ -77,6 +77,11 @@ rem   - s'il tourne deja, on ne le relance pas ;
 rem   - s'il n'est pas installe, le lecteur demarre quand meme
 rem     (ses voix seront simplement indisponibles).
 rem ============================================================
+rem -- Un demarrage de START.bat remet les pendules a l'heure : le moteur avait
+rem    peut-etre ete eteint VOLONTAIREMENT (fenetre fermee), et le marqueur
+rem    empecherait alors le veilleur du lecteur de le rallumer.
+if exist "pocket_tts_service\arrete_volontaire.txt" del "pocket_tts_service\arrete_volontaire.txt"
+
 curl -s -o NUL --max-time 2 http://127.0.0.1:8085/sante >nul 2>&1
 if not errorlevel 1 (
     echo  Moteur de voix Pocket TTS : deja en marche.
@@ -87,8 +92,11 @@ if not exist "pocket_tts_service\.venv\Scripts\python.exe" (
     echo  Pour l'installer une fois pour toutes : pocket_tts_service\INSTALLER_POCKET_TTS.bat
     goto pocket_pret
 )
-echo  Moteur de voix Pocket TTS : demarrage (sans fenetre)...
-powershell -NoProfile -Command "Start-Process -FilePath '.\pocket_tts_service\.venv\Scripts\python.exe' -ArgumentList 'servir_pocket_tts.py' -WorkingDirectory '.\pocket_tts_service' -WindowStyle Hidden -RedirectStandardOutput '.\pocket_tts_service\journal_service.txt' -RedirectStandardError '.\pocket_tts_service\journal_service_err.txt'"
+rem -- Fenetre VISIBLE, comme Kyutai (21/09/2026, demande de Laurent) : fermer
+rem    cette fenetre ETEINT le moteur. Cache (avant), il n'existait AUCUN geste
+rem    pour l'eteindre : il restait allume indefiniment.
+echo  Moteur de voix Pocket TTS : demarrage - sa fenetre s'ouvre...
+start "NIMM ePub - appareil de voix Pocket TTS" /D "%~dp0pocket_tts_service" cmd /k DEMARRER_POCKET_TTS.bat
 
 :pocket_pret
 

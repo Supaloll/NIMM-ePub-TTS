@@ -32,11 +32,15 @@ GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_M
 # DECOUPAGE DU CHAPITRE
 # ==============================================================
 
-def _split_chapter_sentences(text: str) -> list:
+def _split_chapter_sentences(text: str, regle: str = None) -> list:
     """
     Decoupe en phrases numerotees -- LA regle unique du projet
     (`modules/decoupage.py`), identique a `_buildSentences()` cote page, a
     `_decouper_phrases_du_chapitre()` (re-cast, main.py) et a la recherche.
+
+    `regle` (21/09/2026) : `decoupage.REGLE_DIALOGUE` pour les livres en « mode
+    dialogue », ou la narration est separee de la replique. Par defaut, la regle
+    d'origine (REGLE_ACTUELLE) : les livres deja castes ne bougent pas.
 
     Historique : la regle etait ecrite ICI, en double, et coupait les phrases
     apres le point d'une abreviation (« ... complimenter M. » / « de Morcerf »).
@@ -45,9 +49,9 @@ def _split_chapter_sentences(text: str) -> list:
     index de `speaker_attribution` ont ete migres en consequence
     (test_voix/_migrer_index_phrases.py).
     """
-    from modules.decoupage import phrases as _decouper
+    from modules.decoupage import phrases as _decouper, REGLE_ACTUELLE
     return [{"id": sid, "texte": phrase}
-            for sid, phrase in enumerate(_decouper(text))]
+            for sid, phrase in enumerate(_decouper(text, regle or REGLE_ACTUELLE))]
 
 
 # ==============================================================
@@ -545,6 +549,11 @@ async def _call_llm(prompt: str, provider: str = "gemini") -> dict:
     return await _call_gemini(prompt)
 
 
+# Longueur maximale d'un morceau pour etre considere comme la SUITE d'un cri
+# (« « Jesus ! Jesus ! » ») plutot qu'une nouvelle phrase de narration.
+LONGUEUR_CRI = 90
+
+
 def _harmonize_open_quotes(sentences: list, phrases: list) -> None:
     """
     Filet de securite deterministe (complement de la consigne 9) :
@@ -594,6 +603,21 @@ def _harmonize_open_quotes(sentences: list, phrases: list) -> None:
         # le fragment est termine, on l'harmonise avant d'enchainer.
         if span and balance > 0:
             continue_la_citation = texte[0].islower() if texte else False
+            # Un CRI coupe par sa propre ponctuation recommence en MAJUSCULE
+            # (« « Jesus ! Jesus ! » ») : c'est encore la MEME citation, et la
+            # seconde moitie doit garder le meme locuteur. On la reconnait a
+            # trois signes : le morceau precedent finit par ! ? ou …, le morceau
+            # courant est COURT, et il n'annonce aucun beat (« : » + verbe de
+            # parole, qui serait de la narration). Constat de Laurent le
+            # 21/09/2026 : sans cette regle, « Jesus ! » etait lu par le
+            # narrateur au milieu du cri d'un personnage.
+            if not continue_la_citation and texte:
+                from modules.decoupage import introduit_une_replique
+                precedent = phrases_by_id.get(span[-1], {}).get("texte", "")
+                continue_la_citation = (
+                    precedent.rstrip().endswith(('!', '?', '\u2026'))
+                    and len(texte) <= LONGUEUR_CRI
+                    and not introduit_une_replique(texte))
             if not continue_la_citation:
                 _harmonize(span)
                 span = []
@@ -916,6 +940,47 @@ _RE_VERBE_PAROLE = re.compile(
     r"marmonna|bougonna|rican|s'exclam)", re.IGNORECASE)
 
 
+def _forcer_beats_en_narration(sentences: list, phrases: list) -> int:
+    """MESURE (PAS une correction) : morceaux qui RESSEMBLENT a un beat de
+    narration alors qu'ils sont attribues a un personnage.
+
+    ATTENTION -- CETTE FONCTION N'EST PLUS APPLIQUEE AU PIPELINE (retiree le
+    21/09/2026, apres mesure). Elle est trop large : sur « Lazarille de
+    Tormes », ses 2 seules trouvailles se trouvaient DANS le long discours d'un
+    personnage rapportant ses propres paroles (citation imbriquee) -- les forcer
+    au narrateur aurait coupe la voix du personnage au milieu de sa tirade.
+    Elle reste la pour MESURER ce genre de cas (`_corriger_livre.py` fait
+    l'essai a blanc), jamais pour ecrire.
+
+    Un morceau est un « beat apparent » si trois conditions locales sont
+    reunies :
+      1. il introduit une replique (verbe de parole + « : » en fin) ;
+      2. il ne contient PAS de « lui-meme ;
+      3. le morceau SUIVANT commence par «.
+    Les conditions sont locales, donc insensibles aux « jamais refermes
+    (typographie frequente dans cette edition).
+    """
+    from modules.decoupage import introduit_une_replique
+    par_id = {p["id"]: p for p in phrases}
+    corriges = 0
+    for i, s in enumerate(sentences):
+        texte = s.get("texte") or ""
+        suivant = sentences[i + 1] if i + 1 < len(sentences) else None
+        p = par_id.get(s["id"])
+        if (p is None or p.get("locuteur") in (None, "narration")
+                or "«" in texte
+                or suivant is None
+                or not (suivant.get("texte") or "").lstrip().startswith("«")
+                or not introduit_une_replique(texte)):
+            continue
+        p["locuteur"] = "narration"
+        p["confiance"] = "haute"
+        p["anomalie"] = ("remis au narrateur : beat de narration "
+                         "(regle deterministe du mode dialogue)")
+        corriges += 1
+    return corriges
+
+
 def _a_un_signe_de_dialogue(texte: str) -> bool:
     """La phrase porte-t-elle un signe objectif de dialogue ? (independant de
     toute IA : guillemets, tiret de dialogue, verbe de parole)"""
@@ -976,7 +1041,7 @@ def _filtrer_repliques_non_vraisemblables(sentences: list, phrases: list) -> int
 
 
 async def analyze_chapter(chapter_text: str, fiche_personnages: list, provider: str = "gemini",
-                          provider_repli: str = None) -> dict:
+                          provider_repli: str = None, regle: str = None) -> dict:
     """
     Analyse un chapitre : decoupe en phrases, appelle le moteur choisi
     (provider : "gemini", "mistral" ou "deepseek"), retourne la fiche
@@ -993,8 +1058,14 @@ async def analyze_chapter(chapter_text: str, fiche_personnages: list, provider: 
     (["deepseek", "local"]). En pratique (mesures du 14/09/2026) : DeepSeek
     d'abord -- resultat quasi identique a Gemini pour ~1 centime par chapitre --
     et le moteur local en tout dernier recours seulement.
+
+    regle (optionnel, 21/09/2026) : regle de DECOUPAGE a utiliser
+    (`decoupage.REGLE_DIALOGUE` pour un livre en « mode dialogue »). Elle doit
+    etre la MEME que celle de la page : c'est elle qui fixe les numeros de
+    phrases enregistres dans `speaker_attribution`.
     """
-    sentences = _split_chapter_sentences(chapter_text)
+    from modules.decoupage import REGLE_DIALOGUE as _REGLE_DIALOGUE
+    sentences = _split_chapter_sentences(chapter_text, regle)
     if not sentences:
         return {"personnages": fiche_personnages, "phrases": [], "sentences": []}
 
@@ -1049,6 +1120,18 @@ async def analyze_chapter(chapter_text: str, fiche_personnages: list, provider: 
 
     phrases.sort(key=lambda p: p["id"])
     _harmonize_open_quotes(sentences, phrases)
+    # NOTE (21/09/2026) : une regle « un beat est toujours du narrateur » a ete
+    # essayee ICI, puis RETIREE. Pourquoi : mesuree sur « Lazarille de Tormes »,
+    # elle corrigeait 2 morceaux... mais ces deux morceaux n'etaient PAS des
+    # beats de narration : ils se trouvent DANS le long discours d'un personnage
+    # qui rapporte ses propres paroles (citation imbriquee : « ... et lui dis :
+    # « ... » »). Les forcer au narrateur aurait coupe la voix du personnage au
+    # milieu de sa tirade. Avec l'apostrophe typographique corrigee et la
+    # gestion des cris ci-dessus, le passage de Laurent est devenu CORRECT tout
+    # seul (verifie morceau par morceau le 21/09/2026) : la regle deterministe
+    # n'apportait donc rien, et risquait de faire pire.
+    # La fonction `_forcer_beats_en_narration` est conservee comme MESURE (elle
+    # sert a l'outil d'essai `_corriger_livre.py`), pas comme correction.
 
     # Filet de dernier recours : les phrases que le moteur distant a REFUSEES
     # (filtre de contenu) sont confiees au moteur local, qui n'applique aucun
@@ -1075,7 +1158,7 @@ async def analyze_chapter(chapter_text: str, fiche_personnages: list, provider: 
 # TRAITEMENT SEQUENTIEL DE PLUSIEURS CHAPITRES
 # ==============================================================
 
-async def analyze_chapters(chapters: list) -> list:
+async def analyze_chapters(chapters: list, regle: str = None) -> list:
     """
     Traite une liste de chapitres a la suite, en faisant voyager la fiche
     de personnages de l'un a l'autre (elle s'enrichit au fil de l'eau,
@@ -1089,7 +1172,8 @@ async def analyze_chapters(chapters: list) -> list:
     resultats = []
 
     for chapter_text in chapters:
-        result = await analyze_chapter(chapter_text, fiche_personnages=fiche)
+        result = await analyze_chapter(chapter_text, fiche_personnages=fiche,
+                                       regle=regle)
         fiche = result["personnages"]
         resultats.append(result)
 
@@ -1324,25 +1408,82 @@ def _kyutai_pool(genre: str) -> list:
 # compte sans redemarrage du code.
 _recalculer_pools()
 
-# Voix partagee pour les personnages mineurs (peu de repliques) -- Piper
-# depuis le 14/09/2026 (decision de Laurent : Siwis/Tom remplacent
-# Eloise/Fabrice). Piper reste par ailleurs hors du pool automatique
-# ci-dessus, uniquement utilise ici pour les petits roles.
+# Voix partagee pour les personnages mineurs (peu de repliques) -- Piper.
 #
-# ATTENTION (15/09/2026) : ces deux voix ne sont PLUS attribuees par defaut.
-# A l'ecoute de Shantaram, Laurent les a trouvees « inaudibles, vraiment
-# moches » : les petits roles (< MINOR_THRESHOLD repliques) sont desormais lus
-# par le NARRATEUR (voir assign_voices). Ces deux constantes restent donc
-# comme EMPLACEMENT des deux voix neutres que Laurent choisira plus tard
-# (une femme, un homme) : il suffira de les y mettre, puis de re-caster.
-GENERIC_VOICE_F = "piper:siwis:0"
-GENERIC_VOICE_M = "piper:tom:0"
+# DECISION DE LAURENT, 21/09/2026 : les petits roles (< MINOR_THRESHOLD
+# repliques) sont joues par DEUX voix, une par genre -- Jessica pour les
+# femmes, Pierre pour les hommes, toutes les deux en Piper (modele studio
+# fr_FR-upmc-medium). C'est la reponse a la question restee ouverte le
+# 15/09/2026 : ce jour-la, les voix generiques d'alors (Siwis et Tom) avaient
+# ete jugees « inaudibles, vraiment moches » a l'ecoute de Shantaram, et les
+# petits roles etaient passes au NARRATEUR en attendant que Laurent choisisse
+# deux voix neutres. Il les a choisies : ces deux emplacements sont remplis.
+#
+# A savoir : Jessica (upmc:0, 3 etoiles a l'ecoute) et Pierre (upmc:1,
+# 1 etoile) sont DEUX AUTRES voix Piper que Siwis/Tom -- les voix refusees ne
+# reviennent donc pas. Attention aussi a l'homonyme : il existe une Jessica
+# Kokoro americaine (kokoro:af_jessica) dans le catalogue ; celle des petits
+# roles est bien la PIPER FRANCE.
+#
+# Piper reste par ailleurs hors du pool automatique ci-dessus : il ne sert
+# ici, et pour ces deux voix seulement.
+GENERIC_VOICE_F = "piper:upmc:0"   # Jessica (France, Piper)
+GENERIC_VOICE_M = "piper:upmc:1"   # Pierre  (France, Piper)
+
+
+def _voix_generique(genre: str) -> str:
+    """Voix des petits roles d'un genre : Jessica (femmes), Pierre (hommes).
+
+    Un genre inconnu part sur Pierre, comme partout ailleurs dans le casting
+    (le genre par defaut d'une fiche est "H").
+    """
+    return GENERIC_VOICE_F if genre == "F" else GENERIC_VOICE_M
 
 PITCH_BY_AGE = {"jeune": "+15Hz", "adulte": "+0Hz", "age": "-15Hz"}
 # Personnages avec moins de ce nombre de repliques sur TOUT le livre ->
 # voix generique partagee par genre (ils ne consomment pas une voix dediee,
 # ce qui preserve le pool pour les roles qui comptent vraiment).
 MINOR_THRESHOLD = 8
+
+
+# ==============================================================
+# VARIANTES DE TIMBRE DES PETITS ROLES (21/09/2026)
+# ==============================================================
+# Question de Laurent : « on a combien de variations possibles entre la vitesse
+# et la hauteur ? Si chaque cran des 2 reglages fait une voix, ca nous ferait
+# combien de variations ? Ca doit en faire pas mal mine de rien. »
+#
+# Les deux curseurs du casting (frontend/app.js) donnent :
+#   hauteur : de -20 Hz a +20 Hz, pas de 4   -> 11 crans
+#   vitesse : de -30 % a +30 %, pas de 5     -> 13 crans
+# soit 11 x 13 = 143 couples (hauteur, vitesse) pour UNE SEULE voix.
+#
+# Cela suffit pour tous les livres : le plus gros besoin mesure le 21/09/2026
+# est de 85 petits roles d'un meme genre dans un seul livre (Monte-Cristo,
+# tome 6). Au-dela de 143, on recommence au debut : deux petits roles
+# partageraient alors exactement la meme voix, ce que Laurent a accepte
+# (« si 2 tombent sur la meme ce n'est pas bien grave »).
+#
+# L'ORDRE des crans compte : chaque hauteur est suivie d'un ECART important
+# (0, +8, -8, +16, -16, +4, -4, +12, -12, +20, -20) pour que deux petits roles
+# VOISINS dans la liste -- donc souvent voisins dans un dialogue -- ne se
+# ressemblent pas. Les 11 hauteurs sont parcourues d'abord ; la vitesse ne
+# change qu'une fois les 11 epuisees. Deux personnages consecutifs ont ainsi
+# TOUJOURS une hauteur differente.
+PITCH_VARIANTES = [0, 8, -8, 16, -16, 4, -4, 12, -12, 20, -20]
+RATE_VARIANTES = [0, 5, -5, 10, -10, 15, -15, 20, -20, 25, -25, 30, -30]
+NB_VARIANTES_GENERIQUES = len(PITCH_VARIANTES) * len(RATE_VARIANTES)
+
+
+def _variante_generique(rang: int) -> tuple:
+    """(hauteur, vitesse) de la n-ieme voix generique d'un genre.
+
+    `rang` part de 0 et avance a chaque petit role du livre. Renvoie des
+    chaines au format du casting, par exemple ('+8Hz', '-5%').
+    """
+    hauteur = PITCH_VARIANTES[rang % len(PITCH_VARIANTES)]
+    vitesse = RATE_VARIANTES[(rang // len(PITCH_VARIANTES)) % len(RATE_VARIANTES)]
+    return ('%+dHz' % hauteur, '%+d%%' % vitesse)
 
 
 def _build_passe2_prompt(fiche_brute: list) -> str:
@@ -1831,6 +1972,11 @@ def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: d
 
     idx_f = 0
     idx_m = 0
+    # Rangs des VARIANTES de la voix generique (petits roles), par genre : ils
+    # avancent a chaque petit role, pour que deux d'entre eux n'aient jamais le
+    # meme couple (hauteur, vitesse) dans un meme livre.
+    rang_f = 0
+    rang_m = 0
     voix = {}
 
     for perso in tries:
@@ -1852,19 +1998,28 @@ def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: d
             continue
 
         if count < MINOR_THRESHOLD:
-            # PETIT ROLE (< 8 repliques) : aucune voix dediee depuis le
-            # 15/09/2026 (decision de Laurent a l'ecoute de Shantaram : les
-            # voix generiques Piper etaient « inaudibles, vraiment moches »).
-            # Ses repliques sont lues par le NARRATEUR -- la voix choisie dans
-            # le lecteur -- ce qui est coherent : c'est bien le narrateur qui
-            # rapporte ce que dit le personnage.
-            # La ligne est CONSERVEE avec un voice_id VIDE : le personnage reste
-            # visible dans la fenetre du casting, avec la mention « lu par le
-            # narrateur », et on peut lui redonner une voix a la main. Le jour
-            # ou Laurent aura choisi deux voix neutres, il suffira de definir
-            # GENERIC_VOICE_F/M ci-dessus (un re-cast recreera tout).
-            voice_id = ""
-            pitch = "+0Hz"
+            # PETIT ROLE (< 8 repliques) : voix GENERIQUE de son genre,
+            # partagee par tous les petits roles (decision de Laurent du
+            # 21/09/2026 : Jessica pour les femmes, Pierre pour les hommes --
+            # voir GENERIC_VOICE_F/M ci-dessus). Elle ne consomme AUCUNE voix
+            # du pool dedie : les roles qui comptent gardent les meilleurs
+            # timbres.
+            # Historique : du 15/09/2026 au 21/09/2026, cette branche renvoyait
+            # un voice_id VIDE et le personnage etait lu par le NARRATEUR.
+            # C'est encore l'etat des lignes deja en base, jusqu'a ce qu'elles
+            # soient migrees (voir MIGRER_PETITS_ROLES.bat) ou re-castees.
+            voice_id = _voix_generique(genre)
+            # Chaque petit role recoit une VARIANTE differente de sa voix
+            # generique (voir PITCH_VARIANTES / _variante_generique) : la plus
+            # grande difference de hauteur possible entre deux voisins, la
+            # vitesse ne bougeant qu'ensuite. Au-dela de 143 petits roles d'un
+            # meme genre dans un livre, on recommence au debut.
+            if genre == "F":
+                pitch, rate = _variante_generique(rang_f)
+                rang_f += 1
+            else:
+                pitch, rate = _variante_generique(rang_m)
+                rang_m += 1
         else:
             if par_criteres:
                 # Classement par annotations d'ecoute : on prend la premiere
@@ -1890,8 +2045,11 @@ def assign_voices(personnages_finaux: list, compte_phrases: dict, voix_figees: d
             # personnage, pour les differencier malgre la voix identique
             base_hz = int(pitch_base.replace("Hz", "").replace("+", ""))
             pitch = f"{'+' if base_hz + cycle * 8 >= 0 else ''}{base_hz + cycle * 8}Hz"
+            # Un role DEDIE garde la vitesse neutre : seule sa HAUTEUR le
+            # distingue d'un autre porteur de la meme voix.
+            rate = "+0%"
 
-        voix[nom] = {"voice_id": voice_id, "pitch": pitch, "rate": "+0%", "genre": genre, "line_count": count}
+        voix[nom] = {"voice_id": voice_id, "pitch": pitch, "rate": rate, "genre": genre, "line_count": count}
 
     return voix
 
@@ -2000,7 +2158,8 @@ def _format_cost(usd: float) -> str:
     return f"~{usd:.0f} $"
 
 
-def estimate_cast_cost(chapters_texts: list, provider: str = "gemini") -> dict:
+def estimate_cast_cost(chapters_texts: list, provider: str = "gemini",
+                       regle: str = None) -> dict:
     """
     Estime le cout (tokens + USD) d'un lancement voix multiples SANS faire
     aucun appel IA : on decoupe les chapitres en phrases, on compte les
@@ -2021,7 +2180,7 @@ def estimate_cast_cost(chapters_texts: list, provider: str = "gemini") -> dict:
         if not text or not text.strip():
             continue
         chapters_count += 1
-        sents = _split_chapter_sentences(text)
+        sents = _split_chapter_sentences(text, regle)
         if not sents:
             continue
         total_sentences += len(sents)

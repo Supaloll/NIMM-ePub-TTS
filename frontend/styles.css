@@ -1337,6 +1337,13 @@ body {
 #cast-recast-actions button:hover:not(:disabled) { background: var(--accent); }
 #cast-recast-actions button:disabled { opacity: 0.5; cursor: default; }
 
+/* Le cadenas est un DESSIN (SVG) et non plus un emoji (retour de Laurent,
+   21/09/2026 : sur le telephone, verrouille et deverrouille se ressemblaient).
+   Deux consequences pratiques : le dessin PREND LA COULEUR DU BOUTON (donc
+   l'accent dore quand la voix est verrouillee, le gris sinon) et se dessine
+   pareil sur tous les appareils. Les deux boutons sont des CARRES a une seule
+   icone : on les centre explicitement, car un SVG ne se cale plus tout seul
+   comme un caractere de texte. */
 .cast-lock-btn,
 .cast-libre-btn {
   flex-shrink: 0;
@@ -1349,6 +1356,14 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cast-lock-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 .cast-lock-btn:hover,
 .cast-libre-btn:hover { color: var(--text); }
@@ -1472,6 +1487,12 @@ body {
     width: 44px;
     height: 44px;
     font-size: 1.15rem;
+  }
+  /* Le cadenas dessine suit la taille du bouton (30 -> 44 px), sinon il
+     paraitrait perdu au milieu d'un carre plus grand. */
+  .cast-lock-btn svg {
+    width: 22px;
+    height: 22px;
   }
   /* Les boutons du filtre par genre doivent aussi etre faciles a taper. */
   #cast-gender-actions button,

@@ -11,6 +11,201 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
+- [ ] **✂️ Découpage : séparer la NARRATION des RÉPLIQUES (mode dialogue, livre
+  par livre)** — demandé et commencé le **21/09/2026**. Laurent : « j'aimerais
+  bien avoir des marqueurs nets sur "dialogue" et "narrateur". Que dans un
+  passage où narrateur et dialogues sont présents, les voix soient cohérentes
+  avec le texte. […] C'est vraiment la seule chose qui manque cruellement pour
+  une immersion totale. »
+  *Ce qu'il faut savoir* : le découpage n'est **pas** fait par l'IA. Il est fait
+  par une **règle locale** (`modules/decoupage.py`, recopiée à l'identique dans
+  la page), et Gemini ne fait qu'**étiqueter** des morceaux déjà découpés : il ne
+  peut donc pas « découper » quoi que ce soit. Le levier, c'est **notre règle** —
+  et elle ne coûte rien.
+  *Le défaut, mesuré* (livre 28, « 22/11/63 », 24 841 morceaux) : **606**
+  morceaux contiennent du texte avant un `«`. Trois variantes de règle ont été
+  comparées ; la retenue (le texte avant la citation finit par **deux-points**
+  ET contient un **verbe de parole**) vise **166 morceaux, dont 159 sont
+  aujourd'hui attribués à un personnage** : c'est le personnage qui lit la
+  narration (« Avant que j'aie pu répondre, Richie est intervenu : »). Une
+  variante plus large (298 morceaux) attrapait des citations racontées
+  (`Le sujet que j'avais donné était : …`), d'où le choix prudent.
+  *Livré le 21/09/2026 (testé, pas encore éprouvé à l'oreille)* :
+  - `modules/decoupage.py` : `REGLE_DIALOGUE`, `VERBES_DE_PAROLE`,
+    `introduit_une_replique()`. La coupe ne s'applique **jamais** à une citation
+    racontée (`J'ai jamais eu « la larme facile », comme on dit.`), qui doit
+    rester d'un seul morceau sous peine d'être lue en deux fois ;
+  - `frontend/app.js` : la même règle, **mot pour mot** — les deux listes de
+    verbes sont comparées par le test, et chaque radical commence par une lettre
+    ASCII (sinon `\b` ne se comporte pas pareil en Python et en JavaScript) ;
+  - **un mode PAR LIVRE** (`books.decoupe_dialogue`, ajout non destructif) : les
+    13 livres déjà castés gardent le découpage d'origine, caractère pour
+    caractère. C'est indispensable : leurs numéros de phrases sont ENREGISTRÉS
+    (`speaker_attribution`), un découpage différent décalerait leurs voix ;
+  - `test_voix/MODE_DIALOGUE.bat` (+ `regler_mode_dialogue.py`) : liste des
+    livres, puis activer/désactiver, avec **copie datée de la base** avant
+    d'écrire ;
+  - `test_voix/test_decoupage_phrases.py` : **36 contrôles** (la règle, ses trois
+    garde-fous, les positions exactes — la migration en dépend —, aucun texte
+    perdu, et les verbes de parole identiques côté page).
+  *Livre de test choisi par Laurent* : **« Lazarille de Tormes »** (anonyme,
+  1554, domaine public ; 13 chapitres, 155 000 caractères) — **64 cas** à
+  corriger pour un casting estimé à **0,07 $**. Le choix d'un livre NEUF est
+  volontaire : on ne touche à **aucun** livre casté.
+  *Protocole d'essai* : castage du livre en mode **origine**, on note 3-4
+  passages ; puis **mode dialogue** + re-cast ; on réécoute **les mêmes**
+  passages. Coût total ≈ **0,15 $** (mesure du journal : 0,0047 € par appel IA ;
+  un livre entier ≈ 1,15 €).
+  *ESSAI RÉEL, fait le 21/09/2026 (protocole tenu)* : le livre de test a été
+  casté **deux fois** — une fois en mode **origine**, puis (après activation du
+  mode dialogue et remise à zéro de son attribution) une fois en mode
+  **dialogue**. Chaque castage a coûté les 0,07 $ annoncés (16 puis 18 appels).
+  *Résultat mesuré dans la base* : le découpage passe de **912 à 986 morceaux**
+  (+74), et sur les **75 beats de narration** du livre, **73 sont maintenant lus
+  par le NARRATEUR** avec la réplique attribuée au PERSONNAGE (les 2 restants :
+  un beat dont la réplique est restée « narration », à écouter). Exemples :
+  - AVANT : `Alors Frère Girolamo, sentant le moment venu d'opérer le faux
+    miracle…` → locuteur enregistré = **Frere Girolamo** ;
+  - APRÈS : le beat = **narration**, et « Jésus-Christ, mon Seigneur… » =
+    **Frere Girolamo** ;
+  - AVANT : `Et le More, riant, répondit : « Hi…` → **Zaide** ;
+  - APRÈS : `Et le More, riant, répondit :` = **narration**, « Hi… » = **Zaide** ;
+  - AVANT : `La foule, voyant ce nouveau miracle… cria à son tour : « Jésus !` →
+    **Foule** ; APRÈS : le beat = **narration**, « Jésus ! » = **Foule**.
+  *Preuves* : `_comparer_decoupage_livre.py 36 origine|dialogue` (lecture seule),
+  et les relevés conservés dans `_avant_origine_36.txt` / `_apres_dialogue_36.txt`.
+  *Défauts trouvés par Laurent le 21/09/2026, en écoutant le livre de test* — il a
+  entendu « quelque chose qui cloche » sur un passage précis, et il avait
+  raison : **trois symptômes, deux vrais défauts**.
+  1. **Apostrophe typographique** (vrai bug de la règle) : le livre écrit
+     `s’écria` avec l'apostrophe **courbe**, la liste de verbes utilisait
+     l'apostrophe **droite** → ces beats n'étaient **pas reconnus**, donc **pas
+     coupés** : `Frère Mariano, …, s’écria : « Jésus !` restait **un seul
+     morceau**, et le personnage lisait la narration. *Corrigé* : les deux
+     apostrophes sont traitées pareil (`introduit_une_replique`, dans
+     `modules/decoupage.py` **et** dans la page), avec un test de
+     non-régression (`test_decoupage_phrases.py`, désormais **39 contrôles**).
+     **Même famille, trouvée juste après par Laurent** : la liste contenait
+     `cria` mais pas **`crier`** (l'infinitif) → `… se mit à crier, le montrant
+     du doigt avec terreur : « Maman, la bête !` n'était pas coupé, et le beat
+     était lu par **Frère de Lazarillo**. *Corrigé* : radicaux ajoutés (`crie`,
+     `soupir`, `balbuti`, `bredouill`, `prononç`, `chuchot`, `articul`), test de
+     non-régression à l'appui → **41 contrôles**. Effet mesuré : le livre de test
+     passe de 987 à **989 morceaux**.
+  2. **Beats attribués au personnage malgré la coupe** : l'IA voit une réplique
+     dans un morceau qui finit par un verbe de parole **et commence par le nom
+     du personnage** (mesure : 2 cas dans le livre de test). *Corrigé* par une
+     règle **déterministe** : en mode dialogue, un beat hors citation ouverte est
+     **toujours** remis au narrateur (`_forcer_beats_en_narration`, aucun appel
+     IA, aucune facture).
+  3. Le troisième symptôme (« La foule, … cria à son tour : » lu par *Foule*)
+     était un **état transitoire** : la page avait le nouveau découpage (986
+     morceaux) mais les **anciennes** attributions (912 lignes) → voix décalées.
+     Une simple **relecture** de la page remet les voix justes — c'est écrit en
+     clair dans la sortie de `regler_mode_dialogue.py`.
+  *Corrigé aussi* : les **cris coupés** par leur propre ponctuation
+  (« « Jésus ! Jésus ! » » — 12 cas dans le livre de test) dont la seconde
+  moitié restait au narrateur. La citation ouverte garde désormais son locuteur
+  quand la suite reprend par une majuscule après un `!`, un `?` ou une ellipse
+  (`LONGUEUR_CRI`, morceau court, sans beat).
+  *Second re-cast après redémarrage (0,07 $), et **vérification morceau par
+  morceau*** : le passage exact entendu par Laurent est devenu **correct** —
+  « Frère Mariano, … s'écria : » au **narrateur**, les deux « Jésus ! » au
+  **personnage**, « La foule, … cria à son tour : » au **narrateur**. Le
+  troisième symptôme (beat de la Foule lu par *Foule*) venait d'un **état
+  transitoire de la page** (nouveau découpage + anciens index, page restée
+  ouverte pendant le re-cast) : une relecture suffit.
+  *Deux pistes explorées, puis ÉCARTÉES — c'est le plus important à garder* :
+  mesurées sur ce livre, elles étaient **fausses**, et seule la lecture du texte
+  l'a montré.
+  1. une règle « un beat de narration est toujours du narrateur » proposait
+     **13 corrections**, dont **11 étaient des phrases de NARRATION**
+     (« Je m'approchai et lui montrai le pain. ») et **2 des citations
+     imbriquées** dans le long discours de l'écuyer : appliquée, elle aurait
+     abîmé le livre. La règle est **retirée du pipeline** ; elle reste comme
+     **mesure**, dans un outil qui n'écrit jamais (`_corriger_livre.py`) ;
+  2. les détecteurs « beat apparent » et « fragment orphelin »
+     (`_mesurer_fragments_36.py`) **sur-signalent** : ils comptent sans lire le
+     texte. *Leçon consignée* : **un chiffre ne vaut rien sans la lecture des
+     morceaux concernés**.
+  *Coût total de l'essai* : trois castages du livre de test, **≈ 0,13 $**
+  (0,09 $ mesurés pour les deux premiers).
+
+  *Laboratoire d'essai (même soir, idée de Laurent)* : plutôt qu'un livre entier
+  pénible à lire, **un chapitre d'un livre qu'il connaît** — chapitre 28 de
+  **« 22/11/63 »** (« Sadie »), le plus dialogué du livre (14 beats, 137 `«`,
+  144 tirets). Un **EPUB d'un seul chapitre** est fabriqué et importé par l'API
+  (`_creer_epub_chapitre.py` + `_importer_epub.py`) → **livre n°37**
+  « 22/11/63 - chapitre d'essai (Sadie) - decoupage », en **mode dialogue**.
+  Le livre n°28 de Laurent n'est **jamais** touché. *Leçon* : Lazarille, pénible
+  à lire, reste au tiroir comme « piège à typographie » (il a révélé les deux
+  bugs ci-dessus), mais **22/11/63 est le bon terrain** : personnages connus,
+  oreille de Laurent fiable.
+  *Résultat de la passe 1 (prompt d'aujourd'hui, 0,06 $)* : **14 beats sur 14
+  lus par le NARRATEUR**, et les **14 répliques** attribuées aux bons personnages
+  (Dr Ellerton, George de Mohrenschildt, Sadie Dunhill, Jake Epping…). Autrement
+  dit : **après les deux correctifs de code, ce chapitre ne présente plus aucun
+  défaut mesurable**. Le détail est dans `_passe1_37.txt`.
+  *Mesure complémentaire* : `_mesurer_sans_signe.py` trouve **284 morceaux**
+  attribués à un personnage « sans signe de dialogue » — mais la **lecture** des
+  textes montre que ce sont des **suites de répliques** (« Et endormie. »,
+  « Chez toi. », « Je sais. », « CHapel 5-6323. »), donc **légitimes**. C'est la
+  confirmation que ce filtre (déjà désactivé dans `voice_casting`) sur-signale :
+  **284 sur 1243**, soit 23 % du chapitre.
+  *Pistes de PROMPT, prêtes mais NON testées* (aucun défaut mesurable sur ce
+  chapitre pour les éprouver — on ne les testera que si l'oreille de Laurent
+  trouve quelque chose) : (1) « un morceau qui annonce une réplique est du récit,
+  **sauf** dans une citation » (la règle que le code ne savait pas juger) ;
+  (2) fournir le **numéro de paragraphe** de chaque morceau ; (3) demander à l'IA
+  une liste **`melange`** signalant les morceaux qui mélangent récit et réplique
+  — un thermomètre de notre découpage. Coût d'un essai : ~0,06 $ la passe.
+  *Pourquoi un chatbot semble réussir et pas notre prompt* (question de Laurent,
+  consignée) : l'IA reçoit des morceaux **déjà découpés par nous** et doit donner
+  **un seul** nom à chacun (un morceau mixte n'a pas de bonne réponse) ; elle
+  répond **130 étiquettes** par appel, en JSON compact, et doit rester cohérente
+  sur ~25 000 morceaux ; un chatbot lit le passage entier, peut hésiter et
+  s'expliquer, une seule fois, sans contrainte de coût. **Le levier principal
+  reste donc le découpage (notre code, gratuit) — pas l'intelligence de l'IA.**
+
+  *Trois nouveaux cas, trouvés par Laurent à l'oreille le même soir, sur le
+  chapitre d'essai* — et **aucun n'est un problème de prompt** :
+  1. **Beat sans verbe de parole** : « Puis : « D'accord, j'ai pu le faire. » »
+     restait **un seul morceau**, donc lu par le personnage. Les quatre cas du
+     chapitre, **lus un par un**, montrent que le signal est le **deux-points**
+     juste avant la citation, pas le verbe (« Puis : », « …deux secondes de
+     répit, puis : », « …crié : » — et « crié », participe, n'était pas reconnu
+     non plus, « …une seconde tentative : »). *Livré le 21/09/2026* : la règle
+     devient **deux-points OU verbe de parole** (`introduit_une_replique`,
+     Python **et** page) ; **44 contrôles** au vert. Effet mesuré : **+5
+     morceaux** dans le chapitre d'essai, **+46** dans Lazarille (lus : des
+     phrases de récit ou d'appareil critique séparées de leur citation, toutes
+     légitimes), et 24 841 → **25 216** dans « 22/11/63 ».
+  2. **Incise isolée sans virgule** : « m'a-t-elle demandé. » occupe **tout un
+     morceau** (`modules/incises.py` attend « , dit-il, » : la forme sans
+     virgules, et les participes comme « demandé », lui échappent) → c'est le
+     personnage qui la lit. **Mesuré** : 3 cas dans le chapitre, 2 dans
+     Lazarille (« lui dis-je. », « s'écria-t-il. »). *À FAIRE* : étendre
+     `incises.py` (délicat : ce module a ses propres tests, et retirer du texte
+     est risqué). **Sans re-cast** : l'incise est retirée à la synthèse.
+  3. **Acronymes** : « URSS » (et « TSBD ») ne sont pas prononcés comme « FBI »
+     et « CIA ». *À FAIRE* : entrées dans la table de `modules/prononciation.py`
+     — **validées à l'oreille de Laurent** (la règle du module : une graphie
+     fausse serait pire que le défaut). **Sans re-cast** non plus : la table
+     s'applique à la synthèse.
+  *Verdict d'ensemble de Laurent, à mi-écoute* : « c'est nettement mieux
+  qu'avant. C'est même excellent ! »
+
+  *À faire* : **l'écoute par Laurent**, puis la décision pour ses autres
+  livres — **migration gratuite** des index (les étiquettes existantes sont
+  recollées sur le nouveau découpage) ou **re-cast** (~0,07 $ pour un petit
+  livre, ~1,15 € pour un gros tome). Les 13 livres déjà castés sont restés en
+  mode origine pendant tout l'essai : aucun n'a été touché.
+  *Détails* : ARCHITECTURE.md, « Mode dialogue ».
+  *Piste complémentaire (non retenue pour l'instant)* : dans « 22/11/63 »,
+  **44 morceaux** de « citation racontée » sont attribués à un personnage — des
+  erreurs d'étiquetage que la règle de découpage ne corrige pas, mais qu'une
+  consigne plus précise du prompt pourrait viser.
+
 - [x] **Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS
   redémarre avec le lecteur** — livré le **21/09/2026**. Retour d'écoute de
   Laurent (6 h) : « j'ai cliqué par erreur sur la ligne tout en bas, qui me
@@ -1723,6 +1918,139 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   d'abord, sans coder** — la correction n'est pas lancée.
 
 ## 🟠 Priorité 2 — Voix & casting
+
+- [ ] **🎯 Le chapitre d'essai devient le TEXTE DE RÉFÉRENCE, puis on compare les
+  LLM (DeepSeek en premier)** — demandé par Laurent le **21/09/2026 au soir** :
+  « Quand il sera parfait, il servira de texte de référence, et on fera le cast
+  avec d'autres LLM (Deepseek en priorité), il était moins bon que Gemini avant
+  le travail qu'on a fait, peut-être que maintenant les 2 se valent. » Et sur
+  l'écoute : « c'est nettement mieux qu'avant. C'est même excellent ! »
+  *Ce qui est en place* : le **livre n°37** « 22/11/63 - chapitre d'essai (Sadie) -
+  decoupage » — **un seul chapitre**, 81 429 caractères, **1248 morceaux** en mode
+  dialogue, **14 beats**. Copie fabriquée par `_creer_epub_chapitre.py`, importée
+  par l'API (`_importer_epub.py`) : le livre n°28 de Laurent n'est **jamais**
+  touché, et le chapitre peut être re-casté autant de fois qu'on veut
+  (~0,06 $ la passe, mesure du journal).
+  *État des correctifs du même soir* : quatre défauts trouvés **à l'oreille de
+  Laurent**, tous **dans notre code** et aucun dans le prompt — **deux livrés**
+  (apostrophe typographique, beat sans verbe de parole « Puis : ») et **deux en
+  attente** (incise isolée « m'a-t-elle demandé. », acronymes URSS / TSBD). Les
+  deux derniers **ne demanderont aucun re-cast** : ils agissent à la synthèse
+  (retrait d'incise, table de prononciation).
+  *Protocole prévu, quand Laurent jugera le chapitre **parfait à l'oreille*** :
+  on rejoue **le même chapitre** avec les autres moteurs d'IA — **DeepSeek**
+  d'abord (~1 centime le chapitre, clé déjà en place), puis Mistral et le moteur
+  local — et on compare **morceau par morceau** les étiquettes obtenues
+  (`_comparer_decoupage_livre.py`, `_mesurer_sans_signe.py`, `_zoom_passage.py`).
+  Le texte est identique, le découpage est identique : **seul le LLM change**,
+  ce qui rend la comparaison directe. Les pistes de prompt (règle « un morceau
+  qui annonce une réplique est du récit », numéros de paragraphe, liste
+  `melange`) restent **en réserve** pour cette étape — elles n'ont pas été
+  testées faute de défaut mesurable, pas faute d'idée.
+  *Pourquoi ça compte* : DeepSeek était **moins bon que Gemini** avant ces
+  travaux ; s'ils se valent maintenant, il devient une **alternative** (autre
+  fournisseur, tarif différent).
+
+- [x] **🎭 Les petits rôles sont joués par DEUX voix : Jessica (femmes) et Pierre
+  (hommes)** — décision et livraison du **21/09/2026**. Laurent : « un changement
+  pour les voix à moins de 8 répliques. Je me suis décidé, on va faire jouer ces
+  voix par 2 voix : 1 masculine et 1 féminine, toutes les 2 sur le même TTS,
+  Piper. Jessica pour les femmes < 8 répliques, Pierre pour les hommes. »
+  *Le terrain était prêt* : depuis le 15/09/2026, cette branche du casting
+  renvoyait un `voice_id` **VIDE** (les petits rôles étaient lus par le
+  **narrateur**, après le verdict « inaudibles, vraiment moches » sur les voix
+  génériques d'alors, Siwis/Tom), et le code gardait **deux emplacements vides
+  exprès** (`GENERIC_VOICE_F/M`) avec ce commentaire : « le jour où Laurent aura
+  choisi deux voix neutres, il suffira de les y mettre, puis de re-caster ».
+  C'est exactement ce qui a été fait.
+  *Les deux voix* : **Jessica** = `piper:upmc:0` (**3 étoiles** à l'écoute) et
+  **Pierre** = `piper:upmc:1` (**1 étoile**), toutes les deux dans le modèle
+  **studio** Piper `fr_FR-upmc-medium`. Ce ne sont donc PAS les voix refusées
+  (Siwis/Tom) ; à ne pas confondre avec l'homonyme `kokoro:af_jessica`, une
+  Jessica **américaine** du catalogue Kokoro. Piper tourne **dans le lecteur** :
+  aucun service à allumer, aucun appel payant.
+  *Livré en trois endroits* :
+  1. `modules/voice_casting.py` : `GENERIC_VOICE_F/M` = Jessica/Pierre, et
+     `assign_voices()` donne la voix générique **du genre** au lieu d'un vide
+     (nouvelle fonction `_voix_generique`) ;
+  2. `frontend/app.js` : `_CAST_VOIX_GENERIQUES` = les deux mêmes identifiants,
+     **dans le même ordre** ([0] femmes, [1] hommes) — sans quoi Jessica et
+     Pierre auraient été signalées « voix partagée » des centaines de fois, et
+     le bouton « Déplacer » aurait envoyé ailleurs ;
+  3. les tests qui vérifiaient « un petit rôle reste SANS voix » vérifient
+     désormais Jessica/Pierre.
+  *Livres déjà castés* — **migration ciblée** (option A, choisie par Laurent) :
+  **643 lignes réécrites sur 11 livres**, **34 lignes verrouillées NON touchées**
+  (un verrou = « je garde »), **hauteurs et vitesses conservées** (seule la
+  colonne `voice_id` change, donc deux petits rôles d'une même scène ne sonnent
+  pas exactement pareil). Outil : `test_voix/migrer_petits_roles.py` + lanceur
+  `MIGRER_PETITS_ROLES.bat` (essai d'abord, copie datée automatique avant
+  d'écrire). Copie créée :
+  `nimm_epub.db.bak_avant_petits_roles_20260921_2128`, et l'outil est
+  **rejouable** (un second passage dit « Rien à faire »).
+  *Découverte au passage* : `test_attribution_criteres.py` **ne tournait
+  jamais** — il manquait à la liste `TESTS_PY` du lanceur de tests, et il avait
+  dérivé sans que rien ne le signale (son contrôle « aucune voix à 0 étoile
+  attribuée » comptait Jessica/Pierre comme 0 étoile, alors que Piper est **hors**
+  de l'index du pool automatique et que Pierre est noté **1 étoile**). Réparé
+  **et ajouté à la suite** (37 tests au lieu de 36).
+  *Vérifications* : suite complète **TOUT EST OK**.
+  *À faire par Laurent* : **redémarrer NIMM ePub** (bouton « 🔄 Redémarrer NIMM
+  ePub » du panneau Réparer, ou `START.bat` sur le PC) pour que le **serveur**
+  prenne le nouveau code, puis **écouter** un chapitre contenant un personnage de
+  moins de 8 répliques. *Détails* : ARCHITECTURE.md, « Les petits rôles : une voix
+  par genre ».
+  *Suite le même jour — les VARIANTES de timbre* (question de Laurent : « on a
+  combien de variations possibles entre la vitesse et la hauteur ? Si chaque cran
+  des 2 réglages fait une voix, ça nous ferait combien de variations ? ») :
+  **11 hauteurs** (de -20 à +20 Hz, pas de 4) × **13 vitesses** (de -30 à +30 %,
+  pas de 5) = **143 variantes pour une même voix**. Chaque petit rôle reçoit donc
+  **sa propre variante**, répartie **par livre et par genre** — dans le code
+  (`PITCH_VARIANTES`, `RATE_VARIANTES`, `_variante_generique`) **et** dans les
+  livres déjà castés (même outil, `--appliquer`). Le plus gros besoin mesuré est
+  de **85 petits rôles hommes** (Monte-Cristo T6) : **143 couvre donc tous les
+  livres, avec 58 de marge** ; au-delà de 143, on recommence au début — deux
+  petits rôles partageraient alors exactement la même voix, ce que Laurent a
+  accepté (« si 2 tombent sur la même ce n'est pas bien grave »). Les hauteurs
+  sont parcourues **d'abord**, dans un ordre à grands écarts (0, +8, -8, +16,
+  -16, +4, -4…) : deux petits rôles **voisins** dans la liste ont donc toujours
+  une hauteur différente, ce qui compte pour un dialogue entre deux figurants.
+  *Pourquoi c'était utile* : avant cette répartition, **422 petits rôles de la
+  base étaient exactement identiques** (`+0Hz` **et** `+0%`).
+  *Vérifications* : `test_voix/test_pool_casting.py` §6b (20 hommes et 20 femmes
+  → 20 couples distincts ; bornes conformes aux curseurs du casting ; deux
+  voisins de hauteur différente).
+
+- [x] **🔒 Le cadenas du casting est un DESSIN, plus un emoji : verrouillé et
+  déverrouillé ne se ressemblent plus sur le téléphone** — livré le
+  **21/09/2026**, sur retour de Laurent : « Les cadenas. Pour verrouiller une
+  voix j'ai un cadenas. Actuellement il apparaît avec une aura (sur mobile)
+  quand la voix est verrouillée, et sans son aura quand la voix ne l'est pas. Je
+  préférerais ces 2 icônes à la place : 🔒 = verrouillé, 🔓 = déverrouillé, comme
+  sur PC. »
+  *Diagnostic* : le code envoyait bien **les deux emojis** (🔒 fermé / 🔓 ouvert),
+  les mêmes sur PC et sur téléphone — c'est leur **dessin** qui change selon
+  l'appareil (le cas était déjà connu : ⏮⏪⏩⏭ remplacés par des SVG le
+  20/09/2026, voir `styles.css`). Sur son téléphone, les deux se ressemblaient
+  donc assez pour que **seule l'aura dorée du bouton**
+  (`.cast-lock-btn.locked`) dise l'état — exactement ce qu'il décrivait, et
+  rien dans le CSS ne pouvait y remédier, puisque les deux pages reçoivent le
+  **même** code.
+  *Livré* : le bouton porte un **cadenas dessiné** (SVG, `_svgCadenas` dans
+  `frontend/app.js`) qui **prend la couleur du bouton** : **anse rabattue =
+  verrouillé** (accent doré), **anse relevée = déverrouillé** (grisé). Le dessin
+  est donc **identique sur tous les appareils**, puisqu'il ne dépend plus
+  d'aucune police d'emoji. L'**aura est conservée** (sur PC elle allait bien) :
+  elle souligne l'état, elle ne le porte plus seule. Le dessin, l'infobulle et
+  le libellé d'accessibilité sont peints au **même endroit**
+  (`_peindreCadenas`) : l'affichage et le clic ne peuvent pas se contredire.
+  *Vérifications* : `test_voix/test_tiroir_voix_libres.js` (les deux anses,
+  l'appel unique) et `test_voix/LANCER_TOUS_LES_TESTS.bat` — **36 tests, TOUT
+  EST OK**.
+  *À voir par Laurent (2 minutes)* : ouvrir le casting sur son téléphone — le
+  cadenas **fermé doré** (verrouillé) et le cadenas **ouvert gris**
+  (déverrouillé) doivent se distinguer au premier coup d'œil.
+  *Détails* : ARCHITECTURE.md, « Re-cast d'un livre déjà casté ».
 
 - [ ] **🎭 Casting : tri par âge, libellé plus court dans les fenêtres étroites,
   et une voix qui ne doit pas être remplacée en silence** — trois demandes de
@@ -5624,6 +5952,42 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
     (VoxPopuli CC0).
 
 ## 🟡 Priorité 3 — Robustesse & architecture
+
+- [x] **🔌 Pocket TTS s'éteint en fermant sa fenêtre (comme Kyutai), et le
+  veilleur respecte l'arrêt volontaire** — livré le **21/09/2026** au soir.
+  Laurent : « Couper le moteur Pocket TTS comme pour Kyutai. À la fermeture de la
+  fenêtre cmd, tous les moteurs doivent s'arrêter. Actuellement, Pocket TTS reste
+  allumé, je n'ai pas moyen de l'éteindre via la fermeture de la fenêtre cmd. »
+  *Cause, trouvée dans le code* : le service Pocket **avait déjà** son gardien de
+  console, mais `START.bat` le lançait **caché** (`Start-Process -WindowStyle
+  Hidden`, sortie dans `journal_service.txt`) → **aucune fenêtre à fermer**, donc
+  le geste n'existait pas.
+  *Livré* :
+  1. `START.bat` ouvre **sa fenêtre** (`start "… Pocket TTS" /D
+     pocket_tts_service cmd /k DEMARRER_POCKET_TTS.bat`, la forme même de la
+     ligne de Kyutai) → **fermer la fenêtre l'éteint** ;
+  2. quand la fenêtre se ferme, le service écrit un **marqueur**
+     (`pocket_tts_service/arrete_volontaire.txt`) ;
+  3. **le veilleur du lecteur lit ce marqueur**
+     (`main._pocket_arrete_volontairement`) et **ne rallume plus** Pocket TTS :
+     sans lui, il le relançait **30 secondes plus tard**, et le geste aurait été
+     annulé ;
+  4. le marqueur est effacé dès que le moteur redémarre, par `START.bat` à chaque
+     nouveau démarrage, et par le bouton **« Relancer les moteurs »** (un clic
+     est une demande explicite) ;
+  5. `main._demarrer_pocket_avec_fenetre` (ex-`_demarrer_pocket_sans_fenetre`) :
+     le lecteur aussi rallume le moteur **dans une fenêtre**, sinon un Pocket TTS
+     rallumé par le lecteur n'aurait, de nouveau, aucun geste d'arrêt.
+  *Vérifications* : `test_voix/test_start_moteur.py` et
+  `test_voix/test_reparer_moteurs.py` **mis à jour** (les deux moteurs ont leur
+  fenêtre, le marqueur est effacé au démarrage, et deux contrôles nouveaux :
+  « arrêt volontaire : le veilleur ne rallume RIEN », puis « mais un clic de
+  Laurent rallume ») — **suite complète au vert**.
+  *Détails* : ARCHITECTURE.md, section « Pocket TTS ».
+  *À voir par Laurent* : au prochain `START.bat`, une fenêtre « NIMM ePub -
+  appareil de voix Pocket TTS » s'ouvre. La fermer éteint le moteur, et il **ne
+  revient pas** tout seul.
+
 - [x] **Serveurs fantômes sur le port 8081 — le piège, et son garde-fou** — livré
   le **18/09/2026** au soir, après une soirée de fausses pistes.
   *Le piège* : fermer la fenêtre de commande ne tue pas toujours le processus

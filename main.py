@@ -113,7 +113,8 @@ def init_db():
             cover_path           TEXT,
             date_added           TEXT DEFAULT (datetime('now')),
             multi_voice_enabled  INTEGER DEFAULT 0,
-            cast_status          TEXT DEFAULT 'none'
+            cast_status          TEXT DEFAULT 'none',
+            decoupe_dialogue      INTEGER DEFAULT 0
         )
     """)
     # Ajout non destructif de la colonne "saga" -- regroupe des tomes
@@ -129,6 +130,15 @@ def init_db():
     # voix pour Monte-Cristo et pour 22/11/63. NULL = voix par defaut.
     if "narrator_voice" not in books_cols:
         conn.execute("ALTER TABLE books ADD COLUMN narrator_voice TEXT DEFAULT NULL")
+    # Ajout non destructif de la colonne "decoupe_dialogue" (21/09/2026,
+    # demande de Laurent) : le livre est en « mode dialogue », ou la NARRATION
+    # est separee de la REPLIQUE au decoupage -- le beat (« Richie est
+    # intervenu : ») revient au narrateur, et la replique au personnage.
+    # 0 = decoupage d'origine : les livres deja castes ne bougent pas d'un
+    # caractere, ce qui est indispensable (leurs index de phrases sont
+    # enregistres). Voir modules/decoupage.py (REGLE_DIALOGUE).
+    if "decoupe_dialogue" not in books_cols:
+        conn.execute("ALTER TABLE books ADD COLUMN decoupe_dialogue INTEGER DEFAULT 0")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS progress (
             user_id          INTEGER NOT NULL,
@@ -1172,23 +1182,37 @@ VEILLEUR_PREMIER_PASSAGE_S = 15.0   # on laisse START.bat finir son travail
 _veilleur_pocket = {"dernier_essai": 0.0, "echecs": 0, "lancements": 0}
 
 
-def _demarrer_pocket_sans_fenetre() -> bool:
-    """Allume le service Pocket TTS SANS FENETRE (meme commande que START.bat).
+def _pocket_arrete_volontairement() -> bool:
+    """Pocket TTS a-t-il ete eteint VOLONTAIREMENT (fenetre du moteur fermee) ?
 
-    Sa sortie est REDIRIGEE vers ses journaux : sans console, un `print` de
-    Python ecrirait dans le vide et ferait tomber le service au premier message
-    (ce service annonce ce qu'il fait, et il journalise chaque phrase generee).
+    Le service ecrit un marqueur quand sa FENETRE se ferme (voir
+    `pocket_tts_service/servir_pocket_tts.py`). Sans cette lecture, le veilleur
+    rallumait le moteur 30 secondes plus tard : le geste naturel de Laurent --
+    fermer la fenetre pour l'eteindre -- n'aurait servi a rien (constat du
+    21/09/2026). Le marqueur disparait des que le moteur redemarre, et
+    START.bat l'efface a chaque nouveau demarrage.
+    """
+    dossier = BASE_DIR / MOTEURS_VOIX["pocket"]["dossier"]
+    return (dossier / "arrete_volontaire.txt").exists()
+
+
+def _demarrer_pocket_avec_fenetre() -> bool:
+    """Allume le service Pocket TTS DANS SA FENETRE (comme Kyutai).
+
+    Pourquoi une fenetre, alors que ce moteur tournait cache (21/09/2026) :
+    fermer la fenetre est le SEUL geste du projet pour eteindre un moteur de voix
+    (regle du 12/09/2026). Cache, Pocket TTS n'avait aucun geste d'arret : il
+    restait allume indefiniment -- constat de Laurent, qui l'a dit ainsi :
+    « Pocket TTS reste allume, je n'ai pas moyen de l'eteindre ».
     """
     dossier = BASE_DIR / MOTEURS_VOIX["pocket"]["dossier"]
     python = dossier / ".venv" / "Scripts" / "python.exe"
     if not python.exists():
         return False
     try:
-        journal = open(dossier / "journal_service.txt", "ab", buffering=0)
-        erreurs = open(dossier / "journal_service_err.txt", "ab", buffering=0)
-        subprocess.Popen([str(python), "servir_pocket_tts.py"], cwd=str(dossier),
-                         stdout=journal, stderr=erreurs,
-                         creationflags=subprocess.CREATE_NO_WINDOW)
+        subprocess.Popen(["cmd", "/c", "DEMARRER_POCKET_TTS.bat"],
+                         cwd=str(dossier),
+                         creationflags=subprocess.CREATE_NEW_CONSOLE)
         return True
     except Exception as e:
         print("   Pocket TTS n'a pas pu etre lance : {}".format(str(e)[:120]))
@@ -1199,7 +1223,8 @@ def _assurer_pocket_vivant(force: bool = False) -> dict:
     """Rallume Pocket TTS s'il est eteint. Rend {lance, message}.
 
     `force=True` vient d'un clic de Laurent (le bouton « Relancer les
-    moteurs ») : on ne respecte alors pas le delai de repos du veilleur.
+    moteurs ») : on ne respecte alors ni le delai de repos du veilleur, ni
+    l'arret volontaire (un clic est une demande explicite).
     """
     etat = etat_moteurs_voix(force=True)
     if (etat.get("pocket") or {}).get("actif"):
@@ -1208,6 +1233,20 @@ def _assurer_pocket_vivant(force: bool = False) -> dict:
         return {"lance": False,
                 "message": "Pocket TTS n'est pas installe : ses voix resteront "
                            "indisponibles"}
+    if not force and _pocket_arrete_volontairement():
+        # Laurent a ferme la fenetre du moteur : c'est un arret VOULU, on ne le
+        # contredit pas (sinon le geste ne servirait a rien). Le message se voit
+        # dans le panneau « Réparer », et START.bat rallume tout au prochain
+        # demarrage -- ou le bouton « Relancer les moteurs » tout de suite.
+        return {"lance": False,
+                "message": "Pocket TTS a ete eteint volontairement (fenetre "
+                           "fermee) : il ne se rallume pas tout seul"}
+    if force:
+        try:
+            (BASE_DIR / MOTEURS_VOIX["pocket"]["dossier"]
+             / "arrete_volontaire.txt").unlink()
+        except FileNotFoundError:
+            pass
     maintenant = time.time()
     if not force:
         repos = (POCKET_REPOS_LONG_S
@@ -1216,7 +1255,7 @@ def _assurer_pocket_vivant(force: bool = False) -> dict:
         if maintenant - _veilleur_pocket["dernier_essai"] < repos:
             return {"lance": False, "message": ""}   # trop tot : on se tait
     _veilleur_pocket["dernier_essai"] = maintenant
-    if not _demarrer_pocket_sans_fenetre():
+    if not _demarrer_pocket_avec_fenetre():
         return {"lance": False, "message": "Pocket TTS n'a pas pu etre lance"}
     _veilleur_pocket["lancements"] += 1
     return {"lance": True,
@@ -1553,7 +1592,31 @@ def _save_attribution(conn, book_id: int, chapter_index: int, phrases: list) -> 
     conn.commit()
 
 
-async def _process_remaining_chapters(book_id: int, chapters: list, fiche_depart: list, premier_resultat: dict, premier_index: int, provider: str = "gemini", voix_figees: dict = None) -> None:
+def _mode_dialogue(book) -> bool:
+    """Ce livre est-il en « mode dialogue » (decoupage narration / replique) ?
+
+    Tolerant par construction : un livre sans la colonne (base non migree, ou
+    appelant qui ne l'a pas demandee) repond NON -- donc decoupage d'origine,
+    jamais une surprise.
+    """
+    try:
+        return bool(book["decoupe_dialogue"])
+    except (KeyError, IndexError, TypeError):
+        return False
+
+
+def _regle_du_livre(book) -> str:
+    """Regle de decoupage a utiliser pour ce livre (`modules/decoupage.py`).
+
+    C'est UNE seule regle par livre, et elle doit etre la meme partout : au
+    casting (les numeros enregistres dans `speaker_attribution`), dans la page
+    (`_buildSentences`), dans la recherche et dans l'extrait des repliques.
+    """
+    from modules.decoupage import REGLE_ACTUELLE, REGLE_DIALOGUE
+    return REGLE_DIALOGUE if _mode_dialogue(book) else REGLE_ACTUELLE
+
+
+async def _process_remaining_chapters(book_id: int, chapters: list, fiche_depart: list, premier_resultat: dict, premier_index: int, provider: str = "gemini", voix_figees: dict = None, regle: str = None) -> None:
     """
     Tache de fond : analyse les chapitres qui n'ont pas encore d'attribution
     (le premier d'entre eux -- premier_index -- a deja ete traite et
@@ -1608,7 +1671,7 @@ async def _process_remaining_chapters(book_id: int, chapters: list, fiche_depart
 
             result = await voice_casting.analyze_chapter(
                 chapter["text"], fiche_personnages=fiche, provider=provider,
-                provider_repli=MOTEURS_DE_SECOURS,
+                provider_repli=MOTEURS_DE_SECOURS, regle=regle,
             )
             fiche = result["personnages"]
             resultats[i] = result
@@ -1774,7 +1837,10 @@ async def get_cast_estimate(book_id: int, user_id: int, provider: str = "gemini"
 
     restants = [c for c in chapters if c["index"] not in deja_traites]
     texts = [c.get("text") or "" for c in restants]
-    return voice_casting.estimate_cast_cost(texts, provider)
+    # L'estimation doit compter les MEMES phrases que le casting : en mode
+    # dialogue, le decoupage cree quelques morceaux de plus (les beats de
+    # narration separes des repliques).
+    return voice_casting.estimate_cast_cost(texts, provider, _regle_du_livre(book))
 
 
 @app.post("/api/books/{book_id}/cast")
@@ -1857,7 +1923,7 @@ async def start_casting(book_id: int, user_id: int, provider: str = "gemini"):
         conn.close()
 
         asyncio.create_task(
-            _process_remaining_chapters(book_id, chapters, fiche_depart, None, None, provider, voix_figees)
+            _process_remaining_chapters(book_id, chapters, fiche_depart, None, None, provider, voix_figees, _regle_du_livre(book))
         )
 
         return {
@@ -1871,7 +1937,7 @@ async def start_casting(book_id: int, user_id: int, provider: str = "gemini"):
     try:
         first_result = await voice_casting.analyze_chapter(
             premier["text"], fiche_personnages=fiche_depart, provider=provider,
-            provider_repli=MOTEURS_DE_SECOURS,
+            provider_repli=MOTEURS_DE_SECOURS, regle=_regle_du_livre(book),
         )
     except Exception as e:
         # L'echec du premier chapitre ne doit pas laisser le livre bloque en
@@ -1899,7 +1965,7 @@ async def start_casting(book_id: int, user_id: int, provider: str = "gemini"):
     conn.close()
 
     asyncio.create_task(
-        _process_remaining_chapters(book_id, chapters, first_result["personnages"], first_result, premier["index"], provider, voix_figees)
+        _process_remaining_chapters(book_id, chapters, first_result["personnages"], first_result, premier["index"], provider, voix_figees, _regle_du_livre(book))
     )
 
     return {
@@ -2134,7 +2200,7 @@ async def reassign_voices(book_id: int, user_id: int, par_criteres: bool = True)
     return {"ok": True, "modifies": modifies, "gardes": len(voix_figees)}
 
 
-def _decouper_phrases_du_chapitre(texte: str) -> list:
+def _decouper_phrases_du_chapitre(texte: str, regle: str = None) -> list:
     """Les phrases d'un chapitre, decoupees COMME LE FAIT LA PAGE.
 
     C'est indispensable : `speaker_attribution.sentence_idx` est calcule sur ce
@@ -2154,8 +2220,8 @@ def _decouper_phrases_du_chapitre(texte: str) -> list:
     mieux vaut un re-cast sans extraits qu'un re-cast avec les repliques d'un
     AUTRE personnage.
     """
-    from modules.decoupage import phrases as _decouper
-    return _decouper(texte or "")
+    from modules.decoupage import phrases as _decouper, REGLE_ACTUELLE
+    return _decouper(texte or "", regle or REGLE_ACTUELLE)
 
 
 def _repliques_des_personnages(conn, book, personnages, maximum=3,
@@ -2195,7 +2261,8 @@ def _repliques_des_personnages(conn, book, personnages, maximum=3,
         ).fetchall()
         if not rows:
             continue
-        phrases = _decouper_phrases_du_chapitre(chapitre.get("text") or "")
+        phrases = _decouper_phrases_du_chapitre(chapitre.get("text") or "",
+                                                _regle_du_livre(book))
         if not phrases or max(r["sentence_idx"] for r in rows) >= len(phrases):
             ecartes.add(index)
             continue
@@ -2654,15 +2721,15 @@ def _normalize_for_search(s: str) -> str:
     return s
 
 
-def _split_sentences(paragraph: str) -> list:
+def _split_sentences(paragraph: str, regle: str = None) -> list:
     """Les phrases d'un paragraphe pour la RECHERCHE dans le livre.
 
     Meme regle que la page et le casting (`modules/decoupage.py`) : sans cela,
     la phrase trouvee ne correspondrait a aucun morceau de l'ecran, et le clic
     sur un resultat ne poserait pas le curseur au bon endroit.
     """
-    from modules.decoupage import phrases_d_un_paragraphe
-    return phrases_d_un_paragraphe(paragraph)
+    from modules.decoupage import phrases_d_un_paragraphe, REGLE_ACTUELLE
+    return phrases_d_un_paragraphe(paragraph, regle or REGLE_ACTUELLE)
 
 
 @app.get("/api/books/{book_id}/search")
@@ -2690,7 +2757,7 @@ async def search_book(book_id: int, q: str, user_id: int):
         paras = [p.strip() for p in _re.split(r'\n\n+', text) if len(p.strip()) > 5]
 
         for para_idx, para in enumerate(paras):
-            sentences = _split_sentences(para)
+            sentences = _split_sentences(para, _regle_du_livre(book))
             for sentence in sentences:
                 norm_sentence = _normalize_for_search(sentence)
                 # recherche mot exact (bordures de mot) dans la phrase normalisee

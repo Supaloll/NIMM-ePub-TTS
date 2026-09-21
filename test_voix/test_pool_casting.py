@@ -156,7 +156,7 @@ def main_test():
     assert voix["Alice"]["voice_id"].startswith("kyutai:"), voix["Alice"]
     assert voix["Daniel"]["voice_id"].startswith("kyutai:"), voix["Daniel"]
 
-    print("6) petit role (2 repliques) -> AUCUNE voix dediee (lu par le narrateur)")
+    print("6) petit role (2 repliques) -> voix GENERIQUE de son genre (Jessica/Pierre)")
     fiche2 = fiche + [{"nom": "Petit", "genre": "H", "age": "adulte"},
                       {"nom": "Petite", "genre": "F", "age": "adulte"}]
     compte2 = dict(compte)
@@ -165,20 +165,57 @@ def main_test():
     voix2 = vc.assign_voices(fiche2, compte2)
     print("   Petit  -> %r" % voix2["Petit"]["voice_id"])
     print("   Petite -> %r" % voix2["Petite"]["voice_id"])
-    # Regle du 15/09/2026 (decision de Laurent apres l'ecoute de Shantaram) :
-    # les petits roles n'ont plus de voix dediee NI de voix generique Piper
-    # (« inaudibles, vraiment moches »). Leur voice_id est VIDE : le lecteur
-    # les lit avec la voix du NARRATEUR, et la ligne reste visible dans la
-    # fenetre du casting sous la mention « (lu par le narrateur) ».
-    assert voix2["Petit"]["voice_id"] == "", voix2["Petit"]["voice_id"]
-    assert voix2["Petite"]["voice_id"] == "", voix2["Petite"]["voice_id"]
+    # DECISION DE LAURENT, 21/09/2026 : les petits roles sont joues par DEUX
+    # voix, une par genre -- Jessica (femmes) et Pierre (hommes), les deux en
+    # Piper. Elles remplacent le voice_id VIDE qui prevaut depuis le
+    # 15/09/2026 (les petits roles etaient alors lus par le NARRATEUR, les voix
+    # Siwis/Tom ayant ete jugees « inaudibles » a l'ecoute de Shantaram).
+    assert voix2["Petit"]["voice_id"] == vc.GENERIC_VOICE_M, voix2["Petit"]["voice_id"]
+    assert voix2["Petite"]["voice_id"] == vc.GENERIC_VOICE_F, voix2["Petite"]["voice_id"]
+    assert vc.GENERIC_VOICE_F == "piper:upmc:0", vc.GENERIC_VOICE_F   # Jessica
+    assert vc.GENERIC_VOICE_M == "piper:upmc:1", vc.GENERIC_VOICE_M   # Pierre
     assert voix2["Petit"]["pitch"] == "+0Hz", voix2["Petit"]["pitch"]
     # ...et un petit role ne consomme PAS une voix du pool dedie.
     dediees_utilisees = [v["voice_id"] for n, v in voix2.items()
                          if n not in ("Petit", "Petite")]
     assert "" not in dediees_utilisees
+    assert vc.GENERIC_VOICE_F not in dediees_utilisees
+    assert vc.GENERIC_VOICE_M not in dediees_utilisees
 
-    print("7) seuil des petits roles : le client et le serveur doivent dire pareil")
+    print("6b) variantes de timbre des petits roles (question de Laurent)")
+    fiche3 = [{"nom": "H%02d" % i, "genre": "H", "age": "adulte"} for i in range(20)]
+    fiche3 += [{"nom": "F%02d" % i, "genre": "F", "age": "adulte"} for i in range(20)]
+    compte3 = {p["nom"]: 2 for p in fiche3}
+    voix3 = vc.assign_voices(fiche3, compte3)
+    couples_h = set((voix3[n]["pitch"], voix3[n]["rate"]) for n in compte3
+                    if n.startswith("H"))
+    couples_f = set((voix3[n]["pitch"], voix3[n]["rate"]) for n in compte3
+                    if n.startswith("F"))
+    print("   20 hommes : %d couples (hauteur, vitesse) differents" % len(couples_h))
+    print("   20 femmes : %d couples (hauteur, vitesse) differents" % len(couples_f))
+    assert len(couples_h) == 20, sorted(couples_h)
+    assert len(couples_f) == 20, sorted(couples_f)
+    # Les bornes doivent rester CELLES DES CURSEURS du casting (frontend/app.js :
+    # hauteur -20..+20 par pas de 4, vitesse -30..+30 par pas de 5) : une valeur
+    # hors bornes serait ramenee par le curseur a l'affichage, et la fiche
+    # montrerait autre chose que ce qui est enregistre.
+    assert vc.NB_VARIANTES_GENERIQUES == 143, vc.NB_VARIANTES_GENERIQUES
+    assert min(vc.PITCH_VARIANTES) == -20 and max(vc.PITCH_VARIANTES) == 20, \
+        vc.PITCH_VARIANTES
+    assert min(vc.RATE_VARIANTES) == -30 and max(vc.RATE_VARIANTES) == 30, \
+        vc.RATE_VARIANTES
+    assert all(p % 4 == 0 for p in vc.PITCH_VARIANTES), vc.PITCH_VARIANTES
+    assert all(r % 5 == 0 for r in vc.RATE_VARIANTES), vc.RATE_VARIANTES
+    assert len(set(vc.PITCH_VARIANTES)) == len(vc.PITCH_VARIANTES)
+    # Deux petits roles VOISINS doivent avoir une hauteur differente (c'est
+    # l'ordre choisi pour les variantes) : deux personnages qui se repondent
+    # dans un dialogue ne doivent pas sonner pareil.
+    voisins = [voix3[n] for n in sorted(compte3) if n.startswith("H")]
+    assert all(voisins[i]["pitch"] != voisins[i + 1]["pitch"]
+               for i in range(len(voisins) - 1)), \
+        [v["pitch"] for v in voisins]
+
+    print("7) seuil et voix generiques : le client et le serveur doivent dire pareil")
     with open(os.path.join(RACINE, "frontend", "app.js"), encoding="utf-8") as f:
         js = f.read()
     trouve = re.search(r"_CAST_MINOR_THRESHOLD\s*=\s*(\d+)", js)
@@ -188,6 +225,18 @@ def main_test():
     assert seuil_client == vc.MINOR_THRESHOLD, \
         "le seuil du client (%d) differe de celui du serveur (%d)" \
         % (seuil_client, vc.MINOR_THRESHOLD)
+    # Les deux voix generiques doivent etre LES MEMES des deux cotes, et dans
+    # le meme ordre ([0] femmes, [1] hommes) : la page s'en sert pour le bouton
+    # « Deplacer » et pour ne pas compter les petits roles comme « voix
+    # partagee ». Deux listes qui divergent = une page qui envoie ailleurs.
+    trouve = re.search(r"_CAST_VOIX_GENERIQUES\s*=\s*\[([^\]]+)\]", js)
+    assert trouve, "constante _CAST_VOIX_GENERIQUES absente de frontend/app.js"
+    liste_client = re.findall(r"'([^']+)'", trouve.group(1))
+    attendu = [vc.GENERIC_VOICE_F, vc.GENERIC_VOICE_M]
+    print("   client %s / serveur %s" % (liste_client, attendu))
+    assert liste_client == attendu, \
+        "les voix generiques du client (%s) different du serveur (%s)" \
+        % (liste_client, attendu)
 
     print("")
     print("TOUT EST OK")

@@ -33,6 +33,11 @@ TESTS_PY = [
     "test_niveau_audio.py", "test_nettoyage_tts.py", "test_majuscules.py",
     "test_incise_seule.py", "test_pool_casting.py", "test_residus_html.py",
     "test_onglets.py",
+    # Ajoute le 21/09/2026 : ce test verifie l'ATTRIBUTION des voix (dont la
+    # regle des petits roles -> Jessica/Pierre). Il existait depuis le 17/09
+    # mais n'etait pas dans cette liste : il ne tournait donc JAMAIS, et il
+    # avait derive sans que rien ne le signale.
+    "test_attribution_criteres.py",
 ]
 
 
