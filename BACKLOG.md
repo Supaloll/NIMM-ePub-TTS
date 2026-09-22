@@ -11,6 +11,43 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
+- [x] **🪗 Le menu du bas devient un TIROIR : les sept commandes de lecture, et
+  rien d'autre** — demandé et livré le **22/09/2026**. Laurent : « Pour le menu
+  du bas, on va faire un tiroir. Il faut afficher uniquement les boutons de
+  lecture, soit ⏮⏪◀▶▶⏩⏭. Dessous, tout le reste du menu qui s'ouvre en ouvrant
+  ce menu tiroir. »
+  *Ce qui a changé* : la barre du bas ne garde que ses **sept commandes de
+  lecture** (la barre de progression, les six flèches, le bouton rond) ; tout ce
+  qui se règle une fois puis s'oublie passe **sous une poignée**
+  (`#reader-tiroir-btn` : un chevron et le mot « Menu ») — 🎭 Voix multiples,
+  🎧 Écouter les voix, 🔖 Onglets, 👀 Lecture Rapide, 🧹 Vider le cache, la voix
+  du narrateur, la vitesse, et le voyant 🛠️ Réparer.
+  *Le même motif que le tiroir du casting* (livré le même jour), avec ses deux
+  règles : l'état de départ **suit l'écran** — replié sur téléphone, ouvert sur
+  ordinateur, où la poignée **n'existe pas** (rien ne change sur PC) — et **le
+  choix de Laurent l'emporte** dès qu'il touche la poignée, pour toute la
+  session.
+  *Mesuré* (`test_voix/test_tiroir_lecteur_rendu.py`, Playwright, le vrai pied
+  du lecteur sur un écran de 360 px) : **137 px** de pied replié contre **249 px**
+  ouvert, soit **112 px rendus au texte** ; la poignée mesure **332 × 26 px**
+  (large, donc facile au doigt ; fine, donc elle ne mange pas le texte) ; les
+  sept boutons tiennent sur **une seule ligne**, rien ne déborde de l'écran, et
+  sur ordinateur la poignée est bien masquée.
+  *Fichiers* : `frontend/index.html` (la poignée, commentée),
+  `frontend/styles.css` (le look, et le chevron qui se retourne), `frontend/app.js`
+  (`_tiroirLecteurDoitEtreOuvert`, fonction pure, `_appliquerTiroirLecteur`, le
+  clic, l'état à l'entrée dans le lecteur) — copies datées
+  `*.bak_avant_tiroir_lecteur_20260922`, et les numéros de version des assets
+  portés à `?v=20260922-2` (sans quoi un téléphone garde l'ancienne page en
+  cache).
+  *Vérifications* : le test neuf `test_voix/test_tiroir_lecteur.js`
+  (**38 contrôles**), son contrôle de rendu `test_tiroir_lecteur_rendu.py`
+  (**19 contrôles**, Playwright), et `LANCER_TOUS_LES_TESTS.bat` — **TOUT EST
+  OK**.
+  *À voir par Laurent* : ouvrir un livre sur le téléphone — le bas de l'écran ne
+  montre plus que les flèches de lecture ; taper sur « Menu » les ouvre, taper
+  dessus les referme.
+
 - [ ] **✂️ Découpage : séparer la NARRATION des RÉPLIQUES (mode dialogue, livre
   par livre)** — demandé et commencé le **21/09/2026**. Laurent : « j'aimerais
   bien avoir des marqueurs nets sur "dialogue" et "narrateur". Que dans un
@@ -1919,6 +1956,63 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
 
 ## 🟠 Priorité 2 — Voix & casting
 
+- [x] **🧹 La fenêtre du casting respire : en-tête compact, tiroir des réglages,
+  et la fenêtre ne sort plus de l'écran** — demandé le 21/09/2026 au soir, livré
+  le **22/09/2026**. Laurent : « Sur mobile, le menu déroulant pour choisir les
+  personnages et leurs voix est minuscule. Il faudrait gagner de la place sur le
+  haut de la modale, par exemple les icones. » Et sur les partages : « je ne peux
+  pas accéder aux noms qui sont cliquables, parce que souvent la modale sort de
+  l'écran vers le bas. »
+  *Le diagnostic, chiffré* : l'en-tête portait **21 contrôles** empilés en sept
+  blocs (2 champs, 15 boutons de filtre, 3 boutons de re-cast). Tous ces blocs
+  refusaient de rétrécir (`flex-shrink: 0`) et la **liste des personnages était
+  le seul élément qui pouvait céder** : elle tombait donc à presque rien — d'où
+  le menu déroulant « minuscule ». Deuxième cause, plus vicieuse : la hauteur de
+  la fenêtre était en **`80vh`**, une unité qui se calcule sur l'écran **sans la
+  barre d'adresse** du navigateur. Dès que celle-ci est visible, le bas de la
+  fenêtre passe **sous l'écran** — exactement là où étaient les noms cliquables,
+  et la fenêtre ne défilait pas pour rattraper ça.
+  *Ce qui a changé* :
+  1. **en-tête à trois commandes** : le bouton de recherche, le bouton
+     « Filtres » et la fermeture. Les 21 contrôles sont descendus dans le
+     **tiroir des réglages** (`#cast-tools`) : voix proposées dans les menus,
+     âge de la voix, genre du personnage, saga, re-cast ;
+  2. le tiroir est **replié par défaut sur téléphone, ouvert sur ordinateur**
+     (`_castOutilsDoiventEtreOuverts`, fonction pure et testée), et le **choix
+     de Laurent est gardé pendant la session** : il ne se referme plus à chaque
+     clic sur un filtre ou sur une voix ;
+  3. la **barre de recherche se cache** jusqu'au tap sur le bouton de recherche
+     — et s'ouvre d'elle-même tant qu'une recherche est en cours, sinon on ne
+     verrait plus ce qui filtre la liste ;
+  4. les **pastilles d'état** (Tous / À caster / Voix partagée / Voix libres)
+     tiennent sur **une seule ligne qui défile au doigt** (avant : deux ou trois
+     rangs), et le « Personnages : » devant elles a disparu ;
+  5. les **compteurs** (« 176 personnages · 3 à caster · 5 voix partagées ·
+     105 voix libres », « 12 personnages affichés sur 176 », et le message des
+     moteurs éteints) sont remontés **hors du tiroir** : visibles en permanence,
+     sinon un filtre resté actif aurait fait ressembler le livre à une liste
+     amputée ;
+  6. la **liste garde 90 px minimum**, et c'est le **tiroir** qui se réduit et
+     défile quand la place manque (lui, on peut le rouvrir) ;
+  7. la **fenêtre ne peut plus dépasser l'écran** : `max-height: min(80vh,
+     calc(100dvh - 44px))`, le `80vh` restant en repli pour les navigateurs qui
+     ne connaissent pas `dvh` ; marges réduites sur téléphone ;
+  8. dans le détail d'un partage, les **noms cliquables passent AVANT
+     l'explication** (elle fait 4 à 6 lignes sur un livre réel et poussait les
+     noms hors de l'écran), et déplier **fait défiler la fenêtre** jusqu'au
+     détail : ce qui s'ouvre se voit.
+  *Gain sur l'en-tête* : de l'ordre de **490 px à environ 75 px sur téléphone**
+  (estimation d'après les styles, avant essai terrain).
+  *Fichiers* : `frontend/index.html`, `frontend/styles.css`, `frontend/app.js`
+  (copies datées `*.bak_avant_entete_casting_20260922`), et les numéros de
+  version des assets portés à `?v=20260922-1` — sans quoi un téléphone garde
+  l'ancienne page en cache.
+  *Tests* : **`test_voix/test_entete_casting.js` (nouveau : 45 contrôles, rien à
+  allumer)** ; `test_voix/test_tiroir_voix_libres.js` **adapté sur trois lignes**
+  (la phrase n'est plus le premier élément du détail, les noms passent avant —
+  dit franchement : c'est un test mis à jour, pas un test cassé) ; le reste de la
+  suite au vert.
+
 - [ ] **🎯 Le chapitre d'essai devient le TEXTE DE RÉFÉRENCE, puis on compare les
   LLM (DeepSeek en premier)** — demandé par Laurent le **21/09/2026 au soir** :
   « Quand il sera parfait, il servira de texte de référence, et on fera le cast
@@ -2109,6 +2203,149 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
      court** (symbole + prénom + drapeau) dans les deux fenêtres étroites
      (casting et « Voir qui parle »), **libellé complet** là où il y a la place
      (fenêtre « Écouter les voix »).
+     **22/09/2026 — suite : le « fond très clair » et la « grosse police » ne
+     viennent PAS de l'application.** Laurent, en regardant le pied du lecteur :
+     « Quand j'ouvre le menu où j'ai toutes les voix, la police de caractère est
+     très grande, sur fond très clair. » Vérifié dans `frontend/styles.css` :
+     **aucun fond blanc n'y existe** (toutes les couleurs sortent de `:root` —
+     `--bg #0d0d0d`, `--bg-surface #161616`, `--bg-card #1c1c1c`…), et
+     `color-scheme: dark` est déclaré depuis le **15/09/2026**. Ce qu'il voit est
+     donc la **liste déroulante dessinée par le téléphone** (un `<select>`
+     natif) : ses couleurs et sa taille de police appartiennent à Android, pas à
+     nous — **aucun CSS ne les atteint**, ni `font-size`, ni `background`.
+     Deux issues possibles, **à trancher avec Laurent** :
+     **(A)** **raccourcir les libellés** (le correctif déjà proposé au point 2
+     ci-dessus : symbole + prénom + drapeau dans les fenêtres étroites) — petit,
+     sûr, et la ligne tient alors sur une ligne ; mais le fond clair **reste**,
+     puisque c'est le téléphone qui le dessine ;
+     **(B)** **remplacer la liste déroulante par une fenêtre de l'application**
+     (fond sombre, police choisie, libellés complets comme il les demande) —
+     c'est un chantier plus lourd, à mener sur les **trois** menus de voix (une
+     ligne du casting, « Voix de cette phrase », et la voix du narrateur).
+     **Sa question, et la réponse mesurée** : Laurent a demandé s'il était
+     possible de **forcer un saut de ligne** dans le libellé d'une voix — « si
+     oui, on laisse sur la 1ère ligne : Prénom - drapeaux - âge et timbre ; sur
+     la 2ème ligne : moteur - nom du personnage portant la voix / LIBRE ».
+     **La réponse est NON**, et elle a été **mesurée** le 22/09/2026
+     (`test_voix/test_libelle_deux_lignes_rendu.py`, Chromium) : un libellé qui
+     porte un saut de ligne occupe **exactement la même hauteur** qu'un autre —
+     le navigateur **aplatit** le saut, même avec `white-space: pre-line` sur les
+     options (la règle s'applique bien à l'option, la hauteur ne bouge pas).
+     Seul reste le repli **automatique** d'un libellé trop long — c'est ce que
+     Laurent voyait —, mais il est **subi** : on ne choisit pas où il tombe. Le
+     saut de ligne et la règle CSS ont donc été **retirés le jour même** (garder
+     du code sans effet ferait croire que ça marche) ; la trace est dans
+     `app.js` (`_libelleVoix`) et `styles.css`, pour ne pas refaire l'essai.
+     **Conséquence** : les deux voies ci-dessus restent les seules, et (B) est la
+     seule qui donnera ses **deux lignes choisies**.
+     **CHOIX DE LAURENT, 22/09/2026 : la VOIE (B).** Sa réponse : « B — remplace
+     le menu par une liste NIMM : deux lignes comme je les veux, fond sombre,
+     petite police. » La voie (A) — libellés courts — **n'est donc pas retenue**
+     pour l'instant.
+     *Ce que ça veut dire, concrètement* : le **menu déroulant** laisse la place à
+     une **liste de l'application** — de vrais éléments de page, donc **fond
+     sombre, police choisie**, et lisible sur **deux lignes** :
+       1. symbole, prénom, drapeaux, âge et timbre ;
+       2. icône du moteur, puis l'état de la voix (« · LIBRE », « · Edmond »,
+          « · narrateur », « · partagée (2) »).
+     Chaque ligne garde un **▶ d'écoute**, et l'on choisit en tapant la ligne (au
+     lieu du changement dans le menu).
+     *Plan en trois étapes* — une par session au plus, chacune utilisable seule :
+       **1.** le panneau **« Voix de cette phrase »** (un personnage, un choix :
+         le plus simple, et le plus rapide à juger à l'œil sur le téléphone) ;
+       **2.** le **casting** : une ligne de personnage par menu déroulant, donc le
+         plus gros morceau ;
+       **3.** la **voix du narrateur**, dans le pied du lecteur.
+     *Risque annoncé et accepté* : **un tap de plus** pour changer une voix (le
+     bouton montre la voix actuelle, il ouvre la liste), là où le menu déroulant
+     s'ouvrait d'un seul tap. En échange : plus de fond clair, plus de grosse
+     police, plus de lignes coupées au hasard.
+     *À faire dans le même mouvement, sinon la suite de tests rougit* (c'est
+     voulu : ces tests disent la vérité sur l'écran) : `test_voix/test_voix_phrase.js`
+     (il vérifie `voice-phrase-select` et extrait `_remplirMenuVoixPhrase`),
+     `test_voix/test_filtre_genre.js`, `test_voix/test_voix_ecoutables.js` et
+     `test_voix/test_etat_casting.js` (ils extraient `_construireMenuVoix`), plus
+     les `getElementById` des menus dans `frontend/app.js` (contrôlés par
+     `test_voix/test_ids_ecran.py`).
+     **✅ ÉTAPE 1 LIVRÉE le 22/09/2026 — le panneau « Voix de cette phrase ».**
+     Le menu déroulant `#voice-phrase-select` a **disparu de la page et du
+     code**. À sa place : un **champ de recherche**, un **compteur** (« 175 voix »),
+     et une **liste de l'application** — chaque voix sur **DEUX lignes**
+     (`♀️ Anna 🇫🇷 adulte grave` puis `🧬 · LIBRE`), un **▶** par voix pour
+     l'écouter, et **un tap sur la ligne** pour choisir ; la voix portée par le
+     personnage est marquée d'un **✔** et d'un liséré doré.
+     *Ce qui a été fait, dans l'ordre* : `_libelleVoix` **scindé** en
+     `_identiteVoix()` (symbole, prénom, drapeaux, âge, timbre) et
+     `_iconeMoteurVoix()` (l'icône du moteur), ce qui garde le libellé **d'une
+     ligne** partout ailleurs (badges, tiroir des voix libres, fenêtre d'écoute) ;
+     une fonction **pure** `_lignesVoixPhrase()` qui rend les lignes (groupes
+     Femmes / Hommes / Autres, tri par prénom, recherche, voix **hors liste**
+     gardée sous « ⚠️ Voix actuelle ») ; `_peindreListeVoixPhrase()` qui les
+     dessine ; `_choisirVoixPhrase()` qui reprend **exactement** l'ancien
+     gestionnaire `change` ; `_apercuVoixPhrase(voixId, btn)` pour que **chaque ▶
+     écoute SA voix**.
+     *Deux défauts trouvés par le test, et corrigés* : la 2e ligne affichait
+     **deux espaces** avant le « · » (la marque d'état arrive **déjà** précédée
+     d'une espace), et la voix **hors liste** n'avait aucune 2e ligne définie.
+     *Fichiers* : `frontend/index.html` (`#voice-phrase-liste`,
+     `#voice-phrase-recherche`, `#voice-phrase-recap`), `frontend/styles.css`
+     (`.voix-liste-*`), `frontend/app.js` — copies datées
+     `*.bak_avant_liste_voix_20260922`, assets en `?v=20260922-4`.
+     *Tests adaptés* (ils vérifiaient le menu déroulant) :
+     `test_voix/test_voix_phrase.js` (la fonction pure, **50 contrôles**),
+     `test_voix/test_libelle_voix.js` (les deux morceaux du libellé),
+     `test_voix/test_ids_ecran.py` (côté page). *Vérifications* :
+     `LANCER_TOUS_LES_TESTS.bat` — **TOUT EST OK**.
+     *À voir par Laurent* : taper sur une phrase, puis choisir une voix — deux
+     lignes par voix, fond sombre, la voix portée marquée d'un ✔, et la
+     recherche pour retrouver un prénom dans 175 voix.
+     **Son essai, et l'ajustement demandé le soir même** : « C'est beau, j'adore !
+     Sur la ligne qui montre [moteur][nom personnage/LIBRE] : police blanche. La
+     taille est ok. » La **2e ligne** passe donc en **BLANC** comme la première
+     (elle était en gris, `--text-muted`), la taille ne bouge pas, et le contrôle
+     de rendu le vérifie désormais (`rgb(232, 227, 218)`). Assets en
+     `?v=20260922-5`.
+     *Suite* : **étape 2** (les menus du casting) puis **étape 3** (la voix du
+     narrateur).
+     **✅ ÉTAPE 2 LIVRÉE le 22/09/2026 — les menus du CASTING.**
+     Le `<select>` de chaque ligne de personnage a disparu : à sa place, un
+     **BOUTON** (« ♀️ Anna 🇫🇷 — 🧬 », ellipse si c'est long) qui **déplie la
+     LISTE sous la ligne du personnage** (un seul encart ouvert à la fois,
+     hauteur limitée à 240 px, défilement à l'intérieur — le personnage concerné
+     reste juste au-dessus, on ne peut donc pas se tromper de destinataire).
+     *Les règles du menu sont GARDÉES telles quelles* — c'est le point sensible,
+     et les tests qui les protégeaient ont été **réécrits sur la nouvelle
+     structure plutôt que supprimés** :
+       - le **filtre « Voix proposées »** (Toutes / Femmes / Hommes) limite
+         toujours la liste ;
+       - la **voix actuelle reste TOUJOURS visible**, même si le filtre la cache
+         (groupe « ⚠️ Voix actuelle ») ou si son moteur est éteint ;
+       - « **Pas de voix (Kyutai éteint)** » et « **Voix introuvable** » restent
+         distincts, et le prénom du catalogue s'affiche au lieu de l'identifiant
+         technique ;
+       - la règle de **partage / déplacement** (choix explicite, jamais de
+         substitution muette) est **inchangée** : `choisirVoix()` reprend le corps
+         de l'ancien gestionnaire `change` à la lettre.
+     *Architecture* : `_lignesVoixPersonnage()` (fonction **pure**, éprouvée sans
+     DOM), `_boutonVoixPersonnage()` + `_libelleVoixBouton()`,
+     `_basculerListeVoixPersonnage()`. La fonction de liste du panneau a été
+     renommée **`_lignesVoixListe`** : elle sert désormais les DEUX endroits, et
+     son ancien nom (« Phrase ») serait devenu trompeur.
+     *Défaut trouvé par les tests, et corrigé* : la voix hors liste s'affichait
+     **au-dessus de son titre** (« ⚠️ Voix actuelle ») — un `unshift` de trop dans
+     le bon ordre ; le titre passe maintenant en premier.
+     *Tests réécrits* (ils éprouvaient le menu déroulant) :
+     `test_voix/test_filtre_genre.js` et `test_voix/test_voix_ecoutables.js`
+     (sur la fonction pure, **sans faux DOM** : on éprouve la règle, pas le
+     dessin), `test_voix/test_etat_casting.js` (borne de tranche) et
+     `test_voix/test_tiroir_voix_libres.js` (l'annulation ET le verrou remettent
+     l'ancienne voix : les deux sont vérifiés maintenant, pas une seule).
+     *Fichiers* : `frontend/app.js`, `frontend/styles.css` (`.cast-voice-btn`,
+     `.voix-liste-encart`), assets en `?v=20260922-6` — copies datées
+     `*.bak_avant_liste_voix_20260922` (prises avant l'étape 1).
+     *À voir par Laurent* : ouvrir le casting, taper sur le bouton de voix d'un
+     personnage — la liste se déplie dessous, deux lignes par voix, au thème.
+     *Suite* : **étape 3** (la voix du narrateur, dans le pied du lecteur).
   3. **Une voix ne doit pas être remplacée toute seule** : quand le moteur
      Pocket TTS s'est endormi (panne du matin), Laurent a retrouvé **une autre
      voix** sur son personnage — « ça m'oblige à re-sélectionner la voix pocket

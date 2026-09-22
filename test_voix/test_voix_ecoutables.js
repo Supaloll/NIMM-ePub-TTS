@@ -1,10 +1,12 @@
 // Verifie le sort d'une voix dont le moteur n'est pas pret dans la fenetre du
 // casting (session du 14/09/2026).
 // ----------------------------------------------------------------------
-// Meme technique que test_filtre_genre.js : la fonction _construireMenuVoix
-// est extraite DU FICHIER REEL (jamais recopiee : renommee ou deplacee, le
-// test echoue bruyamment), avec un faux DOM minimal et l'etat des moteurs tel
-// que /api/moteurs le renvoie.
+// Meme technique que test_filtre_genre.js : la fonction `_lignesVoixPersonnage`
+// (elle s'appelait `_construireMenuVoix` jusqu'au 22/09/2026, quand c'etait
+// encore un menu deroulant) est extraite DU FICHIER REEL (jamais recopiee :
+// renommee ou deplacee, le test echoue bruyamment), avec l'etat des moteurs tel
+// que /api/moteurs le renvoie. Depuis qu'elle rend une LISTE DE LIGNES, il n'y a
+// plus besoin de faux DOM : on eprouve la regle, pas le dessin.
 //
 // Demande de Laurent : une voix qu'on ne peut pas ecouter tout de suite ne
 // doit pas etre proposee ; et un personnage qui en portait une doit afficher
@@ -19,25 +21,14 @@ const path = require('path');
 const APP = path.join(__dirname, '..', 'frontend', 'app.js');
 const source = fs.readFileSync(APP, 'utf8');
 
-const debut = source.indexOf('function _construireMenuVoix');
+const debut = source.indexOf('function _lignesVoixPersonnage');
 let fin = source.indexOf('function _openCastModal');
 if (fin > 0 && source.slice(fin - 6, fin) === 'async ') fin -= 6;
 if (debut < 0 || fin <= debut) {
-  console.error('ECHEC : fonction _construireMenuVoix introuvable dans app.js');
+  console.error('ECHEC : fonction _lignesVoixPersonnage introuvable dans app.js');
   process.exit(1);
 }
 const codeFonction = source.slice(debut, fin);
-
-// --- faux DOM, juste ce qu'il faut ---
-function fauxElement(tag) {
-  return {
-    tag, className: '', textContent: '', label: '', value: '',
-    children: [],
-    appendChild(enfant) { this.children.push(enfant); return enfant; },
-    classList: { toggle() {}, add() {}, remove() {} },
-  };
-}
-const fauxDocument = { createElement: fauxElement };
 
 const VOIX_KYUTAI = 'kyutai:12205_11650_000004-0002';
 
@@ -68,25 +59,40 @@ const MOTEURS_PRETS = {
 function menuPour(voixActuelle, catalogue, etatMoteurs, noms) {
   const corps = 'var _castGenreFiltre = "T";\n'
     + 'var _moteursEtat = ' + JSON.stringify(etatMoteurs || {}) + ';\n'
-    + codeFonction + '\nreturn _construireMenuVoix;';
-  const fabrique = new Function('document', '_allVoices', '_libelleCatalogue', corps);
+    + codeFonction + '\nreturn _lignesVoixPersonnage;';
+  const fabrique = new Function('_allVoices', '_libelleCatalogue', corps);
   // `noms` = catalogue complet (id -> libelle). Sans lui, la fonction se
   // comporte comme avant le 15/09/2026 : message generique sans prenom.
   const libelle = (id) => (noms || {})[id] || '';
-  const construire = fabrique(fauxDocument, catalogue, libelle);
+  const construire = fabrique(catalogue, libelle);
   return construire(voixActuelle);
 }
 
-function groupes(select) {
-  return select.children.map(g => g.label);
+// --- Helpers : on lit les LIGNES, pas un menu. ---
+function groupes(lignes) {
+  return lignes.filter(l => l.genre === 'groupe').map(l => l.libelle);
 }
-function optionsDe(select, label) {
-  const groupe = select.children.find(g => g.label === label);
-  return groupe ? groupe.children.map(o => o.value) : [];
+function optionsDe(lignes, label) {
+  const ids = [];
+  let dedans = false;
+  lignes.forEach(l => {
+    if (l.genre === 'groupe') dedans = (l.libelle === label);
+    else if (dedans) ids.push(l.id);
+  });
+  return ids;
 }
-function libellesDe(select, label) {
-  const groupe = select.children.find(g => g.label === label);
-  return groupe ? groupe.children.map(o => o.textContent) : [];
+// Ce qui s'ecrit pour une voix : sa ligne 1, puis sa ligne 2 (moteur + etat).
+function libellesDe(lignes, label) {
+  const ids = optionsDe(lignes, label);
+  return ids.map(id => {
+    const l = lignes.find(x => x.genre === 'voix' && x.id === id);
+    return l ? (l.identite + (l.deuxiemeLigne ? ' ' + l.deuxiemeLigne : '')) : '';
+  });
+}
+// La voix que la liste marque comme celle du personnage (le ✔).
+function voixActive(lignes) {
+  const l = lignes.find(x => x.genre === 'voix' && x.actuelle);
+  return l ? l.id : null;
 }
 
 const AVERTISSEMENT = '\u26A0\uFE0F Voix introuvable';
@@ -112,8 +118,8 @@ verifier('ce n\'est PAS le message « voix introuvable »',
 verifier('le libelle dit « Pas de voix - Kyutai eteint »',
   libellesDe(a, PAS_DE_VOIX('Kyutai eteint'))[0] === 'Pas de voix \u2014 Kyutai eteint',
   libellesDe(a, PAS_DE_VOIX('Kyutai eteint'))[0]);
-verifier('la voix du personnage reste selectionnee (aucune substitution silencieuse)',
-  a.value === VOIX_KYUTAI, a.value);
+verifier('la voix du personnage reste marquee d un ✔ (aucune substitution silencieuse)',
+  voixActive(a) === VOIX_KYUTAI, String(voixActive(a)));
 verifier('les voix encore ecoutables sont bien proposees',
   optionsDe(a, '\uD83D\uDC69 Femmes').includes('fr-CH-ArianeNeural'));
 
@@ -155,7 +161,8 @@ console.log('5) voix normale (Edge) alors que les moteurs sont eteints');
 const e = menuPour('fr-CH-ArianeNeural', CATALOGUE_SANS_KYUTAI, MOTEURS_ETEINTS);
 verifier('aucun avertissement : elle est toujours ecoutable',
   !groupes(e).some(g => g.indexOf('\u26A0\uFE0F') === 0), groupes(e).join(' | '));
-verifier('elle reste selectionnee', e.value === 'fr-CH-ArianeNeural', e.value);
+verifier('elle reste marquee d un ✔', voixActive(e) === 'fr-CH-ArianeNeural',
+  String(voixActive(e)));
 
 console.log('6) etat des moteurs inconnu (echec de /api/moteurs) : securite');
 const f = menuPour(VOIX_KYUTAI, CATALOGUE_SANS_KYUTAI, {});

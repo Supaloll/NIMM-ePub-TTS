@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260921-5" />
+  <link rel="stylesheet" href="/static/styles.css?v=20260922-6" />
 </head>
 <body>
   <div id="app">
@@ -214,6 +214,35 @@
           </button>
         </div>
 
+        <!-- =========== POIGNÉE DU TIROIR DU MENU (22/09/2026) ===========
+             Demande de Laurent : « Pour le menu du bas, on va faire un tiroir.
+             Il faut afficher uniquement les boutons de lecture [...]. Dessous,
+             tout le reste du menu qui s'ouvre en ouvrant ce menu tiroir. »
+             La barre du bas ne garde donc que les SEPT commandes de lecture
+             (la barre de progression comprise) ; tout ce qui se règle une fois
+             puis s'oublie -- voix multiples, écouter les voix, onglets, lecture
+             rapide, vider le cache, voix du narrateur, vitesse, voyant
+             « réparer » -- est rangé dans #reader-settings, juste en dessous.
+             Le chevron regarde en l'air quand le tiroir est fermé (il s'ouvre
+             vers le haut) et se retourne quand il est ouvert : le CSS ne fait
+             que DESSINER l'état porté par `aria-expanded`, tenu à jour par
+             _appliquerTiroirLecteur (app.js).
+             `aria-expanded="true"` ici parce que #reader-settings n'est pas
+             caché dans la page : sur ordinateur le tiroir est ouvert d'emblée,
+             et sur téléphone le script le replie dès l'entrée dans le lecteur.
+             Sur ordinateur, la poignée disparaît (styles.css) : le tiroir y est
+             toujours ouvert, la place ne manque pas. -->
+        <button type="button" id="reader-tiroir-btn" aria-expanded="true"
+                aria-controls="reader-settings"
+                aria-label="Fermer le menu du lecteur">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
+               stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 15 12 9 18 15"/>
+          </svg>
+          Menu
+        </button>
+
         <div id="reader-settings">
           <button id="multivoice-btn" aria-label="Activer les voix multiples par personnage">
             🎭 Voix multiples
@@ -314,8 +343,26 @@
           <span id="voice-phrase-personnage"></span>
           <span id="voice-phrase-voix"></span>
         </div>
-        <label id="voice-phrase-label" for="voice-phrase-select">Changer la voix</label>
-        <select id="voice-phrase-select" aria-label="Choix de la voix"></select>
+        <label id="voice-phrase-label">Changer la voix</label>
+        <!-- ===== LA LISTE DES VOIX, EN CLAIR (22/09/2026) =====
+             Un MENU DÉROULANT occupait cette place. Le problème, mesuré : la
+             liste ouverte est dessinée par le TÉLÉPHONE (fond clair, grosse
+             police), et son libellé ne peut ni passer à la ligne sur commande ni
+             se replier proprement — Laurent : « ça n'est pas très lisible en
+             l'état ». Cette liste-ci est faite de VRAIS éléments de page : elle
+             prend donc le thème de l'application, et chaque voix se lit sur DEUX
+             lignes :
+               1re : symbole, prénom, drapeaux, âge et timbre ;
+               2e  : icône du moteur, puis l'état (« · LIBRE », « · Edmond »...).
+             Un tap sur une ligne CHOISIT cette voix ; le ▶ l'écoute sans rien
+             changer. Le champ de recherche n'est pas un confort : il y a jusqu'à
+             175 voix, et un menu déroulant les faisait défiler à l'aveugle. -->
+        <div id="voice-phrase-tools">
+          <input type="search" id="voice-phrase-recherche"
+                 placeholder="Rechercher une voix..." aria-label="Rechercher une voix">
+          <span id="voice-phrase-recap"></span>
+        </div>
+        <ul id="voice-phrase-liste" role="list" aria-label="Voix disponibles"></ul>
         <!-- Etat de la voix choisie, ECRIT (19/09/2026) : « Libre », « Portee par
              Edmond (300 repliques) », « Partagee par 3 personnages : ... ».
              En texte et non au survol : sur mobile, ni survol ni appui long. -->
@@ -564,113 +611,158 @@
     <div id="cast-modal" class="modal-overlay hidden" role="dialog"
          aria-modal="true" aria-label="Casting des voix">
       <div class="modal-box cast-box">
+        <!-- En-tete COMPACT (22/09/2026). Avant, vingt et un controles
+             s'empilaient ici : sur un telephone il ne restait presque rien pour
+             la liste des personnages, et le bas de la fenetre passait sous
+             l'ecran -- le detail « partagee avec ... » (les noms cliquables)
+             devenait donc inatteignable. Il ne reste que ce qu'on touche tout
+             le temps : le bouton de recherche, le bouton Filtres (le tiroir des
+             reglages), et la fermeture. -->
         <div id="cast-modal-header">
           <h3>Casting des voix</h3>
-          <button id="cast-close-btn" aria-label="Fermer">&#x2715;</button>
+          <div id="cast-head-actions">
+            <button id="cast-search-btn" aria-label="Rechercher un personnage"
+                    aria-expanded="false" aria-controls="cast-search-bar"
+                    title="Rechercher un personnage par son nom">&#x1F50E;</button>
+            <button id="cast-filtres-btn" aria-label="Filtres du casting"
+                    aria-expanded="false" aria-controls="cast-tools"
+                    title="Voix proposees, age, genre, saga, re-cast">
+              &#x2699;&#xFE0F; Filtres
+            </button>
+            <button id="cast-close-btn" aria-label="Fermer">&#x2715;</button>
+          </div>
         </div>
         <!-- Barre de recherche des personnages (20/09/2026, item du BACKLOG du
              14/09/2026). Sur un livre a 176 personnages, retrouver un nom a la
-             main etait long. Meme look que la recherche de « Ecouter les voix »,
-             placee tout en haut pour etre trouvee du premier coup d'oeil.
+             main etait long. Meme look que la recherche de « Ecouter les voix ».
+             Depuis le 22/09/2026 elle est CACHEE jusqu'au tap sur le bouton de
+             recherche : c'est ce qui rend la place a la liste des personnages.
+             Elle s'ouvre aussi d'elle-meme tant qu'une recherche est en cours,
+             sans quoi on ne verrait plus ce qui filtre la liste, ni comment
+             l'effacer.
              Dans l'onglet « Voix libres », la liste ne montre plus des
              personnages mais des VOIX : la meme barre cherche alors leur
              prenom, sinon elle aurait l'air morte. -->
-        <div id="cast-search-bar">
+        <div id="cast-search-bar" class="hidden">
           <input type="search" id="cast-search"
                  placeholder="Rechercher un personnage..."
                  aria-label="Rechercher un personnage">
           <span id="cast-search-resume"></span>
         </div>
-        <div id="cast-saga-bar">
-          <input type="text" id="cast-saga-input" list="cast-saga-list"
-                 placeholder="Nom de la saga (optionnel)" />
-          <datalist id="cast-saga-list"></datalist>
-          <button id="cast-propagate-btn" title="Pousser ce casting vers tous les tomes de la saga">
-            Appliquer à toute la saga
-          </button>
-        </div>
-        <div id="cast-gender-bar">
-          <span>Voix proposées :</span>
-          <div id="cast-gender-actions">
-            <button type="button" data-genre="T" class="actif">Toutes</button>
-            <!-- Symboles ecrits avec leur SELECTEUR EMOJI (&#xFE0F;) : sans lui,
-                 ils s'affichent en petit noir et blanc selon les claviers
-                 (piege signale au BACKLOG du 19/09/2026). « Toutes » n'en porte
-                 pas : ce sont les deux genres a la fois. -->
-            <button type="button" data-genre="F">&#x2640;&#xFE0F; Femmes</button>
-            <button type="button" data-genre="M">&#x2642;&#xFE0F; Hommes</button>
-          </div>
-        </div>
-        <!-- Etat des PERSONNAGES (a ne pas confondre avec la barre ci-dessus,
-             qui ne filtre que les voix proposees dans les menus) :
+        <!-- Etat des PERSONNAGES (a ne pas confondre avec « Voix proposees »,
+             qui ne filtre que les voix des menus deroulants) :
              « a caster » = ce personnage parle souvent mais porte encore la
              voix generique ; « voix partagee » = plusieurs personnages ont le
              meme timbre, a differencier par la hauteur.
              « Voix libres » (19/09/2026) est different : ce n'est plus une
              liste de personnages, mais l'inventaire des voix que PERSONNE ne
-             porte encore -- celles ou piocher, avec ▶ pour les ecouter. -->
+             porte encore -- celles ou piocher, avec ▶ pour les ecouter.
+             Depuis le 22/09/2026, les pastilles sont sur UNE SEULE LIGNE qui
+             defile au doigt : quatre boutons qui passaient a la ligne
+             prenaient deux ou trois rangs, et chaque rang coutait une ligne de
+             la liste des personnages. Le « Personnages : » qui les annoncait a
+             disparu pour la meme raison -- les pastilles se lisent seules. -->
         <div id="cast-etat-bar">
-          <span>Personnages :</span>
           <div id="cast-etat-actions">
             <button type="button" data-etat="T" class="actif">Tous</button>
             <button type="button" data-etat="caster">&#x26A0; À caster</button>
             <button type="button" data-etat="partagee">&#x29C9; Voix partagée</button>
             <button type="button" data-etat="libres">&#x1F513; Voix libres</button>
           </div>
+        </div>
+        <!-- Ce que la liste montre VRAIMENT, en petit et toujours visible
+             (22/09/2026) : le compte du livre, le compte du filtre d'age ou de
+             genre quand il est actif, et l'explication des voix dont le moteur
+             est eteint. Ces lignes vivaient dans les barres de filtre, donc
+             dans le tiroir replie : un filtre reste actif aurait fait ressembler
+             le livre a une liste amputee. -->
+        <div id="cast-info-bar">
           <span id="cast-etat-resume"></span>
-          <!-- Voix invisibles dans le tiroir parce que leur moteur est eteint
-               (14/09/2026 : /api/voices ne propose que les voix ecoutables tout
-               de suite). Sans ce message, on croirait qu'elles sont prises. -->
+          <span id="cast-filtre-resume"></span>
           <span id="cast-libres-info"></span>
         </div>
-        <!-- Filtre par AGE DE LA VOIX et par GENRE DU PERSONNAGE (21/09/2026).
-             Demande de Laurent : « Un filtre ; Homme / Femme et les 4 âges.
-             Cliquer sur "jeune" n'affiche que les jeunes. Les boutons qui sont
-             actifs affichent la catégorie. »
-             A NE PAS CONFONDRE avec la barre « Voix proposées » plus haut : elle
-             ne filtre que les voix des menus déroulants, celle-ci fait
-             disparaître des LIGNES de personnages. L'âge est celui de la VOIX
-             portée (les quatre catégories de ses annotations d'écoute, servies
-             par une seule liste côté serveur) ; le genre est celui de la FICHE
-             du personnage. -->
-        <div id="cast-filtre-bar">
-          <span>Voix des personnages :</span>
-          <div id="cast-age-actions">
-            <button type="button" data-age="T" class="actif">Tous les âges</button>
-            <!-- Les quatre âges, avec les repères demandés par Laurent. Les
-                 emojis sont écrits en entités, avec leur SÉLECTEUR EMOJI
-                 (&#xFE0F;) là où il en faut un : sans lui, ils s'affichent en
-                 petit noir et blanc selon les claviers (piège du 19/09/2026). -->
-            <button type="button" data-age="enfant">&#x1F466; Enfant</button>
-            <button type="button" data-age="jeune">&#x1F468;&#x200D;&#x1F9B1; Jeune</button>
-            <button type="button" data-age="adulte">&#x1F9D1;&#x200D;&#x1F9B2; Adulte</button>
-            <button type="button" data-age="vieux">&#x1F474; Vieux</button>
+        <!-- LE TIROIR DES REGLAGES (22/09/2026). Tout ce qui se regle une fois
+             puis s'oublie est ici, derriere le bouton Filtres de l'en-tete :
+             voix proposees dans les menus, age de la voix, genre du personnage,
+             saga, re-cast. Replie par defaut sur telephone, ouvert sur
+             ordinateur (voir _castOutilsDoiventEtreOuverts, app.js). -->
+        <div id="cast-tools" class="hidden">
+          <div id="cast-gender-bar">
+            <span>Voix proposées :</span>
+            <div id="cast-gender-actions">
+              <button type="button" data-genre="T" class="actif">Toutes</button>
+              <!-- Symboles ecrits avec leur SELECTEUR EMOJI (&#xFE0F;) : sans lui,
+                   ils s'affichent en petit noir et blanc selon les claviers
+                   (piege signale au BACKLOG du 19/09/2026). « Toutes » n'en porte
+                   pas : ce sont les deux genres a la fois. -->
+              <button type="button" data-genre="F">&#x2640;&#xFE0F; Femmes</button>
+              <button type="button" data-genre="M">&#x2642;&#xFE0F; Hommes</button>
+            </div>
           </div>
-          <div id="cast-perso-genre-actions">
-            <button type="button" data-perso="T" class="actif">Hommes et femmes</button>
-            <button type="button" data-perso="F">&#x2640;&#xFE0F; Femmes</button>
-            <button type="button" data-perso="H">&#x2642;&#xFE0F; Hommes</button>
+          <!-- (les pastilles d'etat et les compteurs sont remontes juste sous la
+               barre de recherche : 22/09/2026) -->
+          <!-- Filtre par AGE DE LA VOIX et par GENRE DU PERSONNAGE (21/09/2026).
+               Demande de Laurent : « Un filtre ; Homme / Femme et les 4 âges.
+               Cliquer sur "jeune" n'affiche que les jeunes. Les boutons qui sont
+               actifs affichent la catégorie. »
+               A NE PAS CONFONDRE avec la barre « Voix proposées » plus haut : elle
+               ne filtre que les voix des menus déroulants, celle-ci fait
+               disparaître des LIGNES de personnages. L'âge est celui de la VOIX
+               portée (les quatre catégories de ses annotations d'écoute, servies
+               par une seule liste côté serveur) ; le genre est celui de la FICHE
+               du personnage. -->
+          <div id="cast-filtre-bar">
+            <span>Voix des personnages :</span>
+            <div id="cast-age-actions">
+              <button type="button" data-age="T" class="actif">Tous les âges</button>
+              <!-- Les quatre âges, avec les repères demandés par Laurent. Les
+                   emojis sont écrits en entités, avec leur SÉLECTEUR EMOJI
+                   (&#xFE0F;) là où il en faut un : sans lui, ils s'affichent en
+                   petit noir et blanc selon les claviers (piège du 19/09/2026). -->
+              <button type="button" data-age="enfant">&#x1F466; Enfant</button>
+              <button type="button" data-age="jeune">&#x1F468;&#x200D;&#x1F9B1; Jeune</button>
+              <button type="button" data-age="adulte">&#x1F9D1;&#x200D;&#x1F9B2; Adulte</button>
+              <button type="button" data-age="vieux">&#x1F474; Vieux</button>
+            </div>
+            <div id="cast-perso-genre-actions">
+              <button type="button" data-perso="T" class="actif">Hommes et femmes</button>
+              <button type="button" data-perso="F">&#x2640;&#xFE0F; Femmes</button>
+              <button type="button" data-perso="H">&#x2642;&#xFE0F; Hommes</button>
+            </div>
           </div>
-          <span id="cast-filtre-resume"></span>
-        </div>
+          <!-- La barre de SAGA descend ici (22/09/2026) : elle sert rarement (on
+               nomme la saga d'un livre une fois pour toutes), et elle occupait une
+               rangee entiere en haut de la fenetre. -->
+          <div id="cast-saga-bar">
+            <input type="text" id="cast-saga-input" list="cast-saga-list"
+                   placeholder="Nom de la saga (optionnel)" />
+            <datalist id="cast-saga-list"></datalist>
+            <button id="cast-propagate-btn" title="Pousser ce casting vers tous les tomes de la saga">
+              Appliquer à toute la saga
+            </button>
+          </div>
+          <!-- Les trois gros boutons de re-cast (22/09/2026) : ils changent le
+               casting de tout un livre, donc ils descendent dans le tiroir -- plus
+               besoin de les avoir sous les yeux pendant qu'on caste a la main. -->
+          <div id="cast-recast-bar">
+            <span id="cast-recast-hint">&#x1F512; = garder cette voix au re-cast</span>
+            <div id="cast-recast-actions">
+              <button id="cast-autogroup-btn"
+                      title="Regroupe les personnages ecrits de plusieurs facons (accents, tirets, article en trop). Gratuit et reversible.">
+                Regrouper doublons
+              </button>
+              <button id="cast-recast-btn"
+                      title="Redistribuer les voix non verrouillees dans le catalogue actuel (gratuit, sans appel IA)">
+                Re-caster (gratuit)
+              </button>
+              <button id="cast-recast-ia-btn"
+                      title="Redistribuer les voix en laissant l'IA LIRE les repliques de chaque personnage : elle en deduit la position sociale, le registre de langue, s'il parle etranger et son temperament. Quelques centimes, verrous et sagas respectes.">
+                Re-caster avec l'IA
+              </button>
+            </div>
+          </div>
+        </div><!-- /#cast-tools -->
         <ul id="cast-list" role="list"></ul>
-        <div id="cast-recast-bar">
-          <span id="cast-recast-hint">&#x1F512; = garder cette voix au re-cast</span>
-          <div id="cast-recast-actions">
-            <button id="cast-autogroup-btn"
-                    title="Regroupe les personnages ecrits de plusieurs facons (accents, tirets, article en trop). Gratuit et reversible.">
-              Regrouper doublons
-            </button>
-            <button id="cast-recast-btn"
-                    title="Redistribuer les voix non verrouillees dans le catalogue actuel (gratuit, sans appel IA)">
-              Re-caster (gratuit)
-            </button>
-            <button id="cast-recast-ia-btn"
-                    title="Redistribuer les voix en laissant l'IA LIRE les repliques de chaque personnage : elle en deduit la position sociale, le registre de langue, s'il parle etranger et son temperament. Quelques centimes, verrous et sagas respectes.">
-              Re-caster avec l'IA
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -783,6 +875,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260921-5"></script>
+  <script src="/static/app.js?v=20260922-6"></script>
 </body>
 </html>

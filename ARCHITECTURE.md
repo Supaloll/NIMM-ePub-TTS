@@ -824,21 +824,40 @@ d'une phrase et pouvoir la changer — sans que le tap lance la lecture.
   La voix est **nommée par le catalogue** (`_libelleCatalogue`), jamais par son
   identifiant technique, et les réglages non neutres sont rappelés
   (« vitesse +10 % · hauteur −8 Hz »).
-- **Changement** : menu des voix construit par `_remplirMenuVoixPhrase()`
-  (groupes Femmes / Hommes / Autres, comme la fenêtre du casting). Une voix en
-  place mais **non proposée** (moteur éteint) est **ajoutée au menu** avec son
-  nom : elle ne peut donc pas être remplacée en silence. Pour un **personnage**,
-  l'enregistrement passe par `_updateCharacterVoice()` (route
-  `PUT /api/books/{id}/cast/voice`, la même que la fenêtre du casting) —
-  elle renvoie maintenant **`true`/`false`** pour que le panneau dise si
-  l'enregistrement a réussi ; pour *Narration*, c'est `#voice-select` (voix du
-  lecteur) qui est changé. Dans les deux cas, une lecture en cours est
-  **relancée** pour que le changement s'entende tout de suite (playlist figée
-  par construction, cf. la règle du 15/09/2026).
+- **Changement — la LISTE des voix (22/09/2026)** : un **menu déroulant**
+  (`_remplirMenuVoixPhrase`, groupes Femmes / Hommes / Autres) occupait cette
+  place. Il a été **remplacé** par une **liste de l'application** (voie **B**,
+  choisie par Laurent) : la liste ouverte d'un menu déroulant est **dessinée par
+  le téléphone** (fond clair, grosse police), et son libellé ne peut **pas**
+  passer à la ligne sur commande — c'est **mesuré**, voir « Le saut de ligne dans
+  un libellé de menu » plus haut. La liste, elle, est faite de vrais éléments de
+  page : elle prend le thème, et chaque voix s'écrit sur **DEUX lignes**
+  — `♀️ Anna 🇫🇷 adulte grave`, puis `🧬 · LIBRE` (état de la voix). Un **▶** par
+  voix l'écoute **sans rien changer**, un **tap sur la ligne** choisit la voix
+  (marquée d'un **✔** et d'un liséré doré), et un **champ de recherche** filtre
+  par prénom ou provenance — jusqu'à 175 voix, là où le menu les faisait défiler
+  à l'aveugle. Architecture : `_lignesVoixPhrase()` est une fonction **pure**
+  (elle rend les lignes : groupes, tri par prénom, recherche, et la voix en place
+  mais plus proposée gardée sous « ⚠️ Voix actuelle »), `_peindreListeVoixPhrase()`
+  les dessine, et `_choisirVoixPhrase()` reprend **exactement** l'ancien
+  gestionnaire `change`. Pour un **personnage**, l'enregistrement passe par
+  `_updateCharacterVoice()` (route `PUT /api/books/{id}/cast/voice`, la même que
+  la fenêtre du casting) — elle renvoie **`true`/`false`** pour que le panneau
+  dise si l'enregistrement a réussi ; pour *Narration*, c'est `#voice-select`
+  (voix du lecteur) qui est changé. Dans les deux cas, une lecture en cours est
+  **relancée** pour que le changement s'entende tout de suite (playlist figée par
+  construction, cf. la règle du 15/09/2026). *Coût assumé et annoncé* : **un tap
+  de plus** pour changer une voix. Le libellé d'une voix est resté **d'une
+  ligne** partout ailleurs : `_libelleVoix` est désormais l'assemblage de
+  `_identiteVoix()` (symbole, prénom, drapeaux, âge, timbre) et de
+  `_iconeMoteurVoix()` (l'icône du moteur).
 - **Aperçu** : bouton « ▶ Écouter » (`_apercuVoixPhrase()`) — la voix
   choisie dit un extrait **de la phrase ouverte**, avec la vitesse et la
   hauteur du personnage (celles du lecteur pour la narration) ; si le moteur
-  est éteint, le panneau l'indique sans se bloquer.
+  est éteint, le panneau l'indique sans se bloquer. Depuis le 22/09/2026, la
+  fonction prend **la voix et le bouton** (`_apercuVoixPhrase(voixId, btn)`) :
+  chaque ▶ de la liste écoute **SA** voix, et le bouton du bas écoute la voix
+  marquée.
 - **Porte vers le casting (20/09/2026)** : bouton **« 🎭 Ouvrir dans le
   casting »** (`#voice-phrase-cast-btn`). Idée de Laurent le jour même : « cette
   modale est moins riche que Casting des voix ». Le panneau ne change qu'**une**
@@ -863,8 +882,12 @@ d'une phrase et pouvoir la changer — sans que le tap lance la lecture.
   changent, il pointerait sur la mauvaise phrase).
 - **Présentation** : feuille collée en bas d'écran sur mobile (avec l'animation
   `slide-up`), petite fenêtre centrée à partir de 641 px de large
-  (`frontend/styles.css`). *Vérification* : `test_voix/test_voix_phrase.js`
-  (**34 contrôles**, sans navigateur, dont **5 pour la porte** vers le casting).
+  (`frontend/styles.css`). La **liste des voix** défile **elle-même**
+  (`max-height: 38vh`) : les boutons du bas (« ▶ Écouter », « 🎭 Ouvrir dans le
+  casting ») restent donc atteignables, même avec 175 voix. *Vérification* :
+  `test_voix/test_voix_phrase.js` (**50 contrôles**, sans navigateur, dont
+  **19 pour la liste des voix** — deux lignes, groupes, tri, recherche, voix hors
+  liste — et **5 pour la porte** vers le casting).
 
 ### Navigation
 
@@ -926,6 +949,49 @@ voisins.
 
 La navigation pendant la lecture coupe le TTS en cours et repart
 immédiatement depuis la nouvelle position du curseur.
+
+### Le tiroir du menu du bas (22/09/2026)
+
+Demande de Laurent : « Pour le menu du bas, on va faire un tiroir. Il faut
+afficher uniquement les boutons de lecture […]. Dessous, tout le reste du menu
+qui s'ouvre en ouvrant ce menu tiroir. »
+
+Le pied du lecteur (`#reader-footer`) est donc coupé en deux par une **poignée**,
+`#reader-tiroir-btn` (un chevron SVG et le mot « Menu »), placée **entre**
+`#reader-nav` (les sept commandes de lecture) et `#reader-settings` (tout le
+reste) :
+
+| Partie | Contenu | Affichage |
+|---|---|---|
+| Haut | `#tts-progress-row` + `#reader-nav` | toujours visible |
+| Poignée | `#reader-tiroir-btn` | visible sur téléphone, **masquée au-delà de 641 px** |
+| Tiroir | `#reader-settings` : voix multiples, écouter les voix, onglets, lecture rapide, vider le cache, voix du narrateur, vitesse, voyant « Réparer » | **replié sur téléphone**, toujours ouvert sur ordinateur |
+
+*Deux règles, les mêmes que pour le tiroir du casting* : l'état de départ est
+`null` (`let _tiroirLecteurOuvert = null;`) — tant que Laurent n'a pas touché la
+poignée, le tiroir **suit la taille de l'écran**
+(`_tiroirLecteurDoitEtreOuvert`, fonction **pure**, éprouvée par
+`test_voix/test_tiroir_lecteur.js`) ; dès qu'il la touche, **son choix l'emporte**
+pour toute la session, y compris après une rotation du téléphone.
+
+*L'état est porté par `aria-expanded`, jamais par le dessin* :
+`_appliquerTiroirLecteur()` masque ou montre `#reader-settings` (classe
+`hidden`), pose `aria-expanded` et le libellé d'accessibilité, et **le CSS ne
+fait que dessiner cet état** — le chevron se retourne
+(`#reader-tiroir-btn[aria-expanded="true"] svg { transform: rotate(180deg); }`)
+et la poignée prend la couleur d'accent. Le tiroir s'ouvre **vers le haut**,
+d'où le chevron qui regarde en l'air quand il est fermé. Ce qu'annonce un lecteur
+d'écran ne peut donc pas contredire ce qu'on voit.
+
+Elle est appliquée à l'**entrée dans le lecteur** (`showView('reader')`) et au
+**redimensionnement** — ce dernier seulement tant que Laurent n'a pas donné son
+avis.
+
+*Mesuré* (`test_voix/test_tiroir_lecteur_rendu.py`, Playwright, le vrai pied du
+lecteur sur 360 px de large) : **137 px** de pied replié contre **249 px** ouvert
+— **112 px rendus au texte** —, poignée de **332 × 26 px**, les sept boutons sur
+**une seule ligne**, aucun débordement ; sur ordinateur (1200 px), la poignée
+**n'existe pas** et les réglages restent affichés, comme avant.
 
 ### Préchargement audio (lecture phrase par phrase — session du 08/09/2026)
 Lecture **phrase par phrase** : chaque phrase est synthétisée en un fichier
@@ -1985,6 +2051,23 @@ n'affiche aucune icône. **Corrigé au passage** : le menu de filtre des moteurs
 **n'avait pas l'option NeuTTS**, alors que ses voix sont proposées par
 `/api/voices` — on ne pouvait donc pas les isoler.
 
+**Le saut de ligne dans un libellé de menu : impossible — et mesuré
+(22/09/2026).** Laurent a demandé s'il était possible de **forcer** un saut de
+ligne dans le libellé d'une voix, pour lire « prénom, drapeaux, âge et timbre »
+sur la première ligne et « moteur, porteur de la voix / LIBRE » sur la seconde.
+La réponse est **non** : un libellé qui porte un saut de ligne occupe
+**exactement la même hauteur** qu'un autre — le navigateur **aplatit** le saut,
+**même** avec `white-space: pre-line` sur les options (la règle s'applique bien à
+l'option, la hauteur ne bouge pas). Mesure :
+`test_voix/test_libelle_deux_lignes_rendu.py`. Il ne reste que le repli
+**automatique** d'un libellé trop long, et il est **subi** : on ne choisit pas où
+il tombe. Le `\n` et la règle CSS ont donc été **retirés le jour même**, avec une
+trace écrite dans `app.js` (`_libelleVoix`) et `styles.css` — pour que l'essai ne
+soit pas refait. Une seconde ligne **choisie** demande une **liste de
+l'application** (de vrais éléments de page, comme le tiroir des voix libres), pas
+un `<select>` : c'est l'un des deux chemins laissés au choix de Laurent (BACKLOG,
+priorité 2).
+
 *Fichiers* : `frontend/app.js` (`FAMILLES_VOIX`, `_iconeFamille`,
 `_libelleFamilleIcone`, `_libelleVoix`, `_libelleMoteur`, `_construireLigneVoix`,
 `_afficherVoixLibres`, `_majInfoVoixLibres`), `frontend/index.html`
@@ -2060,7 +2143,8 @@ l'identifiant brut. Trois correctifs :
    du catalogue (voix retirée, livre casté avec un autre catalogue).
 
 *Fichiers* : `main.py` (route), `frontend/app.js` (`_catalogueVoix`,
-`loadCatalogueVoix`, `_libelleCatalogue`, `_construireMenuVoix`,
+`loadCatalogueVoix`, `_libelleCatalogue`, `_lignesVoixPersonnage` — qui remplace
+`_construireMenuVoix` depuis le 22/09/2026 —,
 `_openCastModal(rafraichirVoix)`). *Vérifications* :
 `test_voix/test_libelles_voix.py` (catalogue complet, « Alphonse » pour
 `xtts:cml9804`, `dispo` comparé à `/api/moteurs`, et contrôle sur un vrai livre
@@ -2253,6 +2337,12 @@ voix multiples, sans attendre une réanalyse complète du livre.
 **Ouverture :** clic sur le bouton "🎭" du lecteur une fois à l'état
 "Voix multiples actives" (`cast_status === 'done'`) → `_openCastModal()`.
 
+**En-tête compact (22/09/2026).** La fenêtre ne porte plus que **trois**
+commandes (recherche, Filtres, fermeture) : les filtres, la saga et les boutons
+de re-cast sont rangés dans un **tiroir des réglages** repliable, la fenêtre ne
+dépasse plus l'écran et la liste des personnages garde une hauteur minimale.
+Voir la section « En-tête compact de la fenêtre du casting ».
+
 **Filtre par genre des voix proposées (12/09/2026).** Le catalogue ayant
 atteint **135 voix** (73 femmes, 62 hommes), les menus du casting sont
 désormais **organisés par genre** : un groupe **👩 Femmes** et un groupe
@@ -2265,17 +2355,32 @@ attribuée** reste toujours visible (groupe « ⚠️ Voix actuelle ») même si
 filtre la masque — sinon on croirait que le personnage n'a plus de voix ; et
 une voix qui n'existe plus au catalogue s'affiche dans un groupe « ⚠️ Voix
 introuvable » plutôt que de laisser le menu montrer une autre voix en
-silence. Construction : `_construireMenuVoix()` dans `app.js`.
+silence.
+**Depuis le 22/09/2026, il n'y a plus de menu déroulant du tout (voie B choisie
+par Laurent)** : la liste des voix est une **liste de l'application** — de vrais
+éléments de page, donc au thème — et chaque voix s'écrit sur **DEUX lignes** :
+l'identité (symbole, prénom, drapeaux, âge, timbre) puis l'icône du moteur et
+l'état (« · LIBRE », « · Edmond »). Les groupes `👩 Femmes` / `👨 Hommes` /
+`Autres` sont devenus des **titres de ligne** (`<li class="voix-liste-groupe">`).
+La construction est une fonction **pure**, `_lignesVoixPersonnage()` : les règles
+énumérées ci-dessus sont **inchangées** (filtre de genre, groupes, tri
+alphabétique, voix actuelle toujours visible, cas « pas de voix » et
+« introuvable » distincts). Elle est peinte par
+`_basculerListeVoixPersonnage()`, qui déplie la liste **sous la ligne du
+personnage** (un seul encart ouvert à la fois), et c'est
+`_boutonVoixPersonnage()` qui remplace le `<select>` : il écrit la voix actuelle
+sur une ligne et ouvre la liste au tap.
 
 **Contenu :** un personnage par ligne (`#cast-modal` /
 `.cast-row`), triés par nombre de répliques décroissant :
 - Nom du personnage (nom canonique tel qu'attribué par Gemini)
 - Badge "Homme/Femme · N répliques" (`genre`/`line_count`, stockés en
   base depuis `assign_voices()` → `voice_casting.py`)
-- Menu déroulant (`<select>`) listant toutes les voix disponibles
-  (`_allVoices`, chargé une fois via `/api/voices`, avec tags nom/genre/région
-  déjà présents dans les catalogues côté serveur), voix actuelle
-  présélectionnée. Depuis le 12/09/2026, le libellé est construit par
+- **Bouton de voix** (un `<select>` jusqu'au 22/09/2026) listant toutes les voix
+  disponibles (`_allVoices`, chargé une fois via `/api/voices`, avec tags
+  nom/genre/région déjà présents dans les catalogues côté serveur), voix actuelle
+  affichée dessus. Il ouvre la **liste de l'application** (voir ci-dessus) **sous
+  la ligne du personnage**. Depuis le 12/09/2026, le libellé est construit par
   `_libelleVoix()` (`app.js`) : **« Prénom (F) — 🇫🇷 France (Kyutai) »** —
   le genre en clair permet de repérer d'un coup d'œil une voix féminine pour
   un personnage féminin (le narrateur utilise le même libellé). Cette aide
@@ -3342,7 +3447,7 @@ c'est seulement une fois prêt que le moteur sait vraiment parler.
   permanence pour XTTS éteint **volontairement**. Depuis le **21/09/2026** il
   ouvre le panneau « Réparer les moteurs de voix » : il ne CHANGE plus de moteur
   (voir « 🛠️ Réparer les moteurs de voix » plus bas) ;
-- dans la fenêtre du casting, `_construireMenuVoix()` distingue désormais
+- dans la fenêtre du casting, `_lignesVoixPersonnage()` distingue désormais
   **trois** cas au lieu de deux : la voix est proposée normalement ; la voix
   appartient à un moteur **non prêt** → groupe « ⚠️ Pas de voix (Kyutai
   eteint) » ou « (Kyutai en chargement) » ; la voix a réellement **disparu**
@@ -3556,11 +3661,14 @@ voix" également ? » — **oui, sans double travail** : c'est **une seule liste
 `frontend/index.html`) — la troisième « famille » de filtres, à ne pas confondre
 avec les deux autres :
 
-| Barre | Ce qu'elle filtre |
-|---|---|
-| « Voix proposées : » (`#cast-gender-bar`) | les **voix des menus déroulants** |
-| « Personnages : » (`#cast-etat-bar`) | les **lignes** (à caster, voix partagée, voix libres) |
-| « Voix des personnages : » (`#cast-filtre-bar`, 21/09/2026) | les **lignes**, par **âge de la voix** (👦 👨‍🦱 🧑‍🦲 👴) et par **genre du personnage** (♀️ ♂️) |
+| Barre | Ce qu'elle filtre | Où elle est depuis le 22/09/2026 |
+|---|---|---|
+| « Voix proposées : » (`#cast-gender-bar`) | les **voix des menus déroulants** | dans le **tiroir des réglages** |
+| les pastilles d'état (`#cast-etat-bar`) | les **lignes** (à caster, voix partagée, voix libres) | **en haut de la fenêtre**, sur une ligne qui défile (l'étiquette « Personnages : » a disparu) |
+| « Voix des personnages : » (`#cast-filtre-bar`, 21/09/2026) | les **lignes**, par **âge de la voix** (👦 👨‍🦱 🧑‍🦲 👴) et par **genre du personnage** (♀️ ♂️) | dans le **tiroir des réglages** |
+
+*Le détail de ce déménagement (et ses deux causes) est dans la section
+« En-tête compact de la fenêtre du casting » plus bas.*
 
 **Où le filtre lit ce qu'il faut** (`frontend/app.js`) :
 
@@ -3605,6 +3713,82 @@ elles redeviendraient utiles si la valeur revenait un jour. C'est écrit sur pla
 (l'âge lu sur la voix, une voix sans âge qui ne passe rien, `H`/`M` pour les
 hommes, la combinaison des deux filtres, les cas tordus, la barre et son
 branchement) ; **36 tests** au vert au total.
+
+### 🎭 En-tête compact de la fenêtre du casting — 22/09/2026
+
+**Demande de Laurent** (21/09/2026 au soir) : « Sur mobile, le menu déroulant pour
+choisir les personnages et leurs voix est minuscule. Il faudrait gagner de la
+place sur le haut de la modale, par exemple les icones. » Et sur les partages de
+voix : « je ne peux pas accéder aux noms qui sont cliquables, parce que souvent
+la modale sort de l'écran vers le bas. »
+
+**Les deux causes, mesurées dans le code** :
+
+1. l'en-tête portait **21 contrôles** empilés en sept blocs (2 champs, un
+   `datalist`, 15 boutons de filtre, 3 boutons de re-cast), tous en
+   `flex-shrink: 0` : ils **refusaient de rétrécir**. La **liste des personnages
+   était le seul élément qui pouvait céder** (`flex: 1` avec `min-height: 0`) :
+   elle tombait donc à presque rien — et le menu déroulant des voix avec elle ;
+2. la hauteur de la fenêtre était en **`80vh`**. `vh` se calcule sur la fenêtre
+   du navigateur **sans sa barre d'adresse** : dès que cette barre est visible,
+   le bas de la fenêtre passe **sous l'écran**, et rien ne défilait pour
+   rattraper ça. C'est exactement là qu'était le détail « partagée avec … », avec
+   ses noms cliquables.
+
+**La nouvelle forme** (`frontend/index.html`, `frontend/styles.css`) :
+
+| Élément | Rôle |
+|---|---|
+| `#cast-modal-header` / `#cast-head-actions` | le titre, puis **trois** commandes : `#cast-search-btn` (recherche), `#cast-filtres-btn` (« Filtres »), `#cast-close-btn` (fermeture) |
+| `#cast-search-bar` | le champ de recherche, **caché** au départ (`class="hidden"`) |
+| `#cast-etat-bar` / `#cast-etat-actions` | les **quatre pastilles d'état**, sur **une seule ligne qui défile** (`flex-wrap: nowrap` + `overflow-x: auto`) |
+| `#cast-info-bar` | les **compteurs**, toujours visibles : `#cast-etat-resume`, `#cast-filtre-resume`, `#cast-libres-info` |
+| `#cast-tools` | le **tiroir des réglages** : voix proposées, âge/genre, saga, re-cast. Replié au départ |
+| `#cast-list` | la liste des personnages, avec `min-height: 90px` : elle ne peut plus disparaître |
+
+**Pourquoi les compteurs sont sortis du tiroir** : ils expliquent une liste
+courte (« 12 personnages affichés sur 176 ») et la disparition de certaines voix
+(leur moteur est éteint). Repliés avec les filtres, un filtre resté actif aurait
+fait ressembler le livre à une liste amputée, **sans rien pour l'expliquer** — et
+sur mobile, aucune infobulle n'est lisible.
+
+**Le tiroir est-il ouvert ?** `_castOutilsDoiventEtreOuverts(choix, largeur)`
+(`frontend/app.js`) : tant que Laurent n'y a pas touché (`null`), on suit l'écran
+— **replié à 640 px ou moins, ouvert au-delà**, la même limite que les media
+queries de `styles.css`. Dès qu'il touche au bouton, **son choix est gardé** dans
+`_castOutilsOuverts` et respecté : sans cela le tiroir se refermerait à chaque
+clic sur un filtre ou sur une voix, puisque la fenêtre est reconstruite à chaque
+fois (`_openCastModal` appelle `_appliquerEnteteCasting`). Le champ de recherche,
+lui, se **replie** à la fermeture (`_castRechercheOuverte`) mais reste **ouvert
+tant qu'une recherche est en cours** : on ne masque pas ce qui filtre la liste.
+
+**Le bouton « Filtres » s'allume** (`class="actif"`) quand un **filtre de liste**
+est actif — âge de la voix ou genre du personnage, `_castFiltreListeActif` — :
+tiroir replié, c'est le seul repère qui dit qu'un réglage est en cause.
+
+**La fenêtre ne peut plus sortir de l'écran** : `.cast-box` porte
+`max-height: min(80vh, calc(100dvh - 44px))` — les `80vh` sont conservés sur un
+ordinateur (où les deux mesures sont égales) et c'est la **hauteur réellement
+visible** qui l'emporte sur téléphone ; la ligne `max-height: 80vh;` placée
+**avant** sert de repli aux navigateurs qui ne connaissent pas `dvh` (sans elle,
+la déclaration invalide laisserait la fenêtre grandir sans limite). Sur mobile
+(`max-width: 640px`), les marges se resserrent (`#cast-modal { padding: 10px }`,
+`padding: 14px` dans la boîte) et la boîte est bornée à `calc(100dvh - 24px)`.
+
+**Le détail d'un partage** (`_detailPartageVoix`) : les **noms cliquables sont
+créés AVANT l'explication** (elle fait 4 à 6 lignes sur un livre réel — une voix
+portée par trente personnages — et poussait les noms hors de l'écran), et
+**déplier fait défiler** la fenêtre jusqu'au détail (`scrollIntoView`, avec une
+garde `typeof` pour le test node, qui n'a pas de défilement).
+
+**Vérifications** : `test_voix/test_entete_casting.js` — **45 contrôles** (les
+trois commandes de l'en-tête, le tiroir et son contenu, la liste après le tiroir,
+les compteurs hors du tiroir, les **quatre âges et pas cinq**, les fonctions
+pures sur écran étroit ou large, la hauteur en `dvh`, la hauteur minimale de la
+liste, les pastilles qui défilent, les noms avant l'explication) ;
+`test_voix/test_tiroir_voix_libres.js` **adapté** (la phrase n'est plus le
+premier élément du détail) ; **38 tests** au vert au total,
+`test_ids_ecran.py` et `test_lire_moi.py` compris.
 
 ### 🎙️ Moteur XTTS v2 installé comme service séparé — session du 14/09/2026
 

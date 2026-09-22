@@ -109,9 +109,16 @@ def main():
                   '\\u26A1\\uFE0F', '\\uD83E\\uDDEC', '\\uD83E\\uDDEA'):
         verifier('icone %s declaree dans app.js' % icone,
                  "'" + icone + "'" in js)
+    # Depuis le 22/09/2026, le libelle d'une voix est fait de DEUX morceaux
+    # (`_identiteVoix` pour l'identite, `_iconeMoteurVoix` pour l'icone du
+    # moteur) : c'est la LISTE DES VOIX du panneau « Voix de cette phrase » qui
+    # les met sur deux lignes. On verifie donc que le libelle complet montre bien
+    # l'ICONE du moteur (et non son nom), et que cette icone vient de la meme
+    # table que partout ailleurs (`FAMILLES_VOIX`, via `_iconeFamille`).
     verifier('le libelle d une voix montre l icone (et plus le nom)',
-             'const iconeMoteur = (typeof _iconeFamille' in js
-             and 'const moteur = iconeMoteur ?' in js)
+             'function _iconeMoteurVoix' in js
+             and '_iconeFamille(_familleDeVoix(v.id))' in js
+             and "' \\u2014 ' + icone" in js)
     verifier('les deux fonctions d icone existent',
              'function _iconeFamille' in js
              and 'function _libelleFamilleIcone' in js)

@@ -43,7 +43,11 @@ const IDS = [
   'selection-tooltip', 'read-from-here-btn', 'show-voice-btn',
   'voice-phrase-panel', 'voice-phrase-close-btn', 'voice-phrase-extrait',
   'voice-phrase-personnage', 'voice-phrase-voix', 'voice-phrase-label',
-  'voice-phrase-select', 'voice-phrase-ecouter-btn', 'voice-phrase-note',
+  // LA LISTE DES VOIX (22/09/2026) : elle remplace le menu déroulant
+  // `voice-phrase-select`, qui n'existe plus. Les LIGNES sont construites par le
+  // code, donc seuls le conteneur, la recherche et le compteur sont dans la page.
+  'voice-phrase-liste', 'voice-phrase-recherche', 'voice-phrase-recap',
+  'voice-phrase-ecouter-btn', 'voice-phrase-note',
   // Ligne d'usage de la voix choisie (19/09/2026) : libre, portee par X,
   // partagee... ECRITE, car sur mobile il n'y a ni survol ni appui long.
   'voice-phrase-usage',
@@ -61,7 +65,10 @@ IDS.forEach(id => {
 
 // --- 2. La logique, extraite du fichier reel ---
 const debut = source.indexOf('let _voicePhraseIdx');
-const fin   = source.indexOf('function _remplirMenuVoixPhrase');
+// La borne de fin a change le 22/09/2026 : `_remplirMenuVoixPhrase` (le menu
+// deroulant) n'existe plus, remplace par la liste des voix. On s'arrete donc a
+// `_openVoicePanel`, qui suit immediatement.
+const fin   = source.indexOf('function _openVoicePanel');
 if (debut < 0 || fin <= debut) {
   console.error('ECHEC : les fonctions du panneau sont introuvables dans app.js');
   process.exit(1);
@@ -122,67 +129,145 @@ verifier('livre sans fiche de casting -> voix du lecteur',
          sansVoix._voixDePhrase(1) === 'fr-CH-ArianeNeural');
 
 console.log('');
-console.log('4) le menu des voix ne fait rien disparaitre');
+console.log('4) la LISTE des voix, sur deux lignes (22/09/2026)');
 
-// Faux DOM minimal : juste ce qu'utilise _remplirMenuVoixPhrase.
-function element(tag) {
-  return {
-    tag: tag, label: '', value: '', textContent: '', children: [],
-    appendChild(c) { this.children.push(c); return c; },
-    set innerHTML(v) { if (v === '') this.children = []; },
-    get innerHTML() { return ''; },
-  };
+// Demande de Laurent (voie B) : le MENU DÉROULANT est remplacé par une liste de
+// VRAIS éléments de page, où chaque voix se lit sur deux lignes —
+//   1re : symbole, prénom, drapeaux, âge et timbre ;
+//   2e  : icône du moteur, puis l'état (« · LIBRE », « · Edmond »).
+// La construction des lignes est une fonction PURE (`_lignesVoixListe`, la même
+// que pour la liste du casting) : on
+// l'extrait DU FICHIER RÉEL et on l'éprouve sans DOM, sans navigateur (le rendu
+// n'est que du dessin par-dessus).
+function extraire(debutNom, finNom) {
+  const d = source.indexOf(debutNom);
+  const f = source.indexOf(finNom);
+  if (d < 0 || f <= d) {
+    console.error('ECHEC : ' + debutNom + ' introuvable dans app.js');
+    process.exit(1);
+  }
+  return source.slice(d, f);
 }
-const fauxDocMenu = { createElement: element };
+const CODE_LISTE = [
+  extraire('const DRAPEAU_FR', 'function _secondDrapeauDeVoix'),
+  extraire('function _secondDrapeauDeVoix', 'function _libelleCritere'),
+  extraire('function _libelleCritere', 'function _identiteVoix'),
+  extraire('function _identiteVoix', 'function _libelleVoix'),
+  extraire('function _familleDeVoix', 'function _libelleFamille'),
+  extraire('function _libelleFamille', 'async function _chargerAnnotationsVoix'),
+  extraire('function _cleRecherche', 'function _filtrerPersonnages'),
+  extraire('function _filtrerVoixLibres', 'function _etatCasting'),
+  extraire('function _lignesVoixListe', 'function _peindreListeVoixPhrase'),
+].join('\n');
 
-const debutMenu = source.indexOf('function _remplirMenuVoixPhrase');
-const finMenu   = source.indexOf('function _openVoicePanel');
-if (debutMenu < 0 || finMenu <= debutMenu) {
-  console.error('ECHEC : _remplirMenuVoixPhrase introuvable dans app.js');
-  process.exit(1);
-}
-const codeMenu = source.slice(debutMenu, finMenu);
+const ICO_EDGE = '\u2601\uFE0F';
+const ICO_XTTS = '\uD83E\uDDEC';
+const SYM_F    = '\u2640\uFE0F';
+const FR       = '\uD83C\uDDEB\uD83C\uDDF7';
+const FAMILLES = [['edge', 'Edge (en ligne)', ICO_EDGE],
+                  ['kokoro', 'Kokoro', '\uD83C\uDF8E'],
+                  ['xtts', 'XTTS v2', ICO_XTTS]];
+const CRITERES = [
+  { cle: 'age', libelle: 'Age', valeurs: [{ valeur: 'adulte', libelle: 'adulte' }] },
+  { cle: 'timbre', libelle: 'Timbre', valeurs: [{ valeur: 'grave', libelle: 'grave' }] },
+];
 
 const VOIX_PROPOSEES = [
   { id: 'edge:adele',  name: 'Adele',  region: 'France', gender: 'F' },
   { id: 'edge:bruno',  name: 'Bruno',  region: 'France', gender: 'M' },
   { id: 'kokoro:zz',   name: 'Zoe',    region: 'France' },
+  { id: 'xtts:anna',   name: 'Anna',   region: 'France', gender: 'F' },
 ];
+const ANNOTATIONS = { 'xtts:anna': { age: 'adulte', timbre: 'grave' } };
 
-function menu(allVoices, voixId, libelle) {
-  const fabriqueMenu = new Function(
-    '_allVoices', '_libelleCatalogue', 'document',
-    codeMenu + '\nreturn _remplirMenuVoixPhrase;'
-  );
-  const remplir = fabriqueMenu(allVoices, libelle, fauxDocMenu);
-  const select = element('select');
-  remplir(select, voixId);
-  const options = [];
-  select.children.forEach(g => {
-    (g.children || []).forEach(o => options.push({
-      valeur: o.value, texte: o.textContent, groupe: g.label,
-    }));
-  });
-  return { select, options };
+function lignes(voix, voixId, marque, recherche, libelleAbsente) {
+  const fabrique = new Function(
+    '_annotationsVoix', '_criteresVoix', 'FAMILLES_VOIX',
+    CODE_LISTE + '\nreturn _lignesVoixListe;');
+  const calcul = fabrique(ANNOTATIONS, CRITERES, FAMILLES);
+  return calcul(voix, voixId, marque, recherche, libelleAbsente);
 }
+const voixDe = (rendues, id) =>
+  rendues.find(l => l.genre === 'voix' && l.id === id);
+const groupes = (rendues) =>
+  rendues.filter(l => l.genre === 'groupe').map(l => l.libelle);
 
-const propose = menu(VOIX_PROPOSEES, 'edge:bruno', () => '');
-verifier('une voix proposee est selectionnee',
-         propose.select.value === 'edge:bruno', propose.select.value);
-verifier('les 3 voix proposees sont dans le menu',
-         propose.options.length === 3, propose.options.length);
+const rendu = lignes(VOIX_PROPOSEES, 'edge:bruno', () => ' \u00B7 LIBRE');
+verifier('les trois groupes sont la, dans l ordre Femmes, Hommes, Autres',
+         JSON.stringify(groupes(rendu))
+           === JSON.stringify(['\uD83D\uDC69 Femmes', '\uD83D\uDC68 Hommes',
+                               'Autres']),
+         JSON.stringify(groupes(rendu)));
+verifier('un groupe sans voix n est pas ecrit (pas de titre orphelin)',
+         groupes(lignes([VOIX_PROPOSEES[0]], '', () => '')).length === 1);
 
-const horsListe = menu(VOIX_PROPOSEES, 'xtts:cml9804',
-                       (id) => id === 'xtts:cml9804' ? 'Alphonse \u2014 France (XTTS)' : '');
-verifier('une voix absente de la liste est AJOUTEE au menu',
-         horsListe.options.length === 4, horsListe.options.length);
-verifier('elle garde son identifiant (le choix n est pas perdu)',
-         horsListe.select.value === 'xtts:cml9804', horsListe.select.value);
-verifier('elle est affichee sous son NOM, jamais sous son identifiant',
-         horsListe.options.some(o => o.texte.indexOf('Alphonse') === 0),
-         JSON.stringify(horsListe.options.map(o => o.texte)));
-verifier('elle est signalee comme « voix actuelle »',
-         horsListe.options.some(o => o.groupe.indexOf('Voix actuelle') >= 0));
+const anna = voixDe(rendu, 'xtts:anna');
+verifier('1re ligne : symbole, prenom, drapeaux, age et timbre',
+         anna.identite === SYM_F + ' Anna ' + FR + ' adulte grave', anna.identite);
+verifier('2e ligne : icone du moteur, puis l etat de la voix',
+         anna.deuxiemeLigne === ICO_XTTS + ' \u00B7 LIBRE', anna.deuxiemeLigne);
+verifier('une voix sans annotation porte quand meme son moteur',
+         voixDe(rendu, 'edge:adele').deuxiemeLigne === ICO_EDGE + ' \u00B7 LIBRE',
+         voixDe(rendu, 'edge:adele').deuxiemeLigne);
+verifier('la voix choisie est marquee, et elle seule',
+         rendu.filter(l => l.actuelle).length === 1
+         && voixDe(rendu, 'edge:bruno').actuelle === true);
+
+const nomsGroupe = lignes([VOIX_PROPOSEES[3], VOIX_PROPOSEES[0]], '', () => '')
+  .filter(l => l.genre === 'voix').map(l => l.id);
+verifier('les voix d un groupe sont rangees par prenom',
+         JSON.stringify(nomsGroupe) === JSON.stringify(['edge:adele', 'xtts:anna']),
+         JSON.stringify(nomsGroupe));
+
+verifier('la recherche garde la voix cherchee (et son groupe)',
+         lignes(VOIX_PROPOSEES, '', () => '', 'adel').length === 2,
+         JSON.stringify(lignes(VOIX_PROPOSEES, '', () => '', 'adel')));
+verifier('une recherche sans resultat ne rend AUCUNE voix',
+         lignes(VOIX_PROPOSEES, '', () => '', 'zzzzz')
+           .filter(l => l.genre === 'voix').length === 0);
+verifier('la recherche ignore les accents',
+         lignes([{ id: 'edge:amelie', name: 'Am\u00e9lie', region: 'France',
+                   gender: 'F' }], '', () => '', 'amelie').length === 2);
+
+// Une voix attribuee mais PLUS PROPOSEE (moteur eteint, voix retiree) doit
+// rester visible, sous son nom : c'est la regle du 14/09/2026 (jamais de
+// substitution muette, jamais un choix efface sans le dire).
+const horsListe = lignes(VOIX_PROPOSEES, 'xtts:cml9804', () => '', '',
+                         'Alphonse \u2014 France (XTTS)');
+verifier('la voix hors liste est AJOUTEE, sous son nom',
+         (voixDe(horsListe, 'xtts:cml9804') || {}).identite
+           === 'Alphonse \u2014 France (XTTS)',
+         JSON.stringify(voixDe(horsListe, 'xtts:cml9804')));
+verifier('elle est sous « Voix actuelle », marquee comme actuelle et hors liste',
+         groupes(horsListe).some(g => g.indexOf('Voix actuelle') >= 0)
+         && voixDe(horsListe, 'xtts:cml9804').actuelle === true
+         && voixDe(horsListe, 'xtts:cml9804').horsListe === true);
+verifier('elle n a PAS de 2e ligne (son nom la dit deja en entier)',
+         voixDe(horsListe, 'xtts:cml9804').deuxiemeLigne === '');
+
+// Le CABLAGE : la liste est peinte a l ouverture et apres un choix, le tap
+// choisit, le ▶ ecoute, la recherche filtre. Sans ces liens, la liste resterait
+// muette a l ecran -- c'est le genre de defaut qui ne se voit qu'a l'usage.
+verifier('le panneau peint la liste a son ouverture',
+         source.includes('_voicePhraseVoix      = voixId;')
+         && source.includes('_peindreListeVoixPhrase();'));
+verifier('le tap sur une ligne choisit cette voix',
+         source.includes("choix.addEventListener('click', () => _choisirVoixPhrase(l.id))"));
+verifier('le ▶ ecoute LA voix de la ligne, sans rien changer',
+         source.includes("play.addEventListener('click', () => _apercuVoixPhrase(l.id, play))"));
+verifier('la recherche filtre la liste',
+         source.includes("document.getElementById('voice-phrase-recherche')")
+         && source.includes('_voicePhraseRecherche = e.target.value;'));
+verifier('le choix enregistre bien pour TOUT le personnage',
+         source.includes('await _updateCharacterVoice(nom, voixId, rate, pitch)'));
+verifier('la recherche repart vide a l ouverture ET a la fermeture',
+         (source.match(/_voicePhraseRecherche = '';/g) || []).length >= 3,
+         (source.match(/_voicePhraseRecherche = '';/g) || []).length);
+verifier('le select du menu deroulant n existe plus nulle part',
+         !source.includes("getElementById('voice-phrase-select')")
+         && !page.includes('id="voice-phrase-select"'),
+         'page=' + page.includes('id="voice-phrase-select"')
+         + ' code=' + source.includes("getElementById('voice-phrase-select')"));
 
 console.log('');
 console.log('5) la porte vers le casting (20/09/2026)');

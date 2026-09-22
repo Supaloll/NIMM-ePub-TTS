@@ -39,7 +39,9 @@ function verifier(nom, condition, detail) {
 }
 
 const debut = source.indexOf('function _etatCasting');
-const fin = source.indexOf('function _construireMenuVoix');
+// La borne de fin a change le 22/09/2026 : `_construireMenuVoix` (le menu
+// deroulant du casting) n'existe plus, remplace par `_lignesVoixPersonnage`.
+const fin = source.indexOf('function _lignesVoixPersonnage');
 if (debut < 0 || fin <= debut) {
   console.error('ECHEC : fonction _etatCasting introuvable dans app.js');
   process.exit(1);

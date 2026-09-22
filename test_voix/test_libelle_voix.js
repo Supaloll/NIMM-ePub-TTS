@@ -55,7 +55,12 @@ const CODE = [
   extraire('const DRAPEAU_FR', 'function _secondDrapeauDeVoix'),
   extraire('function _secondDrapeauDeVoix', 'function _libelleCritere'),
   extraire('function _libelleCritere', 'function _symboleGenre'),
-  extraire('function _symboleGenre', 'function _libelleVoix'),
+  extraire('function _symboleGenre', 'function _identiteVoix'),
+  // Depuis le 22/09/2026, le libelle est assemble a partir de DEUX morceaux :
+  // l'identite (symbole, prenom, drapeaux, age, timbre) et l'icone du moteur.
+  // La LISTE DES VOIX du panneau les met sur deux lignes ; ici, on verifie le
+  // libelle complet sur une ligne, tel qu'il reste partout ailleurs.
+  extraire('function _identiteVoix', 'function _libelleVoix'),
   extraire('function _libelleVoix', 'async function loadMoteurs'),
   extraire('function _familleDeVoix', 'function _libelleFamille'),
   extraire('function _libelleFamille', 'async function _chargerAnnotationsVoix'),
@@ -223,6 +228,16 @@ verifier('le symbole masculin porte son selecteur emoji (\\u2642\\uFE0F)',
 verifier('le prenom suit le symbole, apres une seule espace',
          libelleF.slice(2, 4) === ' E' && libelleM.slice(2, 4) === ' B',
          JSON.stringify([libelleF.slice(2, 4), libelleM.slice(2, 4)]));
+
+// ESSAI DU 22/09/2026 — RETIRE, ET POURQUOI (pour ne pas le refaire) : Laurent a
+// demande s'il etait possible de FORCER un saut de ligne dans le libelle d'une
+// voix (« 1re ligne : Prenom - drapeaux - age et timbre ; 2e ligne : moteur -
+// nom du personnage portant la voix / LIBRE »). Mesure : NON -- un libelle qui
+// porte un saut de ligne occupe la MEME hauteur qu'un autre, meme avec
+// `white-space: pre-line` sur les options (outil de mesure :
+// test_voix/test_libelle_deux_lignes_rendu.py). Le saut de ligne et la regle CSS
+// ont donc ete retires le jour meme. Il n'y a donc plus rien a verifier ici sur
+// ce point : le libelle d'une voix tient sur une ligne, c'est tout.
 
 console.log('');
 console.log(echecs === 0 ? 'TOUT EST OK' : echecs + ' VERIFICATION(S) EN ECHEC');

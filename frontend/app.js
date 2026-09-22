@@ -59,6 +59,22 @@ let _castRecherche = '';
 let _castAgeFiltre  = 'T';
 let _castPersoGenre = 'T';
 
+// --- En-tete compact de la fenetre du casting (22/09/2026) ---
+// Demande de Laurent : « Sur mobile, le menu deroulant pour choisir les
+// personnages et leurs voix est minuscule. Il faudrait gagner de la place sur
+// le haut de la modale. » L'en-tete portait vingt et un controles empiles ; il
+// n'en garde plus que trois (la recherche, le bouton Filtres, la fermeture),
+// et tout le reste est descendu dans le tiroir #cast-tools.
+// Ces deux drapeaux sont gardes ICI, et non lus dans la page, pour survivre aux
+// reconstructions de l'affichage (changement de voix, clic sur un filtre) :
+//   _castOutilsOuverts    : null = Laurent n'a pas encore touche au tiroir ->
+//                           on suit la taille de l'ecran (ouvert sur
+//                           ordinateur, replie sur telephone) ; true / false =
+//                           SON choix, qu'on respecte ensuite.
+//   _castRechercheOuverte : le champ de recherche est-il deplie ?
+let _castOutilsOuverts = null;
+let _castRechercheOuverte = false;
+
 // Seuil des petits roles : le MEME que MINOR_THRESHOLD cote serveur
 // (modules/voice_casting.py), verifie par test_voix/test_pool_casting.py.
 // Il sert ici a distinguer un petit role normal (voix generique voulue) d'un
@@ -284,7 +300,22 @@ function _symboleGenre(genre) {
   return '';
 }
 
-function _libelleVoix(v) {
+// ESSAI DU 22/09/2026, MESURE SANS EFFET -- ne pas refaire : Laurent a demande
+// s'il etait possible de forcer un saut de ligne dans le libelle d'une voix
+// (« 1ere ligne : Prenom - drapeaux - age et timbre ; 2eme ligne : moteur - nom
+// du personnage portant la voix / LIBRE »). La reponse est NON, et elle est
+// mesuree : un libelle qui porte un saut de ligne occupe la MEME hauteur qu'un
+// autre, meme avec `white-space: pre-line` sur les options -- le navigateur
+// aplatit le saut. Seul le repli AUTOMATIQUE d'un libelle trop long reste
+// possible, et il est SUBI : on ne choisit pas ou il tombe (mesure :
+// test_voix/test_libelle_deux_lignes_rendu.py). La demande, si elle revient, se
+// resout par une LISTE de l'application (de vrais elements de page), comme le
+// tiroir des voix libres -- pas par le menu deroulant.
+// L'IDENTITE d'une voix, SANS son moteur : « ♀️ Amélie 🇫🇷🇬🇧 adulte grave ».
+// Extraite le 22/09/2026 pour la LISTE DES VOIX du panneau « Voix de cette
+// phrase » : elle s'ecrit sur la 1re ligne, et le moteur passe sur la 2e.
+// Fonction PURE (aucun DOM) : eprouvee par test_voix/test_libelle_voix.js.
+function _identiteVoix(v) {
   const annots = (typeof _annotationsVoix === 'undefined') ? {} : _annotationsVoix;
   const annote = annots[v.id] || {};
   let notes = '';
@@ -296,16 +327,6 @@ function _libelleVoix(v) {
   if (timbre) {
     notes += ' ' + timbre;
   }
-  // Le moteur, montre par son ICONE (20/09/2026) : dans un menu etroit, le nom
-  // (« — Kokoro ») prenait la place du prenom, de l'age et du timbre — c'est
-  // justement ce que Laurent voulait remplacer. Le nom complet reste partout ou
-  // il y a la place : ligne d'une voix dans « Ecouter les voix », en-tete de
-  // groupe du tiroir, menu de filtre des moteurs, bouton des moteurs.
-  // Le `typeof` protege le test node, qui isole cette fonction sans lui fournir
-  // la table des icones : sans icone, aucun tiret orphelin n'est ecrit.
-  const iconeMoteur = (typeof _iconeFamille === 'function')
-    ? _iconeFamille(_familleDeVoix(v.id)) : '';
-  const moteur = iconeMoteur ? ' \u2014 ' + iconeMoteur : '';
   // Le symbole du genre passe DEVANT le prenom (20/09/2026) : c'est la ou
   // l'oeil le trouve quand la liste n'est pas deja rangee par genre --
   // fenetre « Ecouter les voix » (rangee par moteur), tiroir des voix libres,
@@ -314,7 +335,27 @@ function _libelleVoix(v) {
   // que le meme prenom se lise de la meme facon dans toute l'application.
   const symbole = _symboleGenre(v.gender);
   return (symbole ? symbole + ' ' : '')
-    + v.name + ' ' + DRAPEAU_FR + _secondDrapeauDeVoix(v) + notes + moteur;
+    + v.name + ' ' + DRAPEAU_FR + _secondDrapeauDeVoix(v) + notes;
+}
+
+// L'ICONE SEULE du moteur d'une voix (« ☁️ », « 🧬 »), ou '' si elle est
+// inconnue. Pourquoi l'icone et non le nom (20/09/2026) : dans un menu etroit,
+// « — Kokoro » prenait la place du prenom, de l'age et du timbre. Le nom complet
+// reste partout ou il y a la place : ligne d'une voix dans « Ecouter les voix »,
+// en-tete de groupe du tiroir, menu de filtre des moteurs, bouton des moteurs.
+// Le `typeof` protege le test node, qui isole cette fonction sans lui fournir la
+// table des icones : sans icone, aucun tiret orphelin n'est ecrit.
+function _iconeMoteurVoix(v) {
+  return (typeof _iconeFamille === 'function')
+    ? _iconeFamille(_familleDeVoix(v.id)) : '';
+}
+
+// Le libelle COMPLET, sur une ligne : « ♀️ Amélie 🇫🇷🇬🇧 adulte grave — 🧬 ».
+// C'est celui de tout ce qui n'a pas la place de deux lignes : badges, tiroir
+// des voix libres, menu du narrateur, fenetre « Ecouter les voix ».
+function _libelleVoix(v) {
+  const icone = _iconeMoteurVoix(v);
+  return _identiteVoix(v) + (icone ? ' \u2014 ' + icone : '');
 }
 
 // ---- Etat des moteurs de voix lourds (Kyutai, XTTS v2) ----
@@ -1315,28 +1356,67 @@ function _etatVoix(etatCasting, voixProposees, voixNarrateur) {
 // « · partagée (2) ») : c'est au moment de CHOISIR qu'on a besoin de savoir si
 // la voix est libre. Il est facultatif : le test node qui isole cette fonction
 // ne le fournit pas, et rien ne doit changer pour lui.
-function _construireMenuVoix(voiceIdActuelle, etatVoix) {
+// ============================================================
+// LA VOIX D'UN PERSONNAGE : une liste de l'application (22/09/2026, voie B)
+// ============================================================
+// Un MENU DÉROULANT se trouvait ici (`_construireMenuVoix`). Ses RÈGLES sont
+// gardées telles quelles — elles protègent des défauts réels :
+//   - le filtre « Voix proposées » (Toutes / Femmes / Hommes) limite la liste ;
+//   - la voix ACTUELLE reste TOUJOURS visible, même si le filtre la cache ou si
+//     son moteur est éteint : jamais de substitution silencieuse (règle du
+//     14/09/2026) ;
+//   - un personnage sans voix dédiée (lu par le narrateur) garde son repère ;
+//   - « Pas de voix (Kyutai éteint) » et « Voix introuvable » restent distincts.
+// Ce qui change, c'est la SORTIE : plus des `<option>` (dessinées en clair par
+// le téléphone), mais des LIGNES de page, écrites sur DEUX lignes — identité
+// d'un côté, moteur et état de l'autre. La voix se choisit en tapant la ligne.
+//
+// Renvoie : [{ genre: 'groupe', libelle }, { genre: 'voix', id, identite,
+//            deuxiemeLigne, actuelle, horsListe, sansVoix }]
+function _lignesVoixPersonnage(voiceIdActuelle, etatVoix) {
   const usage = (!etatVoix || typeof etatVoix.marque !== 'function')
     ? () => '' : (id) => etatVoix.marque(id);
-  const select = document.createElement('select');
-  select.className = 'cast-voice-select';
+  const toutes = (_allVoices || []).filter(v => v && v.id);
+  // Meme libelle que partout ailleurs depuis le 19/09/2026 (drapeaux, age,
+  // timbre et moteur). Le genre n'est pas repete dans chaque ligne : le groupe
+  // « Femmes » / « Hommes » le donne deja. Le `typeof` protege le test node, qui
+  // isole cette fonction du reste de app.js.
+  const libelle = (v) => ((typeof _libelleVoix === 'function')
+    ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region);
+  const lignes = [];
+  const groupe = (etiquette, voix) => {
+    if (!voix.length) return;
+    lignes.push({ genre: 'groupe', libelle: etiquette });
+    voix.forEach(v => {
+      const marque = usage(v.id);
+      const icone  = (typeof _iconeMoteurVoix === 'function')
+        ? _iconeMoteurVoix(v) : '';
+      lignes.push({
+        genre:    'voix',
+        id:       v.id,
+        identite: (typeof _identiteVoix === 'function') ? _identiteVoix(v)
+                                                       : libelle(v),
+        // 2e ligne : l'icone du moteur, puis l'etat (« · LIBRE », « · Edmond »).
+        // Le `trim()` compte : la marque arrive DEJA precedee d'une espace.
+        deuxiemeLigne: (icone + marque).trim(),
+        actuelle: v.id === voiceIdActuelle,
+      });
+    });
+  };
 
   // Personnage SANS voix dediee : ses repliques sont lues par le NARRATEUR.
   // C'est l'etat qu'avaient les PETITS ROLES jusqu'au 21/09/2026 (ils portent
   // maintenant la voix generique de leur genre : voir _CAST_VOIX_GENERIQUES) ;
   // il reste possible a la main, et pour un livre pas encore migre. On
-  // l'affiche clairement, sinon le menu montrerait la premiere voix du
-  // catalogue comme si elle lui etait attribuee. Choisir cette entree redonne
-  // au personnage la voix du narrateur (voice_id vide) ; choisir une voix l'en
+  // l'affiche clairement, sinon la liste montrerait la premiere voix du
+  // catalogue comme si elle lui etait attribuee. Choisir cette ligne REDONNE au
+  // personnage la voix du narrateur (voice_id vide) ; choisir une voix l'en
   // detache.
   if (!voiceIdActuelle) {
-    const groupe = document.createElement('optgroup');
-    groupe.label = '\uD83D\uDDE3\uFE0F Sans voix dediee';
-    const opt = document.createElement('option');
-    opt.value       = '';
-    opt.textContent = '(lu par le narrateur)';
-    groupe.appendChild(opt);
-    select.appendChild(groupe);
+    lignes.push({ genre: 'groupe',
+                  libelle: '\uD83D\uDDE3\uFE0F Sans voix dediee' });
+    lignes.push({ genre: 'voix', id: '', sansVoix: true, actuelle: true,
+                  identite: '(lu par le narrateur)', deuxiemeLigne: '' });
   }
 
   // Pourquoi une voix attribuee peut manquer au catalogue : soit son moteur
@@ -1353,84 +1433,165 @@ function _construireMenuVoix(voiceIdActuelle, etatVoix) {
     return info.actif ? nom + ' en chargement' : nom + ' eteint';
   };
 
-  // Meme libelle que partout ailleurs depuis le 19/09/2026 : drapeaux, age,
-  // timbre et moteur (« Alice <drapeau FR> Jeune aigu — Kyutai »). Le genre
-  // n'est pas repete dans chaque ligne : le groupe « Femmes » / « Hommes » le
-  // donne deja.
-  // `typeof` : le test node qui isole cette fonction ne fournit pas
-  // `_libelleVoix` ; il retombe alors sur l'ancien libelle (nom + region), ce
-  // que ce test ne regarde pas.
-  const libelle = (v) => ((typeof _libelleVoix === 'function')
-    ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region) + usage(v.id);
-
-  const ajouterGroupe = (etiquette, voix) => {
-    if (!voix.length) return;
-    const groupe = document.createElement('optgroup');
-    groupe.label = etiquette;
-    voix.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = libelle(v);
-      groupe.appendChild(opt);
-    });
-    select.appendChild(groupe);
-  };
-
-  const parGenre = (genre) => _allVoices
+  const parGenre = (genre) => toutes
     .filter(v => (v.gender || '') === genre)
-    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
 
-  const actuelle = _allVoices.filter(v => v.id === voiceIdActuelle);
-  if (_castGenreFiltre !== 'T' && actuelle.length &&
-      (actuelle[0].gender || '') !== _castGenreFiltre) {
-    ajouterGroupe('\u26A0\uFE0F Voix actuelle', actuelle);
+  const actuelles = toutes.filter(v => v.id === voiceIdActuelle);
+  if (_castGenreFiltre !== 'T' && actuelles.length &&
+      (actuelles[0].gender || '') !== _castGenreFiltre) {
+    groupe('\u26A0\uFE0F Voix actuelle', actuelles);
   }
   if (_castGenreFiltre === 'T' || _castGenreFiltre === 'F') {
-    ajouterGroupe('\uD83D\uDC69 Femmes', parGenre('F'));
+    groupe('\uD83D\uDC69 Femmes', parGenre('F'));
   }
   if (_castGenreFiltre === 'T' || _castGenreFiltre === 'M') {
-    ajouterGroupe('\uD83D\uDC68 Hommes', parGenre('M'));
+    groupe('\uD83D\uDC68 Hommes', parGenre('M'));
   }
-  ajouterGroupe('Autres', _allVoices.filter(v => !v.gender));
+  groupe('Autres', toutes.filter(v => !v.gender));
 
   // Securite : une voix attribuee qui n'est plus proposee doit quand meme
-  // s'afficher, sinon le menu montrerait l'air de rien une AUTRE voix, ou
+  // s'afficher, sinon la liste montrerait l'air de rien une AUTRE voix, ou
   // effacerait le choix sans le dire.
-  if (voiceIdActuelle && !_allVoices.some(v => v.id === voiceIdActuelle)) {
+  if (voiceIdActuelle && !toutes.some(v => v.id === voiceIdActuelle)) {
     const raison = raisonIndispo(voiceIdActuelle);
     // Le NOM vient du catalogue complet (fonction du reste de app.js) : le
     // `typeof` protege le test node, qui isole cette fonction du fichier.
-    const nom    = (typeof _libelleCatalogue === 'function')
+    const nom = (typeof _libelleCatalogue === 'function')
       ? _libelleCatalogue(voiceIdActuelle) : '';
-    const groupe = document.createElement('optgroup');
-    const opt    = document.createElement('option');
+    let etiquette = '\u26A0\uFE0F Voix introuvable';
+    let texte     = voiceIdActuelle;
     if (nom) {
       // La voix EXISTE au catalogue : on affiche son prenom, jamais son
-      // identifiant technique (constat de Laurent le 15/09/2026 : les voix
-      // XTTS s'affichaient « xtts:cml9804 » au lieu d'« Alphonse », parce que
-      // la liste des voix proposees ne contenait que les moteurs deja prets).
-      groupe.label    = raison
+      // identifiant technique (constat de Laurent le 15/09/2026 : les voix XTTS
+      // s'affichaient « xtts:cml9804 » au lieu d'« Alphonse », parce que la
+      // liste des voix proposees ne contenait que les moteurs deja prets).
+      etiquette = raison
         ? '\u26A0\uFE0F Pas de voix (' + raison + ')'
         : '\u26A0\uFE0F Voix actuelle (non proposee ici)';
-      opt.textContent = nom + (raison ? ' \u2014 ' + raison : '');
+      texte = nom + (raison ? ' \u2014 ' + raison : '');
     } else if (raison) {
       // Voix inconnue du catalogue mais moteur identifie (moteur eteint ou en
       // chargement) : on garde le message d'origine, qui est deja clair.
-      groupe.label    = '\u26A0\uFE0F Pas de voix (' + raison + ')';
-      opt.textContent = 'Pas de voix \u2014 ' + raison;
-    } else {
-      // Vraiment absente du catalogue : la, l'identifiant est l'information
-      // utile (voix retiree, ou livre caste avec un autre catalogue).
-      groupe.label    = '\u26A0\uFE0F Voix introuvable';
-      opt.textContent = voiceIdActuelle;
+      etiquette = '\u26A0\uFE0F Pas de voix (' + raison + ')';
+      texte     = 'Pas de voix \u2014 ' + raison;
     }
-    opt.value = voiceIdActuelle;
-    groupe.appendChild(opt);
-    select.appendChild(groupe);
+    // En TETE, et une seule fois : c'est la voix que le personnage porte
+    // aujourd'hui, elle ne doit jamais passer sous des dizaines de lignes.
+    // ATTENTION A L'ORDRE : `unshift` place en tete, donc le DERNIER appel se
+    // retrouve en premier -- on empile la voix, PUIS son titre, pour que le
+    // titre soit bien au-dessus (sinon la ligne s'afficherait avant son groupe).
+    lignes.unshift({ genre: 'voix', id: voiceIdActuelle, actuelle: true,
+                     horsListe: true, identite: texte, deuxiemeLigne: '' });
+    lignes.unshift({ genre: 'groupe', libelle: etiquette });
   }
+  return lignes;
+}
 
-  select.value = voiceIdActuelle;
-  return select;
+// Le BOUTON qui remplace le menu deroulant : il ecrit la voix du personnage sur
+// UNE ligne (le CSS coupe proprement si c'est long) et ouvre la liste au tap.
+function _boutonVoixPersonnage(voiceId) {
+  const bouton = document.createElement('button');
+  bouton.type = 'button';
+  bouton.className = 'cast-voice-btn';
+  bouton.setAttribute('aria-expanded', 'false');
+  const nom = document.createElement('span');
+  nom.className = 'cast-voice-nom';
+  nom.textContent = _libelleVoixBouton(voiceId);
+  const fleche = document.createElement('span');
+  fleche.className = 'cast-voice-fleche';
+  fleche.setAttribute('aria-hidden', 'true');
+  fleche.textContent = '\u25BE';
+  bouton.appendChild(nom);
+  bouton.appendChild(fleche);
+  bouton.title = 'Changer la voix \u2014 ' + nom.textContent;
+  return bouton;
+}
+
+// Le libelle d'une voix tel qu'il s'ecrit sur le bouton : le libelle COMPLET
+// (identite + icone du moteur), sur une seule ligne, et JAMAIS un identifiant
+// technique.
+function _libelleVoixBouton(voiceId) {
+  if (!voiceId) return 'Voix du narrateur';
+  const v = (_allVoices || []).find(x => x.id === voiceId);
+  if (v && typeof _libelleVoix === 'function') return _libelleVoix(v);
+  const catalogue = (typeof _libelleCatalogue === 'function')
+    ? _libelleCatalogue(voiceId) : '';
+  return catalogue || voiceId;
+}
+
+// Ouvre (ou referme) la LISTE des voix SOUS la ligne du personnage (22/09/2026).
+// Un seul encart ouvert a la fois : sur un casting de 176 personnages, deux
+// listes depliees rendraient la fenetre illisible, et on ne saurait plus a quel
+// personnage se rapporte celle qu'on regarde.
+//   `voixActuelle` : la voix portee aujourd'hui (elle est marquee d'un ✔) ;
+//   `choisir(id)`  : appele au tap sur une ligne (void le choix a '' = « lu par
+//                    le narrateur ») ;
+//   `apercu(id, btn)` : appele par le ▶, sans rien changer.
+function _basculerListeVoixPersonnage(li, nom, voixActuelle, choisir, apercu) {
+  const dejaOuverte = li.querySelector('.voix-liste-encart');
+  if (dejaOuverte) {
+    dejaOuverte.remove();
+    const b = li.querySelector('.cast-voice-btn');
+    if (b) b.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  document.querySelectorAll('.voix-liste-encart').forEach(e => e.remove());
+  document.querySelectorAll('.cast-voice-btn[aria-expanded="true"]')
+    .forEach(b => b.setAttribute('aria-expanded', 'false'));
+  const bouton = li.querySelector('.cast-voice-btn');
+  if (bouton) bouton.setAttribute('aria-expanded', 'true');
+
+  const encart = document.createElement('ul');
+  encart.className = 'voix-liste-encart';
+  encart.setAttribute('role', 'list');
+  encart.setAttribute('aria-label', 'Voix disponibles pour ' + nom);
+
+  const etatVoix = _etatVoixLivre();
+  _lignesVoixPersonnage(voixActuelle, etatVoix).forEach(l => {
+    const item = document.createElement('li');
+    if (l.genre === 'groupe') {
+      item.className = 'voix-liste-groupe';
+      item.textContent = l.libelle;
+      encart.appendChild(item);
+      return;
+    }
+    item.className = 'voix-liste-item';
+    if (l.actuelle) item.dataset.actuelle = 'true';
+
+    // Toute la ligne est le bouton de choix : cible large pour le doigt.
+    const choix = document.createElement('button');
+    choix.type = 'button';
+    choix.className = 'voix-liste-choix';
+    if (l.actuelle) choix.setAttribute('aria-current', 'true');
+    const titre = document.createElement('span');
+    titre.className = 'voix-liste-nom';
+    titre.textContent = (l.actuelle ? '\u2714 ' : '') + l.identite;
+    choix.appendChild(titre);
+    if (l.deuxiemeLigne) {
+      const sous = document.createElement('span');
+      sous.className = 'voix-liste-etat';
+      sous.textContent = l.deuxiemeLigne;
+      choix.appendChild(sous);
+    }
+    choix.addEventListener('click', () => choisir(l.id));
+    item.appendChild(choix);
+
+    // Le ▶ n'a pas de sens pour « (lu par le narrateur) » : il n'y a pas de voix
+    // a ecouter, c'est celle du lecteur.
+    if (l.id) {
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'voix-liste-ecoute';
+      play.textContent = '\u25B6';
+      play.title = '\u00c9couter cette voix';
+      play.setAttribute('aria-label', '\u00c9couter ' + l.identite);
+      play.addEventListener('click', () => apercu(l.id, play));
+      item.appendChild(play);
+    }
+    encart.appendChild(item);
+  });
+  li.appendChild(encart);
 }
 
 async function _openCastModal(rafraichirVoix, listeSeule) {
@@ -1470,6 +1631,12 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
   if (champRecherche && champRecherche.value !== _castRecherche) {
     champRecherche.value = _castRecherche;
   }
+
+  // En-tete compact (22/09/2026) : le tiroir des reglages et le champ de
+  // recherche sont repliables. On reapplique leur etat a CHAQUE reconstruction
+  // de l'affichage : sans cela, un clic sur un filtre les rouvrirait ou les
+  // refermerait au hasard.
+  _appliquerEnteteCasting();
 
   // Lignes a afficher : chaque principal suivi de ses alias. Construites par
   // _lignesPersonnages (partagee depuis le 19/09/2026 avec le panneau « Voir la
@@ -1658,7 +1825,14 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
         info.appendChild(badge);
       }
 
-      const select = _construireMenuVoix(v.voice_id, etatVoix);
+      // LA VOIX DU PERSONNAGE (22/09/2026, voie B) : un MENU DÉROULANT se
+      // trouvait ici. Il est remplacé par un BOUTON qui écrit la voix actuelle
+      // sur une ligne, et par une LISTE de l'application (deux lignes par voix,
+      // fond du thème) qui se déplie SOUS cette ligne au tap.
+      // La voix portée vit dans `voixChoisie` : c'est elle que lisent l'aperçu
+      // ▶, l'enregistrement des curseurs et le choix d'une voix.
+      let voixChoisie = v.voice_id || '';
+      const boutonVoix = _boutonVoixPersonnage(voixChoisie);
 
       const lockBtn = document.createElement('button');
       lockBtn.type = 'button';
@@ -1668,7 +1842,7 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
       lockBtn.addEventListener('click', () => _toggleCharacterLock(nom, lockBtn));
 
       top.appendChild(info);
-      top.appendChild(select);
+      top.appendChild(boutonVoix);
       top.appendChild(lockBtn);
 
       // 🗣️ « Prendre une voix libre » (19/09/2026) : ouvre la liste des voix que
@@ -1748,7 +1922,7 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
       playBtn.addEventListener('click', () => {
         const rateStr  = _formatPercent(parseInt(rateInput.value, 10));
         const pitchStr = _formatHz(parseInt(pitchInput.value, 10));
-        _previewCharacterVoice(nom, select.value, rateStr, pitchStr, playBtn);
+        _previewCharacterVoice(nom, voixChoisie, rateStr, pitchStr, playBtn);
       });
 
       sliders.appendChild(rateGroup);
@@ -1761,7 +1935,7 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
       const sendUpdate = () => {
         const rateStr  = _formatPercent(parseInt(rateInput.value, 10));
         const pitchStr = _formatHz(parseInt(pitchInput.value, 10));
-        return _updateCharacterVoice(nom, select.value, rateStr, pitchStr);
+        return _updateCharacterVoice(nom, voixChoisie, rateStr, pitchStr);
       };
 
       // Changement de VOIX : on enregistre PUIS on recalcule tout l'affichage
@@ -1770,10 +1944,14 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
       // ... »). Les curseurs de vitesse et de hauteur, eux, ne changent rien a
       // QUI porte quelle voix : ils ne declenchent pas de recalcul, sinon la
       // fiche sauterait pendant qu'on regle.
-      select.addEventListener('change', async () => {
+      // 22/09/2026 : la voix arrive en ARGUMENT, depuis la ligne tapee dans la
+      // liste (il n'y a plus de menu deroulant pour la lire). La regle du
+      // partage, elle, est INCHANGEE : c'est elle qui interdit qu'une voix soit
+      // remplacee en silence.
+      const choisirVoix = async (voix) => {
+        voixChoisie = voix;
         // La voix choisie est-elle deja portee par un AUTRE personnage ? Alors
         // c'est un CHOIX a faire, plus un accident silencieux (19/09/2026).
-        const voix   = select.value;
         const autres = etatVoix.porteurs(voix).filter(x => x.nom !== nom);
         if (autres.length) {
           const pitchPropose = _pitchPartageLibre(autres.map(x => _parseHz(
@@ -1781,7 +1959,7 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
           const choix = await _demanderPartage(nom, voix, autres, pitchPropose,
                                               narrateurVoix);
           if (choix === 'annuler') {
-            select.value = v.voice_id;   // rien ne bouge, comme avant le choix
+            voixChoisie = v.voice_id;   // rien ne bouge, comme avant le choix
             return;
           }
           if (choix === 'partager') {
@@ -1790,7 +1968,7 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
             pitchInput.value = String(pitchPropose);
             pitchLabel.textContent = 'Pitch ' + _formatHz(pitchPropose);
           } else if (!await _deplacerAutresVersGenerique(autres)) {
-            select.value = v.voice_id;   // echec (verrou) : on ne change rien
+            voixChoisie = v.voice_id;   // echec (verrou) : on ne change rien
             return;
           }
         }
@@ -1800,6 +1978,18 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
             + 'l\'affichage revient donc sur la voix précédente.');
         }
         await _rafraichirCastingApresChangement();
+      };
+
+      // Le BOUTON ouvre (ou referme) la LISTE des voix, juste sous la ligne.
+      // `choisirVoix` enregistre puis rafraichit : l'encart disparait avec la
+      // reconstruction de la ligne, et le bouton affiche la NOUVELLE voix.
+      boutonVoix.addEventListener('click', () => {
+        _basculerListeVoixPersonnage(li, nom, voixChoisie, choisirVoix,
+          (voixId, btn) => {
+            const rateStr  = _formatPercent(parseInt(rateInput.value, 10));
+            const pitchStr = _formatHz(parseInt(pitchInput.value, 10));
+            _previewCharacterVoice(nom, voixId, rateStr, pitchStr, btn);
+          });
       });
       rateInput.addEventListener('input', () => {
         rateLabel.textContent = 'Vitesse ' + _formatPercent(parseInt(rateInput.value, 10));
@@ -1900,13 +2090,14 @@ function _etatVoixLivre() {
 // non un survol : sur mobile il n'y a ni survol ni appui long (precision de
 // Laurent, 19/09/2026) -- et un tap fonctionne partout, PWA comprise.
 function _detailPartageVoix(etatVoix, voiceId, badge) {
+  // L'ORDRE COMPTE (22/09/2026) : les noms cliquables D'ABORD, l'explication
+  // ensuite. Constat de Laurent : « sur mobile je ne peux pas acceder aux noms
+  // qui sont cliquables [...] et les boutons cliquables sont en dessous ».
+  // L'explication fait quatre a six lignes (un livre reel a une voix portee par
+  // trente personnages) : elle poussait les noms hors de l'ecran, alors que ce
+  // sont EUX qu'on vient taper. Elle reste, juste en dessous.
   const detail = document.createElement('div');
   detail.className = 'cast-partage-detail hidden';
-
-  const phrase = document.createElement('p');
-  phrase.className = 'cast-partage-phrase';
-  phrase.textContent = etatVoix.phrase(voiceId);
-  detail.appendChild(phrase);
 
   // Les co-porteurs, en BOUTONS (demande de Laurent, 19/09/2026 : « pouvoir
   // cliquer sur Cycliste Schwinn pour arriver sur sa fiche »). Des boutons et
@@ -1928,13 +2119,32 @@ function _detailPartageVoix(etatVoix, voiceId, badge) {
     detail.appendChild(chips);
   }
 
+  // Pourquoi cette voix est prise, et par qui : l'explication vient APRES les
+  // noms (voir le commentaire en tete de fonction).
+  const phrase = document.createElement('p');
+  phrase.className = 'cast-partage-phrase';
+  phrase.textContent = etatVoix.phrase(voiceId);
+  detail.appendChild(phrase);
+
   // Message d'explication si un nom n'est pas affiche (filtre en cours) : mieux
   // vaut le dire que de ne rien faire quand on tape.
   const note = document.createElement('p');
   note.className = 'cast-partage-note';
   detail.appendChild(note);
 
-  const basculer = () => detail.classList.toggle('hidden');
+  // Deplier ne suffit pas : la fenetre doit MONTRER ce qu'elle vient d'ouvrir.
+  // Sans ce defilement, un detail ouvert sur une ligne du bas restait sous le
+  // bord de l'ecran -- exactement ce que Laurent decrivait (« la modale sort de
+  // l'ecran vers le bas », 21/09/2026). Le `typeof` protege le test node, qui
+  // fournit un faux DOM sans scrollIntoView.
+  let ouvert = false;
+  const basculer = () => {
+    ouvert = !ouvert;
+    detail.classList.toggle('hidden');
+    if (ouvert && typeof detail.scrollIntoView === 'function') {
+      detail.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  };
   badge.setAttribute('role', 'button');
   badge.setAttribute('tabindex', '0');
   badge.addEventListener('click', basculer);
@@ -2282,6 +2492,11 @@ function _closeCastModal() {
   // oublie (un « jeune » resté actif ferait croire a des personnages disparus).
   _castAgeFiltre  = 'T';
   _castPersoGenre = 'T';
+  // L'en-tete compact se replie aussi : on rouvre toujours la fenetre sur sa
+  // forme la plus courte (le champ de recherche cache, voir le drapeau plus
+  // haut). Le choix du TIROIR des reglages, lui, est garde : c'est une
+  // preference d'affichage, pas un filtre oublie.
+  _castRechercheOuverte = false;
 }
 
 async function _updateCharacterVoice(characterName, voiceId, rate, pitch) {
@@ -3141,6 +3356,96 @@ document.getElementById('cast-modal').addEventListener('click', (e) => {
 document.getElementById('cast-recast-btn').addEventListener('click', _recasterLivre);
 document.getElementById('cast-recast-ia-btn').addEventListener('click', _recasterAvecIA);
 document.getElementById('cast-autogroup-btn').addEventListener('click', _autogrouperDoublons);
+
+// ============================================================
+// EN-TETE COMPACT DE LA FENETRE DU CASTING (22/09/2026)
+// ============================================================
+// Trois fonctions PURES -- elles ne lisent que leurs arguments, donc le test
+// node peut les eprouver sans navigateur (meme esprit que _appareilMobile) --
+// et une fonction qui applique leur verdict a l'ecran.
+
+// Un ecran est « etroit » a 640 px ou moins : c'est EXACTEMENT la limite des
+// media queries de styles.css, donc la meme frontiere que le CSS.
+function _castEcranEtroit(largeur) {
+  const l = (largeur !== undefined) ? largeur
+    : ((typeof window !== 'undefined' && window.innerWidth)
+        ? window.innerWidth : 0);
+  return !(l > 640);
+}
+
+// Le tiroir des reglages doit-il etre ouvert ? Tant que Laurent n'y a pas
+// touche (choix a null), on suit l'ecran : ouvert sur ordinateur, ou la place ne
+// manque pas ; replie sur telephone, ou c'est la place qui manquait.
+function _castOutilsDoiventEtreOuverts(choix, largeur) {
+  if (choix === true || choix === false) return choix;
+  return !_castEcranEtroit(largeur);
+}
+
+// Un filtre de LISTE est-il actif (age de la voix, genre du personnage) ? Cela
+// allume le bouton Filtres quand le tiroir est replie : sans ce repere, une
+// liste courte ferait croire a des personnages disparus.
+function _castFiltreListeActif(age, perso) {
+  return (!!age && age !== 'T') || (!!perso && perso !== 'T');
+}
+
+// Applique les deux etats d'affichage. Appelee par _openCastModal (a chaque
+// reconstruction de la fenetre) et par les deux boutons de l'en-tete.
+function _appliquerEnteteCasting() {
+  const outils = document.getElementById('cast-tools');
+  const btnOutils = document.getElementById('cast-filtres-btn');
+  if (outils) {
+    const ouvert = _castOutilsDoiventEtreOuverts(_castOutilsOuverts);
+    outils.classList.toggle('hidden', !ouvert);
+    if (btnOutils) {
+      btnOutils.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+      btnOutils.classList.toggle('actif',
+        _castFiltreListeActif(_castAgeFiltre, _castPersoGenre));
+    }
+  }
+  const barre = document.getElementById('cast-search-bar');
+  const btnRecherche = document.getElementById('cast-search-btn');
+  if (barre) {
+    // Une recherche EN COURS garde le champ ouvert, meme si on n'a pas touche au
+    // bouton de recherche : sinon on ne verrait plus ce qui filtre la liste.
+    const requete = (_castRecherche || '').trim();
+    const ouverte = _castRechercheOuverte || !!requete;
+    barre.classList.toggle('hidden', !ouverte);
+    if (btnRecherche) {
+      btnRecherche.setAttribute('aria-expanded', ouverte ? 'true' : 'false');
+      btnRecherche.classList.toggle('actif', !!requete);
+    }
+  }
+}
+
+// Le bouton de recherche : deplie (ou replie) le champ. Quand une recherche est
+// en cours, il RAMENE au champ avec le texte selectionne plutot que de le cacher
+// -- on ne masque pas ce qui filtre la liste, et le bouton ne reste jamais sans
+// effet (un appui qui ne fait rien donne l'impression d'un bug).
+document.getElementById('cast-search-btn').addEventListener('click', () => {
+  const barre = document.getElementById('cast-search-bar');
+  const champ = document.getElementById('cast-search');
+  const dejaOuverte = !!barre && !barre.classList.contains('hidden');
+  const active = !!(_castRecherche || '').trim();
+  if (dejaOuverte && !active) {
+    _castRechercheOuverte = false;
+    _appliquerEnteteCasting();
+    return;
+  }
+  _castRechercheOuverte = true;
+  _appliquerEnteteCasting();
+  if (champ && typeof champ.focus === 'function') {
+    champ.focus();
+    if (active && typeof champ.select === 'function') champ.select();
+  }
+});
+
+// Le bouton Filtres : ouvre (ou referme) le tiroir des reglages. Le choix est
+// range dans _castOutilsOuverts : il survit aux reconstructions de la fenetre,
+// sans quoi le tiroir se refermerait a chaque clic sur un filtre ou sur une voix.
+document.getElementById('cast-filtres-btn').addEventListener('click', () => {
+  _castOutilsOuverts = !_castOutilsDoiventEtreOuverts(_castOutilsOuverts);
+  _appliquerEnteteCasting();
+});
 
 // Barre de recherche du casting (20/09/2026) : on reconstruit l'affichage a
 // chaque lettre tapee, mais SANS repasser par le serveur (2e argument
@@ -5150,53 +5455,211 @@ function _voixDePhrase(idx) {
   return choix ? choix.value : '';
 }
 
-// Menu des voix : memes groupes que la fenetre du casting (Femmes / Hommes /
-// Autres), pour retrouver ses reperes.
-// Depuis le 19/09/2026, son libelle est celui des AUTRES menus (drapeaux, age,
-// timbre et moteur) : demande de Laurent, « le meme affichage que dans le menu
-// Casting des voix ». Le `typeof` protege le test node, qui isole cette
-// fonction sans lui fournir `_libelleVoix`.
-// `etatVoix` (19/09/2026) ajoute l'etat d'usage au libelle (« · LIBRE »,
-// « · partagée (2) ») : c'est ici qu'on choisit, donc ici qu'on a besoin de
-// savoir si la voix est libre. Facultatif (le test node ne le fournit pas).
-function _remplirMenuVoixPhrase(select, voixId, etatVoix) {
-  const usage = (!etatVoix || typeof etatVoix.marque !== 'function')
-    ? () => '' : (id) => etatVoix.marque(id);
-  select.innerHTML = '';
-  const groupe = (etiquette, liste) => {
+// ============================================================
+// LA LISTE DES VOIX DU PANNEAU (22/09/2026) — remplace un MENU DÉROULANT
+// ============================================================
+// Demande de Laurent (voie B, choisie le 22/09/2026) : un menu déroulant était
+// dessiné par le TÉLÉPHONE (fond clair, grosse police, libellé coupé au hasard),
+// et le saut de ligne y est IMPOSSIBLE (mesuré :
+// test_voix/test_libelle_deux_lignes_rendu.py). Ici la liste est faite de VRAIS
+// éléments de page : le thème s'applique, et chaque voix se lit sur DEUX lignes :
+//     1re : symbole, prénom, drapeaux, âge et timbre (`_identiteVoix`) ;
+//     2e  : icône du moteur, puis l'état (« · LIBRE », « · Edmond »...).
+// Un tap sur la ligne CHOISIT la voix ; le ▶ l'écoute sans rien changer.
+// Prix à payer, annoncé à Laurent et accepté : UN TAP DE PLUS pour changer une
+// voix (le menu, lui, s'ouvrait d'un seul tap).
+//
+// État du panneau, gardé ici pour survivre aux repeintures de la liste :
+//   _voicePhraseVoix      : la voix que la liste marque comme choisie ;
+//   _voicePhraseRecherche : le texte de la recherche (jusqu'à 175 voix à lire).
+let _voicePhraseVoix = '';
+let _voicePhraseRecherche = '';
+
+// Les LIGNES d'une liste de voix — fonction PURE (aucun DOM) : c'est elle que
+// les tests node éprouvent. Elle sert DEUX endroits, avec les mêmes règles :
+//   - le panneau « Voix de cette phrase » (22/09/2026) ;
+//   - la liste qui se déplie dans une ligne du CASTING (même jour).
+// Le nom est donc neutre (« liste », pas « phrase ») : ce qui change d'un endroit
+// à l'autre, c'est la liste de voix qu'on lui donne et la marque d'état.
+// Elle rend, dans l'ordre d'affichage :
+//   { genre: 'groupe', libelle: '👩 Femmes' }
+//   { genre: 'voix', id, identite, deuxiemeLigne, actuelle, horsListe }
+function _lignesVoixListe(voix, voixId, marque, recherche, libelleAbsente) {
+  const toutes = (voix || []).filter(v => v && v.id);
+  const usage = (typeof marque === 'function') ? marque : () => '';
+  // Même règle de recherche que le casting et le tiroir des voix libres
+  // (`_cleRecherche` : accents, casse, tirets) — on cherche par prénom ou par
+  // provenance, jamais par identifiant technique.
+  const retenues = _filtrerVoixLibres(toutes, recherche);
+  const lignes = [];
+  const groupe = (libelle, liste) => {
     if (!liste.length) return;
-    const g = document.createElement('optgroup');
-    g.label = etiquette;
+    lignes.push({ genre: 'groupe', libelle: libelle });
     liste.forEach(v => {
-      const o = document.createElement('option');
-      o.value       = v.id;
-      o.textContent = ((typeof _libelleVoix === 'function')
-        ? _libelleVoix(v) : v.name + ' \u2014 ' + v.region) + usage(v.id);
-      g.appendChild(o);
+      const icone = _iconeMoteurVoix(v);
+      const marqueVoix = usage(v.id);
+      lignes.push({
+        genre:    'voix',
+        id:       v.id,
+        identite: _identiteVoix(v),
+        moteur:   icone,
+        etat:     marqueVoix,
+        // La 2e ligne, TELLE QU'ELLE S'AFFICHE : « 🧬 · LIBRE », « ☁️ · Edmond »,
+        // « ☁️ » seul, ou rien du tout (voix hors liste, deja nommee en entier).
+        // Calculee ici, dans la fonction pure, et pas au moment de peindre : c'est
+        // ce que le test eprouve. Le `trim()` compte : la marque d'etat arrive
+        // DEJA precedee d'une espace (« · LIBRE », « · Edmond »), donc un `join`
+        // donnerait deux espaces entre l'icone et le point milieu.
+        deuxiemeLigne: (icone + marqueVoix).trim(),
+        actuelle: v.id === voixId,
+      });
     });
-    select.appendChild(g);
   };
-  const parGenre = g => _allVoices
+  const parGenre = g => retenues
     .filter(v => (v.gender || '') === g)
-    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
 
   groupe('\uD83D\uDC69 Femmes', parGenre('F'));
   groupe('\uD83D\uDC68 Hommes', parGenre('M'));
-  groupe('Autres', _allVoices.filter(v => !v.gender));
+  groupe('Autres', retenues.filter(v => !v.gender));
 
-  // Une voix attribuee mais NON proposee (moteur eteint) doit quand meme
-  // s'afficher : sinon le menu montrerait l'air de rien une autre voix.
-  if (voixId && !_allVoices.some(v => v.id === voixId)) {
-    const g = document.createElement('optgroup');
-    g.label = '\u26A0\uFE0F Voix actuelle';
-    const o = document.createElement('option');
-    o.value       = voixId;
-    o.textContent = _libelleCatalogue(voixId) || voixId;
-    g.appendChild(o);
-    select.appendChild(g);
+  // Une voix attribuée mais PLUS PROPOSÉE (moteur éteint, voix retirée) doit
+  // quand même s'afficher : sinon la liste montrerait l'air de rien une AUTRE
+  // voix, ou effacerait le choix sans le dire (règle du 14/09/2026).
+  if (voixId && !toutes.some(v => v.id === voixId)) {
+    lignes.push({ genre: 'groupe', libelle: '\u26A0\uFE0F Voix actuelle' });
+    // Pas de 2e ligne pour elle : `identite` la nomme deja en entier (elle vient
+    // du catalogue complet, moteur compris).
+    lignes.push({ genre: 'voix', id: voixId, actuelle: true, horsListe: true,
+                  identite: libelleAbsente || voixId, moteur: '', etat: '',
+                  deuxiemeLigne: '' });
   }
-  select.value = voixId || '';
+  return lignes;
 }
+
+// Peint la liste dans la page : le seul endroit, avec la recherche et le clic,
+// qui touche au DOM.
+function _peindreListeVoixPhrase() {
+  const list = document.getElementById('voice-phrase-liste');
+  if (!list) return;
+  const etatVoix = _etatVoixLivre();
+  const lignes = _lignesVoixListe(_allVoices, _voicePhraseVoix,
+                                   etatVoix.marque, _voicePhraseRecherche,
+                                   _libelleCatalogue(_voicePhraseVoix));
+  list.innerHTML = '';
+  if (!lignes.length) {
+    // Liste vide : le DIRE. Un cadre muet ferait croire à des voix disparues.
+    const vide = document.createElement('li');
+    vide.className = 'cast-empty';
+    vide.textContent = (_voicePhraseRecherche || '').trim()
+      ? 'Aucune voix ne correspond \u00e0 \u00ab ' + _voicePhraseRecherche.trim()
+        + ' \u00bb.'
+      : 'Aucune voix propos\u00e9e pour l\u2019instant : les moteurs sont '
+        + 'peut-\u00eatre encore en cours de chargement.';
+    list.appendChild(vide);
+  }
+  lignes.forEach(l => {
+    const li = document.createElement('li');
+    if (l.genre === 'groupe') {
+      li.className = 'voix-liste-groupe';
+      li.textContent = l.libelle;
+      list.appendChild(li);
+      return;
+    }
+    li.className = 'voix-liste-item';
+    if (l.actuelle) li.dataset.actuelle = 'true';
+
+    // Toute la ligne est le bouton de choix : cible large pour le doigt.
+    const choix = document.createElement('button');
+    choix.type = 'button';
+    choix.className = 'voix-liste-choix';
+    if (l.actuelle) choix.setAttribute('aria-current', 'true');
+    const nom = document.createElement('span');
+    nom.className = 'voix-liste-nom';
+    nom.textContent = (l.actuelle ? '\u2714 ' : '') + l.identite;
+    choix.appendChild(nom);
+    // 2e ligne : le moteur, puis l'état -- calculée par la fonction pure
+    // (`deuxiemeLigne`). Rien à dire (voix hors liste) : pas de 2e ligne du
+    // tout, plutôt qu'une ligne vide.
+    if (l.deuxiemeLigne) {
+      const sousTitre = document.createElement('span');
+      sousTitre.className = 'voix-liste-etat';
+      sousTitre.textContent = l.deuxiemeLigne;
+      choix.appendChild(sousTitre);
+    }
+    choix.addEventListener('click', () => _choisirVoixPhrase(l.id));
+
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'voix-liste-ecoute';
+    play.textContent = '\u25B6';
+    play.title = '\u00c9couter cette voix';
+    play.setAttribute('aria-label', '\u00c9couter ' + l.identite);
+    play.addEventListener('click', () => _apercuVoixPhrase(l.id, play));
+
+    li.appendChild(choix);
+    li.appendChild(play);
+    list.appendChild(li);
+  });
+
+  const recap = document.getElementById('voice-phrase-recap');
+  if (recap) {
+    recap.textContent = lignes.filter(l => l.genre === 'voix').length + ' voix';
+  }
+}
+
+// Le CHOIX d'une voix : exactement ce que faisait le menu déroulant, au `change`
+// près (un tap sur la ligne le remplace). Le détail compte : on enregistre pour
+// TOUT le personnage, on relance la lecture si elle tournait, et l'état affiché
+// suit le choix tout de suite.
+async function _choisirVoixPhrase(voixId) {
+  if (_voicePhraseIdx < 0 || !voixId) return;
+  const nom  = _personnageDePhrase(_voicePhraseIdx);
+  const note = document.getElementById('voice-phrase-note');
+
+  if (nom) {
+    const fiche = _fichePersonnage(nom);
+    const rate  = (fiche && fiche.rate)  || '+0%';
+    const pitch = (fiche && fiche.pitch) || '+0Hz';
+    note.textContent = 'Enregistrement...';
+    const ok = await _updateCharacterVoice(nom, voixId, rate, pitch);
+    note.textContent = ok
+      ? 'Voix chang\u00e9e pour ' + nom + ' (toutes ses phrases).'
+      : 'Le changement n\u2019a pas pu \u00eatre enregistr\u00e9.';
+  } else {
+    const sel = document.getElementById('voice-select');
+    if (sel) {
+      sel.value = voixId;
+      // On PRÉVIENT le menu du haut : l'enregistrement pour ce livre part de SON
+      // gestionnaire 'change' (sinon le choix n'était pas retenu au rechargement).
+      sel.dispatchEvent(new Event('change'));
+    }
+    // La playlist est construite au lancement : sans cela, la suite du chapitre
+    // garderait l'ancienne voix (même règle que pour un personnage).
+    if (_ttsState === 'playing' || _ttsState === 'loading') {
+      _stopTTS();
+      _startTTS();
+    }
+    note.textContent = 'Voix du lecteur chang\u00e9e.';
+  }
+
+  _voicePhraseVoix = voixId;
+  document.getElementById('voice-phrase-voix').textContent =
+    _libelleCatalogue(voixId) || voixId;
+  const etatVoix = _etatVoixLivre();
+  const ligneUsage = document.getElementById('voice-phrase-usage');
+  if (ligneUsage) ligneUsage.textContent = etatVoix.phrase(voixId);
+  // La liste se repeint : le ✔ suit le choix, et l'état des AUTRES voix aussi
+  // (« · LIBRE » devient « · Edmond » si la voix vient d'être prise).
+  _peindreListeVoixPhrase();
+
+  // La fenêtre du casting, si elle est ouverte derrière, doit suivre elle aussi.
+  await _rafraichirCastingApresChangement();
+}
+
+// (L'ecouteur du champ de recherche est plus bas, AVEC les autres ecouteurs du
+// panneau : c'est la ou le fichier les regroupe, et cela evite qu'un test node
+// qui extrait les fonctions du panneau tombe sur un element de page absent.)
 
 function _openVoicePanel(sentIdx) {
   if (sentIdx < 0 || sentIdx >= _sentences.length) return;
@@ -5230,12 +5693,19 @@ function _openVoicePanel(sentIdx) {
   document.getElementById('voice-phrase-note').textContent = '';
 
   // Etat de la voix dans TOUT le livre : libre, prise par un personnage,
-  // partagee, ou voix du narrateur. Ecrit en TEXTE PLEIN sous le menu, car sur
+  // partagee, ou voix du narrateur. Ecrit en TEXTE PLEIN sous la liste, car sur
   // mobile il n'y a ni survol ni appui long pour aller le chercher (demande de
   // Laurent, 19/09/2026 : « je ne vois pas quelle voix est libre »).
   const etatVoix = _etatVoixLivre();
-  _remplirMenuVoixPhrase(document.getElementById('voice-phrase-select'), voixId,
-                         etatVoix);
+  // La LISTE des voix (22/09/2026) : la voix ouverte y porte un ✔, et la
+  // recherche repart VIDEE -- on rouvre donc toujours la liste complete, sinon
+  // une recherche oubliee ferait croire a des voix disparues (meme regle que la
+  // fenetre du casting).
+  _voicePhraseVoix      = voixId;
+  _voicePhraseRecherche = '';
+  const champRecherche = document.getElementById('voice-phrase-recherche');
+  if (champRecherche) champRecherche.value = '';
+  _peindreListeVoixPhrase();
   // `if` : la ligne peut manquer si le navigateur sert une page plus ancienne
   // que le script (cache) -- on ne veut jamais empecher le panneau de s'ouvrir.
   const ligneUsage = document.getElementById('voice-phrase-usage');
@@ -5258,18 +5728,25 @@ function _openVoicePanel(sentIdx) {
 
 function _closeVoicePanel() {
   _voicePhraseIdx = -1;
+  // La recherche ne survit pas a la fermeture (22/09/2026, meme regle que la
+  // fenetre du casting) : on rouvre toujours sur la liste complete.
+  _voicePhraseRecherche = '';
   _couperApercuVoix();
   document.getElementById('voice-phrase-panel').classList.add('hidden');
 }
 
 // Apercu : la voix choisie dit un extrait de LA phrase ouverte, avec les
 // reglages du personnage (ou la vitesse du lecteur pour la narration).
-async function _apercuVoixPhrase() {
+// `voixId` et `btn` (22/09/2026) : dans la LISTE, chaque voix a son propre ▶,
+// donc l'apercu se demande pour UNE voix, depuis SON bouton. Sans argument,
+// c'est la voix marquee dans la liste et le bouton « ▶ Écouter » du bas.
+async function _apercuVoixPhrase(voixId, btn) {
   if (_voicePhraseIdx < 0) return;
   const idx   = _voicePhraseIdx;
-  const btn   = document.getElementById('voice-phrase-ecouter-btn');
+  btn   = btn || document.getElementById('voice-phrase-ecouter-btn');
+  if (!btn) return;
   const note  = document.getElementById('voice-phrase-note');
-  const voix  = document.getElementById('voice-phrase-select').value;
+  const voix  = voixId || _voicePhraseVoix;
   const nom   = _personnageDePhrase(idx);
   const fiche = _fichePersonnage(nom);
   const vitesse = document.getElementById('speed-select');
@@ -5309,7 +5786,18 @@ async function _apercuVoixPhrase() {
 }
 
 document.getElementById('voice-phrase-ecouter-btn')
-  .addEventListener('click', _apercuVoixPhrase);
+  .addEventListener('click', () => _apercuVoixPhrase());
+
+// La RECHERCHE de la liste (22/09/2026) : elle filtre les voix par prenom et par
+// provenance, avec la meme regle que partout ailleurs (`_cleRecherche` : accents,
+// casse, tirets). Elle est volontairement placee AVEC les autres ecouteurs du
+// panneau, et non dans la section des fonctions : un test node qui extrait ces
+// fonctions tomberait sinon sur un element de page absent.
+document.getElementById('voice-phrase-recherche')
+  .addEventListener('input', (e) => {
+    _voicePhraseRecherche = e.target.value;
+    _peindreListeVoixPhrase();
+  });
 
 document.getElementById('voice-phrase-close-btn')
   .addEventListener('click', _closeVoicePanel);
@@ -5346,59 +5834,14 @@ document.getElementById('voice-phrase-panel').addEventListener('click', (e) => {
   if (e.target.id === 'voice-phrase-panel') _closeVoicePanel();
 });
 
-// Changement de voix : applique tout de suite. Pour un personnage, c'est sa
-// voix dans TOUT le livre (comme la fenetre du casting) -- et
-// _updateCharacterVoice relance la lecture si elle tournait ; pour la
-// narration, c'est la voix du lecteur (le menu du haut).
-document.getElementById('voice-phrase-select').addEventListener('change', async (e) => {
-  if (_voicePhraseIdx < 0) return;
-  const idx  = _voicePhraseIdx;
-  const voix = e.target.value;
-  const nom  = _personnageDePhrase(idx);
-  const note = document.getElementById('voice-phrase-note');
-
-  if (nom) {
-    const fiche = _fichePersonnage(nom);
-    const rate  = (fiche && fiche.rate)  || '+0%';
-    const pitch = (fiche && fiche.pitch) || '+0Hz';
-    note.textContent = 'Enregistrement...';
-    const ok = await _updateCharacterVoice(nom, voix, rate, pitch);
-    note.textContent = ok
-      ? 'Voix changée pour ' + nom + ' (toutes ses phrases).'
-      : 'Le changement n\'a pas pu être enregistré.';
-  } else {
-    const sel = document.getElementById('voice-select');
-    if (sel) {
-      sel.value = voix;
-      // On PREVIENT le menu du haut (19/09/2026) : l'enregistrement pour ce
-      // livre part de SON gestionnaire 'change'. Sans cela, changer la voix du
-      // narrateur depuis ce panneau n'etait pas retenu apres un rechargement
-      // (defaut trouve en corrigeant le rafraichissement du casting).
-      sel.dispatchEvent(new Event('change'));
-    }
-    // La playlist de lecture est construite au lancement : sans ce qui suit,
-    // la suite du chapitre garderait l'ancienne voix (meme regle que pour un
-    // personnage, decision du 15/09/2026).
-    if (_ttsState === 'playing' || _ttsState === 'loading') {
-      _stopTTS();
-      _startTTS();
-    }
-    note.textContent = 'Voix du lecteur changée.';
-  }
-
-  document.getElementById('voice-phrase-voix').textContent =
-    _libelleCatalogue(voix) || voix;
-  // L'etat de la voix choisie se met a jour tout de suite : c'est la reponse a
-  // « est-elle libre ? » au moment precis ou l'on change de voix.
-  const etatVoix = _etatVoixLivre();
-  const ligneUsage = document.getElementById('voice-phrase-usage');
-  if (ligneUsage) ligneUsage.textContent = etatVoix.phrase(voix);
-
-  // La fenetre du casting, si elle est ouverte derriere, doit suivre elle aussi
-  // (badges de partage, marques « libre », tiroir des voix libres) : sinon elle
-  // garderait le calcul fait a son ouverture -- meme defaut que ci-dessus.
-  await _rafraichirCastingApresChangement();
-});
+// LE CHANGEMENT DE VOIX NE PASSE PLUS PAR UN MENU DEROULANT (22/09/2026).
+// Le select `#voice-phrase-select` n'existe plus : la liste des voix est peinte
+// par _peindreListeVoixPhrase, et c'est le TAP sur une ligne qui appelle
+// _choisirVoixPhrase(voixId). Cette fonction fait EXACTEMENT ce que faisait ce
+// gestionnaire 'change' : enregistrement pour tout le personnage
+// (_updateCharacterVoice), relance de la lecture si elle tournait, mise a jour
+// de l'etat affiche, puis rafraichissement de la fenetre du casting ouverte
+// derriere. Rien n'est donc perdu en chemin.
 
 // PC : bouton « Voir la voix » du tooltip de selection -- ouvre le panneau sur
 // la premiere phrase couverte par la selection (comme « Lire a partir d'ici »).
@@ -5554,6 +5997,64 @@ document.getElementById('installer-btn').addEventListener('click', _proposerInst
 _majBoutonInstaller();
 
 // ============================================================
+// TIROIR DU MENU DU LECTEUR (22/09/2026)
+// ============================================================
+// Demande de Laurent : « Pour le menu du bas, on va faire un tiroir. Il faut
+// afficher uniquement les boutons de lecture [...]. Dessous, tout le reste du
+// menu qui s'ouvre en ouvrant ce menu tiroir. »
+// La barre du bas garde donc ses SEPT commandes de lecture (la barre de
+// progression, les six fleches et le bouton rond), et tout ce qui se regle une
+// fois puis s'oublie se range derriere la poignee : voix multiples, ecouter les
+// voix, onglets, lecture rapide, vider le cache, voix du narrateur, vitesse,
+// voyant « reparer ».
+//
+// Meme motif que le tiroir des reglages de la fenetre du casting (22/09/2026) :
+//   _tiroirLecteurOuvert : null = Laurent n'a pas encore touche a la poignee ->
+//                          on suit la taille de l'ecran (ouvert sur ordinateur,
+//                          replie sur telephone) ; true / false = SON choix, que
+//                          l'on respecte ensuite pendant toute la session.
+// La frontiere « ecran etroit » (640 px) est celle des media queries de
+// styles.css : c'est la meme fonction que pour le tiroir du casting
+// (`_castEcranEtroit`), pour qu'il n'y ait qu'une frontiere dans tout le code.
+let _tiroirLecteurOuvert = null;
+
+// Fonction PURE (aucun DOM, aucun appel reseau) : le tiroir doit-il etre
+// ouvert ? Eprouvee par test_voix/test_tiroir_lecteur.js, sans navigateur.
+function _tiroirLecteurDoitEtreOuvert(choix, largeur) {
+  if (choix === true || choix === false) return choix;
+  return !_castEcranEtroit(largeur);
+}
+
+// Applique l'etat a l'ecran : les reglages masques ou montres, et la poignee
+// dans le bon sens. C'est `aria-expanded` qui porte l'etat -- le chevron n'est
+// que son dessin (styles.css) -- et l'aria-label dit ce que le bouton FERA.
+function _appliquerTiroirLecteur() {
+  const reglages = document.getElementById('reader-settings');
+  const poignee  = document.getElementById('reader-tiroir-btn');
+  if (!reglages) return;
+  const ouvert = _tiroirLecteurDoitEtreOuvert(_tiroirLecteurOuvert);
+  reglages.classList.toggle('hidden', !ouvert);
+  if (poignee) {
+    poignee.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+    poignee.setAttribute('aria-label', ouvert ? 'Fermer le menu du lecteur'
+                                              : 'Ouvrir le menu du lecteur');
+  }
+}
+
+document.getElementById('reader-tiroir-btn').addEventListener('click', () => {
+  _tiroirLecteurOuvert = !_tiroirLecteurDoitEtreOuvert(_tiroirLecteurOuvert);
+  _appliquerTiroirLecteur();
+});
+
+// Tourner le telephone, ou redimensionner la fenetre du PC, deplace la
+// frontiere telephone / ordinateur : on reapplique l'etat -- sauf si Laurent a
+// donne son avis, auquel cas son choix reste tel quel (comme celui du tiroir du
+// casting : ce qu'il a choisi ne doit pas se defaire tout seul).
+window.addEventListener('resize', () => {
+  if (_tiroirLecteurOuvert === null) _appliquerTiroirLecteur();
+});
+
+// ============================================================
 // NAVIGATION VUES
 // ============================================================
 
@@ -5568,6 +6069,11 @@ function showView(name) {
   lib.classList.toggle('active', name === 'library');
   reader.classList.toggle('hidden', name !== 'reader');
   reader.classList.toggle('active', name === 'reader');
+  // Le tiroir du menu (22/09/2026) s'applique a l'ENTREE dans le lecteur : sur
+  // un telephone il arrive replie (les sept boutons de lecture, et rien
+  // d'autre), sur un ordinateur ouvert -- et si Laurent l'a ouvert ou referme a
+  // la main, c'est SON choix qui reste (voir _appliquerTiroirLecteur).
+  if (name === 'reader') _appliquerTiroirLecteur();
   rsvp.classList.toggle('hidden', name !== 'rsvp');
   rsvp.classList.toggle('active', name === 'rsvp');
 }

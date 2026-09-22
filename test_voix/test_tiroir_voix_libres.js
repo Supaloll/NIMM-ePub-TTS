@@ -230,14 +230,30 @@ console.log('');
 console.log('4) badge de partage : le detail se deplie AU TAP (et au clavier)');
 const badge  = element('span');
 const detail = detailPartage(etatVoix, 'xtts:voix3', badge);
-const phrase = detail.children[0];
+// Depuis le 22/09/2026, deplier MONTRE ce qu'on vient d'ouvrir : la fenetre
+// defile jusqu'au detail. Sans cela, un partage deplie sur une ligne du bas
+// restait sous le bord de l'ecran (constat de Laurent, 21/09/2026 : « la modale
+// sort de l'ecran vers le bas »).
+detail.defile = false;
+detail.scrollIntoView = () => { detail.defile = true; };
+const phrase = detail.children.find(c => c.className === 'cast-partage-phrase');
 verifier('le detail ECRIT les noms (mobile : pas de survol possible)',
-         phrase.textContent.indexOf('Edmond') > 0
-         && phrase.textContent.indexOf('Busoni') > 0, phrase.textContent);
+         !!phrase && phrase.textContent.indexOf('Edmond') > 0
+         && phrase.textContent.indexOf('Busoni') > 0,
+         phrase ? phrase.textContent : 'aucune phrase');
+// Les NOMS CLIQUABLES passent AVANT l'explication : c'est eux qu'on vient
+// taper, et l'explication fait quatre a six lignes sur un livre reel.
+const chipsAvantPhrase = detail.children.indexOf(
+  detail.children.find(c => c.className === 'cast-partage-chips'));
+verifier('les noms cliquables passent AVANT l explication (22/09/2026)',
+         chipsAvantPhrase >= 0 && chipsAvantPhrase < detail.children.indexOf(phrase),
+         JSON.stringify(detail.children.map(c => c.className)));
 verifier('le detail est cache tant qu on n a pas tape',
          detail.className.indexOf('hidden') > 0, detail.className);
 verifier('un tap le deplie', typeof badge.ecouteurs.click === 'function'
          && badge.ecouteurs.click() === undefined);
+verifier('un tap amene le detail dans l ecran (defilement)',
+         detail.defile === true, String(detail.defile));
 verifier('la touche Entree le deplie aussi (PC)',
          typeof badge.ecouteurs.keydown === 'function');
 verifier('le badge est annonce comme un bouton (accessible)',
@@ -376,8 +392,13 @@ const apiPartage = new Function(
   console.log('8) la modale est branchee sur les bons gestes (code reel)');
   verifier('le choix est demande, pas suppose',
            source.indexOf('const choix = await _demanderPartage(') >= 0);
-  verifier('« Annuler » remet la voix precedente dans le menu',
-           source.indexOf('select.value = v.voice_id;') >= 0);
+  // Depuis le 22/09/2026, la voix vit dans `voixChoisie` (il n'y a plus de menu
+  // deroulant a remettre sur sa valeur). Les DEUX sorties en arriere -- Annuler,
+  // et l'echec sur un personnage verrouille -- doivent la remettre : on verifie
+  // donc les deux, pas une seulement.
+  verifier('« Annuler » remet la voix precedente (et le verrou la laisse aussi)',
+           (source.match(/voixChoisie = v\.voice_id;/g) || []).length >= 2,
+           (source.match(/voixChoisie = v\.voice_id;/g) || []).length);
   verifier('« Partager » ecrit la hauteur annoncee dans le curseur',
            source.indexOf('pitchInput.value = String(pitchPropose)') >= 0
            && source.indexOf('_formatHz(pitchPropose)') >= 0);

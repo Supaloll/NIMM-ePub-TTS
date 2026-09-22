@@ -592,6 +592,60 @@ body {
   align-items: center;
 }
 
+/* ============================================================
+   POIGNÉE DU TIROIR DU MENU DU LECTEUR (22/09/2026)
+   ============================================================
+   Demande de Laurent : « Pour le menu du bas, on va faire un tiroir. Il faut
+   afficher uniquement les boutons de lecture [...]. Dessous, tout le reste du
+   menu qui s'ouvre en ouvrant ce menu tiroir. »
+   La barre du bas ne garde donc que les SEPT commandes de lecture ; les
+   réglages (#reader-settings, juste après) sont rangés derrière cette poignée.
+   Comme le tiroir s'ouvre VERS LE HAUT, le chevron regarde en l'air quand il
+   est fermé, et se retourne quand il est ouvert. Ce retournement suit
+   `aria-expanded` (que tient à jour _appliquerTiroirLecteur, app.js) : le
+   dessin suit l'état ANNONCÉ, jamais l'inverse -- sinon un lecteur d'écran
+   dirait l'opposé de ce qu'on voit.
+   Sur ordinateur, la poignée disparaît : le tiroir y est toujours ouvert, la
+   place ne manque pas (même règle que le tiroir des réglages du casting). */
+#reader-tiroir-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 26px;
+  padding: 4px 0 2px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#reader-tiroir-btn:hover { color: var(--accent); }
+#reader-tiroir-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+#reader-tiroir-btn svg { transition: transform 0.2s ease; }
+
+/* Tiroir OUVERT : le chevron se retourne (il pointe vers le bas, donc « appuie
+   pour replier ») et la poignée passe à la couleur d'accent, comme les autres
+   repères actifs de l'application. */
+#reader-tiroir-btn[aria-expanded="true"] {
+  color: var(--accent);
+  border-top-color: var(--accent-dim);
+}
+#reader-tiroir-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+@media (min-width: 641px) {
+  /* Ordinateur : pas de poignée, le tiroir reste ouvert. */
+  #reader-tiroir-btn { display: none; }
+}
+
 /* Réparer les moteurs de voix (21/09/2026) : sur sa propre ligne, sous les
    réglages. Sans lui, l'absence des voix d'un moteur éteint ressemblerait à un
    bug ; et sans lui, Laurent n'avait AUCUN moyen de rallumer un moteur depuis
@@ -758,6 +812,25 @@ body {
 #voice-select:focus, #speed-select:focus {
   outline: 1px solid var(--accent-dim);
 }
+
+/* ============================================================
+   SAUT DE LIGNE DANS UN CHOIX DE MENU — essayé et MESURÉ SANS EFFET (22/09/2026)
+   ============================================================
+   Demande de Laurent : « est-ce qu'on peut forcer un saut de ligne ? » dans le
+   libellé d'une voix (« 1ère ligne : Prénom - drapeaux - âge et timbre ; 2ème
+   ligne : moteur - nom du personnage portant la voix / LIBRE »).
+   Réponse : NON, et c'est mesuré. `white-space: pre-line` a bien été essayé sur
+   les options des trois menus, avec un saut de ligne écrit dans le libellé
+   (`_libelleVoix(v, true)` à l'époque) : la règle S'APPLIQUE bien à l'option,
+   mais l'option garde EXACTEMENT la même hauteur — le navigateur aplatit le
+   saut. Mesure : `test_voix/test_libelle_deux_lignes_rendu.py`. La règle et
+   l'argument `deuxLignes` ont donc été RETIRÉS le jour même : garder du code
+   sans effet ferait croire que ça marche.
+   Ce qui reste vrai : un libellé plus long que le menu se replie tout seul, mais
+   le repli est SUBI — on ne choisit pas où il tombe, et sur un téléphone c'est
+   le système qui dessine la liste. Pour une 2e ligne CHOISIE, il faut une LISTE
+   de l'application (de vrais éléments de page), comme le tiroir des voix
+   libres. Ne pas refaire l'essai du `\n`. */
 
 /* ============================================================
    PANNEAU CHAPITRES
@@ -954,7 +1027,16 @@ body {
 
 .cast-box {
   max-width: 440px;
+  /* Jamais plus haute que l'ecran REELLEMENT visible (22/09/2026). `vh` se
+     calcule sur l'ecran SANS la barre d'adresse du navigateur : 80vh depassait
+     donc le bas d'un telephone, et le detail « partagee avec ... » (les noms
+     cliquables) se retrouvait hors de l'ecran. `min()` garde les 80vh sur un
+     ordinateur, ou les deux mesures sont egales, et prend la hauteur visible
+     quand elle est plus petite. La premiere ligne est le repli des navigateurs
+     qui ne connaissent pas `dvh` : sans elle, une declaration invalide
+     laisserait la fenetre grandir sans limite. */
   max-height: 80vh;
+  max-height: min(80vh, calc(100dvh - 44px));
   display: flex;
   flex-direction: column;
 }
@@ -983,6 +1065,119 @@ body {
 #cast-close-btn:hover,
 #partage-close-btn:hover,
 #voixlibres-close-btn:hover { color: var(--text); }
+
+/* --- En-tete compact de la fenetre du casting (22/09/2026) --- */
+/* Demande de Laurent : « Sur mobile, le menu deroulant pour choisir les
+   personnages et leurs voix est minuscule. Il faudrait gagner de la place sur
+   le haut de la modale. » L'en-tete portait vingt et un controles empiles ;
+   il n'en garde que trois : la recherche, le tiroir des reglages, la fermeture.
+   Tout le reste est descendu dans #cast-tools, replie par defaut sur telephone
+   et ouvert sur ordinateur (voir _castOutilsDoiventEtreOuverts, app.js). */
+#cast-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+#cast-search-btn,
+#cast-filtres-btn {
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  white-space: nowrap;
+}
+#cast-search-btn:hover,
+#cast-filtres-btn:hover { color: var(--text); }
+/* Bouton ALLUME : la recherche est en cours, ou un filtre de liste (age,
+   genre) est actif. Sans ce repere, un tiroir replie cacherait le reglage qui
+   explique une liste courte -- on croirait des personnages disparus. */
+#cast-search-btn.actif,
+#cast-filtres-btn.actif {
+  color: var(--text);
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+/* La barre d'ETAT des personnages (15/09/2026) : « a caster », « voix
+   partagee », « voix libres ». Depuis le 22/09/2026 elle ne porte plus que les
+   pastilles, sur UNE SEULE LIGNE qui defile au doigt : les quatre boutons
+   passaient a la ligne et prenaient deux ou trois rangs, et chaque rang coutait
+   une ligne de la liste des personnages (le « Personnages : » qui les
+   annoncait a disparu pour la meme raison -- les pastilles se lisent seules). */
+#cast-etat-bar {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#cast-etat-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Pas de barre de defilement sous les pastilles : coupee, la derniere dit
+     deja qu'il y en a d'autres a droite. */
+  scrollbar-width: none;
+}
+#cast-etat-actions::-webkit-scrollbar { display: none; }
+#cast-etat-actions button { flex-shrink: 0; }
+
+/* Ce que la liste montre VRAIMENT, en petit et TOUJOURS visible (22/09/2026) :
+   le compte du livre, le compte du filtre d'age ou de genre quand il est actif,
+   et l'explication des voix dont le moteur est eteint. Ces trois lignes vivaient
+   dans les barres de filtre, donc dans le tiroir replie : un filtre reste actif
+   aurait fait ressembler le livre a une liste amputee, sans rien pour
+   l'expliquer (et sur mobile, aucune infobulle n'est lisible). */
+#cast-info-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 6px;
+  flex-shrink: 0;
+}
+#cast-etat-resume,
+#cast-filtre-resume,
+#cast-libres-info {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+#cast-etat-resume:empty,
+#cast-filtre-resume:empty,
+#cast-libres-info:empty { display: none; }
+
+/* LE TIROIR DES REGLAGES (22/09/2026) : voix proposees dans les menus, age de
+   la voix, genre du personnage, saga, re-cast. Il se replie d'un tap sur le
+   bouton Filtres de l'en-tete.
+   Il peut SE REDUIRE (et defiler) quand la place manque : la liste des
+   personnages garde, elle, sa hauteur minimale (voir #cast-list). C'est ce qui
+   garantit qu'on voit toujours des personnages, meme tiroir ouvert sur un petit
+   ecran. */
+#cast-tools {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+/* Sur ordinateur, le tiroir s'ouvre d'origine (la place ne manque pas) et se
+   range en DEUX COLONNES : quatre rangees deviennent deux. */
+@media (min-width: 641px) {
+  #cast-tools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+    align-items: start;
+  }
+  #cast-filtre-bar { grid-column: 1 / -1; }
+}
 
 #cast-saga-bar {
   display: flex;
@@ -1045,14 +1240,11 @@ body {
 /* Filtre par genre des voix proposees dans le casting (Toutes / Femmes /
    Hommes). Avec 135 voix au catalogue, cela evite de chercher une voix
    feminine au milieu de tout le reste.
-   La barre d'ETAT DES PERSONNAGES (session du 15/09/2026) reprend exactement
-   le meme look, pour la meme raison : sur un livre a 175 personnages, il faut
-   pouvoir isoler d'un clic ceux qui n'ont pas de voix (« a caster ») et ceux
-   qui partagent un timbre (« voix partagee »). Les deux barres ne font pas la
-   meme chose : la premiere filtre les voix proposees dans les menus, la
-   seconde filtre les lignes de personnages. */
+   Ces deux barres vivent maintenant dans le TIROIR des reglages (22/09/2026),
+   et elles se ressemblent : une seule facon de regler quelque chose dans cette
+   fenetre. La barre d'ETAT, elle, reste en haut -- c'est elle qui change ce que
+   la liste MONTRE -- et a donc son propre style. */
 #cast-gender-bar,
-#cast-etat-bar,
 #cast-filtre-bar {
   display: flex;
   align-items: center;
@@ -1064,18 +1256,16 @@ body {
   color: var(--text-muted);
   flex-shrink: 0;
 }
-#cast-etat-bar { flex-wrap: wrap; }
 /* La barre des ages et du genre (21/09/2026) porte DEUX groupes de boutons :
    elle passe donc a la ligne sur un ecran etroit, comme celle des etats. */
 #cast-filtre-bar { flex-wrap: wrap; justify-content: flex-start; }
 #cast-age-actions,
 #cast-perso-genre-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 #cast-age-actions { margin-right: 10px; }
-#cast-filtre-resume { flex-basis: 100%; font-size: 0.7rem; }
-#cast-filtre-resume:empty { display: none; }
-#cast-etat-resume { font-size: 0.7rem; color: var(--text-muted); }
-#cast-gender-actions,
-#cast-etat-actions { display: flex; gap: 6px; }
+/* Les compteurs « ... personnages affiches sur ... » et « N voix libres » ne
+   sont plus ici : depuis le 22/09/2026 ils sont TOUJOURS visibles, dans
+   #cast-info-bar, parce que la barre qui les portait peut etre repliee. */
+#cast-gender-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 #cast-gender-actions button,
 #cast-etat-actions button,
 #cast-age-actions button,
@@ -1287,14 +1477,9 @@ body {
 }
 
 /* Ce que le tiroir des voix libres ne peut PAS montrer (voix dont le moteur est
-   eteint) : sa propre ligne, pour ne pas etre noye dans le resume. */
-#cast-libres-info {
-  flex-basis: 100%;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-#cast-libres-info:empty { display: none; }
+   eteint) : sa propre ligne, pour ne pas etre noye dans le resume. Depuis le
+   22/09/2026 elle est dans #cast-info-bar -- donc visible meme tiroir replie --
+   et prend son style la-bas. */
 
 #cast-list {
   overflow-y: auto;
@@ -1302,7 +1487,12 @@ body {
   flex-direction: column;
   gap: 0;
   flex: 1;
-  min-height: 0;
+  /* Jamais moins de deux lignes de personnage (22/09/2026). Avant, la liste
+     etait le SEUL element qui pouvait retrecir : elle tombait donc a presque
+     rien, et le menu deroulant des voix etait « minuscule » (constat de
+     Laurent). Maintenant c'est le tiroir des reglages qui se reduit et defile
+     quand la place manque -- lui, on peut le rouvrir. */
+  min-height: 90px;
 }
 
 #cast-recast-bar {
@@ -1494,9 +1684,27 @@ body {
     width: 22px;
     height: 22px;
   }
-  /* Les boutons du filtre par genre doivent aussi etre faciles a taper. */
+  /* Les boutons des filtres (etat, voix proposees, age, genre du personnage)
+     doivent etre faciles a taper : 38 px, la lecon des icones du 12/09/2026.
+     Les pastilles d'etat sont plus serrees en largeur : elles defilent sur UNE
+     seule ligne, et deux pixels par bouton font gagner une pastille visible. */
   #cast-gender-actions button,
-  #cast-etat-actions button { min-height: 38px; padding: 8px 12px; }
+  #cast-etat-actions button,
+  #cast-age-actions button,
+  #cast-perso-genre-actions button { min-height: 38px; padding: 8px 12px; }
+  #cast-etat-actions button { padding: 8px 10px; }
+  /* La fenetre du casting occupe presque tout l'ecran (22/09/2026) : ses marges
+     se resserrent, et sa hauteur est comptee sur la hauteur REELLEMENT visible
+     (le repli `80vh` reste, pour les navigateurs qui ne connaissent pas `dvh`).
+     C'est ce qui garantit que le bas de la fenetre ne passe plus sous l'ecran --
+     donc que le detail « partagee avec ... », avec ses noms cliquables, reste
+     atteignable au doigt. */
+  #cast-modal { padding: 10px; overflow-y: auto; }
+  #cast-modal .cast-box {
+    padding: 14px;
+    max-height: 80vh;
+    max-height: calc(100dvh - 24px);
+  }
 }
 
 .cast-row {
@@ -1532,16 +1740,37 @@ body {
   color: var(--text-muted);
 }
 
-.cast-voice-select {
+/* LE BOUTON DE VOIX D'UN PERSONNAGE (22/09/2026) : il remplace le menu
+   déroulant `.cast-voice-select`. Une ligne seulement (le CSS coupe proprement
+   si la voix a un long libellé), un petit chevron pour dire « ça s'ouvre », et
+   la couleur d'accent quand la liste est dépliée — c'est `aria-expanded` qui
+   porte l'état, comme pour la poignée du tiroir du lecteur. */
+.cast-voice-btn {
   flex-shrink: 0;
   max-width: 45%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
+  font-family: var(--font-ui);
   font-size: 0.8rem;
   padding: 5px 6px;
+  cursor: pointer;
 }
+.cast-voice-btn:hover { border-color: var(--accent-dim); }
+.cast-voice-btn[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.cast-voice-nom {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cast-voice-fleche { flex-shrink: 0; font-size: 0.7rem; }
 
 .cast-row-sliders {
   display: flex;
@@ -1831,15 +2060,127 @@ body {
   letter-spacing: 0.04em;
 }
 
-#voice-phrase-select {
-  width: 100%;
-  padding: 10px;
+/* ============================================================
+   LA LISTE DES VOIX DU PANNEAU (22/09/2026) — remplace un menu déroulant
+   ============================================================
+   Demande de Laurent : « deux lignes comme je les veux, fond sombre, petite
+   police ». Ce sont de VRAIS éléments de page (et non un menu dessiné par le
+   téléphone), donc le thème de l'application s'applique enfin :
+     1re ligne : symbole, prénom, drapeaux, âge et timbre ;
+     2e ligne  : icône du moteur, puis l'état (« · LIBRE », « · Edmond »...).
+   Un tap sur la ligne choisit cette voix ; le ▶ l'écoute sans rien changer. */
+#voice-phrase-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#voice-phrase-recherche {
+  flex: 1;
+  min-width: 0;
   background: var(--bg-card);
-  color: var(--text);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  color: var(--text);
+  font-size: 0.8rem;
+  padding: 8px 10px;
 }
+#voice-phrase-recap {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* L'ENCART DE LA LISTE, DÉPLIÉ DANS UNE LIGNE DU CASTING (22/09/2026) : même
+   apparence que la liste du panneau (`#voice-phrase-liste`), mais inséré dans
+   la ligne du personnage. Il défile tout seul, et un liseré d'accent dit qu'il
+   est ouvert — le personnage concerné reste juste au-dessus, on ne peut donc
+   pas se tromper de destinataire. Un seul encart est ouvert à la fois
+   (_basculerListeVoixPersonnage, app.js). */
+.voix-liste-encart {
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 8px 0 2px;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.voix-liste-encart .voix-liste-nom { font-size: 0.8rem; }
+
+#voice-phrase-liste {
+  list-style: none;
+  /* La liste défile ELLE-MÊME : les boutons du bas (« ▶ Écouter », « 🎭 Ouvrir
+     dans le casting ») restent donc atteignables, même avec 175 voix. */
+  max-height: 38vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+/* Titre de groupe (Femmes / Hommes / Autres), comme dans le casting. */
+.voix-liste-groupe {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 8px 10px 4px;
+  border-bottom: 1px solid var(--border);
+}
+/* Une voix : deux lignes de texte et un ▶. Le bouton de choix occupe toute la
+   place restante, donc TOUTE la ligne est tapable (pas seulement le texte). */
+.voix-liste-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.voix-liste-item:last-child { border-bottom: none; }
+.voix-liste-choix {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  font-family: inherit;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.voix-liste-choix:hover { background: var(--bg-hover); }
+/* La voix PORTÉE par le personnage (ou la voix du lecteur pour la narration) :
+   un liséré d'accent à gauche et le prénom en accent. C'est ce que le menu
+   déroulant montrait par sa valeur sélectionnée. */
+.voix-liste-item[data-actuelle="true"] .voix-liste-choix {
+  background: rgba(200, 169, 110, 0.08);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.voix-liste-nom { font-size: 0.82rem; }
+.voix-liste-item[data-actuelle="true"] .voix-liste-nom {
+  color: var(--accent);
+  font-weight: 600;
+}
+/* La 2e ligne (moteur + état) est en BLANC, comme la 1re : demande de Laurent
+   après son essai du 22/09/2026 (« la police blanche, la taille est ok »). Elle
+   était en gris (`--text-muted`) ; la TAILLE, elle, ne change pas. */
+.voix-liste-etat { font-size: 0.7rem; color: var(--text); }
+.voix-liste-ecoute {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  margin-right: 8px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.voix-liste-ecoute:hover { background: var(--accent-dim); }
+.voix-liste-ecoute:disabled { opacity: 0.5; cursor: default; }
 
 #voice-phrase-actions {
   display: flex;
