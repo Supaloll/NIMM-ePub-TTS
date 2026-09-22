@@ -272,6 +272,11 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Mesuré* : 24 841 → **25 216** morceaux (+375 répliques détachées, qui gardent
   leur personnage) ; **593** beats détectés, dont **257 remis au narrateur**
   (1,03 % des phrases) et **99 laissés tranquilles** (dans une citation ouverte).
+  *Étendue vérifiée le 22/09/2026* (question de Laurent : « tout le livre, ou
+  seulement le chapitre 3 ? ») : la migration a touché **34 des 38 chapitres**
+  (les 4 autres n'ont pas de dialogue à séparer), et la narration y a grandi de
+  **+342 morceaux** au total. Le chapitre 3 n'était que **l'exemple lu** à
+  Laurent, pas la limite du travail.
   *Contrôlé après écriture* : chaque voix pointe sur une phrase qui existe, tous
   les locuteurs sont dans le casting, et la comparaison de la base d'avant avec
   celle d'après montre que **`voices` est IDENTIQUE** (voix, hauteur, vitesse,
