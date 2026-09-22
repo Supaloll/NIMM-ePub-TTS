@@ -242,6 +242,31 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   refait **pas** le « qui parle ». Il ne dit donc **rien** du nouveau découpage.
   Le seul essai qui parle vraiment du découpage est la **migration des index
   (0 €)**, ou un re-cast **payant**.
+  **MIGRATION DU 22/11/63 — FAITE le 22/09/2026** (décision de Laurent : « on
+  écrit sur 22/11/63 […] si tu peux faire tout le livre je suis preneur »).
+  Outil neuf `test_voix/_migrer_index_dialogue.py` : il **simule** par défaut,
+  n'écrit qu'avec `--ecrire`, et accepte `--base` pour **répéter sur une copie**.
+  Ce qui a été fait, dans cet ordre : répétition sur une **copie** de la base,
+  contrôle, puis écriture sur la vraie base — qui a pris sa **copie datée**
+  avant : `data/nimm_epub.db.bak_avant_dialogue_20260922_1311`.
+  *Mesuré* : 24 841 → **25 216** morceaux (+375 répliques détachées, qui gardent
+  leur personnage) ; **593** beats détectés, dont **257 remis au narrateur**
+  (1,03 % des phrases) et **99 laissés tranquilles** (dans une citation ouverte).
+  *Contrôlé après écriture* : chaque voix pointe sur une phrase qui existe, tous
+  les locuteurs sont dans le casting, et la comparaison de la base d'avant avec
+  celle d'après montre que **`voices` est IDENTIQUE** (voix, hauteur, vitesse,
+  **verrous**), comme `cast_fiche`, `character_aliases` et `books.narrator_voice`
+  — seul `decoupe_dialogue` passe de 0 à 1, avec `line_count` recompté (20
+  personnages sur 176). **Le casting de Laurent n'a pas bougé d'un iota.**
+  *Exemple réel (chapitre 3)* : « Et moi, avec un sourire : » passe au
+  **narrateur**, et « « Vous l'avez déjà fait… » » reste à **Jake Epping**.
+  *Deux erreurs de l'outil, trouvées en LISANT les exemples* (leçon du 21/09) :
+  la coupe met le **beat en premier** (c'est donc lui qui héritait du personnage,
+  et non le morceau neuf), et un morceau qui **commence par `«`** n'est jamais un
+  beat. Les deux sont corrigées, avec l'explication, dans le code.
+  *À faire par Laurent* : **recharger la page du lecteur** (le navigateur garde
+  le casting et le découpage en mémoire), puis écouter le chapitre 3.
+  *Reste* : les **10 autres livres** encore en mode origine — même outil, 0 €.
   *Détails* : ARCHITECTURE.md, « Mode dialogue ».
   *Piste complémentaire (non retenue pour l'instant)* : dans « 22/11/63 »,
   **44 morceaux** de « citation racontée » sont attribués à un personnage — des

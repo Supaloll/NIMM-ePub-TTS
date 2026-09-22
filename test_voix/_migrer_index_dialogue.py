@@ -205,11 +205,100 @@ def etudier_chapitre(texte, attributions, variante):
 
     return {
         'anciennes': anciennes, 'nouvelles': nouvelles, 'locuteurs': locuteurs,
+        'destinations': dest,
         'phrases_avant': len(anciennes), 'phrases_apres': len(nouvelles),
         'crees': crees, 'beats': beats, 'possibles': possibles,
         'refuses': refuses, 'melanges': melanges,
         'hors_bornes': hors_bornes, 'sans_locuteur': sans_locuteur,
     }
+
+
+def _copie_datee(base):
+    """Copie datée de la base AVANT toute écriture. Renvoie son chemin."""
+    from datetime import datetime
+    copie = base.with_name(base.name + '.bak_avant_dialogue_'
+                           + datetime.now().strftime('%Y%m%d_%H%M'))
+    source = sqlite3.connect(str(base))
+    cible = sqlite3.connect(str(copie))
+    with cible:
+        source.backup(cible)
+    cible.close()
+    source.close()
+    return copie
+
+
+def _lignes_a_ecrire(detail):
+    """[(sentence_idx, speaker)] de la nouvelle attribution d'un chapitre."""
+    return [(idx, speaker) for idx, speaker in enumerate(detail['locuteurs'])]
+
+
+def ecrire(conn, identifiant, resultats, options):
+    """Écrit la migration. Renvoie un bilan de ce qui a été écrit.
+
+    Ce qui est écrit, et RIEN d'autre :
+      - `speaker_attribution` du livre : remplacé par la nouvelle répartition ;
+      - `books.decoupe_dialogue` = 1 (le livre passe en mode dialogue) ;
+      - `progress.cursor_idx` : remappé, sinon la reprise tombe à côté ;
+      - `voices.line_count` : recompté (le nombre de répliques de chacun bouge
+        un peu, puisque les beats quittent le personnage).
+    Les voix, la hauteur, la vitesse, les verrous, les alias et la voix du
+    narrateur ne sont JAMAIS touchés.
+    """
+    conn.execute('PRAGMA busy_timeout = 20000')
+    with conn:
+        conn.execute('DELETE FROM speaker_attribution WHERE book_id = ?',
+                     (identifiant,))
+        lignes = [(identifiant, chapitre, idx, speaker)
+                  for chapitre, detail in resultats.items()
+                  for idx, speaker in _lignes_a_ecrire(detail)]
+        conn.executemany(
+            'INSERT INTO speaker_attribution (book_id, chapter_index, '
+            'sentence_idx, speaker) VALUES (?, ?, ?, ?)', lignes)
+        conn.execute('UPDATE books SET decoupe_dialogue = 1 WHERE id = ?',
+                     (identifiant,))
+        for (user_id, _chapitre, ancien), nouveau in options['curseurs'].items():
+            conn.execute('UPDATE progress SET cursor_idx = ? WHERE user_id = ? '
+                         'AND book_id = ?', (nouveau, user_id, identifiant))
+        conn.execute(
+            'UPDATE voices SET line_count = (SELECT COUNT(*) FROM '
+            'speaker_attribution WHERE book_id = voices.book_id AND '
+            'speaker = voices.character_name) WHERE book_id = ?', (identifiant,))
+    return {'attributions': len(lignes),
+            'curseurs': len(options['curseurs'])}
+
+
+def verifier(conn, identifiant, resultats):
+    """Relecture APRÈS écriture : chaque voix pointe sur une phrase qui existe.
+
+    C'est le contrôle qui compte : si un index dépasse le nombre de phrases du
+    chapitre, la voix ne serait plus lue du tout (ou pire, elle glisserait sur
+    la phrase suivante).
+    """
+    souci = []
+    total = 0
+    for chapitre, detail in sorted(resultats.items()):
+        attendu = len(detail['nouvelles'])
+        lignes = conn.execute(
+            'SELECT sentence_idx, speaker FROM speaker_attribution WHERE '
+            'book_id = ? AND chapter_index = ?', (identifiant, chapitre)).fetchall()
+        total += len(lignes)
+        for idx, speaker in lignes:
+            if not 0 <= idx < attendu:
+                souci.append('ch.%d : index %d hors bornes (0..%d)'
+                             % (chapitre, idx, attendu - 1))
+        if not lignes:
+            souci.append('ch.%d : aucune attribution !' % chapitre)
+    connus = {r[0] for r in conn.execute(
+        'SELECT character_name FROM voices WHERE book_id = ?', (identifiant,))}
+    inconnus = {r[0] for r in conn.execute(
+        'SELECT DISTINCT speaker FROM speaker_attribution WHERE book_id = ?',
+        (identifiant,))} - connus - {'narration'}
+    if inconnus:
+        souci.append('locuteurs inconnus (pas dans le casting) : %s'
+                     % ', '.join(sorted(inconnus)[:5]))
+    mode = conn.execute('SELECT COALESCE(decoupe_dialogue, 0) FROM books '
+                        'WHERE id = ?', (identifiant,)).fetchone()[0]
+    return {'lignes': total, 'mode_dialogue': mode, 'souci': souci}
 
 
 def main():
@@ -219,9 +308,16 @@ def main():
     parseur.add_argument('--variante', choices=('A', 'B'), default='B',
                          help='A : sans regle ; B : beats au narrateur (defaut)')
     parseur.add_argument('--exemples', type=int, default=8)
+    parseur.add_argument('--ecrire', action='store_true',
+                         help='ECRIT la migration (copie datee avant, et '
+                              'controle apres). Sans cette option : simulation.')
+    parseur.add_argument('--base', default=None,
+                         help='autre base (repeter l operation sur une COPIE, '
+                              'avant de toucher la vraie)')
     options = parseur.parse_args()
+    base = Path(options.base) if options.base else BASE
 
-    conn = sqlite3.connect('file:' + BASE.as_posix() + '?mode=ro', uri=True)
+    conn = sqlite3.connect('file:' + base.as_posix() + '?mode=ro', uri=True)
     livre = _livre(conn, options.livre)
     if livre is None:
         print('Livre %d inconnu.' % options.livre)
@@ -266,6 +362,7 @@ def main():
              'crees': 0, 'possibles': 0, 'beats': 0, 'refuses': 0,
              'hors_bornes': 0, 'sans_locuteur': 0, 'melanges': 0}
     ex_beats, ex_refuses, ex_melanges = [], [], []
+    resultats = {}
 
     for chapitre, lignes in sorted(attributions.items()):
         texte = texte_par_index.get(chapitre, '')
@@ -273,6 +370,7 @@ def main():
             total['sans_texte'] += 1
             continue
         detail = etudier_chapitre(texte, lignes, options.variante)
+        resultats[chapitre] = detail
         total['chapitres'] += 1
         total['avant'] += detail['phrases_avant']
         total['apres'] += detail['phrases_apres']
@@ -342,9 +440,68 @@ def main():
             print('-' * LARGEUR)
             for ligne in exemples:
                 print('  ' + ligne)
+
+    # ------------------------------------------------------------- ECRITURE
+    if options.ecrire:
+        print('')
+        print('-' * LARGEUR)
+        print(' ECRITURE (--ecrire)')
+        print('-' * LARGEUR)
+        conn = sqlite3.connect(str(base))
+        conn.execute('PRAGMA busy_timeout = 20000')
+        curseurs = {}
+        for user_id, chapitre, curseur in conn.execute(
+                'SELECT user_id, chapter_index, cursor_idx FROM progress '
+                'WHERE book_id = ?', (identifiant,)):
+            detail = resultats.get(chapitre)
+            if detail is None or curseur is None:
+                continue
+            cible = (detail['destinations'][curseur]
+                     if 0 <= curseur < len(detail['destinations']) else None)
+            if cible is None:
+                print('  curseur du chapitre %d laisse tel quel (phrase %s)'
+                      % (chapitre, curseur))
+                continue
+            curseurs[(user_id, chapitre, curseur)] = cible
+
+        if base == BASE:
+            copie = _copie_datee(BASE)
+            print('  copie datee AVANT d ecrire : %s' % copie.name)
+        else:
+            copie = base
+            print('  base de travail : %s (ce n est PAS la base du lecteur)'
+                  % base.name)
+
+        bilan = ecrire(conn, identifiant, resultats, {'curseurs': curseurs})
+        print('  ecrit : %d attributions, %d curseur(s) de reprise, '
+              'mode dialogue active' % (bilan['attributions'], bilan['curseurs']))
+        controle = verifier(conn, identifiant, resultats)
+        conn.close()
+        print('')
+        print('  CONTROLE APRES ECRITURE')
+        print('    lignes relues        : %d' % controle['lignes'])
+        print('    mode dialogue en base : %s' % controle['mode_dialogue'])
+        if controle['souci']:
+            for ligne in controle['souci'][:8]:
+                print('    A REGARDER : %s' % ligne)
+        else:
+            print('    OK : chaque voix pointe sur une phrase qui existe, et tous')
+            print('    les locuteurs sont dans le casting de ce livre.')
+        print('')
+        print('  RETOUR ARRIERE : recopier %s sur data/%s' % (copie.name,
+                                                             BASE.name))
+        print('  A FAIRE COTE LECTEUR : recharger la page (le navigateur garde le')
+        print('  casting et le decoupage en memoire).')
+        print('')
+        print('=' * LARGEUR)
+        print(' MIGRATION ECRITE. Aucune facture : tout est calcule ici.')
+        print('=' * LARGEUR)
+        return 0
+
     print('')
     print('=' * LARGEUR)
     print(' Simulation seulement : AUCUNE ecriture, aucune facture.')
+    print(' (pour ecrire : ajouter --ecrire)')
     print('=' * LARGEUR)
     return 0
 
