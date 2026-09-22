@@ -6371,6 +6371,14 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   du lanceur **ne tourne jamais** (`test_attribution_criteres.py` avait dérivé
   sans que rien ne le signale). *Ce qui manque encore* : la **CI** (GitHub
   Actions sur les fichiers Python/JS).
+  *Relevé du 22/09/2026, audit de la documentation* : **35 tests Python** vivent
+  encore **hors** du lanceur global — c'est exactement le piège du 21/09 (un test
+  absent de la liste **ne tourne jamais**, et il dérive sans que rien ne le
+  signale). Plusieurs n'ont besoin d'**aucun moteur** (`test_cache_audio.py`,
+  `test_pwa_manifeste.py`, `test_requirements.py`, `test_estimation_cout.py`
+  paraissent dans ce cas) : les trier et les ajouter au lanceur est un petit
+  chantier à part entière. La liste complète s'obtient avec
+  `python test_voix/_auditer_documentation.py` (section 5).
 
 - [ ] **Découper les gros fichiers en modules**
   Tailles relevées le **22/09/2026** (audit de la documentation) :

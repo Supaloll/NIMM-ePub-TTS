@@ -297,7 +297,10 @@ def section_tests():
                 disparus.setdefault(nom, []).append(_reference(doc, numero))
     existants = {f.name for f in DOSSIER.glob('test_*.py')}
     existants |= {f.name for f in DOSSIER.glob('test_*.js')}
-    automatiques = {n for n in existants if n in lances}
+    # Le lanceur prend TOUS les `test_*.js` (il les balaie par motif) et les
+    # tests Python qu'il cite nommement. Les compter de la meme facon, sinon le
+    # rapport annonce 57 tests « a lancer a la main » au lieu de 35.
+    automatiques = {n for n in existants if n.endswith('.js') or n in lances}
     a_la_main = sorted(existants - automatiques)
     return disparus, variantes, sorted(automatiques), a_la_main
 
