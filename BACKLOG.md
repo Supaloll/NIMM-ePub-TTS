@@ -13,6 +13,87 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ---
 
+## 🚩 À FAIRE EN PRIORITÉ — décidé le 22/09/2026
+
+- [ ] **🔄 Passer les 10 livres DÉJÀ CASTÉS en narration séparée** (migration des
+  index, **0 €** — « juste ton travail et un peu de temps », Laurent,
+  22/09/2026). **Prévu le soir du 22/09/2026.**
+  *Devis mesuré le 22/09/2026* (simulation, rien n'écrit) — « beats » = morceaux
+  de narration qui passent du personnage au **narrateur** (le gain audible) :
+
+  | # | Livre | Morceaux | Beats (gain) | Refusés (*) |
+  |---|---|---|---|---|
+  | 34 | **Notre-Dame de Paris** | 12 066 → 12 389 | **230** | 111 |
+  | 18 | **Dialogues désaccordés** | 1 779 → 1 851 | **68** | 7 |
+  | 35 | **Le Chevalier Errant** | 6 270 → 6 307 | **36** | 37 |
+  | 33 | Shantaram | 30 285 → 30 292 | 22 | 57 |
+  | 27 | Souvenirs d'une gamine | 6 133 → 6 190 | 11 | 0 |
+  | 17 | Monte-Cristo **T6** | 4 144 → 4 153 | 12 | 97 |
+  | 16 | Monte-Cristo **T5** | 5 105 → 5 127 | 5 | 74 |
+  | 14 | Monte-Cristo **T3** | 4 947 → 4 972 | 5 | 127 |
+  | 8 | Monte-Cristo **T2** | 5 036 → 5 052 | 4 | 99 |
+  | 15 | Monte-Cristo **T4** | 5 378 → 5 388 | 2 | 82 |
+  | | **TOTAL** | 81 143 → 81 721 | **395** | 691 |
+
+  (*) **Refusés** = laissés au personnage, parce que le beat se trouve **dans une
+  citation ouverte** (un personnage qui rapporte ses propres paroles). Vérifié sur
+  le Tome 5, les 74 refus sont **légitimes** : « Si elle avait commis un second
+  crime, je vous dirais : » est **dans** le discours du docteur d'Avrigny — le
+  donner au narrateur couperait sa voix en deux (leçon de Lazarille, 21/09/2026).
+  *À savoir* : les tomes du Comte ne gagneront presque **rien** (2 à 12 beats) —
+  c'est le style de Dumas (beaucoup de discours longs) ; le gain est concentré
+  sur **Notre-Dame, Dialogues désaccordés, le Chevalier Errant, Shantaram**.
+  La migration reste **gratuite et sans risque** : elle se fait quand même.
+  *Procédure, livre par livre* (l'outil fait tout) :
+  1. `python test_voix/_migrer_index_dialogue.py --livre <id> --variante B` →
+     **simulation** : je **lis** les beats proposés avant d'écrire (leçon du
+     21/09 : un chiffre ne vaut rien sans la lecture du texte) ;
+  2. la même commande avec `--ecrire` → **copie datée de la base AVANT**,
+     écriture, puis **contrôle APRÈS** (chaque voix doit pointer sur une phrase
+     qui existe, tous les locuteurs dans le casting) ;
+  3. Laurent **recharge la page** et écoute ; le mode se vérifie avec
+     `MODE_DIALOGUE.bat`.
+  *Garde-fou déjà en place* : l'outil **refuse** de tourner sur un livre déjà en
+  mode dialogue (c'est le cas du 28, de Lazarille et du chapitre d'essai) — le
+  remapper décalerait ses voix.
+
+- [ ] **📄 AUDIT d'`ARCHITECTURE.md` — le sujet de la PROCHAINE session**
+  (décidé par Laurent le 22/09/2026 : « Je vais ouvrir une nouvelle session pour
+  l'audit de ARCHITECTURE.md, parce que je me suis encore éparpillé dans
+  celle-ci. » → **cette note existe pour qu'on démarre directement dessus**.)
+  *Ce qui est déjà fait (22/09/2026)* :
+  - le **BACKLOG** est réduit (items livrés en une ligne : 490 Ko → 270 Ko) et
+    rangé ; l'**outil d'audit** existe : `test_voix/AUDITER_DOCUMENTATION.bat`
+    (double-clic, **lecture seule**) — il compare les documents au **code** :
+    fichiers cités disparus, identifiants (fonctions, constantes) disparus,
+    routes absentes de `main.py`, colonnes absentes de la base, tests disparus,
+    items du BACKLOG déjà livrés ;
+  - cinq dérives réelles ont été corrigées (dont une contradiction sur
+    `_forcer_beats_en_narration`, un nom de fonction qui n'a jamais existé,
+    l'item « cache audio » resté ouvert alors qu'il était livré).
+  *Ce qui reste : `ARCHITECTURE.md` (251 Ko, 4 406 lignes).* Deux étapes
+  proposées, **à valider par Laurent avant toute écriture** :
+  1. **réparer la structure des titres**, sans rien déplacer : la page compte
+     **108 sections `##` et 87 `###`**, mais **une seule section `##` avale 65 %
+     du fichier** (« Profils familiaux (multi-utilisateurs) », ligne ~1512 jusqu'à
+     la fin) : tout le savoir des moteurs, du casting, du cache et du mode
+     dialogue est **imbriqué dessous**, donc la table des matières ne correspond
+     pas au contenu ;
+  2. **séparer « comment ça marche aujourd'hui » de « pourquoi on l'a fait »**
+     (état actuel court vs chronique datée), avec **copie datée** avant chaque
+     fichier touché, et l'audit repassé **après**, pour vérifier qu'aucune
+     référence n'est cassée.
+  ⚠️ **Rien d'urgent** : l'audit du 22/09/2026 a montré que la documentation est
+  **fidèle** (les 85 alertes de l'outil sont en majorité **légitimes** : des pages
+  qui citent exprès d'anciens noms, « les anciennes `_xtts_pool()` », les mémos
+  d'un autre atelier). C'est un travail de **lisibilité**, pas de vérité — donc
+  à faire **sans se presser**, et jamais au détriment d'un défaut audible.
+  *Rappel des autres chantiers ouverts* : les **35 tests Python hors lanceur**
+  (item « Suite de tests automatisés + CI », priorité 3) — le piège du 21/09 :
+  un test absent de la liste du lanceur **ne tourne jamais**.
+
+---
+
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
 - [ ] **✂️ Découpage : séparer la NARRATION des RÉPLIQUES (mode dialogue, livre
