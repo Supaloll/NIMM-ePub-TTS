@@ -2633,6 +2633,23 @@ par Laurent pour ne toucher à aucun livre casté), puis la décision **livre pa
 livre** : migration **gratuite** des index, ou re-cast (≈ **0,06 à 1,41 €** selon
 la taille du livre).
 
+**Le découpage est posé AVANT l'IA, automatiquement** (22/09/2026 ; demande de
+Laurent : « si je caste un nouveau livre, il doit être découpé avant envoi à
+Gemini »). Dans `main.py`, `start_casting` regarde si le livre a **déjà** des
+attributions (`_livre_jamais_attribue`, un `COUNT` sur `speaker_attribution`) :
+
+- **aucune** → il active `books.decoupe_dialogue` **avant** le premier appel :
+  l'IA étiquette donc le découpage fin, et le prix ne change pas (+0,8 % au pire,
+  mesuré : le découpage fin crée quelques morceaux de plus, mais plus courts) ;
+- **au moins une** → il ne touche à **rien** : les numéros de phrases sont
+  enregistrés, et changer le découpage décalerait les voix — c'est le rôle de la
+  **migration** (`test_voix/_migrer_index_dialogue.py`), pas du casting.
+
+L'**estimation de coût** (`GET /api/books/{id}/cast/estimate`) suit la même règle
+(`_regle_pour_casting`) : un prix affiché doit correspondre au découpage qui sera
+réellement envoyé. *Garde-fou* : `test_voix/test_decoupage_auto_casting.py`
+(**11 contrôles**, ajouté au lanceur global).
+
 **Rattachement MANUEL des pseudonymes (12/09/2026)**
 La règle automatique ne peut **pas** deviner que « Le comte de Monte-Cristo »,
 « Edmond Dantès », « l'abbé Busoni » et « Simbad le marin » sont **un seul
@@ -3795,6 +3812,25 @@ créés AVANT l'explication** (elle fait 4 à 6 lignes sur un livre réel — un
 portée par trente personnages — et poussait les noms hors de l'écran), et
 **déplier fait défiler** la fenêtre jusqu'au détail (`scrollIntoView`, avec une
 garde `typeof` pour le test node, qui n'a pas de défilement).
+
+**Le tiroir ne peut plus être ÉCRASÉ** (22/09/2026 ; bug signalé par Laurent :
+« quelque chose empêche l'ouverture de ⚙️ Filtres, sur PC et mobile »). Le
+panneau s'ouvrait bien — `aria-expanded` passait à `true`, la classe `hidden`
+partait — mais il ne mesurait plus que **5 px de haut sur ordinateur** et **12 px
+sur téléphone**, pour un contenu de **427 px** : il était le **seul** élément
+autorisé à se réduire (`min-height: 0`) face à une longue liste de personnages
+(123 lignes sur « 22/11/63 »). Le bouton semblait donc mort — et sur ordinateur,
+le premier appui le **refermait**, puisqu'il part ouvert. Correctif : `#cast-tools`
+porte **`min-height: 240px`** et **`max-height: 55vh`**, et ses barres ne se
+compriment plus (`#cast-tools > * { flex-shrink: 0 }`) — c'est le tiroir qui
+défile. Mesure après correction : **240 px** sur les deux écrans, les filtres
+d'âge et de genre **visibles d'emblée**, la liste gardant 202 px (ordinateur) et
+338 px (téléphone).
+*Garde-fou* : `test_voix/test_filtres_rendu.py` (**12 contrôles**) charge le vrai
+bloc du casting et la vraie feuille de styles, avec **120 personnages** — il
+échoue (14 px au lieu de 240) dès que la borne disparaît, éprouvé le même jour.
+*Leçon écrite* : un **état** juste ne prouve pas qu'on **voit** quelque chose ;
+il faut une mesure de RENDU.
 
 **Vérifications** : `test_voix/test_entete_casting.js` — **45 contrôles** (les
 trois commandes de l'en-tête, le tiroir et son contenu, la liste après le tiroir,

@@ -287,6 +287,22 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *À faire par Laurent* : **recharger la page du lecteur** (le navigateur garde
   le casting et le découpage en mémoire), puis écouter le chapitre 3.
   *Reste* : les **10 autres livres** encore en mode origine — même outil, 0 €.
+  **DÉCOUPAGE AVANT L'IA — AUTOMATIQUE (22/09/2026)**, demande de Laurent :
+  « Il faut que ce soit automatique, si je caste un nouveau livre, il doit être
+  découpé avant envoi à Gemini. »
+  *Livré dans `main.py`* : quand un casting démarre sur un livre **jamais
+  attribué** (aucune ligne dans `speaker_attribution`), le mode dialogue est
+  activé **avant** le premier appel à l'IA — le découpage fin est donc celui que
+  l'IA étiquette. Un livre **déjà attribué** n'est jamais touché : ses numéros de
+  phrases sont enregistrés, et c'est la migration qui répare les index.
+  L'**estimation de coût** affichée avant lancement suit la même règle (sinon on
+  annoncerait un prix pour un autre découpage).
+  *Garde-fou* : `test_voix/test_decoupage_auto_casting.py` (**11 contrôles**),
+  ajouté au lanceur global — il vérifie la condition, la règle annoncée, l'ORDRE
+  (découper avant d'appeler) et l'accord du prix affiché.
+  *Effet pour Laurent* : un livre neuf est découpé et attribué correctement **du
+  premier coup** — le **Tome 1 du Comte** (jamais casté, 4 791 phrases ≈ 0,26 €)
+  est le premier candidat.
   *Détails* : ARCHITECTURE.md, « Mode dialogue ».
   *Piste complémentaire (non retenue pour l'instant)* : dans « 22/11/63 »,
   **44 morceaux** de « citation racontée » sont attribués à un personnage — des
@@ -3708,6 +3724,16 @@ disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~270 
 
 #### 🟠 Priorité 2 — Voix & casting
 
+- [x] **⚙️ Filtres ne s'ouvrait pas : le tiroir des réglages était ÉCRASÉ à
+  5 px** (22/09/2026). *(Signalé par Laurent : « quelque chose empêche
+  l'ouverture de ⚙️ Filtres, sur PC et mobile ».)*
+  ⚠️ Leçon : **un panneau peut s'ouvrir ET rester invisible**. L'état était bon
+  (`aria-expanded="true"`, la classe `hidden` retirée) : c'est la **hauteur** qui
+  manquait — 5 px sur ordinateur, 12 px sur téléphone, pour un contenu de
+  427 px, parce que le tiroir était le seul élément autorisé à se réduire face à
+  une longue liste de personnages. D'où la règle qui manquait : **un garde-fou
+  qui ne mesure que l'état ne voit pas ce genre de panne** — il faut mesurer le
+  RENDU (`test_filtres_rendu.py`, avec une liste de 120 personnages).
 - [x] **🧹 La fenêtre du casting respire : en-tête compact, tiroir des
   réglages, et la fenêtre ne sort plus de l'écran** (21/09/2026).
 - [x] **🎭 Les petits rôles sont joués par DEUX voix : Jessica (femmes) et

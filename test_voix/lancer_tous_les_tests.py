@@ -38,6 +38,11 @@ TESTS_PY = [
     # mais n'etait pas dans cette liste : il ne tournait donc JAMAIS, et il
     # avait derive sans que rien ne le signale.
     "test_attribution_criteres.py",
+    # Ajoute le 22/09/2026 : le DECOUPAGE AVANT L'IA. Laurent a demande que le
+    # mode dialogue soit active automatiquement quand on caste un livre neuf ;
+    # ce test protege ce chemin (et separe les livres deja attribues, qu'il ne
+    # faut jamais toucher). Sans navigateur, sans moteur, sans appel facture.
+    "test_decoupage_auto_casting.py",
 ]
 
 

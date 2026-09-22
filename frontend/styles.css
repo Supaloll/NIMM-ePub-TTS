@@ -1163,10 +1163,28 @@ body {
   display: flex;
   flex-direction: column;
   flex: 0 1 auto;
-  min-height: 0;
+  /* BORNE BASSE (22/09/2026) : sans elle, le navigateur ECRASAIT le tiroir des
+     que la liste des personnages etait longue -- mesure faite sur
+     l'application en marche : 5 px de haut sur ordinateur et 12 px sur
+     telephone, pour un contenu de 427 px. Le bouton Filtres semblait alors
+     « ne rien faire » : le panneau s'ouvrait bel et bien... invisible. Ces deux
+     bornes lui rendent une hauteur utile, et `overflow-y` laisse atteindre le
+     reste au doigt. Garde-fou : test_voix/test_filtres_rendu.py.
+     240 px, et pas moins : c'est ce qu'il faut pour que les FILTRES D'AGE ET DE
+     GENRE (les plus utiles, 213 px sur telephone) soient visibles des
+     l'ouverture ; en dessous, il fallait deviner qu'il y avait quelque chose a
+     faire defiler. Le budget est verifie sur un petit ecran : en-tete + barre
+     d'etat + infos (83 px) + tiroir (240) + liste (90 mini) = 413 px, ce qui
+     tient meme dans une fenetre de 640 px de haut. */
+  min-height: 240px;
+  max-height: 55vh;
   overflow-y: auto;
   margin-bottom: 8px;
 }
+/* Les barres du tiroir ne se COMPRIMENT pas : c'est le tiroir qui defile
+   (meme raison que ci-dessus -- sans cette ligne, chaque barre etait ecrasee a
+   0 px au lieu de laisser defiler). */
+#cast-tools > * { flex-shrink: 0; }
 /* Sur ordinateur, le tiroir s'ouvre d'origine (la place ne manque pas) et se
    range en DEUX COLONNES : quatre rangees deviennent deux. */
 @media (min-width: 641px) {

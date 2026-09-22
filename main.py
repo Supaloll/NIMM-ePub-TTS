@@ -1616,6 +1616,34 @@ def _regle_du_livre(book) -> str:
     return REGLE_DIALOGUE if _mode_dialogue(book) else REGLE_ACTUELLE
 
 
+def _livre_jamais_attribue(conn, book_id: int) -> bool:
+    """Le livre n'a AUCUNE attribution enregistree ?
+
+    C'est la seule condition qui autorise a CHANGER le decoupage : sans
+    attribution, il n'y a aucun numero de phrase a respecter. D'ou le compte en
+    base plutot qu'une lecture de `cast_status` -- un livre interrompu en plein
+    casting a des chapitres deja attribues, et ceux-la doivent garder leur
+    decoupage.
+    """
+    return conn.execute(
+        "SELECT COUNT(*) FROM speaker_attribution WHERE book_id = ?",
+        (book_id,)).fetchone()[0] == 0
+
+
+def _regle_pour_casting(book, jamais_attribue: bool) -> str:
+    """La regle que le PROCHAIN casting de ce livre utilisera vraiment.
+
+    Un livre jamais attribue passe en narration separee AVANT le premier appel a
+    l'IA (voir `start_casting`) : l'estimation de cout doit donc etre calculee
+    avec la meme regle, sinon on annonce un prix pour un autre decoupage. L'ecart
+    mesure est faible (moins de 1 % : +375 morceaux sur 24 841 pour « 22/11/63 »),
+    mais un prix affiche doit dire la verite.
+    """
+    from modules.decoupage import REGLE_ACTUELLE, REGLE_DIALOGUE
+    return REGLE_DIALOGUE if (_mode_dialogue(book) or jamais_attribue) \
+        else REGLE_ACTUELLE
+
+
 async def _process_remaining_chapters(book_id: int, chapters: list, fiche_depart: list, premier_resultat: dict, premier_index: int, provider: str = "gemini", voix_figees: dict = None, regle: str = None) -> None:
     """
     Tache de fond : analyse les chapitres qui n'ont pas encore d'attribution
@@ -1823,6 +1851,10 @@ async def get_cast_estimate(book_id: int, user_id: int, provider: str = "gemini"
         "SELECT * FROM books WHERE id = ? AND user_id = ?", (book_id, user_id)
     ).fetchone()
     deja_traites = _chapitres_deja_traites(conn, book_id)
+    # Un livre jamais attribue passera en narration separee au lancement du
+    # casting (voir start_casting) : l'estimation doit donc compter les MEMES
+    # phrases que lui, sans quoi on annoncerait un prix pour un autre decoupage.
+    jamais_attribue = _livre_jamais_attribue(conn, book_id)
     conn.close()
     if not book:
         raise HTTPException(404, "Livre introuvable")
@@ -1840,7 +1872,8 @@ async def get_cast_estimate(book_id: int, user_id: int, provider: str = "gemini"
     # L'estimation doit compter les MEMES phrases que le casting : en mode
     # dialogue, le decoupage cree quelques morceaux de plus (les beats de
     # narration separes des repliques).
-    return voice_casting.estimate_cast_cost(texts, provider, _regle_du_livre(book))
+    return voice_casting.estimate_cast_cost(
+        texts, provider, _regle_pour_casting(book, jamais_attribue))
 
 
 @app.post("/api/books/{book_id}/cast")
@@ -1872,6 +1905,28 @@ async def start_casting(book_id: int, user_id: int, provider: str = "gemini"):
     if str(book.get("cast_status") or "").startswith("processing"):
         conn.close()
         raise HTTPException(409, "Un traitement voix multiples est deja en cours pour ce livre.")
+
+    # --- DECOUPAGE D'ABORD, PUIS L'IA (22/09/2026) ---------------------------
+    # Demande de Laurent : « Il faut que ce soit automatique : si je caste un
+    # nouveau livre, il doit etre decoupe avant envoi a Gemini. » Pour un livre
+    # JAMAIS attribue, on active donc la narration separee AVANT le premier appel.
+    #   - le prix ne change pas (mesure du 22/09/2026 : +0,8 % sur « 22/11/63 »,
+    #     ecart nul sur les autres -- le decoupage fin cree quelques morceaux de
+    #     plus, mais chacun est plus court) ;
+    #   - la qualite, si : le beat de narration revient au NARRATEUR et la
+    #     replique au personnage, du premier coup -- donc pas de second passage
+    #     a payer, et rien a corriger a la main.
+    # Un livre DEJA attribue n'est jamais touche ici : ses numeros de phrases
+    # sont enregistres, changer le decoupage decalerait ses voix (c'est le role
+    # de la migration, `test_voix/_migrer_index_dialogue.py`, qui repare les
+    # index existants).
+    if _livre_jamais_attribue(conn, book_id) and not _mode_dialogue(book):
+        conn.execute("UPDATE books SET decoupe_dialogue = 1 WHERE id = ?",
+                     (book_id,))
+        conn.commit()
+        book["decoupe_dialogue"] = 1
+        print("Casting livre %s : jamais attribue -> narration separee (mode "
+              "dialogue) activee AVANT le premier appel a l'IA." % book_id)
 
     voix_figees = _fetch_saga_voix_figees(conn, book.get("saga"), user_id, book_id)
     deja_traites = _chapitres_deja_traites(conn, book_id)
