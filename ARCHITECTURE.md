@@ -2614,13 +2614,24 @@ règle et ses trois garde-fous, l'exemple exact de Laurent, les positions exacte
 aucun texte perdu, et l'identité des listes de verbes entre Python et la page.
 
 *Prix* : un appel IA coûte **0,0047 €** (journal des appels) ; un livre entier
-≈ **1,15 €** (estimation calibrée sur une facture réelle). L'essai complet sur le
+va de **0,06 €** (Lazarille, 912 phrases) à **1,41 €** (Shantaram, 30 285) —
+estimation de l'application, **calibrée sur une facture Google réelle** : le
+casting de Shantaram (30 293 phrases, 211 appels) a été **facturé 0,98 €**
+(14/09/2026). *(Chiffre corrigé le 22/09/2026 : cette page annonçait « ≈ 1,15 €
+l'essai complet », une estimation **d'avant** la calibration, restée là par
+erreur ; le BACKLOG portait la même.)*
+**Mesure du 22/09/2026, qui répond à une question de Laurent** : **le mode
+dialogue ne change pas le prix** d'un casting — « 22/11/63 » 1,141 € → 1,150 €
+(**+0,8 %**, moins d'un centime), écart **nul** sur Monte-Cristo T5, Shantaram et
+Lazarille. Le découpage fin ajoute des morceaux (375 de plus sur 24 841), mais
+chacun est plus court. L'essai complet sur le
 livre de test — castage en mode origine, puis re-cast en mode dialogue — revient
 à ≈ **0,15 $**.
 
 *À faire* : l'essai à l'oreille sur « Lazarille de Tormes » (livre neuf, choisi
 par Laurent pour ne toucher à aucun livre casté), puis la décision **livre par
-livre** : migration **gratuite** des index, ou re-cast (~1 $/livre).
+livre** : migration **gratuite** des index, ou re-cast (≈ **0,06 à 1,41 €** selon
+la taille du livre).
 
 **Rattachement MANUEL des pseudonymes (12/09/2026)**
 La règle automatique ne peut **pas** deviner que « Le comte de Monte-Cristo »,

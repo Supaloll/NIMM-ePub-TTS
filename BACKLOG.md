@@ -59,7 +59,8 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   *Protocole d'essai* : castage du livre en mode **origine**, on note 3-4
   passages ; puis **mode dialogue** + re-cast ; on réécoute **les mêmes**
   passages. Coût total ≈ **0,15 $** (mesure du journal : 0,0047 € par appel IA ;
-  un livre entier ≈ 1,15 €).
+  un livre entier va de **0,06 €** — Lazarille — à **1,41 €** — Shantaram ;
+  chiffres **corrigés le 22/09/2026**, voir « Prix d'un re-cast » plus bas).
   *ESSAI RÉEL, fait le 21/09/2026 (protocole tenu)* : le livre de test a été
   casté **deux fois** — une fois en mode **origine**, puis (après activation du
   mode dialogue et remise à zéro de son attribution) une fois en mode
@@ -209,16 +210,17 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
   *À faire* : **l'écoute par Laurent**, puis la décision pour ses autres
   livres — **migration gratuite** des index (les étiquettes existantes sont
-  recollées sur le nouveau découpage) ou **re-cast** (~0,07 $ pour un petit
-  livre, ~1,15 € pour un gros tome). Les 13 livres déjà castés sont restés en
+  recollées sur le nouveau découpage) ou **re-cast** (≈ **0,06 €** pour un petit
+  livre, ≈ **1,14 €** pour le plus gros de la bibliothèque — barème vérifié le
+  22/09/2026, plus bas). Les 13 livres déjà castés sont restés en
   mode origine pendant tout l'essai : aucun n'a été touché.
   *Relevé du 22/09/2026 (Cline), pour préparer cette décision* : la
   bibliothèque compte **15 livres**, dont **13 sont castés** — et **11 de ces 13
   sont encore en mode origine** (Lazarille et le chapitre d'essai sont les deux
   seuls en mode dialogue), soit **105 984 phrases attribuées** à migrer. Un
-  re-cast complet coûterait donc **≈ 24 €** (0,23 € les 1 000 phrases) contre
-  **0 €** pour une migration des index : c'est la migration qu'il faut
-  instruire en premier.
+  re-cast complet coûterait donc **≈ 4 €** (mesure du 22/09/2026 — et non 24 €
+  comme écrit d'abord, voir « Prix d'un re-cast » plus bas) contre **0 €** pour
+  une migration des index : c'est la migration qu'il faut instruire en premier.
   ⚠️ **Point dur à trancher avant d'écrire quoi que ce soit** : les morceaux de
   narration **nés de la coupe** hériteraient de l'étiquette du personnage
   (c'est exactement le défaut n° 2 ci-dessus, dont la règle a été retirée). Une
@@ -233,10 +235,28 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   approfondie prévue dans l'après-midi. **C'est ce verdict qui décide de la
   suite** : migration des index (0 €) ou re-cast des livres restés en mode
   origine.
-  *Prix d'un re-cast, relevés le 22/09/2026* (0,23 € les 1 000 phrases, mesure
-  du journal d'appels) : « Dialogues désaccordés » (1 779 phrases) ≈ **0,41 €** ;
-  « Souvenirs d'une gamine effrontée » (6 133) ≈ **1,41 €** ; « 22/11/63 »
-  (24 841) ≈ **5,71 €** ; le chapitre d'essai (1 248) ≈ **0,29 €**.
+  *Prix d'un re-cast — CORRIGÉ le 22/09/2026 après vérification*. Le premier
+  chiffre écrit ici (« 0,23 € les 1 000 phrases », d'où **5,71 €** pour
+  « 22/11/63 ») venait d'une **ligne du BACKLOG jamais recalibrée** (« ~1,15 €
+  pour un gros tome ») : elle datait d'**avant** la calibration sur facture du
+  14/09/2026. Le vrai barème est celui de `modules/voice_casting.py`
+  (0,42 $/M en entrée, 3,50 $/M en sortie, **calibré sur la facture Google** de
+  Shantaram : 30 293 phrases → **0,98 €** facturés). Estimations de
+  l'application, marge de prudence comprise : « Lazarille » (912 phrases)
+  ≈ **0,06 €** ; un tome du Comte de Monte-Cristo (≈ 5 000) ≈ **0,26 €** ;
+  « Dialogues désaccordés » (1 779) ≈ **0,12 €** ; « Notre-Dame de Paris »
+  (12 066) ≈ **0,60 €** ; « 22/11/63 » (24 841) ≈ **1,14 €** ; « Shantaram »
+  (30 285) ≈ **1,41 €**. **Les 10 livres encore en mode origine ≈ 4 € au total.**
+  ⚠️ **Réponse à la question de Laurent (« le mode dialogue coûte-t-il moins cher
+  à caster ? »)** : **non, le prix est le même** — mesuré, à la formule de
+  l'appli : « 22/11/63 » 1,141 € → 1,150 € (**+0,8 %**, moins d'un centime),
+  Monte-Cristo T5, Shantaram et Lazarille : **écart nul**. C'est logique : le
+  découpage fin **ajoute** des morceaux (375 de plus sur 24 841), et l'IA en
+  étiquette un de plus, mais chacun est plus court. **Ce que le mode dialogue
+  apporte n'est donc pas le prix, c'est la justesse** : sur un livre **jamais
+  casté**, il fait faire la bonne attribution **du premier coup** — donc pas de
+  second passage à payer, et rien à corriger à la main. **Pour un livre neuf,
+  activer le mode dialogue AVANT le casting.**
   ⚠️ **Piège à connaître avant de payer** : le **re-cast « gratuit »** du bouton
   (12/09/2026) ne redistribue que les **voix** dans le catalogue courant — il ne
   refait **pas** le « qui parle ». Il ne dit donc **rien** du nouveau découpage.
@@ -3483,6 +3503,14 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 
 - [ ] **Tester le casting enrichi (Kokoro + seuil 8)** sur un nouveau livre
   dès que les crédits sont rechargés.
+  *Barème vérifié le 22/09/2026* : un livre neuf coûte **0,06 € à 1,41 €** selon
+  sa taille (estimation de l'application, calibrée sur une facture Google réelle
+  — Shantaram, 30 293 phrases, facturé **0,98 €**). Le livre le plus petit à
+  caster ici est « Marathoniens » (3 583 phrases ≈ **0,17 €**) ; le plus gros
+  jamais casté est le **Tome 1 du Comte** (4 791 phrases ≈ **0,26 €**).
+  ⚠️ Et **activer le mode dialogue AVANT**, pour un livre neuf : le prix est le
+  même (±1 %), et l'attribution est juste du premier coup.
+
 - [ ] **📡 Tailscale : deux gestes qui évitent une panne** (relevé le
   20/09/2026, après deux jours de connexion difficile depuis le téléphone).
   1. **Désactiver l'expiration de la clé de ce PC** dans la console Tailscale
