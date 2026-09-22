@@ -836,7 +836,7 @@ d'une phrase et pouvoir la changer — sans que le tap lance la lecture.
   voix l'écoute **sans rien changer**, un **tap sur la ligne** choisit la voix
   (marquée d'un **✔** et d'un liséré doré), et un **champ de recherche** filtre
   par prénom ou provenance — jusqu'à 175 voix, là où le menu les faisait défiler
-  à l'aveugle. Architecture : `_lignesVoixPhrase()` est une fonction **pure**
+  à l'aveugle. Architecture : `_lignesVoixListe()` est une fonction **pure**
   (elle rend les lignes : groupes, tri par prénom, recherche, et la voix en place
   mais plus proposée gardée sous « ⚠️ Voix actuelle »), `_peindreListeVoixPhrase()`
   les dessine, et `_choisirVoixPhrase()` reprend **exactement** l'ancien
@@ -851,6 +851,10 @@ d'une phrase et pouvoir la changer — sans que le tap lance la lecture.
   ligne** partout ailleurs : `_libelleVoix` est désormais l'assemblage de
   `_identiteVoix()` (symbole, prénom, drapeaux, âge, timbre) et de
   `_iconeMoteurVoix()` (l'icône du moteur).
+  *(Audit de la documentation, 22/09/2026 : cette page, et le BACKLOG, nommaient
+  la fonction pure « _lignesVoixPhrase() » — un nom qui n'a jamais existé dans
+  `app.js`. Le nom réel, vérifié, est `_lignesVoixListe()` : corrigé aux deux
+  endroits.)*
 - **Aperçu** : bouton « ▶ Écouter » (`_apercuVoixPhrase()`) — la voix
   choisie dit un extrait **de la phrase ouverte**, avec la vitesse et la
   hauteur du personnage (celles du lecteur pour la narration) ; si le moteur

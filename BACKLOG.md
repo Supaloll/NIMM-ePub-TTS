@@ -131,10 +131,18 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
      passe de 987 à **989 morceaux**.
   2. **Beats attribués au personnage malgré la coupe** : l'IA voit une réplique
      dans un morceau qui finit par un verbe de parole **et commence par le nom
-     du personnage** (mesure : 2 cas dans le livre de test). *Corrigé* par une
-     règle **déterministe** : en mode dialogue, un beat hors citation ouverte est
-     **toujours** remis au narrateur (`_forcer_beats_en_narration`, aucun appel
-     IA, aucune facture).
+     du personnage** (mesure : 2 cas dans le livre de test). Une règle
+     **déterministe** a été écrite pour ce cas (`_forcer_beats_en_narration` :
+     un beat hors citation ouverte remis au narrateur, aucun appel IA, aucune
+     facture) — puis **RETIRÉE du pipeline le 21/09/2026, après mesure** : ses
+     deux seules trouvailles dans « Lazarille de Tormes » se trouvaient **dans**
+     le long discours d'un personnage qui rapporte ses propres paroles (citation
+     imbriquée), et les forcer au narrateur aurait coupé sa voix au milieu de sa
+     tirade. Le passage est devenu correct **sans elle**, par les deux correctifs
+     ci-dessus (apostrophe typographique, cris). La fonction **reste dans le code
+     comme MESURE** (elle sert à `_corriger_livre.py`), elle n'est **plus
+     appelée**. *(Texte corrigé le 22/09/2026 : le BACKLOG annonçait ici un
+     correctif qui n'est pas appliqué — le dire, sinon la croyance revient.)*
   3. Le troisième symptôme (« La foule, … cria à son tour : » lu par *Foule*)
      était un **état transitoire** : la page avait le nouveau découpage (986
      morceaux) mais les **anciennes** attributions (912 lignes) → voix décalées.
@@ -237,6 +245,20 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   recollées sur le nouveau découpage) ou **re-cast** (~0,07 $ pour un petit
   livre, ~1,15 € pour un gros tome). Les 13 livres déjà castés sont restés en
   mode origine pendant tout l'essai : aucun n'a été touché.
+  *Relevé du 22/09/2026 (Cline), pour préparer cette décision* : la
+  bibliothèque compte **15 livres**, dont **13 sont castés** — et **11 de ces 13
+  sont encore en mode origine** (Lazarille et le chapitre d'essai sont les deux
+  seuls en mode dialogue), soit **105 984 phrases attribuées** à migrer. Un
+  re-cast complet coûterait donc **≈ 24 €** (0,23 € les 1 000 phrases) contre
+  **0 €** pour une migration des index : c'est la migration qu'il faut
+  instruire en premier.
+  ⚠️ **Point dur à trancher avant d'écrire quoi que ce soit** : les morceaux de
+  narration **nés de la coupe** hériteraient de l'étiquette du personnage
+  (c'est exactement le défaut n° 2 ci-dessus, dont la règle a été retirée). Une
+  migration **sans règle** ne ferait donc pas gagner ce que le mode dialogue
+  apporte ; **avec** une règle, elle ne doit viser que les **morceaux nés de
+  notre propre coupe** et **jamais** ceux qui se trouvent dans une citation
+  ouverte (les 2 cas de Lazarille). À mesurer avant d'écrire.
   *Détails* : ARCHITECTURE.md, « Mode dialogue ».
   *Piste complémentaire (non retenue pour l'instant)* : dans « 22/11/63 »,
   **44 morceaux** de « citation racontée » sont attribués à un personnage — des
@@ -435,13 +457,18 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   finit » (exemple de son écoute :
   « Je ne pense pas. **Pense pas** Mais tu as peut être raison »).
   *Cause probable, lue dans le code* : le **contexte glissant** de Kyutai
-  (`_buildPlaylist` → `_fetchAudio` → `synthetize_kyutai` →
+  (`_buildPlaylist` → `_fetchAudio` → `POST /api/tts` → `modules/tts.py`, fonction `synthesize_kyutai` (le moteur est joint par `_demander_au_moteur_kyutai`) →
   `kyutai_service/servir_kyutai.py`). Pour la phrase B, le moteur génère
   « les 8 derniers mots de A, puis B », et le service **coupe** ce qu'il faut
   jeter en cherchant un silence (`SILENCE_COUPE_S = 0,12 s`,
   `MARGE_CONTEXTE_S = 0,25 s`). Si la coupe tombe **trop tard**, la fin du
   contexte s'entend (« Pense pas ») ; **trop tôt**, c'est le début de B qui est
   mangé. Les deux défauts décrits par Laurent, d'un seul coup.
+  *(Noms corrigés le 22/09/2026, audit de la documentation : la chaîne écrite ici
+  passait par « synthetize_kyutai », un nom qui n'existe dans **aucun** fichier.
+  Relevé dans le code : `frontend/app.js` → `main.py` (route `/api/tts`) →
+  `modules/tts.py` : `synthesize_kyutai` joint le moteur par
+  `_demander_au_moteur_kyutai`.)*
   *Ce n'est pas Kokoro* : `main.py` ne transmet `context` **qu'à la branche
   Kyutai** — vérifié le 21/09/2026. *(L'oreille de Laurent le confirme : « pour
   les répétitions, c'est clairement Kyutai ».)*
@@ -2278,7 +2305,7 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
      `_identiteVoix()` (symbole, prénom, drapeaux, âge, timbre) et
      `_iconeMoteurVoix()` (l'icône du moteur), ce qui garde le libellé **d'une
      ligne** partout ailleurs (badges, tiroir des voix libres, fenêtre d'écoute) ;
-     une fonction **pure** `_lignesVoixPhrase()` qui rend les lignes (groupes
+     une fonction **pure** `_lignesVoixListe()` qui rend les lignes (groupes
      Femmes / Hommes / Autres, tri par prénom, recherche, voix **hors liste**
      gardée sous « ⚠️ Voix actuelle ») ; `_peindreListeVoixPhrase()` qui les
      dessine ; `_choisirVoixPhrase()` qui reprend **exactement** l'ancien
@@ -4469,7 +4496,13 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   `_pids_moteur_voix()` / `_arreter_moteur_voix()` / `_relancer_moteur_voix()`
   (les trois fonctions Kyutai restent, en enveloppes, pour l'analyse locale),
   côté écran `_libelleMoteur()`, `_ouvrirMoteurModal()`, `_basculerMoteur()`,
-  `_surveillerMoteur()`, et la fenêtre `#moteur-modal`. *Vérification* :
+  `_surveillerMoteur()`, et la fenêtre `#moteur-modal`.
+  ⚠️ **Repère ajouté le 22/09/2026 (audit de la documentation)** : ces trois
+  fonctions et cette fenêtre **n'existent plus** —
+  elles ont été **RETIRÉES le 21/09/2026**, quand le bouton de bascule est devenu
+  le voyant « 🛠️ Réparer les moteurs » (`#reparer-modal`, voir l'item du
+  21/09/2026). Les noms ci-dessus sont ceux de l'époque : c'est voulu, et c'est
+  désormais écrit. *Vérification* :
   `test_voix/test_bascule_moteur.py` (**50 contrôles, aucun moteur lancé** : les
   deux sont simulés en mémoire) et `test_voix/test_bouton_moteur.js`
   (31 contrôles). Détails dans ARCHITECTURE.md.
@@ -6321,22 +6354,41 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
 
 
 - [ ] **Centraliser le découpage en phrases**
-  Trois implémentations coexistent : `_buildSentences` (app.js),
-  `_split_sentences` (main.py), `_split_chapter_sentences` (voice_casting.py).
-  Risque de divergence silencieuse à chaque évolution de règle → une seule
-  fonction partagée + tests.
+  **Quatre** implémentations coexistent : `_buildSentences` (app.js),
+  `_split_sentences` (main.py), `_split_chapter_sentences` (voice_casting.py) et
+  `modules/decoupage.py` — cette dernière porte la règle de **référence**,
+  recopiée **mot pour mot** dans la page (le test compare les deux listes de
+  verbes de parole). Risque de divergence silencieuse à chaque évolution de règle
+  → une seule fonction partagée + tests.
+  *(Relevé du 22/09/2026, audit de la documentation : les quatre existent
+  toujours. La page porte en plus la règle du **mode dialogue**, pour la
+  recherche et la carte des morceaux.)*
 
 - [ ] **Suite de tests automatisés + CI**
-  Découpage, playlist de lecture, rognage des silences, cache, `assign_voices`
-  (pools/threshold). GitHub Actions sur les fichiers Python/JS.
+  *Une partie est faite (21/09/2026)* : la suite existe et se lance en
+  double-clic — `LANCER_TOUS_LES_TESTS.bat`, **39 tests** (22 JavaScript +
+  17 Python) au vert le 22/09/2026 — avec sa leçon : un test absent de la liste
+  du lanceur **ne tourne jamais** (`test_attribution_criteres.py` avait dérivé
+  sans que rien ne le signale). *Ce qui manque encore* : la **CI** (GitHub
+  Actions sur les fichiers Python/JS).
 
 - [ ] **Découper les gros fichiers en modules**
-  `frontend/app.js` (~1900 lignes) et `main.py` (~900 lignes) grossissent —
-  à découper quand la navigation dans le code devient pénible.
+  Tailles relevées le **22/09/2026** (audit de la documentation) :
+  `frontend/app.js` **6 109 lignes**, `main.py` **2 572**,
+  `modules/voice_casting.py` **1 908**, `modules/tts.py` **1 371** — les
+  « ~1900 lignes » et « ~900 lignes » écrites ici dataient de la création de
+  l'item. À découper quand la navigation dans le code devient pénible ; le
+  chiffre fait maintenant jalon, donc l'item est **mesurable**.
 
-- [ ] **Cache audio : statistiques et purge**
-  Petite vue/endpoint pour connaître la taille du cache et le vider
-  manuellement si besoin.
+- [x] **Cache audio : statistiques et purge** — **LIVRÉ le 20/09/2026** : voir
+  l'item « Bouton « vider le cache audio » dans les réglages », plus haut.
+  `GET /api/cache_audio` donne la taille, le quota et le nombre de fichiers,
+  `POST /api/cache_audio/vider` purge (jamais une écriture en cours), et le
+  bouton **« 🧹 Vider le cache (604 Mo) »** est dans le tiroir du lecteur.
+  **Item fermé le 22/09/2026** : il restait ouvert alors que tout était livré et
+  testé (`test_cache_audio.py`, `test_cache_audio.js`) — *repéré par l'audit de
+  la documentation, qui a montré que l'outil ne voyait pas encore ce genre de
+  doublon.*
 
 - [x] **Sécuriser et documenter `test_voix/`** — livré le **16/09/2026**
   (demande de Laurent : « je me perds un peu » ; chantier choisi : rangement +
