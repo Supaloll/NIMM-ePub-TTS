@@ -3554,7 +3554,8 @@ un item ; le récit technique vit dans `ARCHITECTURE.md`. Les phrases de
 **leçon** (un démenti, une mesure, un piège) sont gardées sous l'item quand
 elles se lisent seules ; celles qui ne se lisent pas seules (restes de listes) sont
 recopiées **telles quelles** à la fin de ce fichier, parce que rien ne doit
-disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~272 Ko** (taille sur le disque).*
+disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~270 Ko**
+(taille sur le disque ; 6 789 → 3 898 lignes).*
 
 #### 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
