@@ -21,6 +21,7 @@ Tu n'as **pas** besoin de savoir taper des commandes : les actions utiles ont un
 | Lanceur (double-clic) | Ce qu'il fait |
 |---|---|
 | `LANCER_TOUS_LES_TESTS.bat` | **lance TOUS les tests d'un coup** (page + serveur, une quarantaine de secondes) et n'affiche que l'essentiel : à la fin, tu dois lire « **TOUT EST OK** ». Rien n'est modifié, rien n'est facturé, aucun moteur n'est démarré — c'est le réflexe à prendre avant de considérer une modification comme livrée |
+| `AUDITER_DOCUMENTATION.bat` | **vérifie que la documentation dit encore la vérité sur le code** (22/09/2026) : fichiers cités qui n'existent plus, fonctions/constantes disparues, routes absentes de `main.py`, colonnes de table absentes de la base, tests disparus, items du BACKLOG déjà livrés. Le rapport **défile à l'écran** et reste dans `_audit_documentation.txt` — **lecture seule**, rien à allumer |
 | `ECOUTER_PRONONCIATION.bat` | le **lot d'écoute de la prononciation des prénoms** (21/09/2026) : pour chaque prénom, ce que Kokoro dit **avant** et **après** le correctif — c'est ton oreille qui valide la graphie |
 | `LANCER_BANC_ECOUTE_XTTS.bat` | fabrique un **lot d'écoute XTTS** (qualité des phrases : attaque, incise, tiret, phrase courte, fin de phrase) sur deux voix |
 | `LANCER_BANC_PONCTUATION.bat` | fabrique un **lot d'écoute sur la ponctuation du « ! »** (point / virgule / suspension / rien) **et sur les incises** (gardées ou retirées), sur les mêmes phrases réelles d'un livre — **Kyutai allumé**. Tu écoutes et tu classes, je règle ensuite |
