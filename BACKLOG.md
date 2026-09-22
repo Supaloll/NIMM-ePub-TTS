@@ -226,6 +226,22 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   apporte ; **avec** une règle, elle ne doit viser que les **morceaux nés de
   notre propre coupe** et **jamais** ceux qui se trouvent dans une citation
   ouverte (les 2 cas de Lazarille). À mesurer avant d'écrire.
+  *Retour d'écoute de Laurent, 22/09/2026 (matin)* : « les écoutes que j'ai
+  faites au sujet de la découpe du texte et de l'attribution des voix, incises
+  lues par le narrateur, les passages qui sont bien détectés selon les
+  personnages […] pour ce que j'ai écouté le résultat est très bon ». Écoute
+  approfondie prévue dans l'après-midi. **C'est ce verdict qui décide de la
+  suite** : migration des index (0 €) ou re-cast des livres restés en mode
+  origine.
+  *Prix d'un re-cast, relevés le 22/09/2026* (0,23 € les 1 000 phrases, mesure
+  du journal d'appels) : « Dialogues désaccordés » (1 779 phrases) ≈ **0,41 €** ;
+  « Souvenirs d'une gamine effrontée » (6 133) ≈ **1,41 €** ; « 22/11/63 »
+  (24 841) ≈ **5,71 €** ; le chapitre d'essai (1 248) ≈ **0,29 €**.
+  ⚠️ **Piège à connaître avant de payer** : le **re-cast « gratuit »** du bouton
+  (12/09/2026) ne redistribue que les **voix** dans le catalogue courant — il ne
+  refait **pas** le « qui parle ». Il ne dit donc **rien** du nouveau découpage.
+  Le seul essai qui parle vraiment du découpage est la **migration des index
+  (0 €)**, ou un re-cast **payant**.
   *Détails* : ARCHITECTURE.md, « Mode dialogue ».
   *Piste complémentaire (non retenue pour l'instant)* : dans « 22/11/63 »,
   **44 morceaux** de « citation racontée » sont attribués à un personnage — des
