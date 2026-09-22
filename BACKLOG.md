@@ -1097,6 +1097,10 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   couper la phrase demanderait de **remigrer les 25 216 index** d'attribution pour
   une seule phrase. *Piste, pas ce soir* : mesurer la fréquence du motif dans les
   autres livres avant d'ouvrir quoi que ce soit.
+  ⏸️ **SANS RÉPONSE de Laurent au 22/09/2026** : dans la question du « 🔗 même
+  voix », il n'a tranché que la case « même voix » (voir item 4). Cet item reste
+  donc **ouvert** — à reposer quand le sujet reviendra (il ne coûte rien tant qu'on
+  ne l'ouvre pas : **1 phrase sur 25 216** dans 22/11/63).
 
 - [ ] **3. Genre des petits rôles : une fillette lue par une voix d'homme** — la
   « Fillette déguisée » (6 répliques, donc < 8 = petit rôle) porte le genre **H**
@@ -1109,9 +1113,16 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   `nourrisson`…) — gratuit et sans re-cast, mais **ne corrige que les castings
   FUTURS** (la fiche de ce livre restera « H ») ; (b) **dans l'application, le
   genre d'un personnage n'est pas modifiable** : seule sa VOIX l'est (vérifié le
-  22/09/2026 : aucun point d'entrée ne touche `cast_fiche`). *À trancher* :
-  ajouter deux boutons ♀ / ♂ dans la fenêtre du casting, qui re-piochent la voix
-  générique du bon genre ? En attendant, Laurent change la voix à la main.
+  22/09/2026 : aucun point d'entrée ne touche `cast_fiche`).
+  ✅ **DÉCIDÉ par Laurent (22/09/2026) : (a) seulement.** On complète les mots
+  manquants de `_MOTS_F` (`modules/voice_casting.py`) — `fillette`, `gamine`,
+  `petite fille`, `demoiselle` — et **PAS** de boutons ♀ / ♂ dans la fenêtre du
+  casting pour l'instant.
+  *Conséquence assumée* : la fiche de 22/11/63 restera « H » (ce sont les castings
+  FUTURS qui seront mieux devinés) ; la fillette garde donc Pierre **jusqu'à ce que
+  Laurent lui donne une voix à la main** — ce qui reste possible sans code.
+  *À faire (petit item, sans risque)* : compléter la liste, puis relancer
+  `test_voix/test_reprise_casting.py` (il vérifie `deviner_genre`) et la suite.
 
 - [ ] **4. Deux noms pour la même personne : « Col-bleu sans bretelles » et
   « Bill Turcotte »** — Laurent s'étonne que Bill Turcotte ne soit étiqueté que
@@ -1122,8 +1133,16 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   sans bretelles`), c'est le travail de Laurent. Ce que 🔗 ne fait pas, par choix
   (les pseudos du *Comte* gardent leur voix) : **il ne réunit pas les voix**. Ici
   les deux sont le même timbre (`kokoro:am_onyx`) mais à **+0 Hz / +4 Hz** — d'où
-  un léger changement en pleine scène. *À trancher* : proposer « même voix » au
-  moment du 🔗 (alignement seulement si Laurent le demande) ?
+  un léger changement en pleine scène.
+  ✅ **DÉCIDÉ par Laurent (22/09/2026) : OUI, une case « même voix » au moment du
+  🔗.** Contrat retenu : la case est **facultative et décochée par défaut** — 🔗
+  continue donc de réunir les noms SANS toucher aux voix (ce qu'il faut pour les
+  pseudos du Comte de Monte-Cristo) ; **cochée**, elle aligne la voix, la hauteur et
+  la vitesse de l'alias sur celles du nom principal (le cas Bill Turcotte /
+  Col-bleu : +0 Hz d'un côté, +4 Hz de l'autre aujourd'hui).
+  *À faire* : ajouter l'option à `POST /api/books/{id}/cast/group` (même alignement
+  que le regroupement automatique, voir `/cast/autogroup`) + la case dans la fenêtre
+  du casting.
 
 - [ ] **5. « George Amberson » n'existe pas comme personnage — et c'est une
   bonne nouvelle** — question de Laurent (22/09/2026) : « je vois Jake Epping,
@@ -1149,7 +1168,15 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   `character_aliases` — la table du 🔗 — donc visibles en retrait sous le nom
   principal et **détachables d'un clic (✂)**, et **jamais appliquées sans
   validation** : un alias faux, c'est deux personnes différentes qui partagent une
-  voix au re-cast. *À trancher* : ouvrir ce chantier, oui / non, et quand.
+  voix au re-cast.
+  ✅ **DÉCIDÉ par Laurent (22/09/2026) : ON OUVRE LE CHANTIER**, et les propositions
+  seront **affichées dans la table du 🔗** — rangées sous le nom principal, avec ✂
+  pour détacher — donc **jamais appliquées sans sa validation**.
+  *À faire, dans cet ordre* : (1) étendre la **Passe 2** (aucun appel en plus sur un
+  nouveau casting) ; (2) un outil **`_PAYANT_...`** pour un livre **déjà casté**
+  (garde-fou `--je-paie`, comme les autres appels facturés) ; (3) l'affichage des
+  propositions en attente dans la fenêtre du casting.
+  **À faire APRÈS l'étape 3** (les incises) : un chantier à la fois.
 
 ## 🟠 Priorité 2 — Voix & casting
 
