@@ -6,47 +6,14 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 - Cocher `[x]` quand l'item est livré.
 - Les détails techniques des items livrés sont documentés dans ARCHITECTURE.md.
+- Depuis le **22/09/2026**, un item livré tient sur **une seule ligne** (titre +
+  date) : ils sont rangés à la fin du fichier, section « ✅ Déjà livré », et les
+  leçons qu'ils portaient sont gardées avec eux. **Ce qui reste à faire est donc
+  toujours en haut**, dans les sections de priorité — c'est la liste de travail.
 
 ---
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
-
-- [x] **🪗 Le menu du bas devient un TIROIR : les sept commandes de lecture, et
-  rien d'autre** — demandé et livré le **22/09/2026**. Laurent : « Pour le menu
-  du bas, on va faire un tiroir. Il faut afficher uniquement les boutons de
-  lecture, soit ⏮⏪◀▶▶⏩⏭. Dessous, tout le reste du menu qui s'ouvre en ouvrant
-  ce menu tiroir. »
-  *Ce qui a changé* : la barre du bas ne garde que ses **sept commandes de
-  lecture** (la barre de progression, les six flèches, le bouton rond) ; tout ce
-  qui se règle une fois puis s'oublie passe **sous une poignée**
-  (`#reader-tiroir-btn` : un chevron et le mot « Menu ») — 🎭 Voix multiples,
-  🎧 Écouter les voix, 🔖 Onglets, 👀 Lecture Rapide, 🧹 Vider le cache, la voix
-  du narrateur, la vitesse, et le voyant 🛠️ Réparer.
-  *Le même motif que le tiroir du casting* (livré le même jour), avec ses deux
-  règles : l'état de départ **suit l'écran** — replié sur téléphone, ouvert sur
-  ordinateur, où la poignée **n'existe pas** (rien ne change sur PC) — et **le
-  choix de Laurent l'emporte** dès qu'il touche la poignée, pour toute la
-  session.
-  *Mesuré* (`test_voix/test_tiroir_lecteur_rendu.py`, Playwright, le vrai pied
-  du lecteur sur un écran de 360 px) : **137 px** de pied replié contre **249 px**
-  ouvert, soit **112 px rendus au texte** ; la poignée mesure **332 × 26 px**
-  (large, donc facile au doigt ; fine, donc elle ne mange pas le texte) ; les
-  sept boutons tiennent sur **une seule ligne**, rien ne déborde de l'écran, et
-  sur ordinateur la poignée est bien masquée.
-  *Fichiers* : `frontend/index.html` (la poignée, commentée),
-  `frontend/styles.css` (le look, et le chevron qui se retourne), `frontend/app.js`
-  (`_tiroirLecteurDoitEtreOuvert`, fonction pure, `_appliquerTiroirLecteur`, le
-  clic, l'état à l'entrée dans le lecteur) — copies datées
-  `*.bak_avant_tiroir_lecteur_20260922`, et les numéros de version des assets
-  portés à `?v=20260922-2` (sans quoi un téléphone garde l'ancienne page en
-  cache).
-  *Vérifications* : le test neuf `test_voix/test_tiroir_lecteur.js`
-  (**38 contrôles**), son contrôle de rendu `test_tiroir_lecteur_rendu.py`
-  (**19 contrôles**, Playwright), et `LANCER_TOUS_LES_TESTS.bat` — **TOUT EST
-  OK**.
-  *À voir par Laurent* : ouvrir un livre sur le téléphone — le bas de l'écran ne
-  montre plus que les flèches de lecture ; taper sur « Menu » les ouvre, taper
-  dessus les referme.
 
 - [ ] **✂️ Découpage : séparer la NARRATION des RÉPLIQUES (mode dialogue, livre
   par livre)** — demandé et commencé le **21/09/2026**. Laurent : « j'aimerais
@@ -265,824 +232,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   erreurs d'étiquetage que la règle de découpage ne corrige pas, mais qu'une
   consigne plus précise du prompt pourrait viser.
 
-- [x] **Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS
-  redémarre avec le lecteur** — livré le **21/09/2026**. Retour d'écoute de
-  Laurent (6 h) : « j'ai cliqué par erreur sur la ligne tout en bas, qui me
-  permet de changer de serveur, apparemment ça a coupé le moteur POCKET TTS. Je
-  ne trouve plus les voix à l'intérieur du casting. Il faudrait retirer ce
-  bouton, de toutes façons je ne changerais de moteur que depuis le PC. »
-  *Les deux causes, trouvées en lisant l'état de la machine* :
-  1. `data/moteur_voix.txt` contenait bien `kyutai` : le clic n'avait **rien
-     cassé** ;
-  2. mais **`START.bat` n'a jamais allumé Pocket TTS** : son bloc vivait
-     **après** le bloc Kyutai, dont **tous** les chemins finissent par
-     `goto lecteur`. Il était donc **inatteignable**. Le PC avait redémarré à
-     05:53 (le service Pocket s'était tu à 01:25, **sans message d'arrêt** :
-     arrêt machine, pas panne), et à 09:46 `START.bat` a allumé Kyutai puis
-     sauté le bloc Pocket. Or le casting ne propose que les voix **écoutables
-     tout de suite** : sans service, plus une seule des 18 voix Pocket TTS — et
-     **aucun moyen de les rallumer en les demandant**.
-  *Ce qui a été livré* :
-  1. **le bouton de changement de moteur est retiré** (`index.html`, `app.js`,
-     `styles.css`) : la bascule se fait sur le PC, par le lanceur de chaque
-     moteur. Le test vérifie maintenant que **rien** de l'ancien dispositif ne
-     subsiste ;
-  2. **`START.bat` allume Pocket TTS AVANT le choix du moteur lourd** (label
-     `:pocket_pret`, plus aucun `goto lecteur` dans ce chemin) ;
-  3. **le lecteur VEILLE sur Pocket TTS** : une ronde discrète (30 s, fil de
-     fond `_veiller_moteurs`) le rallume s'il le trouve éteint, **en le disant**
-     dans la console, sans essais en rafale (repos de 60 s, puis 10 min après
-     6 échecs). C'est la réponse à la vraie difficulté : un rallumage **à la
-     demande** est impossible, puisque ses voix ne sont plus dans le casting
-     quand il est éteint ;
-  4. **l'endormissement du service passe de 30 min à 3 h**
-     (`NIMM_POCKET_TTS_INACTIF`) : à 30 min, il s'endormait **en pleine journée
-     d'écoute** (c'est exactement ce qui est arrivé ce matin) ;
-  5. **le voyant devient « 🛠️ Réparer les moteurs de voix »** : son libellé ne
-     parle **que des moteurs ATTENDUS** (Pocket TTS, qui cohabite, et le moteur
-     lourd retenu) — sinon il crierait en permanence pour XTTS éteint
-     volontairement. Il ouvre un panneau à **deux gestes** : « 🛠️ Relancer les
-     moteurs » (doux : rallume ce qui manque, **sans couper la lecture**) et
-     « 🔄 Redémarrer NIMM ePub » (fort : lance `START.bat` comme un double-clic,
-     **après confirmation**, avec voile de redémarrage et rechargement
-     automatique de la page). **Aucun des deux n'éteint un moteur** : la panne
-     du jour ne peut plus se reproduire par un clic ;
-  6. deux routes nouvelles : `POST /api/moteurs/relancer` et
-     `POST /api/serveur/redemarrer`. Le lanceur du PC, lui, **refuse** de
-     relancer quand le lecteur tourne déjà (« déjà en marche, rien à lancer ») :
-     c'est exactement le trou que le geste fort comble.
-  *Vérifications* : **30 contrôles** nouveaux (`test_voix/test_reparer_moteurs.py`,
-  rien à allumer) et `test_bouton_moteur.js` réécrit (voyant, disparition de
-  l'ancien bouton, câblage des deux gestes) ; **19 tests JavaScript** et les
-  tests Python légers au vert. **Contrôle en vrai** : `START.bat` relancé à la
-  main → port 8085 ouvert, `/api/moteurs` → `pocket actif=true pret=true
-  ATTENDU=true` et `kyutai ATTENDU=true`, `/api/voices` → **163 voix dont 18
-  Pocket TTS**. La preuve du correctif est dans `test_start_moteur.py` : il
-  vérifie que le port **8085 est testé avant le 8082**, et qu'aucun
-  `goto lecteur` ne saute plus le bloc.
-  *Deux pièges d'atelier trouvés le même jour, et corrigés* (ils dormaient
-  depuis le 16/09/2026) :
-  - **`test_start_moteur.py` tuait le lecteur de Laurent** : sa « copie
-    neutre » de `START.bat` ne neutralisait pas le garde-fou du 18/09/2026
-    (« on arrête le serveur qui écoute sur 8081 »), donc le test arrêtait pour
-    de vrai le serveur en marche. Deux autres motifs ne matchaient plus rien
-    (ils dataient de l'époque NeuTTS) : le test **lançait aussi le lanceur de
-    Kyutai pour de vrai**, sept fois. Il neutralise maintenant **tout**
-    (5 remplacements) et **vérifie** qu'aucun lancement ne reste possible dans
-    la copie ;
-  - **le nom court ne suffit plus pour lancer un `.bat`** : depuis Python 3.11,
-    les processus enfants reçoivent `NoDefaultCurrentDirectoryInExePath=1`, donc
-    `cmd /c _test.bat` échoue (« n'est pas reconnu ») là où le **chemin
-    complet** fonctionne. Leçon écrite dans le test.
-  *Effet de bord à connaître* : `test_start_moteur.py` écrit dans le **vrai**
-  `data/moteur_voix.txt` (c'est ce que fait `START.bat`) et le restaure à la
-  fin. **Ne pas lancer deux fois en même temps** : deux instances se marchent
-  dessus et laissent le pense-bête sale (constaté le 21/09/2026, remis à la
-  main). `main.py` tolère désormais un BOM en tête de ce fichier (piège
-  PowerShell).
-  *Deux pièges de plus, trouvés en testant le geste FORT (et corrigés)* :
-  - **un nom court ne se résout plus dans un `cmd` lancé par le lecteur** : le
-    bouton « Redémarrer » ouvrait bien une fenêtre, mais elle disait
-    « `START.bat` n'est pas reconnu » — et le lecteur **n'était jamais
-    relancé**. Cause : `start "..." /D ... cmd /k START.bat` passe un **nom
-    court**, et depuis Python 3.11 les processus enfants reçoivent
-    `NoDefaultCurrentDirectoryInExePath=1` (cmd ne cherche plus dans le dossier
-    courant). Corrigé **aux deux endroits** (`_lancer_start_bat_apres_reponse`
-    et `_relancer_moteur_voix`, qui portait le même défaut latent depuis le
-    15/09/2026) : le lanceur est appelé par son **chemin complet**, avec
-    `CREATE_NEW_CONSOLE` — le double-clic exact. **Vérifié en vrai** : lecteur
-    relancé, **PID changé** (12876 → 11380), Pocket TTS intact ;
-  - **une copie de `START.bat` écrite par Python en LF seul fait DÉRAILLER
-    cmd** : la copie de diagnostic, écrite avec des fins de ligne LF, a été
-    « lue de travers » par cmd, qui a **exécuté le texte de ses propres
-    commentaires** — jusqu'à lancer `neutts_service\DEMARRER_NEUTTS.bat`, donc
-    le moteur **NeuTTS**, que personne n'avait demandé (et qui a écrit
-    `neutts` dans le pense-bête). Leçon : **un `.bat` s'écrit TOUJOURS en
-    CRLF**. `START.bat` lui-même est sain (178 lignes en CRLF, vérifié) : la
-    faute était dans mon script de diagnostic, jetable.
-
-- [x] **🎒 Pocket TTS : volume qui s'affaisse dans un long paragraphe, et débuts
-  de mots mangés** — **réglé le 21/09/2026** (voir la mise au point en fin
-  d'item ; les deux symptômes ont été mesurés, puis l'un corrigé et l'autre
-  expliqué). Relevé par Laurent le **21/09/2026**, à l'oreille, sur son
-  PC : « Pocket TTS a tendance à diminuer le volume si le paragraphe est très
-  long, et à manger les débuts de mots en début de phrase. »
-  *MESURE DU 21/09/2026* (`test_voix/_mesurer_pocket_defauts.py` : le paragraphe
-  le plus long d'un chapitre de 22/11/63, **1115 caractères**, demandé **phrase
-  par phrase** comme le fait la lecture — le niveau est celui de la **parole**,
-  et l'attaque est comparée au niveau habituel de la **même** phrase). **Le
-  résultat dément l'attribution** :
-  - **Pocket TTS est STABLE** : niveaux des dix phrases `42 39 38 40 30 37 40 34
-    29 38` → de la première à la dernière **−1,1 dB seulement** (une oscillation
-    normale de ±1,5 dB). **Il n'y a pas d'affaissement.**
-  - **Kyutai, lui, décroche** : `25 35 28 38 **9** 33 28 33 23 30` → une phrase
-    sort à **8,8 %** là où ses voisines sont à **~30 %**, soit **−10 dB** : c'est
-    *exactement* l'impression d'un « volume qui baisse » dans un long passage.
-    Écart total du moteur sur ce paragraphe : de 8,8 % à 37,5 %, **12,6 dB**.
-  - **Pourquoi le correctif existant n'aide pas** : `modules/audio_gain.py`
-    (18/09/2026) a été écrit pour **remonter** les phrases trop faibles
-    (« on n'atténue JAMAIS », cible **8,5 %**). Or les sorties brutes de Kyutai
-    et Pocket sont **au-dessus** de cette cible (25 à 42 %) : le module ne
-    **fait donc rien** sur la plupart d'entre elles, et surtout il **n'égalise
-    pas** les phrases entre elles. Une phrase faible reste faible à côté de ses
-    voisines fortes.
-  - **Les débuts de mots mangés ne sont pas propres à Pocket** : sur les reprises
-    de phrase précédées d'un silence, **2 sur 5** sont sous −6 dB chez Pocket
-    (−10,9 et −8,5 dB) et **3 sur 7** chez Kyutai (−16,4 dB sur « Il n'était
-    pas… »). *Réserve honnête* : la mesure ne sait pas distinguer une **attaque
-    vraiment écrasée** d'un **premier son naturellement doux** (un mot qui
-    commence par « l », « s », « f ») — il faudra affiner avant de conclure.
-  *MISE AU POINT DU 21/09/2026 (soir) — la mesure a corrigé le diagnostic, deux
-  fois* :
-  1. **l'échelle de mesure n'était pas la bonne** : mon premier outil mesurait la
-     **crête** par tranche de 2 s, alors que le module du lecteur mesure la
-     **moyenne par fenêtre de 30 ms**. Sur la bonne échelle, les niveaux sont
-     bien plus bas que ce que j'annonçais — Kyutai de **3,8 à 10,8 %** (médiane
-     6,6), Pocket de **7,5 à 12,8 %** (médiane 9,6) — et **le module faisait déjà
-     l'essentiel** (il remontait les phrases faibles vers 8,5 %). Mon affirmation
-     « il ne fait rien sur ces moteurs » était **fausse** ;
-  2. **une « bande de ± 3 dB » a été essayée, puis ABANDONNÉE** : elle laissait
-     en place les petites variations — mesuré, il restait **3,7 dB d'écart**
-     entre les phrases d'un même paragraphe, soit **le défaut lui-même**. Ces
-     variations ne sont pas des nuances voulues : c'est l'instabilité du moteur.
-  *CORRECTIF LIVRÉ* (`modules/audio_gain.py`) : la correction va maintenant
-  **dans les deux sens** — une phrase trop faible est remontée **jusqu'à la
-  cible** (comme avant), une phrase trop forte est **ramenée vers la cible**,
-  sans jamais perdre plus de **−6 dB** (`GAIN_MIN`), pour ne rien écraser. Une
-  correction inaudible (moins de 2 %) n'est pas appliquée.
-  *Le bug attrapé au passage* : l'ancien garde-fou `gain <= 1,02` rejetait
-  **toutes** les atténuations, puisque le gain est désormais **inférieur** à 1 ;
-  il compare maintenant l'**écart** (`abs(gain − 1) < 0,02`). **C'est le test qui
-  l'a trouvé**, avant toute écoute — l'intérêt de réécrire les tests quand la
-  règle change.
-  *RÉSULTAT MESURÉ, de bout en bout* (les dix phrases du paragraphe de 22/11/63,
-  demandées au **lecteur**, comme en lecture) :
-  ```
-  AVANT (sortie brute du moteur) : 10.8 7.3 6.0 7.2 3.8 5.6 5.4 5.5 7.1 6.6  -> écart 9,1 dB
-  APRES (module du lecteur)      : 8.5 8.4 8.5 8.4 8.4 8.5 7.9 8.5 8.1 8.5  -> écart 0,7 dB
-  ```
-  `VERSION_CACHE` passe à **17** (16 = le réglage, 17 = la purge de l'essai
-  abandonné) : les phrases déjà écoutées sont refaites, sinon elles garderaient
-  l'ancien niveau (leçon du 17/09/2026).
-  *Vérifications* : `test_voix/test_niveau_audio.py` réécrit pour la nouvelle
-  règle (**14 contrôles** : une phrase vraiment faible atteint la cible, une
-  phrase déjà à la cible n'est pas touchée, une phrase trop forte est ramenée
-  mais jamais de plus de 6 dB, les garde-fous tiennent) ; **36 tests** au vert.
-  *LES DÉBUTS DE MOTS MANGÉS : QUESTION CLOSE (21/09/2026)*. Verdict d'écoute de
-  Laurent, après le lot : « je ne les ai entendus que dans les extraits que tu
-  m'as fait écouter tout à l'heure. Dans le livre, les débuts de paragraphes sont
-  ok. Je n'entends rien de particulier. » Et la mesure explique **pourquoi** :
-  l'attaque écrasée apparaît sur une phrase envoyée **SANS CONTEXTE** — c'est
-  précisément ce que faisait le lot (des phrases isolées), alors que la lecture
-  réelle en envoie un (3 mots, réglage du même jour) dès que la phrase précédente
-  a le même locuteur et le même paragraphe. **Ce n'est donc pas un défaut du
-  moteur : c'est le démarrage à froid**, celui que le contexte glissant corrige
-  et dont l'absence s'entend dans un lot d'écoute. Rien à corriger.
-  *Note de Laurent, à garder* : il avait déjà observé ce phénomène ailleurs, sur
-  de **longs textes** où des personnages se donnent la réplique — la voix
-  commençait normalement puis **devenait un murmure**, jusqu'à presque
-  disparaître. C'est le même défaut de fond (une génération auto-régressive
-  **dérive** sur un long texte) — et **l'architecture du lecteur s'en protège
-  déjà** en découpant **phrase par phrase** : chaque requête repart avec un
-  contexte court, et le module de niveau ramène chaque phrase à la cible (mesure
-  du 21/09/2026 : **écart entre phrases 0,7 dB**). C'est un argument de plus en
-  faveur du découpage, à ne pas « optimiser » un jour en envoyant des paragraphes
-  entiers.
-
-- [x] **⚡ Kyutai : les derniers mots de la phrase d'avant s'entendent parfois
-  au début de la suivante** — **corrigé le 21/09/2026** (contexte glissant de
-  **8 à 3 mots**, validé à l'oreille ; voir le détail en fin d'item). Relevé par
-  Laurent le **21/09/2026** : « les mots sont parfois mangés, surtout au début
-  d'une phrase, et parfois le TTS répète les derniers mots de la phrase qui
-  finit » (exemple de son écoute :
-  « Je ne pense pas. **Pense pas** Mais tu as peut être raison »).
-  *Cause probable, lue dans le code* : le **contexte glissant** de Kyutai
-  (`_buildPlaylist` → `_fetchAudio` → `POST /api/tts` → `modules/tts.py`, fonction `synthesize_kyutai` (le moteur est joint par `_demander_au_moteur_kyutai`) →
-  `kyutai_service/servir_kyutai.py`). Pour la phrase B, le moteur génère
-  « les 8 derniers mots de A, puis B », et le service **coupe** ce qu'il faut
-  jeter en cherchant un silence (`SILENCE_COUPE_S = 0,12 s`,
-  `MARGE_CONTEXTE_S = 0,25 s`). Si la coupe tombe **trop tard**, la fin du
-  contexte s'entend (« Pense pas ») ; **trop tôt**, c'est le début de B qui est
-  mangé. Les deux défauts décrits par Laurent, d'un seul coup.
-  *(Noms corrigés le 22/09/2026, audit de la documentation : la chaîne écrite ici
-  passait par « synthetize_kyutai », un nom qui n'existe dans **aucun** fichier.
-  Relevé dans le code : `frontend/app.js` → `main.py` (route `/api/tts`) →
-  `modules/tts.py` : `synthesize_kyutai` joint le moteur par
-  `_demander_au_moteur_kyutai`.)*
-  *Ce n'est pas Kokoro* : `main.py` ne transmet `context` **qu'à la branche
-  Kyutai** — vérifié le 21/09/2026. *(L'oreille de Laurent le confirme : « pour
-  les répétitions, c'est clairement Kyutai ».)*
-  *Piste de Laurent (21/09/2026)* : « peut-être envoyer moins de contexte
-  glissant, par exemple 3 mots au lieu de 8 ? Et j'ai l'impression que c'est
-  plus récurrent quand il y a de la ponctuation comme des ; ou des « ou des ... ».
-  »
-  **MESURE ET CORRECTIF DU MÊME JOUR** (Laurent a donné son feu vert pour
-  avancer sans lui). D'abord la mécanique, pour mémoire : le service **ne sait
-  pas** « lire le contexte sans le dire ». Il génère **« contexte + phrase »**
-  d'un seul tenant, puis **coupe** l'audio dans un silence pour ne livrer que la
-  phrase. Deux façons de se tromper : **couper trop tôt** → la fin du contexte
-  reste et s'entend (« Pense pas ») ; **couper trop tard** → le début de la
-  phrase est mangé. La mesure porte donc sur la **durée de PAROLE** (les moments
-  où l'on parle, sans les silences : la durée totale, elle, bouge avec les
-  respirations).
-  *Sur six cas construits* (l'exemple de Laurent, un point-virgule, des points
-  de suspension, un tiret de dialogue, un guillemet fermant, une phrase
-  précédente longue) :
-  - **8 mots** : **4 cas sur 6** gardaient un **résidu** (+0,40 à **+0,73 s**) —
-    le tiret de dialogue et le guillemet fermant en tête, ce qui confirme son
-    intuition sur la ponctuation ;
-  - **3 mots** : **aucun** résidu, aucun rognage ;
-  - 2 mots : aucun problème non plus.
-  *Sur quatre phrases RÉELLES de 22/11/63* (outil : `test_voix/_ecouter_contexte_kyutai.py`,
-  qui produit un lot d'écoute phrase seule / 3 mots / 8 mots **à travers le vrai
-  service** ; mesure des fichiers : parole identique à ±0,2 s avec **3 mots**,
-  mais **rognage** de **−0,63 s** et **−0,37 s** avec **8 mots** — l'autre
-  moitié du symptôme, « les mots mangés en début de phrase »).
-  *Découverte au passage* : **le moteur Kyutai n'est PAS déterministe** (deux
-  demandes identiques rendent deux audios différents) — c'est ce qui explique
-  que le défaut n'arrive que « de temps en temps » : selon le tirage, la coupe
-  tombe bien ou mal.
-  *CORRECTIF LIVRÉ* : `CONTEXTE_MOTS` passe de **8 à 3** dans `frontend/app.js`
-  (une ligne — la demande de Laurent — avec toute la mesure dans le
-  commentaire). Reversible : si les débuts de phrase paraissaient à nouveau « à
-  froid », la valeur à essayer est **5 ou 6**.
-  **VERDICT D'OREILLE DE LAURENT (21/09/2026)**, sur le lot
-  `test_voix/ecoute_contexte_20260921_1835` (phrase seule / 3 mots / 8 mots, à
-  travers le vrai service) : « **Le 3 mots part avec un peu de retard, mais c'est
-  très bien. Le "seul" part presque en avalant le premier phonème, le premier
-  son. Le 8 ressemble pas mal au 3. Je pense que le réglage est très bien.** »
-  → **le réglage est validé**, et son oreille apporte la preuve que le contexte
-  **sert** : sans lui, **l'attaque est écrasée** (c'est le « démarrage à froid »
-  que le contexte glissant était venu corriger, 17/09/2026).
-  *Note utile pour la suite* : si un **début de phrase** semble « mangé », le
-  **premier réflexe** est de regarder si cette phrase **avait un contexte** — il
-  n'y en a **pas** après un saut de paragraphe, ni quand le locuteur change
-  (`_buildPlaylist`, frontend/app.js). C'est écrit dans le commentaire du code,
-  à l'endroit où la valeur se règle.
-  *PISTE OUVERTE PAR SON OREILLE* : ces phrases **sans contexte** sont donc
-  **nombreuses** dans un livre de dialogues (chaque réplique ouvre souvent un
-  paragraphe), et **toutes** ont l'attaque écrasée. Or on ne peut pas leur
-  prêter le contexte d'un **autre** personnage (décision du 17/09 : « un locuteur
-  prêterait son élan à un autre »). Idée à éprouver, si Laurent trouve ces
-  attaques gênantes à l'usage : leur donner une **amorce neutre**, prononcée
-  **avec la voix du nouveau venu** (le moteur lit ce qu'on lui donne, dans la
-  voix demandée) — l'élan serait là **sans** emprunter la voix d'un autre.
-  À mesurer comme le reste (durée de parole + lot d'écoute), et à ne lancer que
-  si le besoin se confirme à l'oreille.
-  *RESTE OUVERT* : améliorer la **coupe du service** (`servir_kyutai.py`,
-  `_ou_commence_la_phrase`) pour garder un contexte long **sans** résidu. La
-  cause est déjà écrite dans le code : `fin_contexte` est mesuré sur le contexte
-  rendu **seul**, alors que suivi d'une phrase il est lu un peu plus lentement →
-  la coupe tombe trop tôt. Piste : repérer le **silence long** créé par le
-  séparateur « … » (le service génère déjà « contexte ... phrase ») au lieu de se
-  fier à une estimation proportionnelle. Niveau 3, à valider à l'oreille avec le
-  lot ci-dessus.
-
-  **LA QUESTION DU « POINT FIXE » — réponse mesurée (21/09/2026)**. Laurent :
-  « Est-ce qu'il existe une ponctuation qui est traitée toujours de la même façon
-  par Kyutai ? Si oui, on aurait un point fixe de secondes, toujours le même [...]
-  Le truc c'est qu'il faut une ponctuation qui ne provoque pas de coupure dans le
-  contexte qu'on lui aurait donné. »
-  *Mesure* (`test_voix/_essai_separateur.py`, étendu pour l'occasion : **3 essais
-  par séparateur** — c'est la **constance** qui compte, pas seulement l'existence
-  d'une pause) : on glisse un signe entre 3 mots de contexte et la phrase, et on
-  relève la **plus longue pause** de chaque essai.
-  - **points de suspension** : 0,90 / 0,94 / 0,88 s → **0,91 s, écart 0,06 s** —
-    le plus régulier, **mais seulement quand le contexte finit proprement** ;
-  - **point** : 0,88 / 0,84 / 0,93 s → écart 0,09 s ;
-  - **point d'interrogation** : 0,97 / 0,78 / **0,12 s** → écart 0,85 s : il ne
-    fait parfois **aucune** pause ;
-  - **point-virgule** : 0,85 / 0,84 / **0,29 s** → écart 0,56 s ;
-  - **deux-points** 0,34 s, **saut de ligne** 0,12 s : pauses trop courtes (le
-    saut de ligne est transformé en espace par le nettoyage) ;
-  - et **le piège que Laurent redoutait est réel** : avec **une virgule dans le
-    contexte** (« pas, alors »), la virgule fait une pause de **~0,5 s** qui
-    arrive **avant** celle du séparateur — les points de suspension tombent alors
-    à 0,28 / 0,43 / 0,70 s.
-  **Conclusion : aucun signe ne donne une pause constante.** La durée dépend du
-  **contexte** (longueur, dernière lettre, virgule interne) et de la phrase qui
-  suit, et le moteur n'est pas déterministe. **Le point fixe est donc écarté,
-  mesure à l'appui — pas par principe.** Ce qui reste vrai : les points de
-  suspension sont le repère le plus fiable (le service les utilise déjà), et un
-  contexte de **3 mots est trop court pour contenir une pause gênante** — c'est
-  déjà en place depuis le même jour.
-  *Piste gardée pour plus tard* (seulement si un défaut revient à l'oreille) :
-  situer la frontière par **alignement** — le service génère déjà la phrase seule
-  **et** « contexte + phrase » — au lieu de se fier à une durée.
-
-- [x] **Volume des voix Kyutai : niveau ramené à celui des autres moteurs** —
-  livré le **18/09/2026**. Constat de Laurent : « le volume des voix Kyutai est
-  très, très faible ».
-  *Mesure* (`test_voix/_mesurer_niveau.py`, sur le **niveau de la parole seule**,
-  et non le niveau global faussé par les silences) : **Edge 8,4 %** de la pleine
-  échelle contre **Kyutai 6,2 %**, et jusqu'à **3,4 %** sur certaines phrases —
-  soit jusqu'à **-8 dB**. Le moteur Kyutai ne règle pas son niveau de sortie (le
-  script officiel de la banque de voix, lui, normalise à -22 LUFS).
-  *Correction* : `modules/audio_gain.py` mesure le niveau de la parole (fenêtres
-  de 30 ms où l'on parle vraiment) et applique le gain qui l'amène à la cible
-  **8,5 %** (le niveau d'Edge). Garde-fous : gain **plafonné à ×4**, crête de
-  sortie bornée (**jamais de saturation**), **aucune atténuation** (on ne baisse
-  jamais), et tout échec renvoie l'audio d'origine.
-  *Mesure de l'effet* sur 120 phrases réelles du cache : niveau de parole médian
-  **5,4 % → 8,2 %** (≈ +3,6 dB), le plus bas 2,1 % → 4,6 %, gain médian ×1,45.
-  Appliqué dans `synthesize_kyutai` **avant la mise en cache**, après vitesse et
-  hauteur : une phrase relue ne redevient jamais faible.
-  *Vérification* : `test_voix/test_niveau_audio.py` (10 contrôles, sans moteur).
-  *Effet de bord voulu* : `VERSION_CACHE` passe à **4** — les anciens fichiers de
-  cache ne sont plus servis, donc le nouveau niveau s'entend dès la première
-  écoute, sans purge à faire à la main.
-
-- [x] **Un chapitre pouvait être sauté après une « erreur de chargement » —
-  corrigé** — livré le **18/09/2026**. Constat de Laurent : « il passe du
-  quatre-vingt-un au quatre-vingt-trois, surtout après une erreur de
-  chargement ».
-  *Cause* : `loadChapter()` (`frontend/app.js`) posait `_currentChapter = index`
-  **avant** la requête. En cas d'échec, la page affichait « Erreur de
-  chargement », mais le compteur était **déjà** passé au chapitre raté et les
-  phrases de l'ancien chapitre restaient en mémoire : à la fin de leur lecture,
-  l'enchaînement appelait `loadChapter(_currentChapter + 1)` — le chapitre raté
-  était donc **sauté**.
-  *Correction, en trois temps* : (1) le chapitre est **demandé d'abord**
-  (`_demanderChapitre`), et `_currentChapter` n'est posé qu'une fois la réponse
-  **reçue** ; (2) un échec est **retenté** — 3 essais, 1,2 s entre deux
-  (`CHARGEMENT_ESSAIS`, `CHARGEMENT_PAUSE_MS`) — car une panne de chargement est
-  presque toujours **passagère** (serveur occupé, réseau qui vacille) ; (3) en
-  cas d'échec définitif, les phrases du chapitre précédent sont **vidées**
-  (`_afficherEchecChapitre`) — plus de lecture fantôme — et un bouton
-  **« Réessayer ce chapitre »** apparaît dans la page, avec un message qui
-  rappelle que rien n'est perdu.
-  *Effet de bord corrigé au passage* : `_pause(ms)` **plantait** si on l'appelait
-  sans signal d'interruption (elle le supposait toujours présent) ; un chargement
-  de chapitre n'en a pas. Elle est désormais tolérante.
-  *Vérification* : `test_voix/test_chargement_chapitre.js` — **17 contrôles**,
-  sans navigateur : le test **exécute le vrai code de `app.js`** sur un faux
-  lecteur et un faux serveur (panne persistante, panne passagère, chargement
-  normal).
-
-- [x] **Bouton « vider le cache audio » dans les réglages** — **LIVRÉ le
-  20/09/2026** (récap en fin d'item). Demande de Laurent du 18/09/2026 (pas
-  urgent). Aujourd'hui le cache se purge seul
-  par quota (`modules/tts_cache.py`, 2 Go) et par **version** (`VERSION_CACHE` :
-  dès que le texte envoyé au moteur change, les anciens fichiers ne sont plus
-  servis). Mais Laurent n'a **aucun bouton** pour le forcer à la main, et c'est
-  exactement ce qui manque quand on doute d'un rendu : le cache a dû être vidé à
-  la main le 18/09/2026 pour écarter cette piste (`test_voix/
-  _tester_tts_serveur.py` prouvait que le serveur, lui, nettoyait bien le texte).
-  À faire : une route de purge côté serveur, un bouton dans les réglages du
-  lecteur, et le compte affiché (« 604 Mo sur 2 Go »).
-  ⚙️ **Précision de Laurent, 20/09/2026** : ce bouton devra être **à la même
-  échelle et dans le même style** que « 🎭 Voix multiples », « 🎧 Écouter les
-  voix » et « 🔖 Onglets » — les quatre partagent la **même règle de style** dans
-  `frontend/styles.css` (leçon du 20/09/2026 : « Onglets » avait gardé
-  l'apparence native du navigateur, plus grand et plus clair que ses voisins).
-  C'est le **prochain chantier prévu**.
-  **LIVRÉ le 20/09/2026.** Le bouton **« 🧹 Vider le cache »** est dans la barre
-  du lecteur, à la **même échelle et dans le même style** que les autres, et il
-  **affiche le compte** : « 🧹 Vider le cache (604 Mo) ».
-  - **Serveur** : deux routes neuves — `GET /api/cache_audio` (taille, quota,
-    nombre de fichiers ; **lecture seule**) et `POST /api/cache_audio/vider`
-    — servies par `modules/tts_cache.py` (`stats()`, `purger()`). **Sans danger
-    pour les données** : le cache ne contient que de l'audio **déjà synthétisé**,
-    régénérable à l'identique (la synthèse est déterministe) ; seule
-    conséquence, la première écoute d'un passage déjà lu redemande le calcul au
-    moteur ;
-  - **Garde-fou** : une **écriture en cours** (`.tmp`, une phrase en train d'être
-    synthétisée) **n'est jamais coupée** par la purge ;
-  - **Écran** : libellé composé par `_libelleBoutonCache()` (« 604 Mo », « 1,2
-    Go », « 12 Ko », virgule française), **jamais « undefined »** quand le
-    serveur n'a pas répondu, et **confirmation** avant de vider (« Cela libérera
-    604 Mo (2596 phrases)… »), avec le compte remis à jour ensuite.
-  *Vérifications* : **nouveaux** `test_voix/test_cache_audio.py` (le compte et la
-  purge, dans un **dossier temporaire** — il compare même le nombre de fichiers
-  du **vrai** cache avant/après pour prouver qu'il n'y a pas touché, et vérifie
-  qu'un `.tmp` survit à la purge) et `test_voix/test_cache_audio.js` (le libellé,
-  tailles lisibles, jamais « undefined ») ; `test_voix/test_ids_ecran.py` (le
-  bouton, les deux routes, la règle de style partagée). Détails dans
-  ARCHITECTURE.md.
-
-- [x] **Les incises de parole sont RETIRÉES du texte parlé** — livré le
-  **18/09/2026**, décision de Laurent après écoute le soir même : « à chaque fois
-  les incises ont bien disparu […] et en plus la voix me paraît plus fluide ».
-  *Réglage* : `modules/incises.py` (règle prudente), appelé par `_clean_text`
-  (`modules/tts.py`) **après** le développement des abréviations. Le texte
-  **affiché** ne change pas : seule la version parlée. Un banc d'écoute futur
-  teste **la même règle** (le banc importe `modules.incises`).
-  *Réveil du 18/09/2026 au soir — « elles sont toujours présentes »* : deux
-  causes, mesurées par `test_voix/_diag_incises_reelles.py` (lecture seule) :
-  1. **le cache servait l'ancien rendu** (`VERSION_CACHE` passé à **6**) : les
-     phrases déjà générées ne repassent pas par la règle — c'est le piège
-     habituel après un changement de texte ;
-  2. la règle **ratait trois formes très fréquentes** chez Dumas :
-     - le **« t » euphonique** (« ajouta-**t**-il », « demanda-**t**-elle ») ;
-     - les **particules nobles** (« , dit **M. de Villefort**, ») — le motif
-       exigeait une majuscule après la civilité, or « d'Avriguy », « de
-       Morcerf » commencent par une minuscule ;
-     - les **noms communs avec article** (« , dit **le comte**, », « , reprit
-       **la jeune fille**, »).
-     Résultat : **289 → 311 incises retirées** sur le tome 5.
-  3. **les verbes PRONOMINAUX et les imparfaits** — signalé par Laurent lui-même
-     (« est-ce que ça ne va pas coincer sur "se demanda-t-elle" ? ») : il avait
-     raison. Le motif exigeait le verbe **juste après la virgule**, donc
-     « , **se** demanda-t-elle, » et « , **se** reprit-il, » étaient ignorés
-     (sans dégât : l'incise restait entière, aucun « se » orphelin). Idem les
-     imparfaits (« , disait-il, »). Corrigé : **314 incises retirées**.
-     À retenir : on retire soit **toute** l'incise, soit **rien** — jamais un
-     morceau.
-  *Tour suivant, exemples de Laurent à l'appui* (18/09/2026, fin de soirée) : il
-  donne **trois phrases précises** où l'incise est encore lue —
-  « … dit-il au comte. », « fit celui-ci avec sa voix demi-railleuse, comment
-  vous portez-vous ? » et « , dit-il, » — et il doute que ce soit automatisable.
-  **C'est automatisable**, mesures à l'appui (`_diag_incises_reelles.py`) :
-  - **l'incise est retirée EN ENTIER, complément compris** : on étend le retrait
-    jusqu'à la **virgule fermante** (« , dit-il au comte, »), ou jusqu'au point
-    final si la suite ressemble à un complément (« au comte. », « en souriant. »).
-    Bornes strictes : une seule virgule, pas de ponctuation forte, **≤ 70
-    caractères** (`LONGUEUR_SUITE_MAX`).
-  - **l'incise qui OUVRE la phrase** est reconnue (`MOTIF_DEBUT`) : depuis que le
-    découpage sépare les phrases au « ! », « fit celui-ci avec sa voix
-    demi-railleuse, comment vous portez-vous ? » n'est plus « entre virgules ».
-  - les **démonstratifs** (« celui-ci », « celle-là ») rejoignent les sujets
-    reconnus.
-  Résultat sur le tome 5 : **361 incises retirées** (289 à l'origine) et
-  **19 seulement gardées** (non fermées : les retirer couperait la réplique).
-  *Garde-fou trouvé par le contrôle de sécurité intégré* : une phrase qui n'est
-  **que** l'incise (« ajouta Valentine en s'adressant à Noirtier. ») devenait
-  **vide** — plus aucun son, et le moteur refuserait un texte vide. Désormais,
-  si le retrait vide la phrase, **on ne retire rien**.
-  *Dernier cas, réglé le 18/09/2026 au soir* (constat de Laurent, extrait à
-  l'appui) : « — Ah ! vraiment **?** dit Monte-Cristo. » — le « ? » **coupe la
-  phrase**, donc « dit Monte-Cristo. » devient une **phrase à part entière**. Ces
-  phrases ne peuvent pas être vidées (le moteur refuse un texte vide, et la
-  phrase disparaîtrait de l'écoute) : le lecteur renvoie désormais un **court
-  silence** (`modules/silence.py`, `SILENCE_INCISE_MS = 150`, réglable en une
-  ligne ; 0 désactive). Décision prise dans la route `/api/tts`
-  (`_est_incise_seule`, `main.py`) : **91 phrases** de ce genre dans le seul
-  tome 5. L'incise n'est plus **entendue**, elle reste **affichée**, et le rythme
-  est conservé. *Vérification* : `test_voix/test_incise_seule.py` (15 contrôles).
-  *Puis le cas de la RELATIVE (même soir, extrait de Laurent à l'appui)* :
-  « c'est magnifique, dit Cavalcanti, **qui se grisait à ce bruit métallique de
-  paroles dorées.** » — l'incise était bien retirée, mais la **relative restait
-  seule** et se faisait lire ! Désormais la relative part **avec** l'incise
-  → « c'est magnifique. »
-  *Et deux cas tordus de plus, apportés par Laurent (toujours le 18/09)* :
-  (1) la **relative coordonnée** — « , dit Monte-Cristo, qui sentit l'adresse
-  perfide du jeune homme, **et qui comprit** la portée de ses paroles **;** ma
-  protection ne vous a été acquise qu'après… » : le « , et qui » n'est PAS un
-  décrochage, c'est encore la description du personnage. Le retrait va donc
-  jusqu'au **point-virgule**, et la réplique reprend après (« — Vous vous abusez
-  complètement, monsieur, ma protection… ») ;
-  (2) la **question du personnage** — la phrase fait **409 caractères** et finit
-  par un « ? » (« … le bonheur de votre connaissance ?) ») : ce « ? » n'est pas un
-  signe de question *après l'incise*, il ne doit donc pas bloquer l'extension. Le
-  garde-fou ne regarde plus que la **proposition immédiate**.
-  Quatre garde-fous au total, chacun posé par un défaut attrapé par les tests :
-  (a) **« que » est exclu** des relatifs (c'est le plus souvent une
-  conjonction : « Le fait est, dit Barrois, **que** je meurs de soif ») ;
-  (b) une **question juste après l'incise** n'est jamais emportée
-  (« , se demanda-t-elle, **que faisait-il ?** » — sinon la phrase finissait en
-  « — Et lui ») ; (c) un **décrochage de sens** (« mais », « or », « puis »…, ou
-  le point-virgule) arrête l'extension, mais **« et qui »** n'en est pas un ;
-  (d) la **longueur emportée** est bornée (200 caractères), pas la phrase entière.
-  *Compromis assumé, à valider à l'oreille* : retirer l'incise en entier emporte
-  aussi son **complément** (« dit la jeune femme **en donnant son flacon à
-  Valentine** » → l'action n'est plus entendue, mais elle reste **à l'écran**).
-  Si Laurent préfère garder ces détails, on revient à la version prudente : une
-  seule condition à retirer dans `modules/incises.py`.
-  *Idée de Laurent (18/09/2026), mesurée le soir même.*
-  *Son raisonnement* : avec une voix différente par personnage, l'incise qui dit
-  qui parle est redondante — et elle coupe la voix du personnage au milieu de sa
-  réplique.
-  *Mesure* (`test_voix/_mesurer_incises_supprimables.py`, tome 5 : 5 105 phrases) :
-  **289 phrases avec incise = 5,66 %**, dont 104 à pronom (« dit-elle ») et 185 à
-  nom (« dit Morrel ») — soit **4 122 caractères = 0,94 % du texte** lu.
-  *Ce n'est PAS la même chose que l'étude du 13/09/2026* (écartée, 0,8 %) : celle-là
-  comptait les incises **formant une phrase à part**, déjà lues par le narrateur
-  (donc déjà correctes). Ici, ce sont les incises **au milieu** d'une réplique,
-  aujourd'hui lues par la voix du personnage.
-  *Un code proposé ailleurs a été essayé* (trois expressions régulières) :
-  **il touche 756 phrases dont 588 sans aucune incise — 78 % de ses retouches
-  abîment le texte**, parce qu'il n'exige ni frontière de mot avant le verbe, ni
-  incise encadrée ou terminale, et qu'il ignore la casse. Dégâts réels :
-  « répondit le jeune homme » → « jeune homme » supprimé ; « reprit la jeune
-  fille » → sens faux ; « dit Morrel vous qui… » (incise non fermée) supprimée
-  quand même. **À ne surtout pas reprendre tel quel.**
-  *Ce qui serait prudent* : n'accepter que les incises **fermées** (virgule après
-  le nom) ou **terminales**, refuser celles suivies d'un complément (« , dit-il en
-  souriant, » — il resterait « en souriant » tout seul), exiger une frontière de
-  mot avant le verbe, respecter la casse. Le réglage se ferait dans
-  `_clean_text` : **aucun impact** sur la base, la page, le découpage ou les voix.
-  *À faire avant de décider* : l'**écouter**. Le banc d'écoute de l'item suivant
-  portera les deux variantes (ponctuation **et** incises gardées/supprimées) en
-  même temps, sur les mêmes phrases.
-  *Écoute faite le 18/09/2026 — deux remarques de Laurent, expliquées* :
-  (1) `I_1_I2` (« Oui, fit-il. » sans incise) sort un « ouiiiii » : c'est une
-  phrase de **6 caractères**, et le banc envoie les phrases **sans contexte** —
-  dans la lecture, le **contexte glissant** évite justement ce démarrage à
-  froid (mesure du 17/09/2026, BACKLOG) ;
-  (2) `I_6_I2` prononce « mleu » pour « Mlle » : ce n'est **pas** un défaut du
-  livre, c'est un **artefact du banc**, qui envoie le texte **brut**. Le tome 5
-  écrit `Mlle\xa0Eugénie` (espace **insécable**, 72 cas mesurés par
-  `test_voix/_mesurer_exclamations.py`) et la lecture **développe** l'abréviation
-  avant l'envoi (`Mademoiselle`), ce que verrouille désormais
-  `test_voix/test_nettoyage_tts.py`.
-
-- [x] **Banc d'écoute : quelle ponctuation remplacer le « ! » ?** — livré le
-  **18/09/2026**, **tranché par Laurent à l'oreille** le soir même.
-  *Sa réponse, phrase par phrase (le lot `ecoute_ponctuation_20260918_1937`)* :
-  virgule en tête pour « Oh ! », « — Oh ! », « « Comte ! » et « quel poignet ! »
-  (à égalité avec « rien du tout » sur celle-là) ; **point** en tête pour
-  « — Cela recommence, comte ! » (égalité point/virgule sur la phrase longue).
-  La **suspension** n'a jamais été choisie.
-  *Réglage retenu* : le `!` devient une **VIRGULE** dans les phrases **courtes**
-  (interjections) et reste un **POINT** dans les phrases **entières** — seuil
-  **25 caractères** (`SEUIL_INTERJECTION`, `modules/tts.py`). Répartition
-  mesurée sur le tome 5 : **65 %** des 934 phrases exclamatives sont courtes
-  (donc virgule), **35 %** entières (donc point).
-  Demande de Laurent (18/09/2026). Le `!` est retiré depuis aujourd'hui (il fait
-  monter la voix), mais le **point** n'est peut-être pas le meilleur choix : à
-  comparer à l'oreille, sur des phrases réelles du livre, entre le **point**, la
-  **virgule**, le **point de suspension** et la **suppression pure**.
-  *Objectif précisé par le retour d'oreille du 18/09 au soir* : les
-  interjections (« Oh », « Ah », « Eh ») sont **nettement mieux** mais il reste
-  une **traîne** ; le banc doit chercher la ponctuation qui la raccourcit le
-  plus, pas seulement celle qui évite la montée de hauteur.
-  **Lot fabriqué le 18/09/2026** : `LANCER_BANC_PONCTUATION.bat` (double-clic,
-  Kyutai allumé) fabrique un dossier `test_voix/ecoute_ponctuation_<date>/` avec
-  **36 fichiers** : 6 phrases réelles du tome 5 × les 4 ponctuations
-  (`P_n_P1`…`P_n_P4`), plus 6 phrases à incise × 2 (`I_n_I1` gardée, `I_n_I2`
-  retirée), un `index.txt` qui dit quoi noter, et `variantes.txt` qui garde le
-  texte exact envoyé au moteur.
-  *Premier repère mesuré (durée de « Oh ! » sur une voix Kyutai)* :
-  point **0,72 s** / virgule **0,56 s** / suspension **0,88 s** / rien **0,80 s**.
-  La **virgule** est la plus courte et la **suspension** la plus longue, mais
-  c'est la **traîne** perçue qui tranchera, pas la durée.
-  *Vérification des briques* : `test_voix/test_ponctuation_incises.py`
-  (**16 contrôles**) : les 4 ponctuations sont bien produites, et le retrait
-  d'incise ne touche **jamais** une incise suivie d'un complément, ni une incise
-  non fermée, ni le sujet de la phrase.
-  *Attendu* : classement des 4 variantes par Laurent, phrase par phrase (voir
-  `index.txt` du lot), puis réglage d'une seule ligne dans `modules/tts.py`.
-  *Deuxième variante à porter dans le même banc* (idée de Laurent du même soir,
-  voir l'item précédent) : **les incises gardées ou supprimées** (« — Il partit,
-  dit-il. » vs « — Il partit. »). Un seul lot d'écoute pour les deux questions.
-  L'atelier sait déjà fabriquer ce genre de lot (`_banc_large_point_final.py`,
-  `_banc_contexte_kyutai.py` ont fait exactement ce travail pour le point final).
-  Le réglage à changer tient en une ligne : `PONCTUATION_EXCLAMATION` dans
-  `modules/tts.py`.
-
 ### Retours d'écoute du 18/09/2026 (une demi-journée d'écoute, 6 h)
-
-- [x] **Les points d'exclamation sont retirés du texte envoyé au moteur** —
-  livré le **18/09/2026**. Constat de Laurent : « Retirer les points
-  d'exclamation ». Les moteurs neuronaux **jouent** ce signe comme une montée de
-  hauteur : `Il partit !` sortait en « Il partiiiiit », et les interjections
-  (`Oh !`) en « OOOOOOoooooh ».
-  On ne touche **pas** au texte affiché : la phrase garde son `!` à l'écran, il
-  ne disparaît que de ce qui part au moteur. Le `?` reste intact (`Quoi ?!` →
-  `Quoi ?`), les suites (`!!`, `!!!`) sont ramenées à un seul signe, et l'espace
-  typographique qui précède est retiré (sinon la voix ferait deux pauses).
-  *Technique* : `modules/tts.py`. Depuis le banc d'écoute du 18/09/2026 au soir,
-  ce ne sont plus « une ligne » mais **deux signes selon la longueur de la
-  phrase** (`PONCTUATION_EXCLAMATION`, `PONCTUATION_EXCLAMATION_COURTE`,
-  `SEUIL_INTERJECTION`) — voir l'item du banc, plus bas.
-  *Vérification* : `test_voix/test_nettoyage_tts.py` (**27 contrôles**, sans moteur).
-  *Retour d'oreille de Laurent (18/09/2026 au soir, après la séance)* : « les
-  "Oh", "Ah", "Eh" sont nettement mieux. C'est bien pour une exclamation, ça
-  traîne encore un peu, mais ça ne me choque pas. » — donc **validé**, avec une
-  **traîne finale** à essayer de raccourcir : c'est justement l'objet du banc
-  d'écoute de la ponctuation (item plus bas).
-
-- [x] **Le silence après « M. » (lu monsieur) / « Mme » : cause trouvée,
-  garde-fou posé** — livré le **18/09/2026**. Constat de Laurent : « les silences
-  après les M. ou Mme […] comme s'ils héritaient du silence d'un point ».
-  *Cause mesurée* (outil `test_voix/_diag_retours_ecoute.py`) : la **page**
-  découpe les phrases **après le point d'une abréviation**, donc le moteur reçoit
-  un morceau qui se termine par l'abréviation seule. Exemple réel du tome 5 de
-  *Monte-Cristo* : `… le temps de complimenter M.` devient la phrase 1, et
-  `de Morcerf ; il a fait preuve…` la phrase 2. Le nettoyage ajoutait alors un
-  **point final** à la phrase 1 (« … complimenter Monsieur. »), c'est-à-dire une
-  **vraie fin de phrase** avec sa respiration — le silence entendu.
-  *Garde-fou livré* : plus de point final ajouté après `Monsieur`, `Madame`,
-  `Messieurs`, `Mesdames`, `Mademoiselle(s)`, `Monseigneur`, `Docteur`,
-  `Professeur`, `Saint(e)`, `numéro` (`MOTS_SANS_POINT_FINAL`, `modules/tts.py`).
-  La phrase s'enchaîne donc directement à la suivante — le contexte glissant fait
-  le reste.
-  *Mesure* : **207 coupures** de ce type dans le seul tome 5 (21 chapitres
-  touchés) : le défaut était fréquent, pas anecdotique.
-  *Retour d'oreille de Laurent (18/09/2026 au soir)* : « les M. qui sont lus
-  "monsieur" font une pause beaucoup plus petite maintenant » — **validé**, et
-  d'autant mieux que les **sauts de ligne et les pauses de phrases** sont
-  désormais trouvés corrects. La coupure en deux morceaux reste tout de même :
-  c'est l'item suivant qui la fera disparaître.
-  *Reste à faire* : le vrai correctif est de **ne plus couper après une
-  abréviation** (item suivant).
-
-- [x] **Ne plus couper les phrases après une abréviation — le vrai correctif** —
-  livré le **18/09/2026**. C'était la suite de l'item précédent : le garde-fou
-  supprimait le point final, mais la phrase restait **coupée en deux**.
-  *Correction* : une **règle unique**, écrite une seule fois
-  (`modules/decoupage.py`) et appelée par les **quatre** endroits qui
-  découpaient chacun de leur côté — la page (`app.js`, `_buildSentences`), le
-  casting (`voice_casting.py`), le re-cast (`main.py`) et la recherche
-  (`main.py`). Une phrase n'est plus coupée après `M.`, `MM.`, `Mme`, `Mmes`,
-  `Mlle(s)`, `Mgr`, `Dr`, `Pr`, `St`, `Ste` : le nom qui suit fait partie de la
-  phrase.
-  *Mesure* : **1 075 fusions** sur **107 101 phrases** (296 chapitres, 14 livres),
-  dont **207 dans le seul tome 5** — soit 1 075 silences parasites en moins.
-  *Le point délicat* : recoller les phrases **décale tous les index**, or la
-  table `speaker_attribution` dit « qui parle » phrase par phrase, et
-  `progress.cursor_idx` retient où le lecteur s'est arrêté. D'où une
-  **migration** (`test_voix/_migrer_index_phrases.py`) : chaque nouvelle phrase
-  étant la **réunion** d'anciennes, on retrouve la nouvelle par **comparaison de
-  positions** (aucune devinette), on remappe, et on garde le locuteur de la
-  phrase la plus longue quand deux locuteurs se retrouvent réunis.
-  *Déroulé* : simulation d'abord (**0 attribution sans cible**, chiffres annoncés
-  = chiffres écrits), copie datée de la base
-  (`nimm_epub.db.bak_avant_migration_20260918` **et** une copie horodatée
-  automatique), puis écriture. **Contrôle après migration**
-  (`--verifier`) : **106 026 attributions vérifiées, 0 hors bornes**.
-  *À vérifier à l'oreille* : **28 fusions** réunissent deux phrases dont les
-  locuteurs étaient différents (l'IA avait attribué les morceaux tronqués de
-  deux façons) — le locuteur de la plus longue a été gardé, et les 28 cas sont
-  listés par le script. À corriger au cas par cas dans la fenêtre du casting si
-  l'écoute les fait entendre.
-  *Vérification* : `test_voix/test_decoupage_phrases.py` (**19 contrôles**, dont
-  la comparaison entre la règle de la page et celle du serveur).
-
-
-- [x] **Babil du moteur XTTS sur les phrases courtes — corrigé** — livré le
-  **16/09/2026**. Constat de Laurent (chapitre 2 du *Chevalier Errant*) : après
-  une réplique de l'aubergiste, près de **4 secondes** de bouillie
-  inintelligible. Le texte envoyé au moteur était **propre** : la cause est le
-  moteur lui-même, **auto-régressif**, qui sur un texte court n'a pas assez de
-  matière pour s'arrêter et **continue d'inventer**.
-  *Mesures* : « Que préférez-vous ? » (19 car.) rendait **9,11 s** au lieu de
-  ~1,4 s ; « — Manger ? » (10 car.) 8,49 s ; « Elles sont toutes à Sorbier. »
-  (28 car.) 6,27 s. Les 3 seules phrases fautives du livre sont les plus
-  **courtes**, et le balayage des **8 autres livres castés** ne trouve **rien** :
-  c'est propre au **clonage XTTS**, jamais aux autres moteurs.
-  *Correction* : bornage de la génération d'après le texte (`max_new_tokens` :
-  19 car. → 3,04 s, 250 car. → 32,7 s) + rognage de secours. Les phrases de
-  longueur normale ne sont jamais contraintes.
-  *Technique* : `xtts_service/servir_xtts.py` (`duree_max_morceau`,
-  `tokens_max_morceau`, `rogner_a_duree`, `_lire_un_morceau`).
-  *Vérification* : `test_voix/test_borne_babil_xtts.py` (**16 contrôles**, sans
-  charger le moteur) ; outils de diagnostic : `test_voix/_inspecter_phrase_xtts.py`
-  (texte exact envoyé au moteur), `_tracer_phrase_cache.py` (fichier de cache
-  et durée réelle), `_chercher_babil_cache.py` (balayage d'un livre, `--purger`).
-  *Purge* : les 3 fichiers de cache fautifs ont été supprimés (copies d'écoute
-  gardées dans `test_voix/ecoute_babil/`) — **le service XTTS doit être
-  redémarré** pour appliquer la correction.
-  **Suite le même jour — il restait « ce genre de bizarreries »** (2ᵉ constat de
-  Laurent : une pause, puis un « babile » après `— Non.`). Mesure sur le moteur
-  **en marche** (`test_voix/_mesurer_phrases_courtes.py`, qui demande de vraies
-  synthèses au service) : `Non.` sort en 1,07 s dont **0,26 s de mot + 0,34 s de
-  silence + 0,18 s de babil**, et `…pour la nuit ?` en 2,51 s dont un
-  micro-résidu de 0,06 s après 0,36 s de silence. Le babil est donc **isolé par
-  un silence franc** : un **second filet** le coupe **dans le silence**
-  (`rogner_babil_apres_silence`, seuils `SEUIL_SILENCE_LONG_S = 0,30 s` et
-  `RESIDU_MAX_S = 0,35 s`). Une phrase normale n'est jamais coupée : ses pauses
-  internes font 0,04 s, et un long silence suivi d'une vraie suite de phrase
-  (plus de 0,35 s) n'est pas touché. *Vérification* :
-  `test_voix/test_rogner_babil_xtts.py` (**12 contrôles**, sans moteur, sur les
-  motifs mesurés). *À savoir* : le moteur est **stochastique** — deux synthèses
-  de la même phrase donnent des durées différentes (0,93 / 1,07 / 1,11 s
-  observées pour `Non.`) : c'est ce qui justifie d'avoir **deux** filets.
-
-- [x] **Rogner les silences de bord des fichiers TTS** — livré le 08/09/2026.
-  Mesuré le 08/09/2026 sur les fichiers réels : chaque phrase Edge contient
-  ~0,25 s de silence de tête et ~1,0 s de silence de queue. En lecture phrase
-  par phrase, cela crée ~1,2 s de blanc entre deux phrases et une
-  surbrillance qui semble flotter. Rogner avant mise en cache.
-  *Technique* : module `modules/audio_trim.py`, via le binaire ffmpeg déjà
-  embarqué par `imageio-ffmpeg` (aucune installation). Kokoro/Piper (WAV)
-  ont des silences courts et naturels → non rognés.
-  **Ajusté le 15/09/2026** (demande de Laurent) : après le rognage,
-  l'enchaînement des phrases lui paraissait un peu **sec**. La marge conservée
-  en **fin de phrase** passe de **0,15 s à 0,25 s** — un ajout **très léger
-  (+100 ms)**, et rien d'autre (la marge de tête reste 0,08 s). Vérifié par la
-  mesure sur un vrai fichier Edge : silence de queue **0,88 s brut → 0,24 s**
-  après rognage (attendu ≈ 0,25 s). À savoir : les phrases **déjà en cache**
-  gardent l'ancien rendu (0,15 s) jusqu'à purge de `data/tts_cache/`.
-
-- [x] **Préchargement « burst » au passage en arrière-plan** — **LIVRÉ le
-  20/09/2026**. Mise en attente le 08/09/2026 en demandant **le test de Laurent
-  d'abord** (« peut-être inutile si un navigateur gère déjà bien la lecture en
-  arrière-plan »). **Le test est fait, et le verdict est net** (20/09/2026) :
-  - **en onglet Chrome** (donc **pas** la PWA installée), **verrouiller le
-    téléphone arrête la lecture immédiatement** ;
-  - en laissant l'écran s'éteindre **tout seul**, ça tient bien mieux : le
-    problème est donc le passage en **arrière-plan**, pas l'écran noir ;
-  - « c'est aléatoire : parfois après quelques secondes, parfois ça tient
-    longtemps » → **c'est exactement l'état de la réserve** au moment du
-    verrouillage.
-  *Ce qui a été fait* : quand `document.visibilityState` passe à `hidden` pendant
-  une lecture, le plafond de la fenêtre de préchargement est **levé**
-  (`PREFETCH_MAX_AHEAD_CHARS_BURST` = 400 000 caractères, soit tout le reste du
-  chapitre) et le remplissage est **relancé tout de suite** (`_pumpCourant`).
-  La réserve se remplit donc pendant que le réseau répond encore, et la lecture
-  tient ensuite sur la mémoire. **Hors lecture, rien ne se déclenche.**
-  *Vérification* : `test_voix/test_lecteur_media.js` (la réserve s'active en
-  arrière-plan pendant une lecture, **pas** hors lecture, et le plafond levé est
-  bien celui utilisé par les calculs). Fichier : `frontend/app.js`.
-  ✅ **Verdict du 20/09/2026 au soir — et c'était le TÉLÉPHONE, pas l'application.**
-  Le test est fait : avec Brave **installé** et sur « optimisée », la lecture
-  s'arrêtait **~20 secondes** après le verrouillage ; passé à Batterie « **non
-  restreinte** », elle tient (2 minutes et plus, même en quittant le lecteur). La
-  réserve « à bloc » **n'était donc pas la cause du symptôme** — mais elle reste
-  un **filet utile** (moins de dépendance au réseau en arrière-plan, et elle
-  améliore la bascule de chapitre), donc elle est gardée. *Ce qui a été confirmé
-  au passage* : la **notification de lecture** (couverture, titre, boutons)
-  apparaît et s'ouvre en plein écran au tap — la Media Session fonctionne.
-  *À faire par Laurent (5 minutes)* : verrouiller pendant 5 minutes pour
-  confirmer sur la durée, et vérifier que la notification montre bien la
-  **couverture** et la **barre de progression**.
-
-- [x] **Lecteur intégré « façon Deezer » + lecteur système complet** — **livré le
-  20/09/2026**. Demande de Laurent : « je vois bien un genre de lecteur en mode
-  PWA, avec la barre de progression qui représente la phrase lue. Une petite
-  modale qui ressemblerait à la lecture de Deezer. »
-  1. **Le lecteur du SYSTÈME** (notification + écran verrouillé) est maintenant
-     complet : **couverture du livre**, **barre de progression**
-     (`setPositionState`, échelle = le chapitre), titre + auteur + **chapitre**,
-     et les boutons ▶/⏸ · ⏮⏭ (chapitre) · ◀▶ (phrase) · ⏪⏩ (4 paragraphes) —
-     soit **les mêmes pas que la barre du bas**. La position envoyée est
-     **bornée et protégée** : un refus du système ne peut **jamais** casser la
-     lecture (vérifié) ;
-  2. **Le lecteur intégré** (`#lecteur-modal`) s'ouvre en tapant la **barre de
-     progression** (qui porte un petit ⤢ pour l'annoncer), et affiche :
-     couverture, titre, auteur, chapitre, **qui parle**, **la phrase en cours**,
-     la barre de progression et le compteur (« 120 / 480 phrases · 25 % ») ;
-  3. **Ses sept boutons sont des TÉLÉCOMMANDES** de la barre du bas : ils cliquent
-     sur les vrais boutons (donc **aucune logique de navigation en double**) et
-     partagent la même famille visuelle (flèches blanches sur marron foncé).
-  *Vérifications* : **nouveau** `test_voix/test_lecteur_media.js` (barre du
-  système bornée et jamais cassante, réserve « à bloc », les 7 télécommandes
-  deux à deux, la porte d'entrée par la barre de progression, les 15 éléments de
-  la fenêtre) ; `test_voix/test_ids_ecran.py` (§ 3 sexies) ; `test_js_syntax.py` ;
-  et **les 15 tests JS** verts. Détails dans ARCHITECTURE.md.
-
-- [x] **Les phrases sont collées en UN SEUL morceau (la modale reste affichée)** —
-  **livré le 20/09/2026**. Demande de Laurent : « la modale disparait entre deux
-  paragraphes, puisqu'il n'y a plus de voix […] c'est comme si j'avais une
-  playlist de centaines de morceaux de quelques secondes, et entre chaque, elle
-  disparaît. Est-ce qu'on peut la laisser affichée en permanence ? »
-  *Ce qui a été fait* : le lecteur ne joue plus un fichier par phrase mais **un
-  seul long morceau**, fabriqué **dans le navigateur** en recollant les WAV déjà
-  téléchargés (`_collerWav`) : la **modale de lecture reste affichée** (comme pour
-  une vidéo) et le son n'a plus de **micro-blanc** entre les phrases. La **pause
-  entre paragraphes** est insérée en silence dans le morceau, la **surbrillance**
-  suit grâce à des durées **calculées** (donc pas de dérive, le piège du
-  15/09/2026), et la **barre du lecteur système avance en douceur** au lieu de
-  sauter d'une phrase à l'autre.
-  *Pourquoi c'est possible* : les fichiers sont des **WAV** — 399 sur 400 du
-  cache sont en **24000 Hz mono 16 bits** (une voix Piper, en 22050 Hz, termine
-  simplement le morceau). Le collage ne **copie rien** (`Blob.slice` pointe sur
-  les données d'origine).
-  *Filet* : si un format est inattendu, `_collerWav` renvoie `null` et la phrase
-  est jouée seule, exactement comme avant.
-  *Vérification* : **nouveau** `test_voix/test_collage_wav.js` (**20 contrôles**)
-  — **et il a attrapé une vraie erreur au passage** : l'en-tête annonçait une
-  taille minuscule (la lecture ne lit que 64 octets du fichier, et le garde-fou
-  « fichier tronqué » en concluait 0,4 ms ✗), ce qui aurait rendu le morceau
-  **inaudible** en production. Corrigé en transmettant la **taille réelle** du
-  blob. Détails dans ARCHITECTURE.md (« Lire écran verrouillé »).
-
-- [x] **Pause par le casque, et bouton de lecture qui dit la VÉRITÉ** — **livré le
-  20/09/2026**. Demande de Laurent, le soir : « je voudrais pouvoir mettre pause
-  avec le casque, et reprendre la lecture » + « souvent la lecture est arrêtée,
-  mais le bouton affiche Pause ». **Les deux ont une seule cause** : quand Android
-  met l'audio en pause **sans nous** (appel, autre application qui prend le son,
-  système), **aucun événement de fin** n'est envoyé → le lecteur attendait pour
-  toujours et `_ttsState` restait sur `'playing'` ✗ → le bouton mentait, et le
-  **casque** envoyait « pause » au lieu de « play ».
-  *Corrigé* : l'application **écoute son lecteur** (`audio.onpause`) et remet son
-  état en phase : une pause **venue d'ailleurs** passe en « Pause » (à l'écran
-  **et** sur le lecteur du système) et **rend la main** ; notre propre pause et la
-  **fin naturelle** d'un morceau ne sont pas confondues avec une interruption.
-  *Vérification* : **nouveau** `test_voix/test_pause_casque.js` (**8 contrôles**,
-  faux élément audio) ; **18 tests JS** verts. Détails dans ARCHITECTURE.md.
-  *Reste à confirmer par Laurent* : casque en pause → reprise ; et le bouton qui
-  affiche le bon état après un appel téléphonique.
-
-- [x] **Résidus de balises dans le texte lu (« M class="textsuperscript">lle »)** —
-  **livré le 20/09/2026**. Trouvé par Laurent au chapitre 98 du Comte de
-  Monte-Cristo (**Tome 5**), dans une phrase : « laissons **M
-  `class="textsuperscript">`lle Danglars**… ». *Cause exacte*, vue dans le fichier
-  EPUB lui-même : le livre a été converti à la va-vite et contient une balise
-  cassée avec le « **>** » **échappé** → donc du **texte** pour le navigateur :
-  `M<supu0003c span=""> class="textsuperscript"&gt;<span class="ecrm">lle</span>`.
-  Le parseur n'était **pas** en faute (il recopiait le fichier ✗).
-  *Corrigé* : `_html_to_text` retire ces morceaux-là ; le texte normal n'est jamais
-  touché (tests sur guillemets français, tirets de dialogue, apostrophes,
-  égalités, chevrons). Comme le texte est extrait **à la lecture**, la correction
-  vaut pour **tous les livres** — **mais il faut redémarrer le lecteur** (correctif
-  côté serveur).
-  *Vérifications* : **nouveau** `test_voix/test_residus_html.py` (**11 contrôles**)
-  et l'outil **nouveau** `test_voix/_chercher_residus_html.py`, qui parcourt les
-  livres avec le **vrai parseur** : **379 documents, 13 livres, zéro résidu** après
-  correction (il en avait trouvé **un seul**, dans `epub_split_019.xhtml` du
-  Tome 5). Détails dans ARCHITECTURE.md.
 
 - [ ] **Clignotement de la modale entre deux morceaux — à trancher** (20/09/2026).
   Après le collage, Laurent voit encore la **modale de lecture clignoter** quand un
@@ -1093,49 +243,6 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   la réserve** quelques secondes (avec un plafond) avant de lancer un morceau —
   sauf le tout premier, pour que la lecture démarre tout de suite. Question posée
   à Laurent (fréquence des clignotements) : **en attente de sa réponse**.
-
-- [x] **Bouton « Installer l'application » : seulement sur téléphone** —
-  **livré le 20/09/2026**. Constat de Laurent : « elle s'affiche maintenant sur la
-  version PC ». Le bouton n'apparaît plus que sur **téléphone / tablette**
-  (`_appareilMobile`, fonction **pure** : Android, iPhone, iPad — et les iPad
-  récents qui se déclarent comme un Mac, reconnus par le toucher + le petit
-  écran), et toujours pas quand l'application tourne déjà installée.
-  *Vérification* : `test_voix/test_navigateur.js` (§ 1 bis : six appareils
-  testés) et `test_voix/test_ids_ecran.py` (§ 3 septies).
-
-- [x] **Installation de l'application : l'option manquait dans Chrome** —
-  **livré le 20/09/2026**. Constat de Laurent : « j'ai essayé d'installer l'app
-  sur Chrome mais je n'ai pas d'option pour. J'ai réussi avec NIMM (chatbot),
-  mais pas NIMM ePub. J'arrive avec Brave et Firefox. »
-  *Cause trouvée* : le manifeste déclarait **la même image 512×512** en
-  `192x192`, `512x512` **et** `2048x2048`. **Chrome vérifie que la taille
-  annoncée correspond au fichier** : il rejetait donc **toutes** les icônes — et
-  sans icône valide de 192 px, il ne propose pas l'installation. (Brave est plus
-  permissif ; « installer » avec Firefox Android n'est qu'un **raccourci**, pas
-  une application.)
-  *Corrigé* : **un fichier par taille** — `icon-192.png` (192×192),
-  `icon-512.png` (512×512), `apple-touch-icon.png` (180×180) et
-  `icon-maskable-512.png` (512×512 **avec marge de sécurité**, pour que le
-  lanceur Android ne rogne pas le logo) — plus les `<link rel="icon">` dans la
-  page, un `start_url` propre (`/`) et un `id`. Les icônes se **régénèrent** du
-  logo maître (`frontend/image_NIMM_ePub.png`) avec
-  `test_voix/_generer_icones_pwa.py --ecrire`.
-  *Vérifications* : **nouveaux** `test_voix/test_pwa_manifeste.py` (**28
-  contrôles** : le manifeste, **la taille réelle de chaque icône**, les critères
-  d'installation de Chrome, le service worker) et
-  `test_voix/_generer_icones_pwa.py` (aperçu, `--ecrire`, puis relecture
-  « chaque icône déclarée = son fichier »).
-  *Reste à faire par Laurent* : **réinstaller** l'application depuis Chrome
-  (menu ⋮ → « Installer l'application », après un rechargement de la page), et
-  pour ce qui touche à l'écran verrouillé, **préférer Chrome ou Brave** (Media
-  Session complète + application installée). Détails dans ARCHITECTURE.md.
-  **Complément du même jour** : un bouton **« 📲 Installer l'application »** dans
-  la bibliothèque, parce que Chrome ne dit **jamais** *pourquoi* il refuse. Il
-  déclenche la fenêtre d'installation du navigateur quand elle existe
-  (`beforeinstallprompt`), **explique où chercher** sinon (Firefox, ou navigateur
-  qui ne juge pas l'application installable), et **disparaît** quand
-  l'application tourne déjà installée. *Vérification* :
-  `test_voix/test_ids_ecran.py` (§ 3 septies, 8 contrôles).
 
 - [ ] **Réévaluer la surbrillance après rognage des silences**
   Le rognage devrait rendre le curseur synchrone. Si un résidu persiste,
@@ -1151,249 +258,6 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   coupure ne peut plus venir du chapitre en cours. Il reste le **début du
   suivant** (texte + premières phrases), qui n'est pas encore préchargé.
 
-- [x] **UX pendant une coupure réseau** — **livré le 15/09/2026**, sous une
-  forme plus sympa que prévu (idée de Laurent : « une feature inutile, donc
-  indispensable »). Au lieu d'un simple texte à l'écran, le lecteur **parle** :
-  « Pas de réseau, veuillez patienter. Dès que le réseau sera disponible, la
-  lecture reprendra. Merci pour votre patience. » Le message est **préparé une
-  fois au lancement de la lecture** — moment où le réseau fonctionne encore —
-  avec **la voix du narrateur**, puis gardé en mémoire (blob) : il peut donc
-  être joué **même réseau coupé**. Déclenchement : après ~8 s d'attente
-  (2 attentes de 4 s), puis au plus une fois toutes les **45 s** — on ne
-  harcèle pas l'auditeur. Il est coupé dès une mise en pause ou un arrêt.
-  *Technique* : `frontend/app.js` — `MESSAGE_HORS_LIGNE` (**le texte est en haut
-  du fichier, une seule ligne à changer** à volonté), `MESSAGE_ATTENTES_AVANT`,
-  `MESSAGE_RAPPEL_MS`, `_preparerMessageHorsLigne()`, `_fautPrevenirReseau()`,
-  `_prevenirReseauCoupe()`, `_couperMessageHorsLigne()`. *Vérification* :
-  `test_voix/test_message_reseau.js` (9 contrôles, sans navigateur) : il vérifie
-  qu'on **ne joue rien** si le message n'a pas pu être préparé et qu'on **ne se
-  répète pas**.
-
-- [x] **Un changement de voix ne s'applique pas pendant la lecture (surtout
-  sur mobile)** — **CORRIGÉ le 15/09/2026** (constat de Laurent : « si je change
-  la voix d'un personnage, il faut que je ferme l'application et que je la
-  rouvre pour que ça prenne effet »). **Cause trouvée dans le code** : la playlist
-  de lecture est construite **une fois** par `_runTTS()` (`frontend/app.js`) et
-  garde la voix de **chaque phrase** (`units[i].voice`, `pitch`) ; le cache de
-  blobs préchargés qui l'accompagne contient donc aussi l'ancienne voix. Or
-  `_updateCharacterVoice()` (le changement de voix dans la fenêtre du casting)
-  n'appelle **jamais** `_runTTS` : la lecture en cours continue avec les
-  anciennes voix jusqu'au prochain lancement complet (d'où l'impression qu'il
-  faut redémarrer l'application). C'est d'autant plus visible sur mobile, où le
-  préchargement couvre plusieurs minutes d'audio.
-  **Deux corrections possibles** (à valider, ça touche le cœur de la lecture) :
-  **(a) fine, recommandée** — après un changement de voix, recalculer la voix
-  des unités **pas encore lues** (`_voiceForSentence(units[i].sentIdx)`) et
-  invalider leur blob préchargé, sans couper la phrase en cours : il faut un
-  **compteur de génération** par unité pour que les fetchs déjà en vol
-  n'écrasent pas la nouvelle voix ; **(b) simple** — arrêter et relancer la
-  lecture depuis la phrase en cours (playlist reconstruite, blobs neufs) : la
-  phrase en cours recommence, mais tout est fiable.
-  **✅ OPTION (b) RETENUE ET LIVRÉE le 15/09/2026** (choix de Laurent) :
-  `_updateCharacterVoice()` appelle maintenant `_stopTTS()` puis `_startTTS()`
-  dès que la lecture est en cours (`playing` ou `loading`) — la phrase en cours
-  reprend avec la **nouvelle** voix, sans redémarrer l'application. Quand la
-  lecture est **en pause**, on ne relance rien : la pause est respectée, et la
-  prochaine lecture reconstruira la playlist. *Garde-fou* :
-  `test_voix/test_ids_ecran.py` (§ 7) vérifie que cet appel est toujours là.
-  *Reste à valider à l'usage* : sur le mobile de Laurent, changer la voix d'un
-  personnage pendant une lecture doit s'entendre **tout de suite**.
-  L'option (a) reste décrite ci-dessus si l'on veut un jour éviter la reprise
-  de la phrase en cours.
-  *Corrigé au passage* (`frontend/sw.js`) : la branche `/api/` du service
-  worker faisait `fetch().catch(() => caches.match())` alors qu'**aucune**
-  réponse d'API n'est mise en cache — le repli ne renvoyait donc rien (erreur
-  de fetch incompréhensible) au lieu d'un échec clair ; il renvoie maintenant
-  une **erreur 503 explicite**, et les données de casting ne sont **jamais**
-  servies périmées.
-
-- [x] **Voir et changer la voix d'une phrase (tap mobile + bouton PC)** — livré
-  le **15/09/2026** (demande de Laurent). Sur **mobile**, un tap sur une phrase
-  ouvrait la lecture à partir de là ; il ouvre désormais un **panneau « voix de
-  cette phrase »** qui dit **qui parle** (personnage, ou *Narration*) et avec
-  **quelle voix** (nommée comme partout : « Alphonse — 🇫🇷 France (XTTS) », avec
-  vitesse et hauteur si elles ne sont pas neutres), et permet de **changer
-  cette voix** — menu par groupes Femmes / Hommes / Autres + bouton
-  **▶ Écouter** un aperçu de la phrase. **Le tap ne lance plus la lecture** ;
-  lire à partir d'une phrase reste possible par **sélection longue** (bouton
-  « Lire à partir d'ici »), qui n'a pas bougé. Sur **PC**, le tooltip de
-  sélection gagne un second bouton **« 🎭 Voir la voix »**, qui ouvre le même
-  panneau pour la phrase touchée par la sélection.
-  *Effets à connaître* : changer la voix d'un personnage s'applique à
-  **toutes ses phrases du livre** (c'est le casting, comme la fenêtre dédiée)
-  et se propage aux autres tomes de la saga ; pour *Narration*, c'est la voix
-  du lecteur qui change. Le changement **s'entend tout de suite** : la lecture
-  en cours est relancée (même règle que le 15/09/2026 pour le casting).
-  *Technique* : `frontend/app.js` — `_personnageDePhrase()`, `_fichePersonnage()`,
-  `_voixDePhrase()`, `_remplirMenuVoixPhrase()`, `_openVoicePanel()`,
-  `_closeVoicePanel()`, `_apercuVoixPhrase()` ; `_updateCharacterVoice()`
-  renvoie désormais **`true`/`false`** (réussite de l'enregistrement) ; le
-  panneau est **fermé au changement de chapitre**. `frontend/index.html`
-  (`#voice-phrase-panel`, bouton du tooltip), `frontend/styles.css` (feuille en
-  bas d'écran sur mobile, petite fenêtre centrée sur PC).
-  *Vérification* : `test_voix/test_voix_phrase.js` (**24 contrôles** le
-  15/09/2026 ; **34 depuis le 20/09/2026**, avec la porte vers le casting) :
-  identifiants page/code, à qui appartient une phrase, quelle voix est utilisée,
-  et que le menu **n'efface jamais** une voix en place.
-
-- [x] **Panneau « Voir la voix » → une PORTE vers le casting** — **livré le
-  20/09/2026**. Idée de Laurent, le jour même : « la modale qui s'ouvre via
-  "Voir la voix" pourrait ouvrir directement "casting des voix" à la voix
-  sélectionnée, non ? Cette modale est moins riche que "casting des voix". »
-  *Ce qui a été décidé, et pourquoi* : on n'a **pas remplacé** le panneau par le
-  casting, on lui a ajouté une **porte**. Trois raisons : (1) le panneau est le
-  **seul** à savoir dire **QUI PARLE dans cette phrase** — le casting est par
-  livre, pas par phrase ; (2) le geste fréquent (je lis, je tape, je change la
-  voix) doit rester **léger**, alors que le casting est une grosse fenêtre
-  (176 lignes, badges, saga, re-cast) qui ferait perdre la position de lecture ;
-  (3) le saut vers une fiche **existait déjà** (`_allerAuPersonnage`, celui des
-  noms cliquables du badge « partagée avec… »), donc la porte était presque
-  gratuite.
-  *Ce qu'elle fait* : un bouton **« 🎭 Ouvrir dans le casting »**
-  (`#voice-phrase-cast-btn`) → ferme le panneau, ouvre la fenêtre du casting
-  **sur le personnage**, surligné un instant. Trois garde-fous : **cachée pour
-  la narration** (le narrateur n'a pas de ligne dans le casting : sa voix se
-  change dans le menu du haut) ; **une seule fenêtre** à la fois (on ferme le
-  panneau) ; et la porte **ramène toujours au personnage** — si un filtre d'état
-  (« ⚠ à caster », « ⧉ voix partagée », « 🔓 voix libres ») ou la recherche le
-  cachait, on revient d'abord à la liste complète, sinon la fenêtre s'ouvrirait
-  sur une liste où il est invisible, **sans rien expliquer**.
-  *Vérifications* : `test_voix/test_voix_phrase.js` (**34 contrôles**, dont 5
-  pour la porte : bouton caché pour la narration, panneau fermé avant
-  l'ouverture, filtres remis à zéro, surlignage) et `test_voix/test_ids_ecran.py`
-  (l'identifiant du bouton est dans la page **et** dans le code). Détails dans
-  ARCHITECTURE.md.
-  *Reste possible* (option B discutée le 20/09/2026, **écartée par Laurent** le
-  même jour : « pas de curseurs, le raccourci pour les besoins plus poussés, on
-  laisse comme ça ») : ajouter les curseurs **vitesse et hauteur** dans le
-  panneau. C'est le seul manque du panneau, mais la porte vers le casting suffit.
-
-- [x] **Icônes des moteurs + « 🔖 Onglets » à la même échelle** — **livré le
-  20/09/2026**. Deux demandes de Laurent, le même jour.
-  1. **Les ICÔNES des moteurs** : « trouver des icônes pour les moteurs,
-     histoire d'avoir un visuel sur les moteurs plutôt que les noms ». Une
-     **seule table** (`FAMILLES_VOIX`, `app.js`) porte maintenant, pour chaque
-     moteur, son libellé **et** son icône : ☁️ Edge (le seul **en ligne**),
-     🎎 Kokoro (modèle **japonais**), 🎶 Piper (le **joueur de flûte**), ⚡
-     Kyutai (le moteur **local** rapide), 🧬 XTTS v2 (le moteur de **clonage**),
-     🧪 NeuTTS (le plus **récent**). Aucune marque ni logo sous licence : des
-     repères choisis pour dire quelque chose du moteur, et **changeables en une
-     ligne**. Où : le **libellé d'une voix** montre l'icône **seule** (« ♀️ Eva
-     🇫🇷🇩🇪 adulte médium — 🎎 »), parce que c'est là que le nom prenait la
-     moitié de la ligne (menus étroits du casting) ; partout où il y a la place,
-     le nom reste, précédé de son icône (ligne d'une voix dans « 🎧 Écouter les
-     voix », en-tête de groupe du tiroir des voix libres, menu de filtre,
-     fenêtre de choix du moteur, bouton des moteurs).
-     **Bonus trouvé au passage** : la liste de filtre des moteurs **n'avait pas
-     NeuTTS**, alors que ses voix sont bien proposées → ajouté.
-  2. **« 🔖 Onglets » à la même échelle** : le bouton n'était pas dans la
-     **règle de style commune** des boutons du lecteur — il gardait donc
-     l'apparence native du navigateur (plus grand, fond plus clair) à côté de
-     « 🎭 Voix multiples » et « 🎧 Écouter les voix ». Les trois partagent
-     maintenant la **même règle** (`frontend/styles.css`), donc la même échelle.
-  *Vérifications* : `test_voix/test_libelle_voix.js` (libellés **exacts** avec
-  l'icône du moteur), `test_voix/test_tiroir_voix_libres.js` (en-têtes de groupe
-  « 🎎 Kokoro · 1 »), `test_voix/test_bouton_moteur.js` (le nom reste écrit dans
-  le bouton — l'icône s'y ajoute) et `test_voix/test_ids_ecran.py` (les 6 icônes
-  déclarées, l'icône seule dans le libellé d'une voix, la règle de style
-  partagée par les trois boutons, NeuTTS filtrable). Détails dans
-  ARCHITECTURE.md.
-
-- [x] **Barre de navigation : quatre flèches symétriques, RSVP déplacé** —
-  **livré le 20/09/2026**. Demande de Laurent : « J'ai 2 boutons "retour rapide"
-  qui font la même chose. Si tu peux en retirer un, et mettre tous les boutons
-  comme des icônes : [⏮️ Chapitre précédent][⏪ retour rapide][⏩ avance
-  rapide][⏭️ Chapitre suivant]. Une couleur qui corresponde au thème général, un
-  genre de marron foncé, flèches blanches. »
-  *Ce qui a été fait* : la barre est **symétrique** —
-  `[⏮ chapitre préc.] [⏪ phrase préc.] [▶️/⏸] [⏩ phrase suiv.] [⏭ chapitre
-  suiv.]` — et les **quatre flèches sont des SVG** (dessinées), en **blanc sur
-  fond marron foncé** (variables `--nav-btn`, `--nav-btn-survol`,
-  `--nav-btn-bord`, dérivées de l'or du thème).
-  *Pourquoi des SVG* : **un emoji ne peut pas être blanc** — il garde ses
-  couleurs, ou s'affiche en petit noir et blanc selon le clavier : c'est ce qui
-  faisait **deux familles de boutons** dans la même barre (chevrons dessinés pour
-  les chapitres, emojis ⏮⏪⏭ pour les phrases).
-  ⚠️ **La première version, livrée le matin, avait SUPPRIMÉ les sauts de
-  paragraphe** (le pas de la barre était la phrase). **Laurent a corrigé le tir
-  dans la journée** : « le saut de paragraphe correspond très souvent à un saut
-  de phrase », donc un saut d'**un** paragraphe ne se distinguait pas d'un saut
-  de phrase — il propose **trois niveaux**, et c'est mieux. **Version finale** :
-  **⏮/⏭ le chapitre** · **⏪/⏩ le saut MOYEN = `_PAS_PARAGRAPHES` (4)
-  paragraphes d'un coup**, constante ajustable **en une ligne** ·
-  **◀/▶ la phrase** (le pas fin). Les sauts sont **bornés** : jamais au-delà du
-  dernier paragraphe (le saut y est ramené), jamais avant le début du chapitre.
-  (Le casque et l'écran verrouillé sont sur la phrase :
-  `previoustrack`/`nexttrack` de `navigator.mediaSession` = les flèches ◀/▶ ✔.)
-  *Et* : le mode **RSVP** quitte la barre de navigation (c'est un **mode**, pas
-  une flèche) et rejoint la ligne des boutons d'action, sous le nom
-  **« 👀 Lecture Rapide »**.
-  *Vérifications* : **nouveau** `test_voix/test_sauts_navigation.js` (**les trois
-  niveaux** : le pas lu dans `app.js`, le chapitre, les 4 paragraphes, la phrase,
-  et **les bords** — jamais au-delà du dernier paragraphe, jamais avant le
-  début) ; `test_voix/test_ids_ecran.py` (les 6 flèches présentes, la **même
-  règle de style** pour les six, le resserrement sur téléphone, la disparition de
-  `#tts-nav`, le RSVP **hors** de la barre, le bouton du cache sur la ligne des
-  boutons d'action) ; **les 14 tests JS** verts ; `node --check frontend/app.js`.
-  Détails dans ARCHITECTURE.md.
-
-- [x] **Bibliothèque mobile : le titre du livre en entier sous la couverture**
-  — livré le **15/09/2026** (demande de Laurent). Sur mobile, les couvertures
-  restent **recadrées** au format 2/3 (la grille reste bien régulière) mais le
-  **titre n'est plus coupé** : plus de limitation à deux lignes, taille un peu
-  augmentée, et le nom de l'auteur passe à la ligne au lieu d'être tronqué.
-  Comme le titre est rogné sur l'image de couverture elle-même, c'est ce texte
-  qui dit de quel livre il s'agit. *Technique* : `frontend/styles.css`, règles
-  mobiles `.book-title` / `.book-author` (`@media (max-width: 640px)`).
-
-- [x] **Couvertures écrasées sur mobile dès que la bibliothèque est remplie**
-  — livré le **16/09/2026** (constat de Laurent : « comme un jeu de cartes qu'on
-  ferait glisser »). Avec assez de livres pour remplir plusieurs lignes de la
-  grille (18 chez Laurent), le navigateur comprimait la hauteur des lignes :
-  chaque vignette était réduite à une bande du tiers haut, largeur intacte, et
-  les cartes se chevauchaient. Avec un ou deux livres, le phénomène était
-  invisible. Les fichiers eux-mêmes étaient sains (18 couvertures valides en
-  base et sur le disque, formats et dimensions normaux).
-  *Technique* : `frontend/styles.css` — `#book-grid` reçoit
-  **`grid-auto-rows: max-content`** : les lignes prennent la hauteur réelle de
-  leur contenu, au lieu de la hauteur minimale d'une carte (vue comme nulle,
-  la vignette ayant un ratio 2/3 qui dépend de la largeur de sa colonne).
-  *Vérification* : `test_voix/test_couverture_mobile.py` (Playwright, sans
-  serveur ni données : injecte le vrai `styles.css`, 12 livres, texte normal
-  puis agrandi) — avant correctif 12/12 cartes écrasées, après 0/12.
-
-- [x] **Barre de lecture : suppression du bouton ⏩ (phrase suivante)** — livré le
-  **15/09/2026** (demande de Laurent : il faisait doublon avec ⏭, le paragraphe
-  suivant — dans un dialogue, un paragraphe fait souvent une seule phrase).
-  Les commandes du **casque et de l'écran verrouillé** (`navigator.mediaSession`,
-  action `nexttrack`) continuent d'avancer **d'une phrase** : elles appellent
-  directement `_cursorSentNext()` au lieu de cliquer sur le bouton retiré.
-  **⏪ (phrase précédente) reste** : reculer d'une phrase reste utile quand ⏮
-  saute tout le paragraphe. *Fichiers* : `frontend/index.html` (bouton retiré),
-  `frontend/app.js` (MediaSession + listener du bouton), `frontend/styles.css`
-  (règles du bouton).
-
-- [x] **Barre de réglages du lecteur : boutons compacts et thème sombre
-  cohérent** — livré le **15/09/2026** (demande de Laurent : « moins gros, plus
-  esthétique »). Le bouton **« 🎧 Écouter les voix » n'avait aucun style** : il
-  affichait l'apparence native du navigateur (fond clair, grande taille) au
-  milieu du thème sombre — c'est lui qui « faisait blanc ». Les deux boutons
-  (« 🎭 Voix multiples », libellé raccourci, et « 🎧 Écouter les voix »)
-  partagent maintenant le **même look compact**, et les **deux menus** (voix du
-  narrateur + vitesse) sont groupés dans `#settings-menus`, sur leur propre
-  rangée : la voix prend la place restante, la vitesse sa taille naturelle.
-  En complément, `color-scheme: dark` est déclaré dans `:root` : les **listes
-  déroulantes** des menus (voix, casting, notes…) et les **barres de défilement**
-  s'affichent en sombre au lieu de blanc.
-  *Technique* : `frontend/index.html` (`#settings-menus`, libellés),
-  `frontend/styles.css` (`:root`, `#reader-settings`, `#multivoice-btn`,
-  `#voices-open-btn`, `#voice-select`, `#speed-select`), `frontend/app.js`
-  (libellés du bouton multi-voix).
-  *Vérification* : `node --check frontend/app.js` ; **tous** les identifiants
-  utilisés par `app.js` existent encore dans la page (contrôle passé : 84/84) ;
-  `test_voix/test_ids_ecran.py` et les autres tests JS → **tout OK**.
-
-
 ### Retours d'écoute du 19/09/2026 (chapitre 96, « Le contrat ») — les INCISES
 
 Écoute du chapitre 96 du *Comte de Monte-Cristo* (tome 5, index 21). Verdict de
@@ -1401,54 +265,6 @@ Laurent : « les incises ont énormément disparu déjà ; on affinera une proch
 fois ». Ce qui reste se range en **trois causes distinctes**, chacune mesurée le
 19/09/2026 par un nouvel outil (`test_voix/_mesurer_cas_tordus_20260919.py`,
 lecture seule) sur les **5 105 phrases** du tome 5 :
-
-- [x] **Le point-virgule ferme l'incise — LIVRÉ le 19/09/2026** — cause du
-  « dit le comte » **lu** encore. Exemple réel écouté par Laurent : « Il n'y
-  aurait cependant point de ma faute, **dit le comte** ; aussi je tiens à le
-  constater. » La règle de retrait n'accepte que deux fins : une **virgule** ou
-  la **fin de la phrase**. Un `;` n'est ni l'un ni l'autre → l'incise reste et
-  est **lue**. Or `modules/incises.py` sait déjà que « le point-virgule est une
-  frontière sûre » : il l'utilise dans `MOTIF_DECROCHAGE` pour emporter la
-  relative, mais pas pour **fermer** l'incise.
-  *Mesure* : **67 phrases** du tome 5 (1,3 %) ; **19** d'entre elles n'ont que
-  ce cas (l'outil `_diag_incises_reelles.py` ne voit que celles-là, d'où l'écart
-  apparent entre les deux outils — voir l'item « angle mort », plus bas).
-  *Correctif envisagé* : accepter `;` (et à examiner `:`) comme borne de
-  fermeture dans `_ferme_ou_terminal`. Risque faible. **Incrémenter
-  `VERSION_CACHE`** (le texte envoyé au moteur change).
-  ✅ **LIVRÉ le 19/09/2026.** Mesure à blanc d'abord (outil
-  `test_voix/_mesurer_cas_tordus_20260919.py`, section « SIMULATION ») : **67
-  phrases** touchées dans le tome 5, **aucune** ne perd tout son texte, mais
-  **31** laisseraient une ponctuation orpheline en tête. Le correctif a donc deux
-  volets : (1) `_ferme_ou_terminal` accepte un « ; » **immédiatement** après
-  l'incise (jamais plus loin : la règle mesurée) ; (2) `retirer_incises` nettoie
-  la ponctuation basse restée en tête (`lstrip` sur espace, `,;:.…`) — **jamais**
-  le tiret de dialogue ni le guillemet ouvrant, qui sont légitimes.
-  `VERSION_CACHE` passé de **10 à 11** (`modules/tts_cache.py`).
-  *Vérifié après coup, sur le vrai texte* : incises gardées **151 → 84** (−67,
-  exactement le chiffre annoncé) ; le cas « point-virgule » tombe à **0** ;
-  l'incise seule (94), les civilités (4) et les phrases courtes (379) sont
-  **inchangées** — le correctif fait ce qu'il annonçait, et rien d'autre.
-  *Deux tests ont démenti une formulation trop étroite, et ont été REFORMULÉS
-  (avec la raison écrite dedans, pour que la question ne revienne pas)* :
-  - `test_nettoyage_tts.py` : le contrôle « le sujet de la phrase n'est jamais
-    supprimé » exigeait que « jeune homme » RESTE dans « j'écoute, répondit le
-    jeune homme ; parlez. ». Il avait été écrit **avant** que le module apprenne
-    les noms communs avec article (« , dit le comte, ») et ne passait que **par
-    accident** (le `;` n'était pas une fin reconnue). **Décision de Laurent le
-    19/09/2026 : on retire** — c'est la même construction que « dit le comte ; ».
-    Le contrôle est remplacé par trois : l'incise à nom commun + `;` est retirée,
-    le point-virgule orphelin est nettoyé, et un mot piège (« maudit-il ») n'est
-    pas pris pour une incise (ce dernier garde-fou n'était testé nulle part).
-  - `test_ponctuation_incises.py` : même cas. Son commentaire expliquait le vrai
-    danger — « le piège du code proposé ailleurs : “jeune homme” sortait TOUT
-    SEUL » — donc le contrôle visait un **mot orphelin**, pas le retrait. Il
-    vérifie maintenant cela précisément : jamais d'orphelin après le verbe, et la
-    réplique garde ses deux morceaux. **Plus juste et plus fort qu'avant.**
-  *Copies de sécurité* : `modules/incises.py.bak_avant_point_virgule_20260919`
-  et `modules/tts_cache.py.bak_avant_point_virgule_20260919`.
-  *Reste à faire* : le `:` (deux-points) n'est **pas** traité — à mesurer plus
-  tard, séparément, comme prévu ci-dessus.
 
 - [ ] **Éprouver les règles d'incises par un TEST ADVERSE (idée de Laurent,
   19/09/2026)** — « Tu me listes les règles, et je les donne à un LLM qui va
@@ -1701,221 +517,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   complète en compte **151**. Ses bilans sont donc **optimistes** — à corriger,
   sinon l'outil fait croire que le travail est fini.
 
-- [x] **Le cas « Danglars » : rien à changer** — vérifié le **19/09/2026**,
-  Laurent avait raison de dire « c'est plutôt pas mal découpé, rien à changer ».
-  Dans « Oh ! mon Dieu ! fit Danglars du même ton dont il aurait dit : Ma foi,
-  la chose m'est bien indifférente ! », l'attribution (« fit Danglars ») n'est
-  **pas** lue et la suite l'est : c'est exactement le comportement voulu.
-
-- [x] **Les mots TOUT EN MAJUSCULES sont lus normalement — LIVRÉ le
-  19/09/2026** — demande de Laurent : « les mots en majuscule donnent une
-  prononciation bizarre, il faudrait modifier pour qu'ils soient lus
-  normalement ». **Option B retenue** (le lecteur apprend le vocabulaire du
-  livre), plus juste qu'une liste de sigles à tenir à la main.
-  *Comment ça marche* : le serveur apprend **une fois par livre** les mots que
-  ce livre écrit en **casse normale** (« de », « Bastille », « Jim ») — 0,8 s
-  pour les 24 455 mots de 22/11/63, donc jamais d'attente à la lecture. Ensuite,
-  avant l'envoi au moteur, tout mot **TOUT EN MAJUSCULES** qui est dans ce
-  vocabulaire repasse en casse normale (`DE` → `de`, `BASTILLE` → `Bastille`,
-  `JIM` → `Jim`). Ce qui n'y est pas — les **vrais sigles** (`JFK`, `FBI`,
-  `DSK`, `TSBD`) — reste intact : le moteur les épelle, et c'est voulu.
-  Les **chiffres romains** (`XIV`) et les lettres seules (`M.`) ne sont jamais
-  touchés. Le **texte affiché ne change pas** : seul le texte parlé.
-  *Technique* : nouveau module `modules/majuscules.py` (vocabulaire + réduction),
-  `_clean_text(text, vocabulaire=None)` et les 7 fonctions de synthèse qui le
-  transmettent, cache `_VOCABULAIRES` dans `main.py`, `book_id` ajouté à la
-  requête TTS (envoyé par la page), `VERSION_CACHE` 13 → **14**.
-  *Vérification* : **nouveau test** `test_voix/test_majuscules.py`
-  (**16 contrôles**, dont 4 sur le vrai 22/11/63 : « LUI » et « DE » sont des
-  mots du livre, « JFK » n'en est pas) ; les 10 tests Python et les 9 tests
-  JavaScript sont au vert. *Reste à faire par Laurent* : **redémarrer le
-  lecteur** puis écouter 22/11/63.
-  *Limite connue, honnête* : un mot que le livre écrit **toujours** en
-  majuscules (jamais autrement) ne peut pas être reconnu — il restera tel quel.
-  Le cas est rare (les romans écrivent le même mot des deux façons), mais il
-  existe.
-
-  *Mesure dans TOUS ses livres* (outil
-  `test_voix/_mesurer_majuscules_20260919.py --tous`) : les tomes de Monte-Cristo
-  n'en ont **presque aucun** (4 à 5 phrases, des mentions légales : BIBEBOOK,
-  ISBN, BY-SA) — en revanche **22/11/63 a 531 phrases** touchées (1 742
-  occurrences, 873 mots distincts), Latude 188, Shantaram 145, « Souvenirs d'une
-  gamine effrontée » 137, Dialogues 98, Notre-Dame 77, Le Chevalier Errant 6.
-  *Deux familles bien distinctes* : des **mots de la langue mis en majuscules
-  pour insister** (DE 67, LA 60, VOUS 30, MOI 45, LUI 36, ELLE 32, PAS 23,
-  JAMAIS…) — ce sont eux qui sonnent mal ; et de **vrais sigles** (OK 113, FN 30,
-  CIA 19, DSK 18, JFK 15, FBI 15, TSBD 15, KGB, PCF…) — que le moteur **épelle**,
-  et c'est **voulu**.
-  *Heuristique trouvée et MESURÉE le 19/09/2026* : un mot en majuscules est un mot
-  de la langue s'il est écrit **aussi en casse normale ailleurs dans le même
-  livre** (« DE » et « de », « JIM » et « Jim ») ; s'il n'apparaît **jamais**
-  autrement, c'est un sigle. Essai sur 22/11/63 : **682 mots distincts
-  convertibles (1 423 occurrences)**, les sigles préservés, et le tri est juste
-  sur les 30 mots les plus fréquents (23 bons, les 7 autres étant de vrais
-  sigles). ⚠️ Piège évité : il faut compter « Jim » (majuscule initiale) comme
-  casse normale, **pas** seulement les mots tout en minuscules — sinon « JIM »
-  était classé sigle à tort.
-  *Deux façons de faire, à trancher par Laurent* :
-  **(A) liste blanche de sigles** dans `modules/tts.py` (les ~35 sigles relevés
-  dans ses livres) et conversion de tout le reste — simple, tout de suite, aucun
-  changement d'architecture, liste à compléter au besoin ;
-  **(B) vocabulaire du livre** — le serveur apprend les mots du livre au fil des
-  chapitres servis et ne convertit que ceux qu'il connaît : plus juste, mais il
-  faut transmettre ce vocabulaire au nettoyage (architecture), et le comportement
-  s'améliore au fil de la lecture.
-  *Dans les deux cas* : le texte **affiché** ne change pas (seul le texte parlé),
-  les **chiffres romains** (XIV…) ne sont pas touchés, et la règle s'appliquera à
-  **tous les moteurs** (le nettoyage est commun).
-
-- [x] **Des ONGLETS : marquer un passage et le retrouver — LIVRÉ le
-  19/09/2026** — demande de Laurent : « actuellement si je vais à un endroit du
-  livre, l'endroit est le dernier visité, mais j'aimerais bien pouvoir me faire
-  une liste d'onglets ». **La reprise de lecture ne change pas** : les onglets
-  viennent EN PLUS.
-  *Ce qui existe maintenant* : un bouton **« 🔖 Onglets »** dans la barre du
-  lecteur ouvre un panneau (même style que la liste des chapitres) ; dedans, un
-  bouton **« 🔖 Marquer cet endroit »** pose une marque à l'endroit exact où on
-  lit, et la liste montre chaque onglet avec **son chapitre et le début de la
-  phrase** (« Chapitre 22 — Il n'y aurait cependant… »). **Un clic ramène à
-  l'endroit**, une croix supprime l'onglet (sans l'ouvrir). Chaque **profil** a
-  les siens, chaque **livre** aussi.
-  *Technique* : table `bookmarks` créée dans `init_db()` (main.py), 3 routes
-  (`GET`/`POST /api/bookmarks/{book_id}`, `DELETE …/{bookmark_id}`), bouton et
-  panneau dans `index.html`, styles **mutualisés** avec le panneau des chapitres
-  (`styles.css`), logique dans `app.js` (`openBookmarksPanel`,
-  `_marquerCetEndroit`, `_renderOnglets`, `_supprimerOnglet`). Le libellé est
-  préparé par la page (chapitre + extrait de phrase).
-  *Vérification* : **nouveau test** `test_voix/test_onglets.py` (**11
-  contrôles** : création, contenu gardé, isolation par profil, suppression,
-  ordre de lecture) ; `test_ids_ecran.py` confirme que tous les éléments de
-  l'écran existent ; les 9 tests JavaScript sont au vert.
-  ⚠️ **Piège noté pour la suite** : `TestClient` n'exécute **pas** le
-  « lifespan » de l'application, donc pas de `init_db()` — un test qui touche
-  une table doit appeler `main.init_db()` lui-même.
-  🔎 **Leçon du premier essai de Laurent (19/09/2026 au soir)** : le panneau
-  s'ouvrait mais la pose échouait (« Impossible de poser l'onglet »). **Cause
-  trouvée en direct** : le serveur qui répondait était **l'ANCIEN**, lancé avant
-  la livraison → `GET /api/bookmarks/16` renvoyait **404**. `START.bat` gère ce
-  cas tout seul (il arrête le serveur déjà en marche et le dit :
-  « on croirait que rien ne change »), et le message d'erreur de la page dit
-  désormais **explicitement** « Le serveur doit être redémarré (fermer le
-  lecteur, puis START.bat) » au lieu du vague « Impossible de poser l'onglet ».
-  **Règle à retenir** : une modification dans `modules/` ou `main.py` demande un
-  **redémarrage du lecteur** ; une modification dans `frontend/` demande un
-  **rechargement de la page** (Ctrl+F5, à cause du service worker). Les deux
-  souvent : redémarrer, puis Ctrl+F5.
-  *État des lieux* : la base a déjà `progress` (user_id, book_id, chapter_index,
-  scroll_position, cursor_idx, last_read — clé unique `(user_id, book_id)`) et les
-  routes `GET`/`POST /api/progress/{book_id}`. Il faut donc une **table EN PLUS**,
-  pas remplacer l'existante : `bookmarks` (id, user_id, book_id, chapter_index,
-  cursor_idx, libellé, created_at).
-  *À faire* : (1) `CREATE TABLE IF NOT EXISTS bookmarks` dans `init_db()`
-  (main.py, à côté des autres) ; (2) trois routes — lister les onglets d'un livre,
-  en ajouter un, en supprimer un ; (3) côté page : un bouton **« marquer cet
-  endroit »** près des réglages du lecteur, et un panneau **« Mes onglets »** qui
-  liste les marques (chapitre + un extrait de phrase pour reconnaître) et ramène
-  au bon endroit au clic — **le même mécanisme que la reprise de lecture** et que
-  le clic sur un résultat de recherche sont déjà en place.
-  *Prévoir* : un libellé **automatique** (« chapitre 96 — Il n'y aurait… ») que
-  Laurent pourra renommer s'il veut ; pas de limite au nombre d'onglets ; et
-  l'onglet doit survivre au changement de profil (chaque utilisateur a les siens,
-  comme `progress`).
-  *À valider avant de coder* : l'ergonomie (où mettre le bouton, comment afficher
-  la liste) — c'est du **niveau 3** (nouvelle table en base + écran).
-
-- [x] **« MR. CURRIE » lu « MR[féè]. CURRIE » — corrigé** — livré le **21/09/2026**.
-  Retour d'écoute de Laurent : « J'ai encore des bizarreries, avec le passage
-  "MR. CURIE" (moteur Kyutai) lit : "Et l'étiquette sur son bureau indiquait
-  MR[féè]. CURRIE" » (22/11/63 de Stephen King, chapitre 10 ; le vrai mot est
-  **CURRIE**, avec deux R).
-  *Cause, trouvée dans le texte réel* : le livre écrit « **MR.** » suivi d'une
-  **espace insécable** puis « CURRIE » (une étiquette anglaise, traduite telle
-  quelle). Or **`MR` en capitales n'était reconnu nulle part** :
-  - le **découpage** coupait donc la phrase juste avant le nom → le moteur
-    recevait un morceau finissant par « MR. », **seul devant trois lettres**, et
-    il **inventait un son** (« [féè] ») ; le nom partait ensuite dans un second
-    morceau de **six caractères** ;
-  - le **nettoyage** ne développait pas « MR. » (les règles ne connaissaient que
-    « Mr. » et « M. ») : le moteur ne lisait donc jamais « Monsieur ».
-  *Corrigé aux trois endroits* : `ABREVIATIONS` (`modules/decoupage.py`) **et**
-  sa copie de la page (`frontend/app.js`, que le test compare) reçoivent les
-  formes **en capitales** (`MR`, `MME`, `MMES`, `MLLE`, `MLLES`, `MGR`, `DR`,
-  `PR`), et `ABBREVIATION_RULES` (`modules/tts.py`) devient **insensible à la
-  casse** pour ces civilités (`[Mm][Rr]` et non « Mr »). Résultat vérifié : la
-  phrase redevient **une seule**, et le moteur reçoit « … indiquait **Monsieur**
-  CURRIE. »
-  *Effet de bord MESURÉ avant de garder la correction* : changer le découpage
-  **déplace la numérotation des phrases**, donc le « qui parle »
-  (`speaker_attribution.sentence_idx`). Balayage des **340 chapitres** des
-  13 livres : **17 chapitres** concernés — **tous dans 22/11/63** (le chapitre 9
-  pour « MR. CURRIE », seize autres pour « **Mrs** ») — et ce livre **est casté**.
-  - **« Mrs » : la pause, mesurée AVANT de décider** (moteur Kyutai, la voix du
-    narrateur de 22/11/63, une phrase réelle lue en quatre variantes) : tel quel
-    **5,76 s**, **sans le point 5,84 s** (le point n'est donc **pas** coupable),
-    écrit « Madame » 6,24 s, **coupé en deux morceaux 6,48 s** — le second
-    morceau s'ouvrant sur **0,46 s de silence**. C'est la **coupure** qui crée la
-    grande pause entendue : « Mrs » rejoint donc la liste, comme les capitales.
-  - **La LECTURE de « Mrs » n'est PAS touchée**, et c'est un choix argumenté : en
-    français « Mrs » = *Messieurs*, en anglais « Mrs » = *Misses* (Madame). Le
-    scanner tranche pour **ses** livres (42 fois sur 42, toujours suivi d'un nom :
-    *Mrs. Symonds*, *Starrett*, *Levesque*, *Bowie*, *Clayton*…), mais un livre
-    qui mêlerait les deux usages ne peut pas être tranché automatiquement. Le
-    moteur dit « Misses », ce qui lui convient, et le remède (« Madame ») reste
-    **une ligne dans le nettoyage** — sans aucun effet sur les index.
-  - **Migration faite le 21/09/2026** (son choix : « on y va »), avec un outil
-    écrit pour l'occasion — `test_voix/_migrer_phrases_abreviations.py` : il
-    compare la liste **privée des nouvelles formes** à l'état actuel, et non
-    l'ancienne règle du 18/09, sinon il migrerait **deux fois**. Résultat :
-    **42 fusions**, 13 023 → **12 981** lignes, **1 cas** à locuteurs mélangés
-    (signalé : une réplique de Marnie Cullum réunie à de la narration — le
-    locuteur le plus long est gardé), **1 position de lecture** recalée, et
-    **vérification passée** (autant de lignes que de phrases, index uniques et
-    dans les bornes). Copie de la base avant écriture :
-    `data/nimm_epub.db.bak_avant_migration_abreviations_20260921_1822`.
-  *Vérifications* : `test_voix/test_decoupage_phrases.py` (+4 cas : `MR.`,
-  `Mr.`, `MME.` restent dans leur phrase) et `test_voix/test_nettoyage_tts.py`
-  (+2 cas : `MR.` → « Monsieur », `MME.` → « Madame ») ; les tests voisins
-  (`test_ids_ecran.py`, `test_majuscules.py`, `test_incise_seule.py`) au vert.
-
-- [x] **Les syllabes inventées autour des prénoms : CORRIGÉ (étape 1)** — livré le
-  **21/09/2026**. Retour d'écoute de Laurent : « les voix Kokoro ont certainement
-  des balises qui font prononcer certains mots comme ceci (`enAndréafe`). Ça doit
-  être `EN_Andréa_FR` qui est prononcé par Kokoro. C'est très présent sur les
-  prénoms, mais sur certains mots également. »
-  *Ce qui a été livré, en deux mécanismes* (`modules/prononciation.py` et
-  `modules/tts.py`) :
-  1. **Kokoro reçoit les PHONÈMES, plus le texte** (`is_phonemes=True`) : on
-     phonémise nous-mêmes, puis on **retire les marques de langue**
-     (`(en)ˈandɹiə(fr)`) qu'espeak-ng insère et que le tokenizer de
-     kokoro-onnx **prononçait**. Fini les « én … fe », **partout** — y compris
-     sur les mots que la table ne connaît pas ;
-  2. **une table de prononciation** pour les mots que le phonémiseur revendique
-     (Kokoro **et** Piper) : la phrase est réécrite pour la **lecture seule** —
-     `Andrea → Andréa`, `Marthe → Marte`, `Arthur → Artur`, `Nathan → Natan`
-     (les quatre **validés à l'oreille** le 20/09/2026), plus `Ethan → Étan`,
-     `Maëlys → Maélis`, `Mathis → Matis`, `Noah → Noa` et `dos → dô`
-     (proposés, **en attente de son oreille**). L'apostrophe courbe redevient
-     droite au passage (« d’aujourd’hui » partait en anglais).
-  *Mesure* (`test_voix/sortie_ecoute_prononciation/mesure_phonemes.txt`) : les
-  neuf mots passent d'un son **anglais marqué** à un son **français**
-  (`andrea : (en)ˈandɹiə(fr)` → `ɑ̃dʁeˈa` ; `dos : (en)dˈɒs(fr)` → `dˈoː`). Et
-  dans le lot, la phrase entière **maigrit de 35 %** (368 Ko → 238 Ko) : c'est le
-  temps des syllabes en trop qui disparaît.
-  *Vérifications* : **31 contrôles** (`test_voix/test_prononciation_kokoro.py`),
-  dont un **garde-fou de la table** — chaque graphie doit cesser de basculer en
-  anglais **et** son mot d'origine doit basculer, sinon l'entrée ne sert à rien
-  et le test le signale. `VERSION_CACHE` passe à **15** : les phrases déjà
-  écoutées doivent être refaites (leçon du 17/09).
-  **VERDICT D'OREILLE DE LAURENT, le 21/09/2026 : « tous les "après" sont ok.
-  C'est parfait ! »** — les neuf entrées de la table sont donc **validées**, et
-  la correction est **en service** (vérifié sur le lecteur en marche : la phrase
-  d'exemple passe de 2,62 s à 2,18 s, et l'audio renvoyé est exactement le
-  fichier « après » du lot).
-  *Ce qui reste* : l'**étape 2** — le scanner qui parcourt un livre et propose la
-  liste des mots à corriger (il existe côté NIMM Voix, à rapatrier) ; et, si un
-  jour un mot résiste, l'ajouter à la table après l'avoir **mesuré et écouté**
-  (le lot se regénère par `test_voix/ECOUTER_PRONONCIATION.bat`).
-
 - [ ] **Le scanner de prononciation d'un livre (étape 2)** — suite de l'item
   « syllabes inventées », livré le 21/09/2026. Aujourd'hui la table de
   `modules/prononciation.py` se remplit **à la main**, mot par mot, après mesure
@@ -1983,63 +584,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
 
 ## 🟠 Priorité 2 — Voix & casting
 
-- [x] **🧹 La fenêtre du casting respire : en-tête compact, tiroir des réglages,
-  et la fenêtre ne sort plus de l'écran** — demandé le 21/09/2026 au soir, livré
-  le **22/09/2026**. Laurent : « Sur mobile, le menu déroulant pour choisir les
-  personnages et leurs voix est minuscule. Il faudrait gagner de la place sur le
-  haut de la modale, par exemple les icones. » Et sur les partages : « je ne peux
-  pas accéder aux noms qui sont cliquables, parce que souvent la modale sort de
-  l'écran vers le bas. »
-  *Le diagnostic, chiffré* : l'en-tête portait **21 contrôles** empilés en sept
-  blocs (2 champs, 15 boutons de filtre, 3 boutons de re-cast). Tous ces blocs
-  refusaient de rétrécir (`flex-shrink: 0`) et la **liste des personnages était
-  le seul élément qui pouvait céder** : elle tombait donc à presque rien — d'où
-  le menu déroulant « minuscule ». Deuxième cause, plus vicieuse : la hauteur de
-  la fenêtre était en **`80vh`**, une unité qui se calcule sur l'écran **sans la
-  barre d'adresse** du navigateur. Dès que celle-ci est visible, le bas de la
-  fenêtre passe **sous l'écran** — exactement là où étaient les noms cliquables,
-  et la fenêtre ne défilait pas pour rattraper ça.
-  *Ce qui a changé* :
-  1. **en-tête à trois commandes** : le bouton de recherche, le bouton
-     « Filtres » et la fermeture. Les 21 contrôles sont descendus dans le
-     **tiroir des réglages** (`#cast-tools`) : voix proposées dans les menus,
-     âge de la voix, genre du personnage, saga, re-cast ;
-  2. le tiroir est **replié par défaut sur téléphone, ouvert sur ordinateur**
-     (`_castOutilsDoiventEtreOuverts`, fonction pure et testée), et le **choix
-     de Laurent est gardé pendant la session** : il ne se referme plus à chaque
-     clic sur un filtre ou sur une voix ;
-  3. la **barre de recherche se cache** jusqu'au tap sur le bouton de recherche
-     — et s'ouvre d'elle-même tant qu'une recherche est en cours, sinon on ne
-     verrait plus ce qui filtre la liste ;
-  4. les **pastilles d'état** (Tous / À caster / Voix partagée / Voix libres)
-     tiennent sur **une seule ligne qui défile au doigt** (avant : deux ou trois
-     rangs), et le « Personnages : » devant elles a disparu ;
-  5. les **compteurs** (« 176 personnages · 3 à caster · 5 voix partagées ·
-     105 voix libres », « 12 personnages affichés sur 176 », et le message des
-     moteurs éteints) sont remontés **hors du tiroir** : visibles en permanence,
-     sinon un filtre resté actif aurait fait ressembler le livre à une liste
-     amputée ;
-  6. la **liste garde 90 px minimum**, et c'est le **tiroir** qui se réduit et
-     défile quand la place manque (lui, on peut le rouvrir) ;
-  7. la **fenêtre ne peut plus dépasser l'écran** : `max-height: min(80vh,
-     calc(100dvh - 44px))`, le `80vh` restant en repli pour les navigateurs qui
-     ne connaissent pas `dvh` ; marges réduites sur téléphone ;
-  8. dans le détail d'un partage, les **noms cliquables passent AVANT
-     l'explication** (elle fait 4 à 6 lignes sur un livre réel et poussait les
-     noms hors de l'écran), et déplier **fait défiler la fenêtre** jusqu'au
-     détail : ce qui s'ouvre se voit.
-  *Gain sur l'en-tête* : de l'ordre de **490 px à environ 75 px sur téléphone**
-  (estimation d'après les styles, avant essai terrain).
-  *Fichiers* : `frontend/index.html`, `frontend/styles.css`, `frontend/app.js`
-  (copies datées `*.bak_avant_entete_casting_20260922`), et les numéros de
-  version des assets portés à `?v=20260922-1` — sans quoi un téléphone garde
-  l'ancienne page en cache.
-  *Tests* : **`test_voix/test_entete_casting.js` (nouveau : 45 contrôles, rien à
-  allumer)** ; `test_voix/test_tiroir_voix_libres.js` **adapté sur trois lignes**
-  (la phrase n'est plus le premier élément du détail, les noms passent avant —
-  dit franchement : c'est un test mis à jour, pas un test cassé) ; le reste de la
-  suite au vert.
-
 - [ ] **🎯 Le chapitre d'essai devient le TEXTE DE RÉFÉRENCE, puis on compare les
   LLM (DeepSeek en premier)** — demandé par Laurent le **21/09/2026 au soir** :
   « Quand il sera parfait, il servira de texte de référence, et on fera le cast
@@ -2071,107 +615,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Pourquoi ça compte* : DeepSeek était **moins bon que Gemini** avant ces
   travaux ; s'ils se valent maintenant, il devient une **alternative** (autre
   fournisseur, tarif différent).
-
-- [x] **🎭 Les petits rôles sont joués par DEUX voix : Jessica (femmes) et Pierre
-  (hommes)** — décision et livraison du **21/09/2026**. Laurent : « un changement
-  pour les voix à moins de 8 répliques. Je me suis décidé, on va faire jouer ces
-  voix par 2 voix : 1 masculine et 1 féminine, toutes les 2 sur le même TTS,
-  Piper. Jessica pour les femmes < 8 répliques, Pierre pour les hommes. »
-  *Le terrain était prêt* : depuis le 15/09/2026, cette branche du casting
-  renvoyait un `voice_id` **VIDE** (les petits rôles étaient lus par le
-  **narrateur**, après le verdict « inaudibles, vraiment moches » sur les voix
-  génériques d'alors, Siwis/Tom), et le code gardait **deux emplacements vides
-  exprès** (`GENERIC_VOICE_F/M`) avec ce commentaire : « le jour où Laurent aura
-  choisi deux voix neutres, il suffira de les y mettre, puis de re-caster ».
-  C'est exactement ce qui a été fait.
-  *Les deux voix* : **Jessica** = `piper:upmc:0` (**3 étoiles** à l'écoute) et
-  **Pierre** = `piper:upmc:1` (**1 étoile**), toutes les deux dans le modèle
-  **studio** Piper `fr_FR-upmc-medium`. Ce ne sont donc PAS les voix refusées
-  (Siwis/Tom) ; à ne pas confondre avec l'homonyme `kokoro:af_jessica`, une
-  Jessica **américaine** du catalogue Kokoro. Piper tourne **dans le lecteur** :
-  aucun service à allumer, aucun appel payant.
-  *Livré en trois endroits* :
-  1. `modules/voice_casting.py` : `GENERIC_VOICE_F/M` = Jessica/Pierre, et
-     `assign_voices()` donne la voix générique **du genre** au lieu d'un vide
-     (nouvelle fonction `_voix_generique`) ;
-  2. `frontend/app.js` : `_CAST_VOIX_GENERIQUES` = les deux mêmes identifiants,
-     **dans le même ordre** ([0] femmes, [1] hommes) — sans quoi Jessica et
-     Pierre auraient été signalées « voix partagée » des centaines de fois, et
-     le bouton « Déplacer » aurait envoyé ailleurs ;
-  3. les tests qui vérifiaient « un petit rôle reste SANS voix » vérifient
-     désormais Jessica/Pierre.
-  *Livres déjà castés* — **migration ciblée** (option A, choisie par Laurent) :
-  **643 lignes réécrites sur 11 livres**, **34 lignes verrouillées NON touchées**
-  (un verrou = « je garde »), **hauteurs et vitesses conservées** (seule la
-  colonne `voice_id` change, donc deux petits rôles d'une même scène ne sonnent
-  pas exactement pareil). Outil : `test_voix/migrer_petits_roles.py` + lanceur
-  `MIGRER_PETITS_ROLES.bat` (essai d'abord, copie datée automatique avant
-  d'écrire). Copie créée :
-  `nimm_epub.db.bak_avant_petits_roles_20260921_2128`, et l'outil est
-  **rejouable** (un second passage dit « Rien à faire »).
-  *Découverte au passage* : `test_attribution_criteres.py` **ne tournait
-  jamais** — il manquait à la liste `TESTS_PY` du lanceur de tests, et il avait
-  dérivé sans que rien ne le signale (son contrôle « aucune voix à 0 étoile
-  attribuée » comptait Jessica/Pierre comme 0 étoile, alors que Piper est **hors**
-  de l'index du pool automatique et que Pierre est noté **1 étoile**). Réparé
-  **et ajouté à la suite** (37 tests au lieu de 36).
-  *Vérifications* : suite complète **TOUT EST OK**.
-  *À faire par Laurent* : **redémarrer NIMM ePub** (bouton « 🔄 Redémarrer NIMM
-  ePub » du panneau Réparer, ou `START.bat` sur le PC) pour que le **serveur**
-  prenne le nouveau code, puis **écouter** un chapitre contenant un personnage de
-  moins de 8 répliques. *Détails* : ARCHITECTURE.md, « Les petits rôles : une voix
-  par genre ».
-  *Suite le même jour — les VARIANTES de timbre* (question de Laurent : « on a
-  combien de variations possibles entre la vitesse et la hauteur ? Si chaque cran
-  des 2 réglages fait une voix, ça nous ferait combien de variations ? ») :
-  **11 hauteurs** (de -20 à +20 Hz, pas de 4) × **13 vitesses** (de -30 à +30 %,
-  pas de 5) = **143 variantes pour une même voix**. Chaque petit rôle reçoit donc
-  **sa propre variante**, répartie **par livre et par genre** — dans le code
-  (`PITCH_VARIANTES`, `RATE_VARIANTES`, `_variante_generique`) **et** dans les
-  livres déjà castés (même outil, `--appliquer`). Le plus gros besoin mesuré est
-  de **85 petits rôles hommes** (Monte-Cristo T6) : **143 couvre donc tous les
-  livres, avec 58 de marge** ; au-delà de 143, on recommence au début — deux
-  petits rôles partageraient alors exactement la même voix, ce que Laurent a
-  accepté (« si 2 tombent sur la même ce n'est pas bien grave »). Les hauteurs
-  sont parcourues **d'abord**, dans un ordre à grands écarts (0, +8, -8, +16,
-  -16, +4, -4…) : deux petits rôles **voisins** dans la liste ont donc toujours
-  une hauteur différente, ce qui compte pour un dialogue entre deux figurants.
-  *Pourquoi c'était utile* : avant cette répartition, **422 petits rôles de la
-  base étaient exactement identiques** (`+0Hz` **et** `+0%`).
-  *Vérifications* : `test_voix/test_pool_casting.py` §6b (20 hommes et 20 femmes
-  → 20 couples distincts ; bornes conformes aux curseurs du casting ; deux
-  voisins de hauteur différente).
-
-- [x] **🔒 Le cadenas du casting est un DESSIN, plus un emoji : verrouillé et
-  déverrouillé ne se ressemblent plus sur le téléphone** — livré le
-  **21/09/2026**, sur retour de Laurent : « Les cadenas. Pour verrouiller une
-  voix j'ai un cadenas. Actuellement il apparaît avec une aura (sur mobile)
-  quand la voix est verrouillée, et sans son aura quand la voix ne l'est pas. Je
-  préférerais ces 2 icônes à la place : 🔒 = verrouillé, 🔓 = déverrouillé, comme
-  sur PC. »
-  *Diagnostic* : le code envoyait bien **les deux emojis** (🔒 fermé / 🔓 ouvert),
-  les mêmes sur PC et sur téléphone — c'est leur **dessin** qui change selon
-  l'appareil (le cas était déjà connu : ⏮⏪⏩⏭ remplacés par des SVG le
-  20/09/2026, voir `styles.css`). Sur son téléphone, les deux se ressemblaient
-  donc assez pour que **seule l'aura dorée du bouton**
-  (`.cast-lock-btn.locked`) dise l'état — exactement ce qu'il décrivait, et
-  rien dans le CSS ne pouvait y remédier, puisque les deux pages reçoivent le
-  **même** code.
-  *Livré* : le bouton porte un **cadenas dessiné** (SVG, `_svgCadenas` dans
-  `frontend/app.js`) qui **prend la couleur du bouton** : **anse rabattue =
-  verrouillé** (accent doré), **anse relevée = déverrouillé** (grisé). Le dessin
-  est donc **identique sur tous les appareils**, puisqu'il ne dépend plus
-  d'aucune police d'emoji. L'**aura est conservée** (sur PC elle allait bien) :
-  elle souligne l'état, elle ne le porte plus seule. Le dessin, l'infobulle et
-  le libellé d'accessibilité sont peints au **même endroit**
-  (`_peindreCadenas`) : l'affichage et le clic ne peuvent pas se contredire.
-  *Vérifications* : `test_voix/test_tiroir_voix_libres.js` (les deux anses,
-  l'appel unique) et `test_voix/LANCER_TOUS_LES_TESTS.bat` — **36 tests, TOUT
-  EST OK**.
-  *À voir par Laurent (2 minutes)* : ouvrir le casting sur son téléphone — le
-  cadenas **fermé doré** (verrouillé) et le cadenas **ouvert gris**
-  (déverrouillé) doivent se distinguer au premier coup d'œil.
-  *Détails* : ARCHITECTURE.md, « Re-cast d'un livre déjà casté ».
 
 - [ ] **🎭 Casting : tri par âge, libellé plus court dans les fenêtres étroites,
   et une voix qui ne doit pas être remplacée en silence** — trois demandes de
@@ -2387,315 +830,7 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   qui **échoue** si la voix d'un personnage change sans que Laurent l'ait
   demandé.
 
-- [x] **La vitesse réglée sur un personnage n'était JAMAIS appliquée — corrigé** —
-  livré le **20/09/2026** (choix **A1** validé par Laurent ; **la règle a été
-  révisée le soir même** — voir « RÉVISION DU MÊME JOUR » en fin d'item). Retour d'écoute de
-  Laurent, le même jour : « il faudrait vider le cache d'une voix quand je change
-  le pitch ou la vitesse, sinon il lit tout à la vitesse précédente. Ça n'a pas
-  l'air de refaire le texte si un réglage a changé. »
-  *Diagnostic — le cache était innocent* : la clé du cache contient bien la
-  vitesse **et** la hauteur (`_hash_key(text, voice, rate, pitch)`), et
-  `/api/tts` transmet les deux au moteur. Le défaut était dans la **playlist de
-  lecture** : `_buildPlaylist()` mettait la **voix** et la **hauteur** dans
-  chaque phrase, mais **pas la vitesse** ; `_runTTS` lisait celle du **menu du
-  haut une seule fois** et l'appliquait à toutes les phrases. Les curseurs de
-  vitesse de la fenêtre du casting s'enregistraient donc en base **sans aucun
-  effet audible** — et comme la vitesse envoyée ne changeait pas, la clé de
-  cache restait identique : le lecteur resservait le **même** audio (d'où
-  l'impression que « le texte n'est pas refait »).
-  *Mesure* (base lue en **LECTURE SEULE** le 20/09/2026) : **1 232 fiches**, dont
-  **131** avec une vitesse réglée jamais entendue (de **−25 % à +20 %** :
-  Carlini +20 %, Luigi Vampa +15 %, le père Dantès −25 %…) et **594** avec une
-  hauteur — cette dernière **fonctionnait** déjà (le `pitch` était transmis).
-  *Correction (**A1**)* : **la fiche du personnage remplace le menu pour ce
-  personnage** ; le menu du haut reste le réglage général de la lecture (et
-  celui du narrateur). Garde-fou ajouté : **le neutre ne compte pas** — une
-  fiche à `+0%` (**1 101** personnages) rend `null` et suit le menu ; sans cela,
-  le menu « Lente » n'aurait plus ralenti **aucun** dialogue (on aurait
-  remplacé un défaut par un autre).
-  *Fichiers touchés* : `frontend/app.js` (nouvelle fonction **pure**
-  `_vitesseDeFiche()`, `_voiceForSentence()`, `_buildPlaylist()`,
-  `launchFetch()`), `frontend/index.html` (`?v=20260920-16`),
-  `test_voix/test_vitesse_personnage.js` (**nouveau**, 23 contrôles),
-  `test_voix/LIRE_MOI.md`.
-  *Vérifications* : les **19 tests JavaScript** de l'atelier passent (le nouveau
-  compris), `node --check` sur `app.js`, `test_ids_ecran.py`,
-  `test_import_main.py`, `test_lire_moi.py`, `test_js_syntax.py`,
-  `test_js_parse.py` : OK.
-  *Sauvegardes* : `frontend/app.js`, `frontend/index.html`, `BACKLOG.md` et
-  `ARCHITECTURE.md`, en `.bak_avant_vitesse_personnage_20260920`.
-  *Ce que Laurent doit voir* : dans la fenêtre du casting, régler la vitesse d'un
-  personnage s'entend **tout de suite** (la lecture repart de la phrase en
-  cours, mécanisme du 15/09) ; les personnages dont le curseur n'a jamais été
-  touché suivent toujours le **menu du haut**, comme la narration.
-  *La hauteur n'a pas changé* : elle était déjà transmise, avec un effet
-  volontairement discret (curseur de ±20 Hz à **8 Hz par demi-ton** → **±2,5
-  demi-tons** au maximum). L'élargir serait un **autre** item, non demandé.
-  *Reste ouvert* : la vitesse du **menu du haut** ne s'entend qu'à la reprise
-  d'une lecture (son gestionnaire ne relance rien, et la fenêtre de
-  préchargement garde l'ancienne vitesse) — petit correctif possible, non
-  demandé à ce jour.
-
-  **RÉVISION DU MÊME JOUR (soir) — la règle se simplifie.** Laurent précise sa
-  pensée : « je voulais que le narrateur, celui du menu, ait son propre tempo.
-  Tout est lu à vitesse normale, sauf pour ceux ayant un réglage de vitesse. Le
-  narrateur a son réglage dans le menu. » Autrement dit : **le menu du bas n'est
-  pas un réglage général — c'est celui du NARRATEUR.**
-  *Ce qui change par rapport à la livraison du matin* : un personnage qui a une
-  voix dédiée mais **aucun** réglage de vitesse lit désormais à **« Normale »**
-  (constante `PERSONNAGE_RATE_DEFAUT`, `+0%`) et **non** à la vitesse du menu ;
-  le menu **ne touche plus aux dialogues**. Le **récit** et les **petits rôles**
-  (lus par le narrateur) gardent, eux, la vitesse du menu — ce sont eux qui ont
-  le tempo du narrateur. Motif de Laurent pour les petits rôles : « fais au plus
-  simple » — il prévoit de leur donner bientôt des **voix génériques** (une voix
-  homme et une voix femme réservées à cet usage, pas encore choisies).
-  *Conséquence à connaître* : mettre le menu sur « Très rapide » accélère le
-  **récit**, pas les dialogues — pour accélérer un personnage, c'est son curseur
-  dans la fenêtre du casting qu'il faut bouger.
-  *Piste abandonnée le même jour* : la vitesse du narrateur **par livre**
-  (colonne `books.narrator_rate`, proposée puis écartée par Laurent) n'est
-  **pas** retenue — le menu reste un réglage **global**. Donc **aucune écriture
-  en base, aucune colonne ajoutée, pas de copie de base nécessaire**.
-  *Fichiers touchés (révision)* : `frontend/app.js` (constante
-  `PERSONNAGE_RATE_DEFAUT`, `_voiceForSentence`, commentaires de la playlist et
-  de `launchFetch`), `frontend/index.html` (`?v=20260920-17`),
-  `test_voix/test_vitesse_personnage.js` (**27 contrôles** — dont « menu sur
-  Lente : le personnage sans réglage reste à Normale »), `test_voix/LIRE_MOI.md`.
-  *Sauvegardes (révision)* : `.bak_avant_menu_narrateur_20260920` pour
-  `frontend/app.js`, `frontend/index.html`, `BACKLOG.md`, `ARCHITECTURE.md`,
-  `test_voix/LIRE_MOI.md` et `test_voix/test_vitesse_personnage.js`.
-  *Ce que Laurent doit voir* : le casting fonctionne comme avant (les 131 fiches
-  réglées s'entendent enfin), **plus** : le menu du bas ne change que le
-  **narrateur**, et les dialogues non réglés restent à vitesse normale.
-  *Effet à connaître* : si le menu était sur « Rapide » ou « Lente », les
-  phrases des personnages non réglés reviennent à Normale — la vitesse entrant
-  dans la clé du cache, elles **se régénèrent une fois**.
-  **✅ VALIDÉ À L'OREILLE par Laurent le 20/09/2026** (« Testé et validé. ») :
-  les personnages réglés s'entendent enfin, et le menu du bas ne change plus que
-  le **narrateur**. L'item est **clos** de bout en bout — reste seulement, si le
-  besoin revient, le petit correctif « menu du bas pendant une lecture ».
-
-
-- [x] **La voix du NARRATEUR passe d'un livre à l'autre — chaque livre doit garder
-  la sienne** — **LIVRÉ le 20/09/2026** (correction **A + B**, validée par Laurent
-  le même jour). Constat de Laurent, **20/09/2026** : « la voix narrateur passe
-  d'un livre à l'autre, alors que le narrateur du livre A devrait rester sur son
-  livre, et si je choisis un narrateur B pour un autre livre, il devrait rester
-  enregistré. En gros, chaque livre devrait avoir son narrateur, pas un même
-  narrateur qui passe de livre en livre. »
-  *Ce qui existe déjà* (livré le 17/09/2026) : la voix du narrateur est bien
-  **par livre** en base — colonne `books.narrator_voice`, route
-  `PUT /api/books/{id}/narrator`, restauration au chargement du livre par
-  `_restaurerVoixNarrateur()` (`frontend/app.js`). Le défaut n'est donc pas un
-  manque : c'est un **trou dans la chaîne**.
-  *Cause trouvée le 20/09/2026* (LECTURE SEULE de `data/nimm_epub.db`, rien
-  modifié) : **10 livres sur 14 n'ont AUCUNE valeur** dans `narrator_voice`
-  (Tomes 1, 2, 3, 4 et 6 de Monte-Cristo, Marathoniens, Dialogues désaccordés,
-  Latude, Shantaram, Notre-Dame de Paris). Les 4 qui en ont une : Tome 5
-  (`fr-FR-DeniseNeural`), Gamine effrontée, 22/11/63 et Chevalier Errant (voix
-  Kyutai). Or, à l'ouverture d'un livre **sans valeur**, la restauration ne fait
-  **rien** — le garde-fou `if (!sel || !voix || sel.value === voix) return;`
-  sort immédiatement — donc le menu `#voice-select` **garde la voix du livre
-  précédent**, et la lecture part avec elle : c'est le narrateur qui « passe »
-  d'un livre à l'autre. Et comme rien n'est écrit pour ce livre, le choix ne
-  « reste » pas non plus.
-  *Second défaut, même endroit* : si la voix enregistrée n'est **pas proposée**
-  (moteur éteint), la restauration est **silencieuse** — un simple
-  `console.warn('Voix du narrateur indisponible pour ce livre')`, invisible pour
-  Laurent — et le menu garde la voix de l'autre livre sans que rien ne le dise.
-  *Correction proposée (**niveau 3** : c'est le comportement de lecture)* :
-  **(1)** à l'ouverture d'un livre **sans valeur enregistrée**, remettre le menu
-  sur la voix de narration **par défaut** (Ariane) ; **(2)** **enregistrer** cette
-  valeur pour le livre — chaque livre a alors SA voix, et elle le suit d'un
-  appareil à l'autre ; **(3)** quand la voix enregistrée n'est pas disponible, le
-  **dire** à l'écran au lieu de garder l'autre voix en silence.
-  *À ne pas oublier dans la même session* : monter le `?v=` dans
-  `frontend/index.html` (**règle de session** : `app.js` modifié → cache-busting,
-  sinon le téléphone garde l'ancien code) ; **copie datée de `data/nimm_epub.db`**
-  avant toute écriture ; le changement de voix ne s'applique qu'au **prochain
-  chargement de chapitre** (comportement connu du lecteur).
-  *Ce qui a été livré (**A + B**, validé par Laurent le 20/09/2026)* :
-  **(1)** un livre sans voix enregistrée reçoit la voix **par défaut** (Ariane) **et
-  cette valeur est écrite en base** — chaque livre a SA voix ; l'appel de
-  restauration est passé **après** `_currentBookId = bookId` dans `openBook()`,
-  sans quoi l'écriture aurait visé le livre précédent ; **(2)** une voix
-  enregistrée **indisponible** (moteur éteint) fait lire au défaut **et le dit**
-  dans une nouvelle ligne sous les menus (`#narrateur-etat`), **sans écraser le
-  choix du livre** — il revient au rallumage.
-  *Fichiers touchés* : `frontend/app.js` (bloc « voix du narrateur » réécrit :
-  `NARRATEUR_VOIX_DEFAUT`, `_messageNarrateur`, `_enregistrerVoixNarrateur`,
-  `_poserVoixNarrateur`, `_restaurerVoixNarrateur`), `frontend/index.html` (la
-  ligne `#narrateur-etat`, et `?v=20260920-1` sur les deux fichiers),
-  `frontend/styles.css` (style de la ligne),
-  `test_voix/test_narrateur_par_livre.js` (nouveau), `test_voix/LIRE_MOI.md`.
-  *Vérifications* : le nouveau test JS passe (**24 contrôles** — il exécute le
-  **vrai** code de `app.js`, jamais une copie), les **10 autres tests JS** de
-  l'atelier passent aussi, `test_ids_ecran.py` et `test_lire_moi.py` : OK.
-  *Sauvegardes* : `data/nimm_epub.db`, `frontend/app.js`, `frontend/index.html` et
-  `ARCHITECTURE.md`, en `.bak_avant_narrateur_par_livre_20260920`.
-  *Ce que Laurent doit voir* : ouvrir un livre sans voix enregistrée → le menu
-  repart sur **Ariane** (plus la voix du livre d'avant) ; choisir une voix, fermer,
-  rouvrir → **elle est là** ; ouvrir un livre dont la voix est une voix Kyutai,
-  moteur éteint → la **ligne d'explication** apparaît sous les menus, et la voix
-  revient dès que le moteur est rallumé (aucun choix perdu).
-
 ### Retours d'écoute du 18/09/2026
-
-- [x] **Voir les voix par THÈME, et non par moteur** — **traité le 20/09/2026 :
-  PAS NÉCESSAIRE** (décision de Laurent : « idem pour les voix par thème, pas
-  nécessaire »). L'item est **clos**, à rouvrir seulement si le besoin revient.
-  Les deux manques « immédiats » qu'il portait ont été **livrés le même jour**
-  (voir le récap en fin d'item) : les étiquettes des rubriques étaient déjà
-  faites, l'échelle `tres_grave`/`tres_aigu` était en place depuis le 19/09.
-  À savoir si le sujet revient un jour : les thèmes **existent déjà côté
-  données** — ce sont les critères d'écoute (`CRITERES_VOIX`), et ils sont
-  remplis (250 voix annotées sur 265). Ce qui manquerait serait seulement
-  l'écran.
-  *Historique de l'idée* : demande de
-  Laurent (18/09/2026) : « améliorer l'affichage des voix, il faut que je voie
-  plutôt par thèmes dans le style : voix grave/aiguë, âge, rapide, etc. ».
-  *Bonne nouvelle* : les thèmes **existent déjà**, ce sont les critères d'écoute
-  (`CRITERES_VOIX`, `main.py`) — âge (enfant / jeune / adulte / mûr / vieux),
-  timbre (grave / médium / aigu / rocailleux / cristallin / voilé), débit (lent /
-  posé / normal / vif), accent, registre, rôle réservé. Ils sont même **remplis** :
-  250 voix sur 265 pour l'âge, le timbre et le débit (bilan
-  `test_voix/_etat_annotations_voix.py`).
-  *Ce qui manque est donc seulement l'ÉCRAN* : la fenêtre d'écoute des voix et
-  celle du casting se lisent aujourd'hui **par moteur** (Edge, Kokoro, Piper,
-  Kyutai, XTTS, NeuTTS) et par genre. Projet : des **boutons de thème** qui
-  filtrent (femmes jeunes et aiguës, hommes mûrs et graves, voix vives, accents
-  non neutres...) et un tri par thème, **les mêmes filtres dans les deux
-  fenêtres**. Chantier frontend à découper avant de coder (l'écran d'écoute et
-  l'écran de casting doivent partager la même logique — et le pool automatique du
-  casting lit déjà ces critères).
-  *Complément de Laurent, 19/09/2026* : « je continue d'annoter les voix, et il
-  faudrait que je voie les rubriques (Âge : jeune, adulte, mûr, vieux ;
-  Timbre : très aigu, aigu, moyenne, grave, très grave) ». Deux manques
-  **distincts** :
-  (1) **voir à quoi correspond chaque menu** : une fois une valeur choisie, la
-  ligne affiche « adulte » ou « aigu » **sans dire de quelle rubrique il
-  s'agit** — le libellé n'apparaît que sur un menu **vide**, en guise d'option
-  (`app.js`, `_construireLigneVoix`). Correctif minimal et immédiat : une
-  **étiquette visible devant chaque menu** (« Âge », « Timbre », « Débit »…).
-  (2) **une échelle de hauteur** pour le timbre : Laurent demande
-  **très aigu / aigu / moyenne / grave / très grave**, là où la liste actuelle
-  mêle trois **hauteurs** (grave, médium, aigu) et trois **textures**
-  (rocailleux, cristallin, voilé).
-  ⚠️ **Ne pas remplacer, AJOUTER** : ces valeurs servent déjà (**250 voix
-  annotées** : aigu 85, médium 81, grave 58, voilé 20, rocailleux 4,
-  cristallin 2 ; âge : adulte 118, jeune 63, mûr 53, vieux 10, enfant 6).
-  Ajouter `tres_aigu` et `tres_grave` ne perd rien ; remplacer rendrait
-  **26 annotations orphelines** (voilé, rocailleux, cristallin). Décision de
-  Laurent à prendre.
-  ✅ **Avancé le 20/09/2026 — les deux manques « immédiats » sont traités, le
-  chantier d'écran reste à faire.**
-  (1) **Les rubriques sont maintenant ÉCRITES devant chaque menu** de critères
-  (« Âge [– ] », « Timbre [grave] »…) : c'était le correctif minimal demandé, il
-  est livré. Avant, le nom de la rubrique était porté par l'**option vide** du
-  menu, donc il **disparaissait dès qu'une valeur était choisie**
-  (`_construireLigneVoix`) : Laurent lisait « adulte » sans savoir à quoi ça
-  répondait. Étiquette courte et **pure** (`_libelleCourtCritere`), libellé
-  complet du serveur en **infobulle**, option vide devenue un **tiret** (comme
-  les menus genre/étoiles), et l'étiquette est collée à son menu dans le même
-  groupe (`.voice-critere-champ`) pour qu'un retour à la ligne sur téléphone ne
-  les sépare jamais. Les libellés de `CRITERES_VOIX` ont reçu leurs **accents**
-  au passage (« Âge perçu », « Débit », « Rôle réservé ») : **seuls les
-  libellés** changent, aucune clé ni valeur ne bouge, donc **aucune annotation
-  perdue**.
-  (2) **L'échelle est DÉJÀ en place** : `tres_grave` et `tres_aigu` ont été
-  **ajoutés le 19/09/2026** dans `CRITERES_VOIX`, en gardant les trois hauteurs
-  et les trois textures d'origine. Il n'y a donc **rien à trancher** de ce côté.
-  *Vérifications* : `test_voix/test_criteres_voix.js` (**25 contrôles** : les
-  étiquettes exactes dans l'ordre du serveur, étiquette + menu dans le même
-  groupe, tiret de l'état vide, et une **rubrique inconnue** qui affiche son
-  libellé complet) et `test_voix/test_ids_ecran.py` (**104 contrôles**).
-  *Ce qui reste* : l'écran « par thème » lui-même (boutons de thème, tri, les
-  mêmes filtres dans les deux fenêtres) — **le plat de résistance**, à découper
-  avant de coder. Détails dans ARCHITECTURE.md.
-
-- [x] **Menus de voix : des DRAPEAUX et tes notes d'écoute — LIVRÉ le
-  19/09/2026** — demande de Laurent : « retirer France, Espagne, Italie, etc. et
-  ne laisser que les drapeaux ». Pour les voix Kokoro : « selon l'accent, plus ou moins
-  prononcé, je pourrais mettre 2 drapeaux — un français et un deuxième pour
-  l'accent. Les langues étrangères très prononcées, on laisse un seul drapeau. »
-  *État mesuré le 19/09/2026* (23 libellés distincts, champ `region` de
-  `modules/tts.py` et `main.py`) :
-  - **12 voix Edge n'ont AUCUN code pays** : « France » (5), « Canada » (3),
-    « Belgique » (2), « Suisse » (2) — incohérence à corriger d'abord ;
-  - les autres nomment le pays **et** le moteur : « France (NeuTTS) » (109),
-    « France (XTTS) » (74), « France (Kyutai) » (35), « France (NIMM Voix) »
-    (30), « France (Piper) » (4), « France (Kokoro) » (1) ;
-  - les accents XTTS sont écrits **dans le texte** : « France (XTTS) - accent
-    allemand / anglais / canadien / paysan / espagnol-italien » ;
-  - pays du timbre : États-Unis (20), Chine (8), Royaume-Uni (8), Japon (5),
-    Inde-Hindi (4), Portugal/Brésil (3), Espagne (3), Italie (2).
-  *Format demandé par Laurent, 19/09/2026 (sa réponse, à garder telle quelle)* :
-  « [Prénom] [drapeau] [Âge] [Timbre] [Accent] [Moteur] » — ses exemples :
-  `Alice 🇫🇷 Jeune aigu - Kyutai` et `Amélie 🇫🇷🇬🇧 Mûre grave - Kokoro`.
-  *Ce qu'il voit aujourd'hui* (relevé par lui le 19/09/2026) :
-  - Kokoro / Kyutai / Piper, modale du casting : `Prénom — 🇫🇷 France` ;
-  - **Edge, PARTOUT : `Prénom — France`** — aucun drapeau : ce sont exactement
-    les **12 voix sans code pays** relevées ci-dessus ;
-  - menu de changement de voix d'un personnage :
-    `Prénom — 🇫🇷 France (Kyutai)` ;
-  - fenêtre « Écouter les voix » : `Prénom — 🇫🇷 France (Kyutai)`.
-  ✅ **Les drapeaux s'affichent bien en IMAGE chez Laurent** (constaté le
-  19/09/2026) : l'alerte « Windows affiche les drapeaux en deux lettres » ne
-  s'applique **pas** à sa machine — ne plus s'en servir d'argument.
-  *Règle des drapeaux validée par Laurent* : « je ne lis qu'en français de toute
-  façon » → le **drapeau principal est toujours 🇫🇷**, et le **2ᵉ drapeau** est
-  celui du pays du **timbre** (ou de l'**accent**) quand la voix vient d'ailleurs.
-  Pas besoin d'une case « intensité de l'accent » : **2 drapeaux suffisent**.
-  *Cas particuliers à trancher* : (1) « accent paysan » — ce n'est pas un pays ;
-  (2) « accent espagnol/italien » — deux pays pour une seule voix ; (3) les voix
-  Edge `fr-BE`, `fr-CA`, `fr-CH` (accent régional francophone : 🇫🇷🇧🇪, 🇫🇷🇨🇦,
-  🇫🇷🇨🇭 ?) ; (4) les **voix sans âge ni timbre annotés** (que montre-t-on à la
-  place ?).
-  *Où sont les rubriques affichées* : l'**Âge** et le **Timbre** du libellé sont
-  les **annotations d'écoute** (`data/annotations_voix.json`), pas les
-  catalogues — la page les a déjà en mémoire (`_annotationsVoix`). ⚠️ Vérifier
-  qu'elles sont chargées **avant** la construction des menus du casting (sinon
-  les libellés seraient vides au premier affichage).
-  ✅ **LIVRÉ le 19/09/2026.** Format en place dans les **deux** menus (celui du
-  narrateur dans les réglages, et celui du casting) : `Prénom 🇫🇷[2ᵉ drapeau] âge
-  timbre — Moteur`. Exemples réels : `Henri 🇫🇷 mûr grave — Edge (en ligne)`,
-  `Aurore 🇫🇷🇬🇧 mûr voilé — Kokoro`, `Sylvie 🇫🇷🇨🇦 — Edge (en ligne)`.
-  *Comment le 2ᵉ drapeau est choisi*, dans cet ordre : un drapeau **déjà écrit
-  dans la région** (le plus précis : États-Unis, Japon), sinon un **accent nommé
-  dans la région** (« France (XTTS) - accent allemand »), sinon un **pays écrit
-  en clair** (France, Canada, Belgique, Suisse — les **12 voix Edge qui
-  n'avaient aucun drapeau**), sinon l'**accent annoté par Laurent**. Le drapeau
-  français est toujours devant et n'est jamais répété.
-  *L'âge et le timbre* viennent des annotations d'écoute, affichés avec les
-  **libellés du serveur** (« mûr », « très aigu »). Une voix pas encore annotée
-  n'affiche rien de plus, le libellé reste propre. `loadVoices()` charge
-  désormais les annotations **et** les critères : la modale du casting les a donc
-  toujours sous la main (c'était le risque : des libellés vides au premier
-  affichage).
-  ⚠️ *Changement assumé, à valider par Laurent* : le **genre (F)/(M) a disparu**
-  du libellé — le format demandé ne le prévoit pas et les menus du casting
-  groupent déjà « Femmes » / « Hommes ». Si le repère manque dans le menu du
-  narrateur, on le remettra.
-  *Technique* : `frontend/app.js` (`_libelleVoix`, `_secondDrapeauDeVoix`,
-  `_libelleCritere`, plus le libellé du menu du casting qui appelle maintenant la
-  même fonction).
-  *Étendu le 19/09/2026, après essai de Laurent* : le panneau **« Voix de cette
-  phrase »** (menu « Voir la voix » depuis le casting, sur PC comme au tap sur
-  mobile) gardait son **ancien** libellé (`_remplirMenuVoixPhrase`, ligne 3209).
-  Demande de Laurent : « le même affichage que dans le menu Casting des voix ».
-  Corrigé. Les notes d'écoute y sont disponibles **sans rien charger de plus** :
-  `loadVoices()` est appelé au démarrage de la page (`app.js`, init ligne 116) et
-  charge désormais annotations et critères ; et une annotation enregistrée met à
-  jour `_annotationsVoix` en mémoire, donc le panneau suit immédiatement.
-  ⚠️ Rappel : le **service worker** de la page met `app.js` en cache — après une
-  modification, un simple F5 ne suffit pas toujours, il faut un **rechargement
-  forcé** (Ctrl+F5) ou un vidage du cache.
-  *Vérification* : **nouveau test** `test_voix/test_libelle_voix.js`
-  (**11 contrôles** : voix Edge, accents région et annotés, libellés du serveur,
-  valeur inconnue, espaces) ; `node --check frontend/app.js`,
-  `test_voix/test_criteres_voix.js` et `test_voix/test_ids_ecran.py` → tout OK.
-  *À faire par Laurent* : **redémarrer le lecteur**, recharger la page, et
-  regarder ses deux menus.
 
 - [ ] **Kokoro allemand et thaï : ça EXISTE (vérifié le 19/09/2026)** — idée de
   Laurent : « il faudrait télécharger les voix Kokoro en allemand et thaï, je
@@ -2867,49 +1002,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Où ça se conduit* : dans **l'atelier NIMM Voix** (VS Code ouvert sur
   `G:\NIMM Voix`), là où sont le `.venv`, les scripts et les corpus — Cline y
   travaille avec les règles de CET atelier.
-
-- [x] **Timbre : « très grave » et « très aigu » ajoutés** — livré le
-  **19/09/2026**, demande de Laurent : « juste ajouter le "très aigu\très grave"
-  dans ce menu également ». Deux valeurs ajoutées à `CRITERES_VOIX`
-  (`main.py`) : `tres_grave` et `tres_aigu`, **sans rien retirer** — les trois
-  hauteurs (grave, médium, aigu) et les trois textures (rocailleux, cristallin,
-  voilé) restent : **250 voix sont déjà annotées** avec, dont 26 en texture, et
-  les retirer perdrait ces notes. La fenêtre « Écouter les voix » n'est pas
-  touchée par ailleurs (décision de Laurent : « laisser comme il est pour le
-  moment, on ajoutera/retirera des rubriques si nécessaire plus tard »).
-  *Vérification* : `python -m py_compile main.py` et
-  `test_voix/test_annotations_voix.py` (**tout OK**).
-  *À faire par Laurent* : **redémarrer le lecteur** (`START.bat`) pour que les
-  deux nouvelles valeurs apparaissent dans les menus.
-
-
-  remarque de Laurent, 18/09/2026 au soir : « dans Librivox, il faut que je trouve
-  des passages où le lecteur lit un dialogue. J'ai remarqué que des passages que
-  j'ai pris sont des passages de "narrateur" […] Mais les passages qui contiennent
-  des dialogues donnent une prosodie toute différente […] ça améliorera nettement
-  l'effet "quelqu'un qui parle" plutôt que "quelqu'un qui lit". »
-  *Mesuré le soir même* (nouvel outil `test_voix/_analyse_extraits_dialogue.py`,
-  qui lit les transcriptions gardées dans
-  `neutts_service/references/*/references.csv`) :
-  - **CML-TTS** (les 35 voix Kyutai **et** les 25 CML-XTTS) : **13 extraits sur
-    60 (22 %)** seulement portent un dialogue → **47 voix ont un extrait de pure
-    narration** (Blanche, Diane, Éléonore, Augustin, Geneviève, Claude, Hélène,
-    Damien, Edmond, Irène, Gaston, Hubert, Isidore, Julien, Victoire, Ninon,
-    Léon, Odette, Marcel, Norbert, Monique, Quentin, Simon, et les `cml…`).
-    C'est un chiffre **fiable** : le texte vient de la banque CML-TTS, ponctué.
-  - **extraits libres de droits** (choisis à la main par Laurent) : 2 sur 19
-    (11 %) — **plancher seulement** : leur texte vient d'une transcription
-    automatique, qui ne met pas les guillemets de dialogue.
-  - **voix Kokoro clonées** : 0 sur 30 — sans surprise : leur référence est un
-    **texte de contrôle** (toujours le même), pas un extrait choisi.
-  *À faire* : (1) quand un extrait est repris dans Librivox, **chercher les
-  guillemets et les tirets** dans la page — c'est la marque du dialogue ;
-  (2) vérifier l'effet par une écoute comparative (même voix, deux extraits :
-  un dialogue et un récit). L'essai de clonage se fait dans **NIMM Voix** ; le
-  résultat est à remonter ici.
-  *Hypothèse, pas acquis* : Laurent dit « je pense que ça améliorera » — la
-  mesure ci-dessus dit seulement ce que contiennent les extraits actuels, elle
-  ne prouve pas encore l'effet sur la prosodie. À confirmer à l'oreille.
 
 - [ ] **Fish Audio (S2 / S1-mini) : le clonage avec ÉMOTIONS et plusieurs voix —
   à évaluer** (question de Laurent, 19/09/2026 : « jette un œil sur Fish Audio,
@@ -4087,114 +2179,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   clonage maison (sauf NeuTTS-Nano, ou un Piper entraîné sur sa voix).
 
 
-- [x] **Critères FIXES d'annotation des voix (listes déroulantes)** — livré le
-  **16/09/2026** (demande de Laurent : « au lieu de noter, je sélectionne les
-  catégories »). La fenêtre « Écouter les voix » gagne, sous chaque voix, une
-  **seconde ligne de menus déroulants** : **âge perçu** (enfant / jeune /
-  adulte / mûr / vieux), **timbre** (grave / médium / aigu / rocailleux /
-  cristallin / voilé), **débit** (lent / posé / normal / vif), **accent**
-  (neutre / paysan / canadien / anglais / allemand / espagnol / italien /
-  autre), **registre** (noble / neutre / populaire / savant) et **rôle réservé**
-  (narrateur / enfant / vieux / étranger / secondaire). Le genre H/F, les
-  étoiles et la remarque libre restent à part ; un critère renseigné se voit
-  (bordure accentuée).
-  *But* : des annotations **calibrées**, lisibles par la machine — c'est la
-  brique préalable à l'attribution assistée (item suivant).
-  *Technique* : listes fermées dans `main.py` (`CRITERES_VOIX`, **seule source
-  de vérité**, servies à la page par `GET /api/annotations_voix/criteres`) ;
-  toute valeur hors liste est **refusée (400)** ; `frontend/app.js`
-  (`_chargerCriteresVoix`, `_construireLigneVoix`, `_sauverAnnotationVoix`,
-  `_majStyleCritere`) et `frontend/styles.css` (`.voice-criteres`).
-  *Vérification* : `test_voix/test_criteres_voix.js` (**20 contrôles**, sans
-  navigateur : il **lit les critères dans main.py** et vérifie que la page
-  construit exactement ces menus et envoie exactement ces clés) et
-  `test_voix/test_annotations_voix.py` (**29 contrôles**, annotations de
-  Laurent sauvegardées puis restaurées). Les annotations d'avant (14/09) se
-  relisent sans erreur. *Sauvegarde faite avant* :
-  `data/annotations_voix.json.bak_avant_criteres_20260916`.
-
-- [x] **Re-cast par critères (gratuit) — étape 1 de l'attribution assistée**
-  — livré le **16/09/2026**. Le bouton « Re-caster » ne se contente plus des
-  étoiles : il classe les voix selon les **annotations d'écoute** de Laurent
-  (âge → timbre → étoiles → débit) et selon l'**âge réel** des personnages,
-  puis attribue la première voix encore libre.
-  *Gains constatés* (aperçu sur « Le Chevalier Errant », 59 personnages :
-  **30 voix changeraient**) : Eustace Osgris (362 répliques, âgé) passe de Rémy
-  à **Victor — vieux / grave / lent** ; Arlan de Pennytree (âgé) reçoit
-  **Papi — vieux / voilé / lent** ; l'Œuf (jeune) quitte une voix **grave**
-  d'ancien pour **Norbert — jeune** ; Rohanne Tyssier et Tanselle passent sur
-  des voix féminines jeunes.
-  *Règles* : aucune voix notée **0 étoile** n'est attribuée ; une voix dont le
-  **rôle** est annoté est **réservée** (narrateur, étranger, secondaire : hors
-  pool automatique), sauf « vieux » ou « enfant » quand l'âge correspond ;
-  **verrous et voix figées de saga** restent prioritaires ; les petits rôles
-  (< 8 répliques) gardent la voix vide (lus par le narrateur). **Registre et
-  accent « paysan »** sont volontairement ignorés : trop peu renseignés
-  (constat sur les 148 voix annotées).
-  *Correction au passage* : l'ancien re-cast forçait l'âge **« adulte » en
-  dur** pour tous les personnages ; il relit désormais la table `cast_fiche`.
-  *Technique* : `modules/voice_casting.py` (`lire_annotations_voix`,
-  `_index_voix`, `_voix_reservee`, `_classement_voix`, `AGES_PAR_PERSONNAGE`,
-  `TIMBRES_ATTENDUS`, `DEBITS_ATTENDUS`, `assign_voices(par_criteres=True)`),
-  `main.py` (`reassign_voices`, âge lu dans `cast_fiche`).
-  *Vérification* : `test_voix/test_attribution_criteres.py` (**27 contrôles**,
-  sans écriture en base) et `test_voix/_apercu_recaste_criteres.py` (aperçu
-  avant/après, lecture seule).
-  *Repli* : `?par_criteres=false` sur `/cast/reassign` redonne exactement
-  l'ancien tri — pratique pour comparer les deux sur un même livre.
-
-- [x] **Étape 2 — bouton « Re-caster avec l'IA »** (validé le 16/09/2026)
-  — **livré le 16/09/2026 au soir**. À côté du re-cast gratuit, un second
-  bouton « Re-caster avec l'IA » : l'IA **lit des répliques de chaque
-  personnage** (20 premiers chapitres, 3 répliques chacun) et en déduit ce
-  qu'aucune table ne contient — position sociale, registre de langue, parler
-  étranger, tempérament — puis choisit la voix dont la **description d'écoute**
-  correspond le mieux.
-  *Garde-fous de conception* : l'IA ne choisit **jamais** dans tout le
-  catalogue, seulement parmi les voix que le re-cast par critères autorise déjà
-  (même genre, plus de 0 étoile, rôle réservé écarté) ; les **verrous** et les
-  **voix figées de saga** sont respectés (même préparation partagée que le
-  re-cast gratuit : `_preparer_recaste`) ; les **petits rôles**
-  (< `MINOR_THRESHOLD` répliques) ne sont pas soumis à l'IA ; tout ce que l'IA
-  rend d'inutilisable — voix inventée, mauvais genre, doublon, personnage
-  inconnu — est **écarté en le disant**, et le personnage garde alors sa voix
-  par critères. **Rien n'est écrit avant que la réponse n'ait été vérifiée.**
-  *Coût* : « qui parle » n'est pas recalculé (aucun réabonnement) → quelques
-  centimes, comme prévu.
-  *Technique* : `modules/voice_casting.py` (`description_voix`,
-  `voix_proposees_pour`, `construire_prompt_recaste_ia`,
-  `lire_attributions_ia`, `attribuer_voix_avec_ia`) ; `main.py`
-  (`/cast/reassign_ia`, `_preparer_recaste`, `_repliques_des_personnages`,
-  `_decouper_phrases_du_chapitre`) ; `frontend/` (second bouton et fonction
-  `_recasterAvecIA`).
-  *Vérification* : `test_voix/test_recaste_ia.py` (**30 contrôles**, sans
-  appeler l'IA : cadre, prompt, lecture et validation des réponses, découpage
-  des phrases vérifié sur un vrai livre casté → **34/34 personnages** avec
-  leurs répliques, 0 chapitre écarté).
-  *Au passage* : les **109 voix NeuTTS** ont hérité des annotations d'écoute de
-  leurs jumelles XTTS et Kokoro (`_heriter_annotations_xtts_vers_neutts.py`,
-  accents remis à « neutre » — 257 voix annotées au total), sinon l'IA
-  n'aurait eu aucune description à lire.
-  *Reste possible plus tard* : la même attribution greffée sur la passe 2 du
-  casting complet (coût quasi nul : la fiche y part déjà), et l'usage du
-  **parler étranger** déduit par l'IA pour réserver les voix accentuées.
-
-- [x] **Re-cast : la cohérence de SAGA est désormais préservée** — livré le
-  **16/09/2026** (trouvé en préparant le re-cast de Monte-Cristo par Laurent, qui
-  s'appuie sur son **tome 2** comme référence de la saga).
-  *Le problème* : `_fetch_saga_voix_figees()` (les voix des autres tomes, le plus
-  ancien ajouté faisant référence) n'était appelée que par le **casting complet**.
-  Le **re-cast gratuit** ne reprenait que les **verrous du livre courant** :
-  re-caster le tome 4 aurait donné à Monte-Cristo, Danglars ou Villefort une voix
-  **différente** de celle de leur tome 2 — la saga partait en morceaux, alors que
-  c'est justement ce que le projet protège depuis le 22/08/2026.
-  *Correction* : `reassign_voices` reprend maintenant les voix des autres tomes,
-  exactement comme le casting complet. Les **verrous locaux restent
-  prioritaires** : un personnage verrouillé dans le livre re-casté n'est jamais
-  écrasé par la fiche de saga (écriture en `setdefault`).
-  *Vérification* : `test_voix/test_attribution_criteres.py` vérifie désormais que
-  le re-cast appelle bien `_fetch_saga_voix_figees`.
-
 - [ ] **Re-cast : ne pas distribuer les voix à ACCENT au hasard** (constat de
   Laurent, 16/09/2026). Question posée : « les Cavalcanti vont-ils recevoir une
   voix italienne ? » Réponse : **non** — l'attribution des voix n'utilise jamais
@@ -4327,185 +2311,12 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
 
 
 
-- [x] **Nouvel ordre du pool automatique de casting, avec XTTS v2** — livré
-  le 14/09/2026, décisions de Laurent. Ordre : **Henri et Denise** (Edge) en
-  tête, puis les **35 voix XTTS v2** (triées par étoiles, provisoirement les
-  mêmes que Kyutai), puis **Kokoro** (inchangé), puis les **autres voix
-  Edge** (Charline, Sylvie, Rémy, Gérard, Antoine, Jean) déplacées tout à la
-  fin. **Kyutai retiré du pool automatique** pour l'instant (reste
-  choisissable à la main). Personnages secondaires (< 8 répliques) :
-  `GENERIC_VOICE_F/M` passe d'Éloise/Fabrice à **Siwis/Tom** (Piper).
-  *Technique* : `modules/voice_casting.py` (`_EDGE_PRIMARY_F/M`,
-  `_EDGE_RESERVE_F/M`, `_xtts_pool`) ; tests mis à jour
-  (`test_voix/test_pool_casting.py`). Aucun livre déjà casté n'est affecté.
-
 - [ ] **Décider du sort des 6 voix « de rôle » NIMM dans le pool auto**
   Mamie, Papi, Narrateur, Enfant, Mystère, Jeune sont notées 3 étoiles, donc
   en tête du pool automatique : un casting (ou un re-cast) peut les attribuer
   à des personnages au hasard, alors qu'elles visent des rôles précis. À
   trancher : les exclure de `DEDICATED_VOICES_F/M` (réservées à la main) ou
   les laisser participer.
-
-- [x] **Filtre / regroupement par genre (H/F) dans la fenêtre du casting** —
-  livré le 12/09/2026. Menus **organisés par genre** (groupes 👩 Femmes / 👨
-  Hommes, triés par ordre alphabétique) + barre **« Voix proposées : Toutes /
-  Femmes / Hommes »** qui filtre **tous** les menus d'un coup. La voix
-  attribuée reste toujours visible même si le filtre la masque, et une voix
-  disparue du catalogue s'affiche explicitement (jamais de substitution
-  silencieuse). Utile depuis que le catalogue atteint 135 voix (73 F / 62 M).
-
-- [x] **Ne proposer dans les menus que les voix « écoutables » selon le moteur
-  allumé** (idée de Laurent, 14/09/2026, notée « avant d'oublier »).
-  **Livré le 14/09/2026** (menus + voyant ; détail technique dans
-  `ARCHITECTURE.md`, section « Voix écoutables selon le moteur allumé ») :
-  `GET /api/voices` ne renvoie plus les 35 voix Kyutai que si le moteur est
-  **allumé et prêt** (`GET /sante` → `pret: true`) ; nouvelle route
-  `GET /api/moteurs` ; **voyant** sous les réglages du lecteur (« Kyutai
-  pret » / « chargement en cours » / « moteur eteint ») ; dans la fenêtre du
-  casting, un personnage dont la voix n'est plus proposée affiche
-  **« ⚠️ Pas de voix (Kyutai eteint) »**, et sa voix enregistrée **reste
-  sélectionnée** (aucun remplacement silencieux). Tests :
-  `test_voix/test_voix_ecoutables.py` et `test_voix/test_voix_ecoutables.js`.
-  Aujourd'hui `GET /api/voices` renvoie **toujours** les 35 voix Kyutai, même
-  quand le moteur est éteint : on peut donc en choisir une et n'obtenir qu'une
-  erreur au moment de la lecture (503 + « le moteur de voix Kyutai ne repond
-  pas… »). À traiter **avant l'arrivée d'XTTS v2** (voir
-  `MEMO_XTTS_v2_pour_Cline.md`), car le problème deviendra double : les deux
-  moteurs lourds **ne tournent jamais ensemble** (ils ne tiennent pas tous les
-  deux sur la carte graphique), donc le menu ne doit montrer que les voix du
-  moteur **réellement allumé** — Kyutai **8082**, XTTS v2 **8083**, test
-  `GET /sante` (le lecteur sait déjà le faire : `_moteur_kyutai_actif()`,
-  `main.py`). Les voix **Edge** (en ligne), **Kokoro** et **Piper**
-  (processeur) restent toujours proposées : elles ne dépendent d'aucun moteur
-  à allumer.
-  **Décisions de Laurent (14/09/2026)** :
-  (1) **Menus** : les voix indisponibles sont **masquées** — « on ne doit pas
-      pouvoir les sélectionner » ;
-  (2) **Livres déjà castés** : le personnage affiche **« Pas de voix »** dans
-      la fenêtre du casting, et Laurent corrige **à la main** — aucun
-      remplacement automatique (la voix enregistrée n'est jamais modifiée :
-      un chapitre déjà écouté reste lisible grâce au cache, et un choix de
-      voix fait à l'oreille n'est jamais écrasé en douce).
-  *À prévoir aussi* : le pool automatique du casting (`voice_casting.py`)
-  attribue les voix Kyutai **en priorité** — il devra être aligné, sinon un
-  casting lancé moteur éteint produirait encore des voix inutilisables ; et un
-  petit **état des moteurs** exposé par le lecteur (indicateur à l'écran),
-  comme le prévoit le mémo XTTS (§ 4).
-
-- [x] **Barre de recherche dans la fenêtre du casting** — **LIVRÉ le
-  20/09/2026** (récap en fin d'item). Demande de Laurent,
-  14/09/2026. Sur un livre à 175 personnages, retrouver un nom à la main
-  devient long. Idée : un champ de saisie en haut de `#cast-modal` qui filtre
-  les lignes **pendant la frappe** (recherche insensible aux accents et à la
-  casse, comme `normalize_character_name`), le compteur de répliques restant
-  visible. À trancher : faut-il que la recherche **révèle aussi les alias**
-  d'un personnage trouvé (aujourd'hui repliés sous leur principal) ?
-  *Fichiers* : `frontend/index.html` (champ), `frontend/app.js`
-  (`_openCastModal` construit `rows` en 3 étapes — filtrer au bon endroit ne
-  doit pas casser le regroupement des alias ni le filtre de genre existant),
-  `frontend/styles.css`. *Test* : sur le modèle de
-  `test_voix/test_filtre_genre.js`.
-  **LIVRÉ le 20/09/2026.** Un champ de saisie **en haut** de `#cast-modal`
-  (`#cast-search`) filtre les lignes **pendant la frappe** : insensible aux
-  accents et à la casse (« EDMOND » = « Edmond »), et **tirets, apostrophes et
-  espaces se ressemblent** (« jean luc » trouve « Jean-Luc »).
-  **La question laissée ouverte est tranchée** : oui, la recherche **révèle les
-  alias** — un personnage trouvé garde ses variantes visibles, et taper un
-  **alias** fait remonter **son** personnage (sans lui, la ligne d'alias
-  s'afficherait seule, en retrait sous une fiche absente). Différence
-  **volontaire** avec `normalize_character_name` : l'**article initial n'est pas
-  retiré**, donc taper « le » filtre au lieu de s'évanouir. Un **compteur**
-  écrit ce que la liste montre (« 3 personnages sur 176 »), une recherche sans
-  résultat l'**écrit** au lieu de laisser un vide muet, et la recherche **se
-  combine** avec le filtre d'état (« ⚠ À caster » **et** « edm ») comme avec le
-  tiroir des **Voix libres** (où elle cherche le prénom d'une voix : la même
-  barre ne doit pas avoir l'air morte dans cet onglet).
-  *Deux détails de confort* : la frappe **n'appelle pas le serveur** (nouvel
-  argument `listeSeule` de `_openCastModal`) et le texte tapé **survit aux
-  reconstructions** de l'affichage (il est gardé dans `_castRecherche`), puis
-  **remis à zéro à la fermeture** de la fenêtre.
-  *Vérifications* : `test_voix/test_recherche_casting.js` (**33 contrôles**,
-  sans navigateur), `test_voix/test_tiroir_voix_libres.js` (tiroir filtré,
-  message quand rien ne correspond) et `test_voix/test_ids_ecran.py` (éléments,
-  fonctions, style). *Sauvegardes d'avant-coup* : `frontend/app.js`,
-  `frontend/index.html`, `frontend/styles.css`, `ARCHITECTURE.md`,
-  `BACKLOG.md` — copiés en `.bak_avant_recherche_casting_20260920`. Détails dans
-  ARCHITECTURE.md.
-
-- [x] **START.bat : rallumer le DERNIER moteur utilisé** — **livré le
-  14/09/2026**. Le fichier `data\moteur_voix.txt` (valeurs `xtts`, `kyutai` ou
-  `aucun`) est **écrit par le lanceur du moteur** (`DEMARRER_XTTS.bat` →
-  `xtts`, `DEMARRER_KYUTAI.bat` → `kyutai`) et **lu par `START.bat`**, qui
-  allume le bon — ou rien du tout avec `aucun`. Fichier absent → `xtts` par
-  défaut (le moteur vers lequel on va). Espaces parasites ignorés, nom inconnu
-  → aucun moteur lancé, avec un message clair. Les garde-fous sont conservés
-  (test du port avant tout lancement, message si le `.venv` manque).
-  *Deux pièges `cmd` trouvés au test et documentés dans `ARCHITECTURE.md`* :
-  une **parenthèse dans un texte** à l'intérieur d'un bloc `if (...)` ferme le
-  bloc et **arrête tout le script** ; et un bloc `if exist ( for ... )` sur
-  plusieurs lignes déraille aussi. *Vérification* :
-  `test_voix/test_start_moteur.py` (16 contrôles, rien n'est réellement
-  lancé). Ce fichier de réglage servira aussi de socle au **bouton de
-  bascule** (item suivant).
-
-- [x] **Bouton de bascule entre les moteurs de voix (Kyutai ↔ XTTS v2)** —
-  **LIVRÉ le 15/09/2026** (récap en fin d'item). Idée de Laurent, 14/09/2026.
-  Un seul moteur à la fois : **allumer l'un éteint l'autre**
-  (les deux ne tiennent pas ensemble sur la carte graphique).
-  **Quand lancer un moteur ? — réponse de Laurent (14/09/2026) : le DERNIER
-  moteur utilisé se rallume au lancement de NIMM ePub.** Mise en œuvre
-  retenue : un petit fichier de réglage `data\moteur_voix.txt` (valeurs
-  `kyutai`, `xtts` ou `aucun`), écrit par le bouton de bascule et lu par
-  `START.bat` — trois précautions : **ne rien relancer** si un moteur tourne
-  déjà ; **pouvoir choisir « aucun »** (pour démarrer sans moteur) ; éteindre
-  l'autre moteur **avant** d'allumer le nouveau.
-  **Prérequis désormais REMPLI** : XTTS v2 est **installé ici** depuis le
-  14/09/2026 (voir l'item « Installer le moteur XTTS v2 dans NIMM ePub » —
-  dossier `xtts_service`, port **8083**, 35 voix, testé) **et branché dans le
-  lecteur** ; le **socle du choix du moteur existe aussi** depuis le
-  14/09/2026 (item « START.bat : rallumer le DERNIER moteur utilisé » :
-  `data\moteur_voix.txt` + `test_voix/test_start_moteur.py`). Il reste à
-  ajouter le **bouton dans l'interface**, qui n'aura qu'à écrire ce fichier.
-  **Ce qui est déjà prêt** : `etat_moteurs_voix()` (main.py) sait dire lequel
-  tourne et s'il est prêt, et le lecteur sait **déjà** éteindre et rallumer
-  Kyutai (`_arreter_moteur_kyutai()`, `_relancer_moteur_kyutai()`, utilisés
-  pour libérer la carte pendant une analyse locale).
-  **Points de vigilance** : les moteurs mettent **10 à 20 s** à charger leur
-  modèle (n'annoncer « prêt » qu'avec `pret: true`) ; **ne jamais tuer un
-  processus au hasard** (cibler par ligne de commande, comme
-  `_pids_moteur_kyutai()`) ; **ne jamais interrompre une génération en cours**
-  (les demandes sont mises en file une par une) ; prévenir que la lecture
-  s'arrêtera si la voix en cours appartenait à l'autre moteur.
-  **Livré le 15/09/2026.** Le **voyant du bas de la fenêtre de lecture est
-  devenu le bouton** — idée de Laurent : « un bouton sur le message qui est
-  aujourd'hui en bas de la fenêtre, qui ferait office de switch ». Il affiche
-  l'état (« Voix de personnages : XTTS v2 prêt — changer »), et au clic propose
-  **XTTS v2**, **Kyutai** ou **aucun moteur** (le choix « aucun » permet de
-  démarrer sans moteur lourd, comme le prévoyait la conception). Le serveur
-  **éteint l'autre moteur** et **attend qu'il ait rendu la carte graphique**
-  (port fermé, 20 s au maximum) avant d'allumer le nouveau — donc plus jamais
-  7,6 Go sur 8. Un moteur **déjà prêt** ou **en cours de chargement** n'est pas
-  relancé. Le choix est **noté** dans `data\moteur_voix.txt` : c'est ce que
-  `START.bat` rallume au prochain démarrage. Un moteur **non installé** est
-  refusé avec un message à l'écran, et si l'autre **refuse de s'éteindre**,
-  **rien n'est allumé** (on ne tente jamais les deux ensemble). Pendant le
-  chargement (10 à 20 s), le bouton se rafraîchit **tout seul** jusqu'à
-  « prêt », puis les voix du moteur apparaissent dans les menus. Si une écoute
-  est en cours, la fenêtre **prévient avant** qu'elle sera arrêtée. *Technique* :
-  `POST /api/moteur/basculer` → `basculer_moteur_voix()` (main.py),
-  `_pids_moteur_voix()` / `_arreter_moteur_voix()` / `_relancer_moteur_voix()`
-  (les trois fonctions Kyutai restent, en enveloppes, pour l'analyse locale),
-  côté écran `_libelleMoteur()`, `_ouvrirMoteurModal()`, `_basculerMoteur()`,
-  `_surveillerMoteur()`, et la fenêtre `#moteur-modal`.
-  ⚠️ **Repère ajouté le 22/09/2026 (audit de la documentation)** : ces trois
-  fonctions et cette fenêtre **n'existent plus** —
-  elles ont été **RETIRÉES le 21/09/2026**, quand le bouton de bascule est devenu
-  le voyant « 🛠️ Réparer les moteurs » (`#reparer-modal`, voir l'item du
-  21/09/2026). Les noms ci-dessus sont ceux de l'époque : c'est voulu, et c'est
-  désormais écrit. *Vérification* :
-  `test_voix/test_bascule_moteur.py` (**50 contrôles, aucun moteur lancé** : les
-  deux sont simulés en mémoire) et `test_voix/test_bouton_moteur.js`
-  (31 contrôles). Détails dans ARCHITECTURE.md.
 
 - [ ] **Édition du pitch par personnage dans la fenêtre du casting**
   (Déjà listé dans ARCHITECTURE, « pistes ouvertes ».) La colonne `pitch`
@@ -4527,38 +2338,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   personnage à partir d'échantillons de 6-10 s. Lourd (1-8 Go, GPU conseillé)
   → utilisable en **pré-génération offline** grâce au cache audio. Nécessite
   une carte graphique ou de la patience CPU.
-
-- [x] **Regrouper les appellations d'un même personnage — étape 1 (doublons
-  d'écriture)** — livré le 12/09/2026. Fusion automatique et gratuite des noms
-  identiques à l'écriture près : accents, tirets/apostrophes, article initial
-  (« Gerard » / « Gérard de Villefort », « Le comte de Monte-Cristo » /
-  « Comte de Monte-Cristo »). Bouton « Regrouper doublons » dans la fenêtre du
-  casting (aperçu confirmé avant application), réversible (bouton ✂). Table
-  `character_aliases` purement descriptive : aucun nom supprimé. Chaque alias
-  garde sa propre voix, modifiable indépendamment. Détails dans ARCHITECTURE.md.
-
-- [x] **Regrouper les appellations d'un même personnage — étape 2 (rattachement
-  manuel des pseudonymes)** — livré le 12/09/2026. Bouton **🔗 « rattacher à… »**
-  sur chaque personnage de la fenêtre du casting : on choisit le personnage
-  principal dans une **liste déroulante** (les plus présents en premier) → le
-  nom s'affiche en retrait sous lui (flèche ↳), avec le total de répliques
-  cumulé. **Les voix restent indépendantes** : c'est ce qui permet à
-  Monte-Cristo ET à l'abbé Busoni d'être la même personne avec des voix
-  différentes (accent italien pour l'abbé, par exemple) — à la différence du
-  regroupement automatique, qui aligne les voix. Réversible (✂), gratuit,
-  aucune donnée supprimée. Vérifié par aller-retour sur le Tome 4.
-  *Reste optionnel* : des propositions par l'IA confirmées à la main, y compris
-  entre tomes d'une saga ; et le cas « nom court ⊂ nom long » (« Maximilien »
-  ⊂ « Maximilien Morrel ») — à ne pas automatiser aveuglément : **Morrel père**
-  et **Morrel fils** sont deux personnes différentes.
-
-- [x] **Regroupement par alias sur mobile** — traité le 12/09/2026. Cause
-  identifiée : (1) les icônes du casting (🔒 verrou, ✂ détachement) faisaient
-  30 px, trop petites pour le doigt → portées à **44 px** sur mobile, et la
-  ligne peut passer à la ligne ; (2) le regroupement *fonctionnait* déjà (8
-  doublons d'écriture sur le Tome 4), mais certains alias portent 0 réplique et
-  se retrouvaient tout en bas de la liste → invisibles en pratique. C'est
-  désormais expliqué dans la documentation.
 
 - [ ] **Kyutai : les 228 voix CC0 et les accents par voix étrangère** (pistes
   ouvertes le 12/09/2026, **écoutées le même jour** par Laurent).
@@ -4617,127 +2396,9 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   --par-famille 10` (moteur allumé ; sortie dans `sortie_ecoute_etrangeres/`,
   avec index à annoter). Licence **CC BY 4.0** (partageable).
 
-- [x] **Distribution fine des petits rôles** (suite de la décision Kyutai du
-  12/09/2026) — **TRANCHÉ et LIVRÉ le 15/09/2026**. Historique : les
-  personnages de moins de 8 répliques ont d'abord reçu les voix Edge
-  Éloise/Fabrice, puis (14/09/2026) une voix générique **Piper** partagée par
-  genre (`GENERIC_VOICE_F/M` = `piper:siwis:0` / `piper:tom:0`).
-  **Décision finale de Laurent** (à l'écoute de *Shantaram*, où **52 des 125
-  personnages** étaient dans ce cas) : les Piper sont « **inaudibles, vraiment
-  moches** » → **un petit rôle n'a plus AUCUNE voix dédiée : ses répliques sont
-  lues par le NARRATEUR** (la voix choisie dans le lecteur), ce qui est
-  cohérent puisque c'est bien le narrateur qui rapporte ce qu'il dit.
-  *Technique* : `modules/voice_casting.py` — dans `assign_voices()`, un rôle
-  sous `MINOR_THRESHOLD` reçoit un **`voice_id` VIDE** (au lieu d'une voix
-  Piper) et un pitch neutre ; la **ligne est conservée** en base, donc le
-  personnage reste **visible dans la fenêtre du casting** sous la mention
-  « **Sans voix dédiée — (lu par le narrateur)** » et on peut lui redonner une
-  voix à la main. `frontend/app.js` : `_voiceForSentence()` retombe sur la voix
-  du lecteur quand `voice_id` est vide, `_construireMenuVoix()` affiche
-  l'entrée « (lu par le narrateur) », `_previewCharacterVoice()` utilise la voix
-  du lecteur pour l'aperçu. Les constantes `GENERIC_VOICE_F/M` **restent en
-  place** : elles serviront d'emplacement pour les **deux voix neutres** que
-  Laurent choisira (une femme, un homme) s'il préfère un jour donner aux petits
-  rôles une voix distincte de celle du narrateur — il suffira de les y mettre
-  et de re-caster.
-  *Vérification* : `test_voix/test_pool_casting.py` (§ 6 mis à jour : voix vide
-  au lieu de Piper, et un petit rôle ne consomme plus une voix du pool) + toute
-  la batterie de tests (ids écran, libellés, état casting, filtre genre, voix de
-  phrase, message réseau, import main) → **tout OK**.
-
 - [ ] **Réécouter et ajuster les notes « stars » Kokoro** au fil de l'usage
   (elles sont indicatives) — utile car le pool automatique du casting pioche
   par note décroissante.
-
-- [x] **XTTS v2 : la voix « bute » sur les guillemets `« »`** — **LIVRÉ et
-  VALIDÉ À L'OREILLE le 15/09/2026** (constat de
-  Laurent, 14/09/2026, à l'écoute d'un livre). Les phrases de dialogue
-  arrivent au moteur **avec leurs guillemets français** (le lecteur envoie la
-  phrase entière, telle qu'elle est attribuée au personnage), et XTTS produit
-  alors un son étrange à cet endroit. À faire : **retirer les guillemets**
-  (`«`, `»`, `"`, `“`, `”`) avant de donner le texte au moteur — les autres
-  moteurs les ignorent naturellement (Edge, Kokoro, Piper), donc le nettoyage
-  doit viser **XTTS uniquement** pour ne rien changer à ce qui marche déjà.
-  *Où* : dans le service (`xtts_service/servir_xtts.py`, avant génération) de
-  préférence à `_clean_text()` du lecteur, qui est partagé par tous les
-  moteurs — et qui **change les clés du cache audio** si on le modifie.
-  *Méthode proposée* : un lot d'écoute comparatif (même phrase : brut / sans
-  guillemets / guillemets remplacés par une virgule) pour trancher à l'oreille
-  avant de figer le remède. À étendre ensuite à d'autres signes si Laurent en
-  repère (tirets de dialogue `—`, points de suspension…).
-  **🎧 LOT D'ÉCOUTE PRÊT (15/09/2026) — en attente de Laurent.** Outil :
-  `xtts_service/_ecouter_guillemets.py` (voix Bertrand, choix `--voix`), sortie
-  `xtts_service/sortie_ecoute_guillemets/` (8 WAV + `index_ecoute.txt`, hors
-  Git). Le lot ne fait varier **qu'une chose à la fois** : la phrase de
-  référence avec les guillemets tels quels, retirés, remplacés par une virgule,
-  remplacés par une espace ; puis une phrase à **point d'interrogation interne**
-  (le cas « citation ouverte ») avec et sans guillemets ; puis un dialogue au
-  **tiret cadratin**, tel quel et tiret retiré. Chaque fichier est accompagné de
-  sa **mesure objective** (durée, morceaux de parole, silences) : *le défaut se
-  voit déjà sans écouter* — avec les guillemets, la phrase de référence dure
-  **4,9 s** (contre **3,4 s** sans) et le moteur pose une pause anormale de
-  0,82 s ; le **tiret cadratin**, lui, ne change rien (3,3 s contre 3,4 s).
-  Reste à trancher à l'oreille : guillemets **retirés** (le texte final est
-  identique à la variante « espace ») ou **remplacés par une virgule**.
-  *Pour la mise en œuvre* : le nettoyage se fera dans `_lire_un_morceau()` du
-  service (seul endroit où le texte part au moteur), **uniquement pour XTTS**,
-  et il **change la clé du cache audio** — les phrases déjà lues garderont
-  l'ancien rendu jusqu'à purge du cache.
-  **✅ REMÈDE ÉCRIT le 15/09/2026, d'après l'écoute de Laurent** (verdict
-  conservé dans `xtts_service/sortie_ecoute_guillemets/avant_remede/verdict_laurent.txt`).
-  Ce qu'il a entendu : avec les guillemets, le moteur **prononce** des sons
-  parasites (« ogui … haa », « iogué … yo ») ; avec le **tiret cadratin**, il
-  **répète le premier mot** (« vous **êteêtes** sûr de vous ») — défaut
-  **invisible à la mesure de durée** (3,3 s contre 3,4 s), seule l'oreille l'a
-  attrapé ; remplacer les guillemets par une **virgule** déforme l'intonation et
-  par une **espace** fait partir la voix dans les aigus : les deux sont
-  écartés. D'où `nettoyer_pour_xtts()` dans le service : **guillemets retirés**,
-  **tiret cadratin en tête de réplique retiré**, **tiret d'incise remplacé par
-  une virgule** (la respiration reste). Les tirets d'union (« demanda-t-il »),
-  apostrophes et points de suspension ne sont pas touchés.
-  *Vérification* : `test_voix/test_nettoyage_xtts.py` (17 contrôles, sans
-  moteur). *Reste à valider à l'oreille* : le même lot régénéré après le
-  remède (les fichiers 01, 05, 07 et 09 doivent sonner comme 02 ou 08).
-  **🎧 LOT « APRÈS REMÈDE » GÉNÉRÉ le 15/09/2026** (moteur XTTS relancé par
-  Laurent, 9 fichiers + `comparaison_avant_apres.txt` dans le même dossier) :
-  les durées confirment que le moteur reçoit bien le texte nettoyé — le
-  fichier 01 passe de **4,9 s à 3,6 s** (il rejoint 02, 3,7 s), 05 de **5,9 s à
-  5,0 s**, 07 inchangé à 3,3 s (le tiret ne pénalise plus). Écoute de Laurent
-  en attente.
-  **✅ VALIDÉ le 15/09/2026** (verdict complet :
-  `sortie_ecoute_guillemets/verdict_laurent_apres.txt`) : **plus de sons
-  parasites** sur les guillemets (« ogui … haa », « iogué … yo » disparus) et
-  **plus de répétition** sur le tiret cadratin (« vous êteêtes » disparu). Les
-  variantes « guillemets → virgule » et « guillemets → espace » sont
-  **confirmées mauvaises** à l'oreille (intonation aiguë, respiration en tête).
-  Les défauts qui restent sont d'une autre nature (bords de phrase) : voir les
-  deux items suivants.
-
-- [x] **XTTS : rogner les silences de bord des fichiers générés** ✅ *LIVRÉ le
-  15/09/2026 — décision de Laurent : on y touche (détail dans l'item « XTTS :
-  retours d'écoute de Laurent »)*. Découvert le 15/09/2026 en vérifiant les
-  observations d'écoute de Laurent : **chaque fichier XTTS se termine par un
-  long silence** — de **0,54 à 0,91 s** de queue (moyenne 0,6 s), mesuré sur
-  les 9 fichiers du lot, tandis que le silence de tête est négligeable
-  (0,01 à 0,03 s). Le lecteur demandant **une phrase à la fois**, cela fait
-  **~0,6 s de blanc après chaque phrase** à la lecture, auquel s'ajoute le
-  silence de 0,35 s posé entre deux phrases. Or le même défaut a déjà été
-  corrigé pour **Edge** le 08/09/2026 (`modules/audio_trim.py` : 0,25 s de tête
-  et 1,0 s de queue retirés, via le ffmpeg embarqué d'`imageio-ffmpeg`) —
-  **jamais pour XTTS**. À faire : le même rognage dans le service XTTS
-  (`servir_xtts.py`, en **numpy**, disponible là-bas), avec une petite marge
-  pour ne pas mordre la fin du dernier mot, puis vérifier par la mesure
-  (silence de queue ≈ 0) et à l'oreille (rythme de lecture plus fluide).
-  **⏸ DÉCISION DE LAURENT (15/09/2026) : ON N'Y TOUCHE PAS POUR L'INSTANT.**
-  Deux raisons, à garder : (1) il craint qu'on **abîme la voix** en lui retirant
-  les fins de phrase — « pour ce que j'ai pu écouter, c'est relativement
-  fluide » ; (2) il pense que ces défauts de bord (respirations, attaques)
-  viennent surtout de ce que **la phrase est isolée** : le moteur ne voit
-  qu'une phrase, sans contexte, et « respire » aux extrémités — rogner ne
-  corrigerait donc pas la cause. Il préfère **écouter un début de livre** et ne
-  relever que ce qui gêne vraiment, plutôt que de viser la perfection sur des
-  détails : « on a retiré le plus pénible à l'oreille ». À ne reprendre que si
-  une écoute prolongée le justifie.
 
 - [ ] **XTTS : retours d'écoute de Laurent (une heure du Comte de
   Monte-Cristo, 15/09/2026)** — deux constats, chiffrés à l'atelier le même
@@ -4901,62 +2562,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   `length_penalty`), aujourd'hui **non exposés**. À ouvrir comme un chantier à
   part entière, pas à improviser.
 
-- [x] **Notes « stars » définitives pour les 35 voix XTTS v2** — livré le
-  **16/09/2026**, et bien au-delà : les notes **provisoires** (recopiées de
-  Kyutai le 14/09) sont remplacées par les **notes d'écoute réelles** de
-  Laurent, prises dans la fenêtre « Écouter les voix » (ce sont ses
-  **148 annotations**, dont 140 avec les six critères fixes).
-  *Report dans les catalogues* (outil existant
-  `test_voix/_appliquer_annotations_voix.py`, aperçu puis `--ecrire` suivis
-  d'une copie datée des deux fichiers) : **12 changements** appliqués —
-  `main.py` (1) et `modules/tts.py` (11). Les voix **écartées** (0 étoile)
-  passent de 0 à **4** : `kokoro:ff_pauline`, `kokoro:fm_camille`,
-  `kokoro:fm_hugo` et `piper:tom:0` — elles sortent du **pool automatique du
-  casting** (elles restent sélectionnables à la main). Deux voix montent à
-  3 étoiles (Gerard en Edge, Aurore et Lucas en Kokoro), et Célestin
-  (« accent paysan ») redescend à 1 étoile après réécoute.
-  *Piège évité au passage* : `piper:tom:0` sert de constante `GENERIC_VOICE_M`
-  dans `modules/voice_casting.py` — mais elle **n'est plus utilisée** depuis le
-  15/09/2026 (les petits rôles sont lus par le narrateur). Si un jour on
-  redonne une voix aux petits rôles, il faudra choisir une autre voix que Tom.
-  *Test remis à jour au passage* : `test_voix/test_libelles_voix.py` échouait
-  **depuis le 15/09** (il réclamait une voix non vide pour chaque personnage,
-  alors que les petits rôles ont une voix vide **par décision**) : il ignore
-  désormais ces lignes et les compte au lieu de les signaler comme orphelines.
-  *Rappel licence* : le modèle XTTS v2 est en **CPML (usage non commercial)**,
-  l'audio produit suit la même règle — voir `xtts_service/ATTRIBUTION.md`.
-
-- [x] **Peut-on cloner les voix Kokoro avec XTTS, comme on l'a fait pour
-  Kyutai ? — question de Laurent (14/09/2026), analysée et tranchée : NON.**
-  *Pourquoi les deux cas n'ont rien à voir* — la banque Kyutai fournit **deux
-  fichiers par voix** : une empreinte `.safetensors` **et l'enregistrement
-  d'une vraie personne** (`.wav` de ~10 s, 480 à 640 Ko). C'est ce WAV qui a
-  servi de modèle à XTTS. Kokoro, lui, ne fournit **que l'empreinte** : chaque
-  voix est un tenseur de **130 560 nombres** (510 × 1 × 256, ~522 Ko) dans
-  `voices-v1.0.bin` — il n'y a **aucun son** là-dedans, XTTS ne peut rien en
-  faire. Mesuré le 14/09/2026 sur le fichier réel.
-  *L'astuce possible mais déconseillée* : faire parler Kokoro, enregistrer le
-  WAV, et le donner à cloner. Deux raisons de ne pas le faire : (1) XTTS
-  imiterait une voix **déjà synthétique**, donc au mieux égale à Kokoro et
-  souvent moins bonne (défauts reproduits en double), en particulier pour les
-  54 voix officielles, étrangères, dont l'accent est justement le défaut qu'on
-  fuit ; (2) on y **perdrait le meilleur atout de Kokoro** — il tourne sur le
-  **processeur, sans rien allumer**, donc disponible moteur éteint, alors
-  qu'XTTS exige la fenêtre du moteur (2,2 Go de carte graphique) et calcule
-  ~3× plus lentement que le temps réel. Remplacer le moteur le plus léger par
-  le plus lourd est un mauvais échange. **Seule exception concevable** :
-  « rapatrier » un timbre précis qu'on aime et qui n'existe nulle part ailleurs
-  (les 6 voix de rôle NIMM — Mamie, Papi, Narrateur, Enfant, Mystère, Jeune —
-  sont des **mélanges** de timbres Kokoro, sans équivalent humain), en
-  acceptant une qualité incertaine.
-  *La bonne piste, à la place* : cloner de **vraies voix humaines**. Le
-  dossier `kyutai_service\voix_autres\` (`voice-donations` : 228 voix **CC0**,
-  `vctk`, `ears`) n'a reçu que les **empreintes** (8 `.safetensors`, aucun
-  `.wav`), mais la banque d'origine fournit bien les enregistrements —
-  vérifié le 14/09/2026 par l'API Hugging Face (`voice-donations/*.wav`,
-  `vctk/*.wav`). À rapprocher de l'item « Chercher des voix de clonage
-  supplémentaires » ci-dessous.
-
 - [ ] **Voix françaises supplémentaires : creuser CML-TTS (la source de nos 35
   voix)** — découverte du 14/09/2026. Les 35 voix françaises actuelles viennent
   du dossier `cml-tts/fr` de la banque Kyutai, qui n'est lui-même qu'un
@@ -5007,302 +2612,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Fichiers conservés pour écoute* : `test_voix\_test_nouvelle_voix.wav`
   (Achille) et `_test_nouvelle_voix2.wav` (Lucie) — le rendu XTTS de deux
   nouvelles voix.
-
-- [x] **🎧 Fenêtre « Écouter les voix » (le listener)** — **LIVRÉE le
-  14/09/2026** (étapes 1 et 2 ; reste l'étape 3, l'export vers le catalogue).
-  Idée de Laurent,
-  14/09/2026. Aujourd'hui, écouter une voix oblige à passer par la fenêtre du
-  casting (assigner une voix, lancer un aperçu) : des astuces à répéter, et
-  impossible de comparer deux voix côte à côte — or Laurent soupçonne que
-  **2 voix Edge sont identiques**. Il veut donc **une liste de TOUTES les
-  voix**, avec un bouton d'écoute sur chacune, et la possibilité de **les
-  annoter** (étoiles, genre, remarque) directement dans le lecteur.
-  *Bonne nouvelle : presque tout existe déjà.*
-  - `_previewCharacterVoice()` (`app.js`, ~ligne 690) fait **exactement** ce
-    qu'il faut : `POST /api/tts` → `blob` → `new Audio(url)` → lecture. Il ne
-    reste qu'à lui donner une **vraie phrase de test** au lieu du seul nom du
-    personnage ;
-  - `_allVoices` contient déjà la liste chargée par `loadVoices()` depuis
-    `GET /api/voices`, qui ne renvoie **que les voix écoutables tout de suite**
-    (les voix d'un moteur éteint sont déjà exclues) — aucun risque de bouton
-    qui échoue ;
-  - les fenêtres du lecteur suivent un modèle clair (`#cast-modal`,
-    `#provider-modal` : `modal-overlay` + `modal-box`), et la barre de boutons
-    (`#multivoice-btn`, `#rsvp-open-btn`…) accueille facilement un bouton 🎧.
-  *Découpage proposé, en trois temps* :
-  1. **écoute seule** (le plus court) : fenêtre + liste groupée par famille
-     (Edge, Kokoro, Piper, Kyutai, XTTS) et par genre + bouton ▶ par voix +
-     barre de filtre (indispensable à 160 voix) ;
-  2. **annotations** : genre (H/F), étoiles, remarque libre par voix, stockées
-     **localement** (fichier type `data/annotations_voix.json`, hors Git, comme
-     `piper_gender_tags.json`) — c'est ce qui remplacerait les **lots d'écoute
-     par fichiers** utilisés jusqu'ici (Kyutai, XTTS, CML-TTS) ;
-  3. **export vers le catalogue** : reprendre les annotations pour mettre à
-     jour `XTTS_VOICES` / `KYUTAI_VOICES` (étoiles, genre), comme le fait
-     aujourd'hui `_verser_voix_cml.py` à la main.
-  *Points de vigilance* : les voix **Kokoro et Piper** peuvent mettre quelques
-  secondes au **premier** appel (chargement du modèle) ; **Edge** exige
-  Internet ; le **cache audio** du lecteur s'applique (même phrase + même voix
-  = instantané ensuite) ; une phrase de test **identique pour toutes** rend la
-  comparaison juste — c'est le principe des lots d'écoute actuels.
-  **✅ ÉTAPES 1 ET 2 LIVRÉES le 14/09/2026.** Bouton **🎧 Écouter les voix**
-  sous les réglages du lecteur → fenêtre avec la liste complète groupée par
-  moteur (avec le nombre), **recherche par prénom** et **filtre par moteur**,
-  **bouton ▶** devant chaque voix (la phrase de référence ci-dessus, identique
-  pour toutes), et **trois champs de note** par voix : genre (H/F), étoiles
-  (0 à 3), remarque libre. Les notes vont dans `data/annotations_voix.json`
-  (**hors Git** : ce sont les observations personnelles de Laurent) via deux
-  routes, `GET`/`POST /api/annotations_voix` ; une note **entièrement vide est
-  supprimée**, et le catalogue reprend alors ses propres valeurs. Le code
-  affiche **H** pour masculin (convention de l'écoute et du casting) même si le
-  catalogue écrit **M**.
-  *Détail qui simplifie tout* : aucune synthèse n'a été réinventée — le
-  listener réutilise `POST /api/tts` (le même chemin que la narration) et
-  `GET /api/voices`, qui ne renvoie **que les voix écoutables tout de suite**.
-  Il coupe l'écoute en cours quand on en lance une autre, et à la fermeture.
-  *Vérifications* : `test_voix/test_annotations_voix.py` (12 contrôles ; il
-  **sauvegarde et restaure** les notes de Laurent) et
-  `test_voix/test_ids_ecran.py` (21 contrôles de cohérence écran ↔ code).
-  *Étape 3 — LIVRÉE le 15/09/2026* : l'**export** des annotations vers les
-  catalogues est en place (outil `test_voix/_appliquer_annotations_voix.py`,
-  aperçu avant écriture) — voir l'item « Report des notes d'écoute » ci-dessous.
-
-- [x] **Règle des paliers d'étoiles pour le pool automatique** — livré le
-  15/09/2026, décision de Laurent. Le pool ne se parcourt plus par moteur mais
-  par **paliers d'étoiles** (3, puis 2, puis 1) et, dans chaque palier, les
-  moteurs se suivent toujours dans le même ordre : **Edge**, puis **XTTS v2**,
-  puis **Kokoro**. Une voix à **0 étoile** est **écartée** des deux pools, sur
-  les trois moteurs — c'est le moyen de « retirer une voix du casting
-  automatique » (demande de Laurent le 15/09/2026). Conséquence : Henri et
-  Denise restent en tête (3★ Edge), Rémy suit, **Antoine, Jean et Fabrice
-  (0★) sortent** du pool. *Technique* : `modules/voice_casting.py`
-  (`_EDGE_POOL_F/M`, `_EDGE_STARS`, `_pool_par_paliers`, `definir_voix_edge`,
-  `_recalculer_pools`) ; `main.py` transmet `FRENCH_VOICES` au démarrage, pour
-  qu'une **seule liste** porte les étoiles des voix Edge. Aucun livre déjà
-  casté n'est affecté.
-
-- [x] **Report des notes d'écoute dans les catalogues (étape 3 du listener)** —
-  livré le 15/09/2026. `test_voix/_appliquer_annotations_voix.py` reprend
-  `data/annotations_voix.json` et met à jour **étoiles** et **genre** dans
-  `main.py` (voix Edge) et `modules/tts.py` (Kokoro, Kyutai, XTTS) : **aperçu
-  par défaut**, écriture seulement avec `--ecrire`, **sauvegarde automatique**
-  des fichiers, et conversion **H → M** (l'écoute note H/F, les catalogues
-  M/F). La **remarque libre** n'est pas reportée (les catalogues n'ont pas de
-  champ pour elle). Premier report réel le 15/09/2026 : Antoine, Jean et
-  Fabrice à 0★, Ariane à 3★.
-  **Report complet du 15/09/2026 (soir)** — Laurent a annoté **72 voix** dans la
-  fenêtre « Écouter les voix » (genre, étoiles, remarque) ; le report a été
-  appliqué en **deux passes : 49 changements** dans `modules/tts.py` (les notes
-  Edge, elles, étaient déjà à jour). Résultat côté **XTTS** : **45 voix à 3★**,
-  17 à 2★, 11 à 1★, **6 écartées (0★)** — Berthe, Cécile, Joséphine, Ernest,
-  Rose et Albert. Les **19 voix libres** (lots 1 et 2) passent presque toutes à
-  **3★**.
-  *Deux corrections au passage* :
-  - **« Prosper » est une voix de FEMME** (constat de Laurent) : genre corrigé en
-    **F** côté **XTTS et Kyutai** (c'est le même extrait) et prénom remplacé par
-    **Monique** — un prénom masculin sur une voix féminine est un piège dans le
-    casting ;
-  - les **5 voix laissées en « – »** par Laurent avec une remarque de défaut
-    (« probleme timbre », « probleme de souffle », « souffle ») devaient en fait
-    être **écartées** : ses annotations ont été passées à **0★** (elles sont la
-    source : on corrige l'annotation, puis on reporte).
-  *Convention rappelée* : dans la fenêtre d'écoute, **« – » = pas d'avis** et
-  **« ☆ » = à écarter**. Une **0★** reste **sélectionnable à la main** dans les
-  menus : elle n'est simplement plus proposée par le **casting automatique**.
-
-- [x] **Badges d'état dans la fenêtre du casting** — livré le 15/09/2026
-  (demande de Laurent : voir les personnages sans voix et les voix encore
-  disponibles). Une **2ᵉ barre de filtres** au même look que celle des genres —
-  « Personnages : Tous / ⚠ À caster / ⧉ Voix partagée » — mais qui filtre les
-  **lignes de personnages** (l'autre filtre les voix proposées dans les menus),
-  plus un **résumé** (« N personnages · n à caster · n voix partagées ») et un
-  **badge par ligne** dans les deux seuls cas qui demandent une décision :
-  *⚠ à caster* (au moins 8 répliques mais encore la voix générique des petits
-  rôles) et *⧉ voix partagée (n)* (même timbre porté par n autres personnages,
-  à différencier au pitch). Les petits rôles restent sans badge : leur voix
-  générique est voulue. *Technique* : `_etatCasting()` dans `frontend/app.js`
-  (fonction pure), `#cast-etat-bar` dans `index.html`, styles dans
-  `styles.css` ; vérifications `test_voix/test_etat_casting.js` et
-  `test_voix/test_ids_ecran.py`.
-
-- [x] **Noms des voix dans la fenêtre du casting (identifiants au lieu des
-  prénoms)** — livré le 15/09/2026, constat de Laurent après un re-cast de
-  un roman contemporain : les voix XTTS s'affichaient « xtts:cml9804 » au lieu
-  d'« Alphonse ». Cause : la liste des voix proposées (`/api/voices`) ne
-  contient les voix XTTS que si **leur moteur est prêt**, et elle pouvait
-  dater d'avant l'allumage du moteur — le menu retombait alors sur
-  l'identifiant technique. Correctifs : (1) nouvelle route
-  `/api/voix_catalogue` : **toutes** les voix, moteurs éteints compris, avec
-  leur prénom, leur famille et un drapeau `dispo` — elle sert à **nommer**,
-  jamais à proposer ; (2) la fenêtre du casting recharge la liste des voix et
-  le catalogue **à son ouverture** (un moteur allumé après le chargement de la
-  page est vu tout de suite) ; (3) le libellé porte le prénom, avec la raison
-  quand le moteur est éteint ou en chargement ; l'identifiant n'apparaît plus
-  que si la voix est **vraiment** absente du catalogue.
-  *Vérifications* : `test_voix/test_libelles_voix.py` (catalogue complet,
-  « Alphonse » pour `xtts:cml9804`, `dispo` comparé à `/api/moteurs`, et
-  contrôle sur un vrai livre casté — les 125 personnages d'un roman contemporain) et
-  `test_voix/test_filtre_genre.js` (cas « voix absente de la liste » : prénom
-  affiché, identifiant absent).
-
-- [x] **Voir les voix LIBRES et PAR QUI une voix est partagée** — livré le
-  19/09/2026 (demande de Laurent : « je ne vois pas quelle voix est libre », et
-  l'onglet « Voix partagée » ne disait pas par quel personnage). Trois choses :
-  (1) un **4ᵉ bouton « 🔓 Voix libres (n) »** dans la barre des personnages : la
-  liste montre alors les voix **écoutables tout de suite** qu'aucun personnage
-  **ni le narrateur** ne porte, rangées par moteur comme dans « Écouter les
-  voix », avec ▶ pour les reconnaître ; un moteur éteint est signalé sous la
-  barre, sinon ses voix sembleraient prises ; (2) le badge de partage **écrit
-  les noms** (« ⧉ partagée avec Edmond, Busoni ») et se **déplie au tap** —
-  précision de Laurent : sur mobile il n'y a **ni survol ni appui long**, donc
-  tout ce qui compte est écrit ; en vue « Voix partagée », les personnages sont
-  **groupés par voix**, avec un en-tête qui les nomme ; (3) dans les menus de
-  voix (casting **et** « Voir la voix »), chaque voix porte sa marque courte
-  (` · LIBRE`, ` · partagée (2)`, ` · narrateur`, ` · petits rôles`) et le
-  panneau « Voir la voix » **écrit** l'état de la voix choisie sous le menu.
-  **Le narrateur compte comme une voix prise** : elle lit tout le non-dialogue.
-  Cas particulier (question de Laurent, 19/09/2026) : **le narrateur peut ETRE
-  un personnage** — dans « 22/11/63 », Jake Epping (3 634 répliques, verrouillé)
-  porte exactement la voix du narrateur, et c'est **voulu**. Deux conséquences :
-  cette voix n'est donc **jamais** annoncée libre (correct), et le personnage
-  reçoit un badge **« 🎙 voix du narrateur »** (informatif, pas une alerte) ; la
-  phrase de détail **écrit les deux rôles** (« … 1 personnage parle aussi avec :
-  Jake Epping (choix valable : le narrateur peut être un personnage) »).
-  *Nécessaire* : la fenêtre du casting prend désormais la voix du **menu du
-  haut** comme référence (et non plus celle enregistrée dans le livre) — sinon
-  un changement de voix du narrateur n'était pas vu avant rechargement.
-  **Le re-cast, lui, ignore `narrator_voice`** (`modules/voice_casting.py` ne le
-  lit pas) : seule la case **🔒** protège le couple narrateur = Jake, d'où
-  l'intérêt du badge — il rend ce cas visible.
-  **Recalcul apres un changement de voix** (constat de Laurent, 19/09/2026) : les
-  badges, les groupes, les marques et le tiroir n'etaient calcules qu'a
-  l'OUVERTURE de la fenetre — une voix donnee a un personnage laissait donc sa
-  fiche annoncer « Portee par 2 personnages : ... » (son exemple : « Col-bleu
-  sans bretelles » et « Andrew Cullum »). Corrige :
-  `_rafraichirCastingApresChangement()` recalcule apres chaque changement de
-  voix, en **attendant** l'enregistrement (sinon le recalcul se ferait sur
-  l'ancienne voix), **sans rien recharger du serveur**, en **remettant la liste
-  a sa position** (176 personnages obligent) et avec un **jeton** pour deux
-  changements rapproches. Les curseurs vitesse/hauteur ne declenchent aucun
-  recalcul : ils ne changent pas QUI porte la voix. Un echec d'enregistrement est
-  desormais **dit** a l'ecran. Effet de bord utile du meme chantier : changer la
-  voix du narrateur depuis le panneau « Voir la voix » est maintenant
-  **enregistre pour le livre** (ca ne l'etait pas — l'enregistrement part du
-  menu du haut).
-
-  **Aller sur la fiche d'un co-porteur** (demande de Laurent, 19/09/2026 :
-  « pouvoir cliquer sur Cycliste Schwinn pour arriver sur sa fiche ») : quand le
-  badge est deplie, les co-porteurs sont des **boutons** (nom + nombre de
-  repliques) qui font **defiler la liste** jusqu'a leur ligne et la mettent en
-  evidence un court instant. Des boutons et non des liens dans la phrase : sur
-  mobile, une cible tactile doit etre franche. Si un filtre cache le personnage,
-  le tap n'est pas silencieux — l'appli ecrit pourquoi et propose « Tous ».
-  *A ne pas confondre* avec l'item ouvert « Partager / Deplacer » (choisir une
-  voix **deja portee**), qui est un choix d'ECRITURE en base, pas une navigation.
-
-  *Technique* : `_etatVoix()` et `_resumeNoms()` (fonctions pures) et
-  `_lignesPersonnages()` (extrait de `_openCastModal` le 19/09/2026 et partagé
-  avec le panneau, pour que les deux comptent **les mêmes répliques**) dans
-  `frontend/app.js` ; `#cast-libres-info` et `#voice-phrase-usage` dans
-  `index.html` ; styles dans `styles.css`. *Vérifications* :
-  `test_voix/test_etat_casting.js` (noms des porteurs, voix libres, marques,
-  phrases) et `test_voix/test_tiroir_voix_libres.js` (**nouveau** : le rendu,
-  sans navigateur). **Lecture seule : rien n'est attribué depuis le tiroir.**
-
-- [x] **Prendre une voix déjà attribuée : « Partager » ou « Déplacer »** —
-  **livré le 19/09/2026** (décidé avec Laurent le 15/09/2026). Choisir pour un
-  personnage une voix qu'un AUTRE porte n'est plus un accident silencieux : une
-  **modale en français** nomme la voix et ses porteurs, **annonce la hauteur qui
-  sera appliquée**, et propose deux issues :
-  **(a) Partager** — les autres gardent la voix, et le personnage la reçoit avec
-  une hauteur décalée automatiquement (`_pitchPartageLibre` : +8, −8, +12, −12…
-  la plus petite différence **encore libre**, par pas de 4 Hz — le pas des
-  curseurs), écrite dans son curseur **avant** l'enregistrement, donc visible ;
-  **(b) Déplacer** — les autres repassent « ⚠ À caster » avec la **voix générique
-  de leur genre** (jamais un vide, qui casserait la lecture). Un personnage
-  **verrouillé 🔒 n'est jamais déplacé** : on le dit et on ne touche à rien.
-  Annuler (bouton, ✕, tap à côté ou Échap) remet le menu comme avant, sans rien
-  enregistrer.
-  *Technique* : `_pitchPartageLibre()` (fonction pure), `_demanderPartage()`,
-  `_deplacerAutresVersGenerique()` dans `frontend/app.js` ; modale
-  `#partage-modal` dans `index.html` ; styles dans `styles.css`.
-  *Vérifications* : `test_voix/test_etat_casting.js` (hauteur proposée : jamais
-  une hauteur déjà prise, la plus petite différence, aucun plantage quand tout
-  est pris) et `test_voix/test_tiroir_voix_libres.js` (la modale tourne pour de
-  vrai sur un faux DOM : texte, hauteur annoncée, ouverture/fermeture, réponse,
-  respect du verrou).
-- [x] **Attribuer une voix libre depuis la fiche du personnage** — livré le
-  19/09/2026 (le « reste ouvert » de l'item ci-dessus, tranché avec Laurent).
-  Chaque ligne de personnage porte un bouton **🗣️ « prendre une voix libre »** :
-  il ouvre la liste des voix que personne ne porte encore (même présentation que
-  le tiroir : rangées par moteur, ▶ pour écouter), et chaque voix a un bouton
-  **« Choisir »** qui la donne à ce personnage en **conservant sa vitesse et sa
-  hauteur**. Le casting est recalculé aussitôt, comme après tout changement.
-  *Pourquoi depuis le personnage et non depuis le tiroir* (choix expliqué à
-  Laurent) : partir d'une voix obligerait ensuite à choisir **qui**, parmi 175
-  personnages — exactement le problème qu'on cherche à éviter. Le tiroir reste
-  l'inventaire (voir + écouter).
-  *Technique* : `_ouvrirVoixLibres()`, `_donnerVoixLibre()`, `_fermerVoixLibres()`
-  et le paramètre `choisir` de `_afficherVoixLibres()` dans `frontend/app.js` ;
-  modale `#voixlibres-modal` dans `index.html` ; styles dans `styles.css`.
-  *Vérifications* : `test_voix/test_tiroir_voix_libres.js` (le bouton « Choisir »
-  rend bien CETTE voix, vitesse et hauteur conservées, un échec est dit) et
-  `test_voix/test_ids_ecran.py` (les 7 éléments de la fenêtre, les 3 fonctions,
-  les styles).
-
-- [x] **Symboles ♀️ / ♂️ pour repérer le genre d'un coup d'œil** — **LIVRÉ le
-  20/09/2026** (récap en fin d'item). Demande de
-  Laurent, 19/09/2026 : « on laisse le prénom, mais on ajoutera les symboles,
-  ça sera plus simple à l'œil ». Aujourd'hui la ligne d'un personnage écrit le
-  genre **en toutes lettres** (« Femme · 33 répliques », `frontend/app.js`,
-  `genreLabel` dans `_openCastModal`) : sur un casting de 175 personnages, ça se
-  lit mal. Où poser les symboles, par ordre d'utilité :
-  1. **la ligne de personnage** (fenêtre du casting) : symbole **devant** le
-     texte, pour que l'œil l'attrape — « ♀️ Femme · 33 répliques » (le mot reste
-     dans un premier temps ; on verra à l'usage s'il devient inutile, auquel cas
-     « ♀️ · 33 répliques » suffit) ;
-  2. **les deux barres de filtres** (« Femmes » / « Hommes », fenêtre du casting
-     et menu du narrateur) : « ♀️ Femmes » / « ♂️ Hommes » ;
-  3. *à confirmer avec Laurent* : les libellés de voix dans les menus (le groupe
-     « 👩 Femmes » / « 👨 Hommes » donne **déjà** le genre, le doubler serait
-     redondant — mais le libellé d'une voix reste juste, par exemple sur mobile
-     où l'on voit moins bien les en-têtes de groupe).
-  *Pièges à ne pas oublier* : écrire les symboles avec leur **sélecteur emoji**
-  (`\u2640\uFE0F` = ♀️ et `\u2642\uFE0F` = ♂️), sinon ils s'affichent en petit
-  noir et blanc ; et **le genre vide** (« ni F ni M ») ne doit pas tomber sur
-  « Homme » par défaut comme aujourd'hui — prévoir un signe neutre (ou laisser
-  vide) plutôt qu'un genre faux.
-  *Vérifications* : `test_voix/test_ids_ecran.py` (l'écran et le code restent
-  cohérents) et un contrôle du libellé produit.
-  **LIVRÉ le 20/09/2026.** Le symbole passe **devant** le prénom (précision de
-  Laurent : « implémenter les symboles masculin/féminin **devant les
-  prénoms** »), aux **trois** emplacements prévus :
-  1. **ligne de personnage** de la fenêtre du casting → « ♀️ Femme · 33
-     répliques » (le mot reste pour l'instant, comme prévu au-dessus) ;
-  2. **barre « Voix proposées »** → « ♀️ Femmes » / « ♂️ Hommes » ;
-  3. **libellé d'une voix**, partout (menus du casting, « 🎧 Écouter les voix »,
-     tiroir des voix libres, menu du narrateur) → « ♀️ Eva 🇩🇪 Allemagne (NIMM
-     Voix)… — Kokoro ». Le point « à confirmer » est **tranché : on l'a fait**,
-     parce que c'est le SEUL repère de genre dans « Écouter les voix », rangée
-     par **moteur** et non par genre ; dans les menus du casting, déjà groupés
-     « Femmes » / « Hommes », il est redondant mais jamais faux.
-  *Les deux pièges annoncés sont traités* : les symboles portent leur
-  **sélecteur emoji** (`\u2640\uFE0F` et `\u2642\uFE0F` — écrits en entités HTML
-  dans la page, en échappement JS dans `app.js`) ; et un **genre inconnu**
-  n'écrit **plus « Homme »** (l'ancien code retombait sur « Homme » dès que le
-  genre n'était pas `F`, donc pouvait annoncer un genre **faux** — la ligne
-  affiche maintenant « 33 répliques », sans signe ni mot). Une seule fonction
-  pure fait le travail, `_symboleGenre(genre)` (`frontend/app.js`), et elle
-  accepte les **deux conventions** du projet : `F`/`M` des catalogues de voix,
-  `F`/`H` des fiches de personnage.
-  *Vérifications* : `test_voix/test_libelle_voix.js` — libellés **exacts**
-  remis à jour, **11 → 17 contrôles**, dont un personnage annoncé « H », un
-  genre **vide** et un genre **absent** (aucun symbole), et les **deux points
-  de code** du sélecteur emoji ; `test_voix/test_ids_ecran.py` (**98 contrôles**
-  au total, dont 7 nouveaux : symboles dans les deux fichiers, les deux boutons,
-  absence de l'ancien repli sur « Homme ») ; **les 12 tests JS** verts,
-  `node --check frontend/app.js`, `test_js_syntax.py` et
-  `test_pool_casting.py`. Détails dans ARCHITECTURE.md.
 
 - [ ] **PARTAGE : quelles voix peut-on laisser dans un dépôt public ?** —
   question de Laurent (14/09/2026). Contexte : il **ne vend pas** NIMM ePub, il
@@ -5471,37 +2780,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   dans **tous** les menus déroulants pour **toutes** les familles, sous la
   forme « Prénom (F) — 🇫🇷 France (Kyutai) ».
 
-- [x] **Reprise d'une analyse voix multiples interrompue** — livré le 13/09/2026.
-  Une analyse qui s'arrêtait en cours de route (erreur IA, coupure) repartait
-  **du premier chapitre** et refaisait donc payer tous les chapitres déjà
-  analysés. Vécu sur un roman de 38 chapitres : arrêt au
-  chapitre 17 après 16 chapitres payés (~1,40 €), sans aucun moyen de
-  reprendre sans repayer. Désormais : les chapitres déjà enregistrés sont
-  **relus en base** et jamais refacturés, la reprise part du premier chapitre
-  manquant, et si tous les chapitres sont déjà là, seule la Passe 2 (bien
-  moins coûteuse) est relancée. La fiche de personnages est **mémorisée** au
-  fil de l'eau (table `cast_fiche`) pour que la reprise reparte avec la même
-  fiche ; à défaut (analyse antérieure), elle est reconstruite depuis les noms
-  en base, avec un genre deviné d'après le prénom (correctible à la main).
-  *Garde-fous* : un 2ᵉ lancement simultané est refusé (409), et un arrêt
-  brutal en pleine analyse ne laisse plus le livre bloqué.
-  *Technique* : `main.py` (`_chapitres_deja_traites`, `_charger_fiche`,
-  `_sauver_fiche`, `_fiche_de_secours`, `_charger_resultats_en_base`,
-  `_process_remaining_chapters`, `start_casting`), table `cast_fiche`,
-  `voice_casting.deviner_genre()` ; tests sans appel IA :
-  `test_voix/test_reprise_casting.py` (22 contrôles).
-
-- [x] **Savoir pourquoi l'IA a refusé de répondre** — livré le 13/09/2026.
-  Un échec du type « Reponse Gemini illisible : 'candidates' » signifiait que
-  Google n'avait renvoyé aucune réponse exploitable — sans jamais dire
-  pourquoi, la raison étant jetée avec la réponse. Le message explique
-  désormais la cause en français (blocage par filtre, liste de réponses vide,
-  génération coupée, erreur d'API) et la réponse brute est conservée dans
-  `data/journal_erreurs_gemini.log` (non versionné). La raison remonte aussi
-  dans l'interface, au lieu du seul « Echec du demarrage ».
-  *Technique* : `voice_casting._expliquer_reponse_gemini()` /
-  `_journaliser_reponse_gemini()` ; test `test_voix/test_diagnostic_gemini.py`.
-
 - [ ] **Fiabiliser l'estimation de coût affichée avant lancement** ⚠ *MESURE RÉELLE DISPONIBLE*
   **Nouvelle mesure du 14/09/2026** (petit livre, « Le Retour de l'enfant
   prodigue », 557 phrases, 8 chapitres, fiche de 5 personnages, moteur
@@ -5545,27 +2823,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
      lancement** (DeepSeek, Mistral), avec des tarifs très différents.
   *Rappels* : `PROVIDER_PRICES_USD` et l'estimation sont dans
   `modules/voice_casting.py` (`estimate_cast_cost`, `COST_SAFETY_MARGIN`).
-
-- [x] **Parade aux filtres de l'IA (refus de traiter un passage)** — livré le 13/09/2026.
-  Constat du 13/09/2026 sur un roman de 38 chapitres : Google a refusé le chapitre 17
-  (`promptFeedback.blockReason = PROHIBITED_CONTENT`), puis a **accepté
-  exactement le même lot de 150 phrases 20 minutes plus tard**, sans aucune
-  modification. Ce filtre est donc **intermittent** — et ce n'était PAS un
-  problème de droit d'auteur : Google dispose d'un motif dédié à la recopie
-  (`RECITATION`), absent ici.
-  **Décision de Laurent : deux parades, dans cet ordre.**
-  1. **Réessai** : un refus passager est renvoyé automatiquement (3 fois,
-     10 s d'écart). Un texte refusé n'engendre aucun token de sortie, donc
-     ces essais ne coûtent pratiquement rien.
-  2. **Découpage** : si le refus persiste, le lot de phrases est coupé en deux
-     et chaque moitié repart séparément (un contexte plus court passe souvent),
-     récursivement jusqu'à la phrase seule. Une phrase encore refusée est
-     attribuée au narrateur, avec la raison inscrite dans sa fiche : le
-     chapitre reste complet et la correction se fait à la main.
-  *Technique* : `voice_casting.BlocageContenu`, `_call_gemini` (réessai),
-  `_analyser_lot` (découpage), `MAX_LOTS_ABANDONNES = 25` ; test sans appel IA
-  `test_voix/test_anti_blocage.py` (11 contrôles) ; test ciblé à coût
-  négligeable `test_voix/_test_blocage_cible.py`.
 
 - [ ] **Faire l'attribution des voix sans aucune IA distante (piste locale)**
   Question de Laurent (13/09/2026) : « un programme Python ne peut pas faire
@@ -5810,207 +3067,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   *Outil* : `test_voix/_diag_lot_refuse.py` retrouve un lot à partir de la
   taille de son prompt, affichée par NIMM ePub dans la fenêtre de la console.
 
-- [x] **Optimisation du coût : format de réponse compact** — livré le 13/09/2026.
-  Après la facture de 5,64 € pour un roman de 38 chapitres, deux gaspillages ont été
-  identifiés dans ce qui était demandé à l'IA :
-  1. **la fiche entière devait être recopiée dans chaque réponse** (jusqu'à
-     175 personnages en fin de livre) — alors que le code Python l'accumule
-     déjà d'un chapitre à l'autre. Seuls les personnages **nouveaux** sont
-     désormais demandés.
-  2. **une fiche JSON complète par phrase** (~80 caractères), y compris les
-     55 % de phrases purement narratives. Le format compact ne liste que les
-     répliques, écrit le nom d'un personnage **une seule fois**, et considère
-     toute phrase absente comme de la narration.
-  *Mesure réelle (1 lot de 150 phrases, chapitre 17)* : **508 tokens de sortie
-  au lieu de ~3 300** (6,5× moins), coût par appel divisé par ~3. Qualité
-  **identique** : 150/150 phrases avec le même diagnostic narration/réplique
-  que le casting de référence, et **0 fragment de citation** à re-harmoniser
-  (le modèle a parfaitement suivi les consignes).
-  *Surprise* : **0 token de réflexion** mesuré — l'hypothèse « la réflexion
-  explique la facture » n'est PAS confirmée ; le coût venait surtout du volume
-  de réponse demandé, que ce chantier attaque directement.
-  *Technique* : `_build_prompt` (nouveau gabarit), `_normaliser_reponse`
-  (accepte l'ancien format en secours et ignore les numéros inventés),
-  `_fusionner_fiches` ; tests sans appel IA `test_voix/test_format_compact.py`
-  (19 contrôles) et test réel `test_voix/_test_format_compact_reel.py`.
-  *Mesure des tokens* : `_enregistrer_tokens`, `tokens_session()`,
-  `data/journal_tokens.csv` (non versionné) ; le coût réel mesuré est affiché
-  en fin de traitement.
-  *Piste suivante* : la fiche (~6 200 caractères) est renvoyée à CHAQUE appel
-  et pèse désormais l'essentiel de l'entrée — augmenter la taille des lots
-  (150 → 300 phrases) réduirait l'entrée d'environ 40 %, à valider sur la
-  qualité.
-
-- [x] **Incises lues par le narrateur** (piste de Laurent, 13/09/2026) — examinée, **écartée sur mesure**.
-  Idée : découper les phrases du type « … », dit Franz en souriant pour lire la
-  réplique avec la voix du personnage et l'incise avec celle du narrateur, par une
-  simple expression régulière locale, au moment de construire la playlist
-  (`_buildPlaylist`, `app.js`) — sans toucher au LLM, au serveur ni à la base.
-  Techniquement faisable et léger : les sous-segments d'une phrase partagent déjà
-  le même numéro de phrase, donc la surbrillance resterait posée au bon endroit.
-  **Mesure du 13/09/2026 sur un roman de 38 chapitres : 90 phrases concernées sur 11 086
-  répliques, soit 0,8 %** (30 incises après guillemet, 60 après un tiret de
-  dialogue), environ 3 800 caractères sur un million : **inaudible**.
-  Raison : les incises sont rares dans ce roman, et lorsqu'elles forment une phrase
-  à part, elles sont déjà attribuées au narrateur — donc déjà correctes.
-  *Outil de mesure conservé* : `test_voix/_etude_incises.py` (gratuit) — à relancer
-  sur un livre au style plus « incisant » avant de rouvrir le sujet.
-
-- [x] **Moteur local intégré + repli automatique des passages refusés par Google** — livré le 13/09/2026.
-  Demande de Laurent : « on pourrait séparer le local du cloud pour le casting ? »
-  1. **4ᵉ moteur « Modèle local »** dans la fenêtre de choix : gratuit, sans
-     filtre de contenu, et le texte ne sort jamais du poste. Le modèle est
-     réglable dans `data/config.json` (`local_model`, défaut `qwen2.5:latest`)
-     ainsi que l'adresse d'Ollama (`local_url`). Le bouton est **grisé
-     automatiquement, avec la raison**, si Ollama est arrêté ou si le modèle
-     n'est pas installé (route `GET /api/llm/local`). L'estimation annonce
-     « gratuit (sur votre PC) » et le décompte de coût reste à zéro.
-  2. **Repli automatique** : les phrases qu'un moteur distant **refuse**
-     (filtre de contenu, ex. `PROHIBITED_CONTENT` de Google) sont confiées au
-     moteur local, qui n'applique aucun filtre. Sans cela, ces passages —
-     souvent les plus violents du roman — restaient lus par le narrateur.
-     *Démonstration en test* : 5 phrases refusées → 4 récupérées par le local.
-  *Technique* : `config.get_local_model()` / `get_local_url()`,
-  `voice_casting._call_ollama()` (API native d'Ollama, `num_ctx` adapté et
-  `think:false` pour les modèles de raisonnement), `local_disponible()`,
-  `_rattraper_refusees()`, `analyze_chapter(provider_repli=...)`,
-  `PROVIDER_PRICES_USD["local"]`, route `GET /api/llm/local`, bouton dans
-  `frontend/index.html` et `frontend/app.js`.
-  *Tests* : `test_voix/test_moteur_local.py` (6 contrôles, appel local réel) et
-  `test_voix/test_repli_local.py` (5 contrôles, refus simulé + vrai local).
-  *À savoir* : la qualité du moteur local reste à améliorer (précision 34-46 %,
-  voir l'item « piste locale » ci-dessus) — ce chantier rend surtout le local
-  **utilisable et sans risque** : on peut l'essayer sans rien payer, et il
-  rattrape ce que le cloud refuse.
-
-- [x] **Libération automatique de la carte graphique pendant une analyse locale** — livré le 13/09/2026.
-  Demande de Laurent : le moteur de voix Kyutai occupe ~5,8 Go des 8 Go de la
-  carte, et un modèle de langage local en demande 5 à 6 Go — les deux ne
-  peuvent pas cohabiter.
-  Désormais, **lancer une analyse sur le « Modèle local » éteint le moteur de
-  voix** et **le rallume à la fin** du traitement, qu'il réussisse ou échoue.
-  *Mesure du test* : 5 840 Mo → 1 645 Mo, soit **4,2 Go de mémoire vidéo
-  libérés**, puis moteur de nouveau prêt à la fin.
-  Trois précautions : une analyse **en ligne** (Gemini, DeepSeek, Mistral) ne
-  touche à rien (le texte part sur internet, la carte reste libre) ; le moteur
-  n'est rallumé que **si c'est l'application qui l'avait éteint** ; et il n'est
-  pas relancé une seconde fois si Laurent l'a rallumé entre-temps.
-  *Technique* : `_moteur_kyutai_actif()`, `_pids_moteur_kyutai()`,
-  `_arreter_moteur_kyutai()` (taskkill /T, ferme aussi la fenêtre),
-  `_relancer_moteur_kyutai()` (même commande que START.bat),
-  `_liberer_la_carte_pour_analyse_locale()`, `_restaurer_moteur_kyutai()`
-  (appelé dans un `finally`), branchement dans `start_casting`.
-  *Test* : `test_voix/test_gestion_kyutai.py` (6 contrôles, moteur réel).
-
-- [x] **Cascade de secours Gemini → DeepSeek → local** — livré le 14/09/2026.
-  Jusqu'ici, un passage refusé par Google (filtre de contenu) partait
-  directement au moteur local — dont on a mesuré qu'il rendait le resultat
-  inutilisable à l'écoute. Désormais, la cascade est :
-  1. **DeepSeek** : résultat quasi identique à Gemini (97,3 % d'accord mesuré)
-     pour **environ 1 centime par chapitre** ;
-  2. **le moteur local** en tout dernier recours seulement (gratuit, sans
-     filtre) : mieux vaut une voix approximative que rien.
-  La liste est réglable en un seul endroit : `MOTEURS_DE_SECOURS` dans
-  `main.py`. `analyze_chapter(provider_repli=...)` accepte une chaîne ou une
-  liste, et n'essaie jamais un moteur identique au moteur principal.
-  *Mesure des coûts étendue* : `_enregistrer_tokens` compte désormais aussi les
-  moteurs compatibles OpenAI (DeepSeek, Mistral), qui n'étaient pas comptés du
-  tout — sans quoi tout test DeepSeek aurait été aveugle.
-  *Test* : `test_voix/test_repli_local.py` (refus simulé + vrai moteur local).
-
-- [x] **Estimation de coût recalibrée** — livré le 14/09/2026.
-  Depuis le format compact, la réponse du modèle ne fait plus que ~5 mots par
-  phrase au lieu des 22 estimés (`TOKENS_OUT_PER_SENTENCE`) : l'estimation
-  affichée annonçait donc **4 fois le coût réel** (0,06 $ annoncés pour
-  0,0155 $ payés sur le livre de test).
-  Après correction, sur le même livre : **Gemini estimé 0,0200 $ pour 0,0155 $
-  réels** (+29 %, marge de prudence conservée) et **DeepSeek estimé 0,0100 $
-  pour 0,0101 $ réels**.
-  *Vérifier de temps à autre* : comparer l'estimation et le coût mesuré
-  (`data/journal_tokens.csv`) sur un nouveau livre, grand et petit.
-  **Confirmation sur un GROS livre (14/09/2026, un roman contemporain, 30 293 phrases,
-  211 appels, Gemini)** : notre comptage donnait **0,7624 $ (environ 0,70 €)**,
-  mais la **facture Google réelle** s'élevait à **0,98 €** (solde passé de
-  8,72 à 7,74 €) : nos tarifs internes sous-estimaient donc de **40 %**.
-  **Calibrage effectué** : tarifs Gemini relevés proportionnellement à
-  **0,42 $/M en entrée** et **3,50 $/M en sortie**, ce qui redonne exactement la
-  facture (1,617 M × 0,42 + 0,111 M × 3,50 = 1,068 $ ≈ 0,98 €). Après
-  calibrage, l'estimation brute d'un roman contemporain est de **1,01 $** : elle colle
-  désormais à la réalité (l'affichage garde sa marge de prudence ×1,5, soit
-  ~1,52 $ — à réévaluer après deux ou trois autres castings réels).
-  *À retenir* : le **comptage des tokens était juste**, ce sont les **prix
-  unitaires** qui étaient approximatifs — ils venaient d'ordres de grandeur,
-  jamais d'une facture. DeepSeek et Mistral restent dans ce cas : à calibrer de
-  la même façon le jour où Laurent donnera le montant réel.
-  *Toujours 8 fois moins cher qu'hier* : 0,98 € pour un roman contemporain (30 293 phrases)
-  contre 5,64 € pour un roman de 38 chapitres (24 966 phrases, donc plus petit).
-
-- [x] **La saga transmet désormais aussi la FICHE des personnages** — livré le 14/09/2026.
-  Défaut découvert en castant le tome 5 de Monte-Cristo : la saga partageait
-  bien les **voix**, mais **pas la fiche des personnages**. Un tome neuf
-  repartait donc avec une fiche **vide** : le modèle réinventait les noms
-  (« Albert » au lieu d'« Albert de Morcerf »), le personnage n'était pas
-  reconnu à l'attribution des voix, et il en recevait une **nouvelle** — alors
-  que la saga existe précisément pour éviter cela.
-  *Mesure* : **32 personnages sur 42** du tome 5 ont été considérés comme
-  nouveaux ; seuls 10 ont hérité de leur voix du tome 2.
-  *Correction* : `_fiche_de_la_saga()` construit la fiche de départ à partir
-  des personnages des autres tomes de la saga. Ordre retenu pour la fiche de
-  départ : fiche mémorisée du livre → fiche reconstruite depuis ses noms →
-  **fiche de la saga** (117 personnages pour Monte-Cristo, vérifié).
-  **Résultat mesuré après correction** (tomes 5 et 6 castés en DeepSeek) :
-  | Tome | Personnages | Hérités du tome 2 | Même voix | Taux |
-  |---|---|---|---|---|
-  | Tome 5 | 109 | 97 | 97 | **89 %** |
-  | Tome 6 | 114 | 97 | 97 | **85 %** |
-  Tous les rôles majeurs (Comte, Danglars, Villefort, Mercédès, Albert de
-  Morcerf, Valentine, Maximilien Morrel…) ont retrouvé **exactement** leur voix
-  du tome 2. Les quelques noms non hérités sont de vrais seconds rôles
-  (aubergistes, brigadiers, employés de la maison Thomson & French) qui
-  n'apparaissent que dans ces tomes.
-  *Coût réel total des deux tomes* : **0,2449 $ (environ 23 centimes)** pour
-  9 558 phrases, échec et reprise compris.
-  *À retenir* : la saga doit transmettre **les deux** — les voix (pour
-  l'attribution) et la fiche (pour que le modèle réutilise les mêmes noms).
-
-- [x] **Journal des erreurs de casting** — livré le 14/09/2026.
-  Un échec de casting (coupure réseau, limite de débit du fournisseur) ne
-  laissait qu'un message dans la console du serveur : perdu dès que Laurent ne
-  l'avait plus sous les yeux, et impossible à diagnostiquer après coup. Les
-  échecs sont désormais conservés dans `data/journal_erreurs_casting.log`
-  (horodatage, livre, message et trace), sans jamais refaire d'appel payant.
-  *Bonne nouvelle au passage* : l'échec du 14/09/2026 (chapitre 15 du tome 5)
-  était **transitoire** — la reprise a repris au chapitre 16 et terminé
-  normalement, **sans rien repayé**.
-
-- [x] **Parade aux réponses illisibles (JSON malformé)** — livré le 14/09/2026.
-  Incident réel : DeepSeek a renvoyé un JSON invalide (une accolade au lieu
-  d'un crochet, colonne 459 d'un lot du tome 5 de Monte-Cristo) — et **tout le
-  casting du livre s'est arrêté** après 15 chapitres.
-  Désormais, `ReponseIllisible` (nouvelle exception) déclenche :
-  1. **un nouvel essai du même lot** (une génération est aléatoire : un JSON
-     valide arrive très souvent du deuxième coup) — 3 tentatives ;
-  2. puis le **découpage du lot** en deux, comme pour un refus de filtre ;
-  3. et, en dernier recours, la phrase résistante est **laissée au narrateur**
-     avec la raison inscrite dans sa fiche.
-  **Plus aucun échec de ce type ne peut arrêter un casting complet.**
-  *Technique* : `voice_casting.ReponseIllisible`, `_analyser_lot` refondu (les
-  deux parades — filtre et réponse illisible — partagent la même logique de
-  réduction de lot), message d'anomalie clarifié (« non attribuable
-  automatiquement (refus du filtre ou réponse illisible) »).
-  *Test* : `test_voix/test_reponse_illisible.py` (7 contrôles, aucun appel IA).
-  **Complément du 14/09/2026 (bug trouvé grâce au journal d'erreurs)** : la
-  parade était **incomplète**. `_normaliser_reponse()` levait une erreur
-  *générique* (`RuntimeError`) quand la réponse, bien que JSON valide, ne
-  contenait ni `repliques` ni `phrases` — et cette erreur **traversait la
-  parade** : le casting de « Notre-Dame de Paris » s'est encore arrêté, au
-  chapitre 31. Corrigé en levant `ReponseIllisible` : le lot est désormais
-  réessayé puis découpé comme les autres. Le test couvre maintenant ce cas
-  précis (réponse valide en JSON mais sans le contenu attendu).
-  *Leçon* : sans le journal `data/journal_erreurs_casting.log`, ce bug aurait
-  été indétectable après coup (le message n'existait que dans la console) ; il
-  a révélé à la fois la cause ET la ligne de code en cause.
-
 - [ ] **Fabriquer de nouvelles voix : état des lieux Piper vs Kokoro**
   (exploration du 14/09/2026, à poursuivre avec Laurent). Constats mesurés :
   - **Piper** : côté français, les modèles disponibles sont déjà tous exploités —
@@ -6129,229 +3185,7 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   aucune dépendance ajoutée ici tant que la qualité n'est pas jugée à
   l'oreille.
 
-- [x] **Installer le moteur XTTS v2 dans NIMM ePub** (demande de Laurent,
-  14/09/2026) — **service installé, démarré et testé le 14/09/2026**, sur le
-  modèle exact de `kyutai_service`. Nouveau dossier `xtts_service\` :
-  `servir_xtts.py` (service HTTP port **8083**, `/sante` + `/voix` + `/tts` +
-  `/recharger`, une génération à la fois, gardien de fenêtre, refus de deux
-  moteurs), `INSTALLER_XTTS.bat`, `DEMARRER_XTTS.bat`, `_telecharger.py`,
-  `_verifier_installation.py`, `tester_service.py`, `LIRE_MOI.md`,
-  `ATTRIBUTION.md`, `requirements.txt`, `.venv` Python 3.12 (**7,7 Go**).
-  *Mesures du 14/09/2026 sur la RTX 4060* : modèle chargé en **9,9 s**,
-  **35 voix**, sortie WAV mono 24 kHz, **≈ ×3 plus vite que le temps réel**
-  (10,8 s d'audio calculés en 4,1 s).
-  **Voix** : les 35 extraits de `kyutai_service\voix_fr\cml-tts\fr\` ont été
-  **copiés** dans `xtts_service\voix_fr\` (ce sont les mêmes identifiants que
-  le catalogue Kyutai, donc les mêmes repères) ; le modèle (2,09 Go) était
-  **déjà en cache** sur la machine → **rien à télécharger**.
-  **Deux pièges mesurés, documentés dans `requirements.txt`** : PyTorch **2.8**
-  obligatoire (2.9+ réclame `torchcodec`, qui réclame les DLL FFmpeg
-  « partagées » absentes ici) et `transformers` **borné à la branche 4.x**
-  (transformers 5.x fait échouer l'import de TTS).
-  **Découpage** : la limite de **273 caractères** en français est gérée par le
-  service (découpage aux phrases puis aux virgules, morceaux recollés **sans
-  silence**, 0,35 s **uniquement entre deux vraies phrases**) — vérifié sur un
-  texte de 325 caractères : 2 morceaux (209 + 115), texte reconstitué **à
-  l'identique**.
-  **(1) Branché dans le lecteur — livré le 14/09/2026** : catalogue
-  `XTTS_VOICES` (35 voix, `modules/tts.py`), branche `xtts:` dans
-  `/api/tts`, les 35 voix dans `GET /api/voices` **quand le moteur est
-  allumé et prêt** — vérifié de bout en bout (moteur allumé : `/sante` prêt
-  en 10,9 s, `/api/voices` → 35 voix `xtts:`, `/api/tts` → WAV valide).
-  **Reste à faire (sessions suivantes)** :
-  (2) le **lot d'écoute** des 35 voix clonées (`index_ecoute.txt` à annoter),
-  pour que Laurent choisisse ses préférées et corrige les étoiles
-  (actuellement provisoires, reprises de Kyutai) ;
-  (3) le **bouton de bascule** et le **rallumage automatique du dernier
-  moteur** (voir l'item suivant).
-  *Licence* : modèle **CPML, non commerciale** — l'audio XTTS reste **hors de
-  toute banque diffusée**, et le moteur reste un composant **externe**
-  (voir `xtts_service\ATTRIBUTION.md`).
-
-- [x] **Licence NeuTTS lue et tranchée — 14/09/2026** (vérification demandée
-  par Laurent avant tout essai). Le code comme les poids relèvent de la
-  **NeuTTS Open License v1.0** (11/12/2025). Ce qu'elle dit, en clair :
-  - usage **gratuit** pour tout ce qui n'est pas commercial → l'usage familial
-    de NIMM ePub est **entièrement couvert**, sans seuil ni redevance ;
-  - l'usage commercial est permis **en dessous de 5 M$ de chiffre d'affaires
-    annuel** ; au-delà, une licence payante est exigée ;
-- [x] **« Les retraits se font-ils mécaniquement, ou avec un LLM ? »** — question de
-  Laurent du **18/09/2026**, au moment de relancer. **Réponse consignée** :
-  **c'est du code, pas un LLM.** Le retrait des incises est une série
-  d'**expressions régulières** locales (`modules/incises.py`), appelée à chaque
-  phrase par `_clean_text` : **aucun appel réseau, aucune IA, à aucun moment de
-  la lecture**. Mesure faite le même soir : **5 105 phrases en 0,204 s**, soit
-  **0,04 ms par phrase** (≈ 25 000 phrases/seconde), là où un appel de LLM par
-  phrase coûterait 1 à 3 secondes, de l'argent, et donnerait un résultat
-  **non déterministe** (deux lectures du même passage se comporteraient
-  différemment).
-  *Qui décide quoi, en trois étages* : le **LLM** intervient **une seule fois par
-  livre**, au **casting** (attribuer chaque phrase à un personnage) ; le **code**
-  fait le **nettoyage du texte à la lecture** (incises, ponctuation, abréviations)
-  ; la **base** garde les voix attribuées.
-  *Est-ce qu'une règle de grammaire se code ?* Oui, à condition de distinguer :
-  les règles **formelles** (typographie, morphologie) se codent de façon fiable
-  — « virgule + verbe de parole + pronom collé par un trait d'union » ; les règles
-  **ambigües** se codent **avec des garde-fous et des tests** — et quand on ne
-  sait pas trancher, **on ne touche à rien** (c'est ce qui protège le texte :
-  « que » exclu car conjonction le plus souvent, aucune extension si la suite est
-  une question). Chaque cas tordu signalé par Laurent (quatre extraits le soir du
-  18/09) est devenu un **test**, donc ne peut plus revenir.
-  *Piste pour plus tard, si un cas vraiment tordu résiste* : demander au LLM **du
-  casting** (qui lit déjà toutes les phrases) de marquer aussi les incises et de
-  stocker leurs positions — la lecture resterait instantanée, le coût resterait
-  celui du casting. À évaluer (volume : ~5 000 phrases par livre).
-
-  - la **redistribution du modèle est autorisée**, à condition de joindre la
-    licence et de conserver les mentions d'attribution ;
-  - le mot « Output » (contenu généré, **audio inclus**) est **explicitement
-    couvert** par la licence : les livres audio produits suivent les mêmes
-    règles.
-  - **Point qui décide de l'intégration** : cette licence n'est pas libre au
-    sens strict (elle ajoute une limite commerciale) et n'est donc **pas
-    compatible avec la GPL-3.0** du programme → le code de NeuTTS **ne peut pas
-    être embarqué** dans NIMM ePub.
-  - **Solution retenue** : le traiter **exactement comme Kyutai** — dossier à
-    part, environnement à part, installé par l'utilisateur, appelé par le
-    réseau. NIMM ePub reste GPL-3.0 pur ; NeuTTS n'est qu'un composant externe
-    optionnel.
-  - **Deux frictions à connaître** : le modèle est « gated » sur Hugging Face
-    (compte + acceptation des conditions → installation **non automatique**) ;
-    et la licence du logiciel ne couvre **pas** les droits des personnes dont
-    on clone la voix → n'utiliser que des extraits explicitement libres
-    (VoxPopuli CC0).
-
 ## 🟡 Priorité 3 — Robustesse & architecture
-
-- [x] **🔌 Pocket TTS s'éteint en fermant sa fenêtre (comme Kyutai), et le
-  veilleur respecte l'arrêt volontaire** — livré le **21/09/2026** au soir.
-  Laurent : « Couper le moteur Pocket TTS comme pour Kyutai. À la fermeture de la
-  fenêtre cmd, tous les moteurs doivent s'arrêter. Actuellement, Pocket TTS reste
-  allumé, je n'ai pas moyen de l'éteindre via la fermeture de la fenêtre cmd. »
-  *Cause, trouvée dans le code* : le service Pocket **avait déjà** son gardien de
-  console, mais `START.bat` le lançait **caché** (`Start-Process -WindowStyle
-  Hidden`, sortie dans `journal_service.txt`) → **aucune fenêtre à fermer**, donc
-  le geste n'existait pas.
-  *Livré* :
-  1. `START.bat` ouvre **sa fenêtre** (`start "… Pocket TTS" /D
-     pocket_tts_service cmd /k DEMARRER_POCKET_TTS.bat`, la forme même de la
-     ligne de Kyutai) → **fermer la fenêtre l'éteint** ;
-  2. quand la fenêtre se ferme, le service écrit un **marqueur**
-     (`pocket_tts_service/arrete_volontaire.txt`) ;
-  3. **le veilleur du lecteur lit ce marqueur**
-     (`main._pocket_arrete_volontairement`) et **ne rallume plus** Pocket TTS :
-     sans lui, il le relançait **30 secondes plus tard**, et le geste aurait été
-     annulé ;
-  4. le marqueur est effacé dès que le moteur redémarre, par `START.bat` à chaque
-     nouveau démarrage, et par le bouton **« Relancer les moteurs »** (un clic
-     est une demande explicite) ;
-  5. `main._demarrer_pocket_avec_fenetre` (ex-`_demarrer_pocket_sans_fenetre`) :
-     le lecteur aussi rallume le moteur **dans une fenêtre**, sinon un Pocket TTS
-     rallumé par le lecteur n'aurait, de nouveau, aucun geste d'arrêt.
-  *Vérifications* : `test_voix/test_start_moteur.py` et
-  `test_voix/test_reparer_moteurs.py` **mis à jour** (les deux moteurs ont leur
-  fenêtre, le marqueur est effacé au démarrage, et deux contrôles nouveaux :
-  « arrêt volontaire : le veilleur ne rallume RIEN », puis « mais un clic de
-  Laurent rallume ») — **suite complète au vert**.
-  *Détails* : ARCHITECTURE.md, section « Pocket TTS ».
-  *À voir par Laurent* : au prochain `START.bat`, une fenêtre « NIMM ePub -
-  appareil de voix Pocket TTS » s'ouvre. La fermer éteint le moteur, et il **ne
-  revient pas** tout seul.
-
-- [x] **Serveurs fantômes sur le port 8081 — le piège, et son garde-fou** — livré
-  le **18/09/2026** au soir, après une soirée de fausses pistes.
-  *Le piège* : fermer la fenêtre de commande ne tue pas toujours le processus
-  Python. Le port 8081 reste pris par l'**ancien serveur** ; le nouveau ne peut
-  pas démarrer (erreur d'une seconde, la fenêtre se ferme) et c'est l'ancien qui
-  répond, **avec l'ancien code en mémoire**. Laurent a donc relancé plusieurs
-  fois en croyant tester les correctifs du soir (banc d'écoute, incises,
-  ponctuation) : **rien n'était chargé**. Il y avait même un **second** serveur
-  oublié sur le port 8080, démarré le matin. Le doute est venu du bon réflexe de
-  Laurent : « j'entends encore les incises **sur un chapitre que je n'ai jamais
-  lu** » — aucun cache ne pouvait expliquer cela.
-  *Diagnostic* : comparer l'heure de démarrage du processus qui écoute
-  (`Get-NetTCPConnection` → PID → `Get-CimInstance`) avec la date de modification
-  des fichiers de `modules/`. L'écart a tout dit (serveur de 14:28, correctifs de
-  21:35). Nouvel outil : **`test_voix/_tester_tts_serveur.py`**, qui montre ce que
-  le serveur renvoie vraiment (texte nettoyé vs texte d'origine).
-  *Garde-fou livré* : **`START.bat` arrête désormais tout ancien serveur du
-  lecteur** avant de démarrer (test du port 8081, puis arrêt des `main.py`).
-  C'est la seconde partie de l'idée déjà notée dans ARCHITECTURE.md
-  (« Arrêt propre du serveur depuis le launcher ») ; le bouton « Arrêter » dans le
-  launcher reste à faire.
-  *Erreur commise — et corrigée le soir même* : la première version filtrait les
-  processus par **nom de script** (`main.py`) et a donc **arrêté NIMM**, le
-  chatbot de Laurent (`G:\NIMM`, port **8080**), qui porte lui aussi un
-  `main.py`. La version corrigée cible le **PORT 8081** et exige un processus
-  **Python** : NIMM (8080) et le relais `tailscaled` (qui écoute aussi 8081, sur
-  l'adresse Tailscale) ne sont plus jamais touchés. Laurent l'a signalé
-  lui-même (« sur le port 8080 c'est NIMM, mon chatbot »), et la correction a été
-  vérifiée par `test_voix/_essai_garde_fou_start.py` : « laisse tranquille
-  tailscaled, arrêterait python 22764 ».
-  *Sauvegarde* : `START.bat.bak_avant_garde_fou_serveur_20260918`.
-
-
-
-- [x] **Ménage : environnements de moteurs dupliqués retirés de l'atelier** —
-  livré le **16/09/2026**, à la demande de Laurent (« pour ne pas faire de
-  doublons partout, dans 2 dossiers différents »).
-  *Vérification préalable* : **aucun code de NIMM ePub ne dépend de l'atelier
-  NIMM Voix**. Les 6 fichiers qui citent « NIMM Voix » sont des **commentaires**
-  (méthode reprise, licences) et le **libellé** `France (NIMM Voix)` porté par
-  30 voix Kokoro. Les deux moteurs existaient en double, à la taille près :
-  `outils\xtts_tts\.venv` (7,7 Go) face à `xtts_service\.venv` (7,7 Go), et
-  `outils\kyutai_tts\.venv` (4,4 Go) face à `kyutai_service\.venv` (4,4 Go).
-  *Fait* : suppression des **deux seuls `.venv`** de l'atelier → **12,1 Go
-  libérés** (disque G: passé à 85,5 Go libres). Les **modèles** (XTTS 2 Go,
-  Kyutai 3,8 Go) vivent dans le **cache partagé** de Windows : rien à
-  re-télécharger. Le service XTTS de NIMM ePub a continué de tourner pendant
-  l'opération (vérifié après : 79 voix, toujours prêt).
-  *Conservé volontairement dans l'atelier* : les scripts d'atelier,
-  `reference` (extraits de voix), la banque Kyutai `voix_fr`,
-  **`whisper-large-v3`** (2,9 Go — indispensable pour préparer un dataset
-  d'entraînement), les corpus, `training`, `voicepack_train`, les voix générées
-  et validées.
-  *Trace* : un encadré en tête de `MEMO_XTTS_v2_pour_Cline.md` prévient que les
-  chemins vers les `.venv` de l'atelier **n'existent plus** (utiliser
-  `xtts_service\.venv`), pour qu'on ne cherche pas un environnement fantôme.
-
-- [x] **Le mauvais moteur de voix peut se lancer tout seul** — **RÉGLÉ le
-  15/09/2026** (récap en fin d'item). Constat de
-  Laurent (15/09/2026) : au démarrage, **Kyutai** s'est lancé alors que le
-  lecteur affichait « Voix de personnages : XTTS v2 prêt » — donc le réglage
-  `data/moteur_voix.txt` (qui contenait bien `xtts`) n'a pas été suivi.
-  Conséquence mesurée : **les deux moteurs allumés en même temps**, 7,6 Go de
-  carte graphique sur 8 — ce que le projet déconseille explicitement.
-  À reproduire, puis à corriger. Pistes à vérifier, dans l'ordre :
-  1. `DEMARRER_KYUTAI.bat` et `DEMARRER_XTTS.bat` **écrivent** tous les deux ce
-     réglage : si Kyutai a été lancé à la main plus tôt dans la journée, le
-     fichier disait `kyutai` au moment du `START.bat` suivant — et Laurent a pu
-     le remettre à `xtts` après (à confirmer par les horodatages) ;
-  2. le lecteur lui-même sait **rallumer Kyutai** (`_relancer_moteur_kyutai()`,
-     écrit pour libérer la carte pendant une analyse locale en repli) : il
-     pourrait le faire sans qu'on l'ait demandé ;
-  3. le **lanceur du téléphone** (`<dossier du lanceur>\launcher.py`) appelle
-     `START.bat` : vérifier qu'il n'impose pas, lui, un moteur ;
-  4. le double démarrage *du même* moteur est déjà bloqué (par le port), mais
-     **rien n'empêche deux moteurs différents** de tourner ensemble : c'est
-     peut-être le vrai garde-fou à ajouter (éteindre l'autre moteur, ou
-     refuser de démarrer, avec un message clair).
-  **Traité le 15/09/2026, avec le bouton de bascule.** Les pistes 1 et 3 n'ont
-  pas été touchées (les lanceurs continuent d'écrire le réglage : c'est ce qui
-  fait revenir le DERNIER moteur utilisé, voulu par Laurent) ; c'est la piste 4
-  qui a été retenue, et appliquée **des deux côtés** :
-  **(a) au démarrage** — `START.bat` teste maintenant le port de **l'autre**
-  moteur **avant** de lancer le sien : si l'autre tourne déjà, il ne lance rien
-  et le dit. C'est exactement la situation du 15/09 : Kyutai allumé à la main
-  plus tôt dans la journée, puis choix « xtts » au démarrage suivant ;
-  **(b) à chaud** — le bouton de bascule **éteint toujours l'autre avant
-  d'allumer**, et refuse d'allumer quoi que ce soit si l'extinction échoue.
-  Conséquence attendue : plus jamais **7,6 Go de carte graphique sur 8** sans
-  que Laurent l'ait demandé. *Vérification* : `test_voix/test_start_moteur.py`
-  (chaque branche teste bien les deux ports, l'autre avant le sien) et
-  `test_voix/test_bascule_moteur.py` (50 contrôles, aucun moteur lancé).
-
-
 
 - [ ] **Centraliser le découpage en phrases**
   **Quatre** implémentations coexistent : `_buildSentences` (app.js),
@@ -6387,39 +3221,6 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   « ~1900 lignes » et « ~900 lignes » écrites ici dataient de la création de
   l'item. À découper quand la navigation dans le code devient pénible ; le
   chiffre fait maintenant jalon, donc l'item est **mesurable**.
-
-- [x] **Cache audio : statistiques et purge** — **LIVRÉ le 20/09/2026** : voir
-  l'item « Bouton « vider le cache audio » dans les réglages », plus haut.
-  `GET /api/cache_audio` donne la taille, le quota et le nombre de fichiers,
-  `POST /api/cache_audio/vider` purge (jamais une écriture en cours), et le
-  bouton **« 🧹 Vider le cache (604 Mo) »** est dans le tiroir du lecteur.
-  **Item fermé le 22/09/2026** : il restait ouvert alors que tout était livré et
-  testé (`test_cache_audio.py`, `test_cache_audio.js`) — *repéré par l'audit de
-  la documentation, qui a montré que l'outil ne voyait pas encore ce genre de
-  doublon.*
-
-- [x] **Sécuriser et documenter `test_voix/`** — livré le **16/09/2026**
-  (demande de Laurent : « je me perds un peu » ; chantier choisi : rangement +
-  sécurisation). Constat : le dossier compte **106 fichiers** (52 tests, 41
-  outils d'atelier, des journaux), et surtout **un script appelait de vraies API
-  payantes sous un nom qui ressemblait à un test** (`test_attribution.py`) — avec
-  un **lanceur en double-clic** au titre anodin. Le guide le disait déjà
-  (`CONTRIBUER.md`) mais **rien ne l'appliquait techniquement**.
-  *Fait* : (1) renommé `_PAYANT_test_attribution_api.py` + lanceur
-  `_PAYANT_lancer_test_attribution.bat`, pour que le danger se voie dans
-  l'explorateur ; (2) le script **refuse de partir sans `--je-paie`** (message
-  clair, code de sortie 2) et le lanceur **demande confirmation** ; (3)
-  `test_voix/LIRE_MOI.md` : en une page, quels fichiers sont des tests (sans
-  risque), quels sont des outils de diagnostic (lecture seule), quelles données
-  ne pas supprimer — et la distinction entre le **seul script payant** et les
-  **3 scripts à IA locale** (Ollama, gratuits mais qui occupent la carte
-  graphique) ; (4) `CONTRIBUER.md` mis à jour (liste des vérifications enrichie
-  des 4 nouveaux tests).
-  *Vérification* : `test_voix/test_lire_moi.py` (**10 contrôles**) — aucun
-  fichier cité par le mode d'emploi n'a disparu, le script payant est bien
-  protégé, les anciens noms n'existent plus.
-  *Reste en option* : supprimer les scripts d'atelier vraiment obsolètes — rien
-  n'a été supprimé ici, la sécurisation suffisait.
 
 - [ ] **Hygiène du dépôt : clés d'API en clair, dépendances non figées, doc
   en retard** (constat de l'atelier NIMM Voix, 12/09/2026).
@@ -6604,33 +3405,6 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
   **cascade de secours** (aucun passage perdu) et le **coût maîtrisé**
   (~3 centimes pour 1 000 phrases).
 
-- [x] **README d'installation** — préparé le 14/09/2026 : `README.md` (racine)
-  + modèle `data/config.example.json`. Vérifié à cette occasion :
-  - les modèles de voix se téléchargent bien aux adresses indiquées (Kokoro :
-    release `kokoro-onnx` v1.0 ; Piper : HuggingFace `rhasspy/piper-voices`) ;
-  - les **14 paquets** du lecteur se résolvent en Python 3.14 sur un
-    environnement **vierge** (essai `pip install --dry-run`, code 0) ;
-  - les clés API (`data/config.json`, `test_voix/cles_api.txt`) n'ont
-    **jamais** été commitées : vérifié dans **tout** l'historique Git ;
-  - les livres (`data/library/`) et les modèles ne sont pas versionnés.
-  *Deux points relevés au passage (à traiter le jour d'une mise en public)* :
-  deux fichiers techniques sans intérêt sont encore **suivis** par Git —
-  `core/__pycache__/epub_parser.cpython-314.pyc` et `server_pid.txt`
-  (`git rm --cached`, ils restent sur le disque) ; et à cause de
-  bibliothèques sous **GPL-3.0** (`piper-tts`, `pedalboard`,
-  `phonemizer-fork`) ou **AGPL-3.0** (`EbookLib`), la licence du dépôt devra
-  être **GPL-3.0** ou **AGPL-3.0** — pas MIT (détail dans le README).
-
-- [x] **Installateur des voix locales** — livré le 14/09/2026 :
-  `INSTALLER_VOIX_LOCALES.bat` (racine, un simple double-clic). Télécharge les
-  6 fichiers de voix locales — Kokoro (~350 Mo) + les 3 voix Piper (~190 Mo) —
-  à la racine du projet. Reprise après coupure (`curl -C -`), contrôle de
-  taille, journal `installation_voix_locales.log` (ignoré par Git) et bilan
-  clair en cas d'échec. Vérifié sur un dossier d'essai : les fichiers déjà
-  présents ne sont **pas** re-téléchargés, les téléchargements réels sont
-  valides (les trois `.json` Piper relus par `json.load`), et un échec réseau
-  simulé donne bien « TERMINE AVEC 1 PROBLEME(S) » avec un code de sortie 1.
-
 - [ ] **Installeur complet, à la façon de NIMM** (idée du 14/09/2026, à faire
   plus tard) : un seul `INSTALLER_NIMM_EPUB.bat` qui enchaîne tout sur une
   machine neuve — détecter Python (et le proposer en installation automatique
@@ -6649,17 +3423,6 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
   détection : `nvidia-smi`, présent avec tout pilote NVIDIA, donne le nom de la
   carte et la mémoire vidéo.
 
-- [x] **Vérification « aucun livre dans le dépôt »** — faite le 14/09/2026 :
-  l'état **actuel** du dépôt ne contient aucun EPUB (ni aucun fichier suivi de
-  plus de 2 Mo). **En revanche, 22 EPUB déposés aux débuts sont présents dans
-  l'HISTORIQUE** (des classiques du domaine public comme Monte-Cristo et
-  Robinson Crusoé, mais aussi des romans contemporains sous droits, dont des
-  fichiers téléchargés sur des sites douteux). Le
-  dépôt GitHub étant **privé**, ils ne sont pas exposés
-  aujourd'hui — mais ils ressortiraient tels quels le jour d'une mise en
-  public. Décision de Laurent (14/09/2026) : **partager le programme, jamais
-  les livres**. Reste à trancher la méthode (item suivant).
-
 - [ ] **Retirer les livres de l'historique Git** — AVANT toute mise en public.
   **Décision de Laurent (14/09/2026) : repartir d'un dépôt neuf** — « les
   commits antérieurs n'apporteront rien de spécial au dépôt » : ils seront donc
@@ -6675,30 +3438,8 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
   BACKLOG.md et ARCHITECTURE.md).
   Recommandation : **(B)**, seule méthode garantie de ne rien laisser derrière.
 
-- [x] **Licence du programme : GPL-3.0** — décidé et appliqué le 14/09/2026. Le
-  texte officiel de la licence (récupéré chez la Free Software Foundation, 674
-  lignes, 35 149 octets) est dans `LICENSE`, et le README explique la décision
-  en français. Raison : plusieurs
-  briques utilisées (`piper-tts`, `pedalboard`, `phonemizer-fork` en GPL-3.0 ;
-  `EbookLib` en AGPL-3.0) imposent qu'un programme distribué soit fourni avec
-  son code source sous la même famille de licence — ce qui est de toute façon
-  le cas ici. Une licence MIT serait donc **trompeuse**, et l'AGPL-3.0
-  n'apporterait rien de plus pour une application locale.
-
-
 ## ⚪ Actions utilisateur (pas du code)
 
-- [x] **Tester l'écran verrouillé sous Brave** — **fait le 20/09/2026, et c'était
-  LA clé du problème** 🎉 (piste de Laurent : « YouTube continue sous Brave
-  écran verrouillé »). PWA installée + Batterie « **non restreinte** » pour Brave
-  **et** Tailscale : la lecture tient désormais en arrière-plan (2 minutes et
-  plus, y compris en quittant le lecteur et en revenant à l'accueil) ✔.
-  *Avant ce réglage* (Brave sur « optimisée »), la lecture s'arrêtait **~20
-  secondes** après le verrouillage : Android endormait le navigateur, l'application
-  n'y pouvait rien.
-  ⚠️ **Leçon** : ce réglage est **la première chose à vérifier** avant de chercher
-  dans le code — il a coûté deux jours de doute. Détails dans ARCHITECTURE.md
-  (« Lire écran verrouillé »).
 - [ ] **Tester le casting enrichi (Kokoro + seuil 8)** sur un nouveau livre
   dès que les crédits sont rechargés.
 - [ ] **📡 Tailscale : deux gestes qui évitent une panne** (relevé le
@@ -6787,3 +3528,355 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
   la même voix de base, sans rien supprimer (réversible via ✂). Chaque alias
   garde sa propre voix, modifiable indépendamment.
 - **Outil piper-tagger** (tagging H/F des voix Piper) + `piper_gender_tags.json`.
+
+---
+
+### Les items livrés, en une ligne (réduction A1 du 22/09/2026)
+
+Réduction demandée par Laurent : le **titre** et la **date** suffisent pour retrouver
+un item ; le récit technique vit dans `ARCHITECTURE.md`. Les phrases de
+**leçon** (un démenti, une mesure, un piège) sont gardées sous l'item quand
+elles se lisent seules ; celles qui ne se lisent pas seules (restes de listes) sont
+recopiées **telles quelles** à la fin de ce fichier, parce que rien ne doit
+disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~272 Ko** (taille sur le disque).*
+
+#### 🔴 Priorité 1 — Lecture audio (confort immédiat)
+
+- [x] **🪗 Le menu du bas devient un TIROIR : les sept commandes de lecture, et
+  rien d'autre** (22/09/2026).
+- [x] **Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS
+  redémarre avec le lecteur** (21/09/2026).
+  ⚠️ Leçon : `main.py` tolère désormais un BOM en tête de ce fichier (piège
+    PowerShell).
+
+  ⚠️ Leçon : `neutts` dans le pense-bête). Leçon : **un `.bat` s'écrit
+    TOUJOURS en CRLF**. `START.bat` lui-même est sain (178 lignes en CRLF,
+    vérifié) : la faute était dans mon script de diagnostic, jetable.
+
+- [x] **🎒 Pocket TTS : volume qui s'affaisse dans un long paragraphe, et
+  débuts de mots mangés** (21/09/2026).
+- [x] **⚡ Kyutai : les derniers mots de la phrase d'avant s'entendent parfois
+  au début de la suivante** (21/09/2026).
+- [x] **Volume des voix Kyutai : niveau ramené à celui des autres moteurs**
+  (18/09/2026).
+- [x] **Un chapitre pouvait être sauté après une « erreur de chargement » —
+  corrigé** (18/09/2026).
+- [x] **Bouton « vider le cache audio » dans les réglages** (20/09/2026).
+  ⚠️ Leçon : `frontend/styles.css` (leçon du 20/09/2026 : « Onglets » avait
+    gardé l'apparence native du navigateur, plus grand et plus clair que ses
+    voisins). C'est le **prochain chantier prévu**.
+
+- [x] **Les incises de parole sont RETIRÉES du texte parlé** (18/09/2026).
+  ⚠️ Leçon : À retenir : on retire soit **toute** l'incise, soit **rien** —
+    jamais un morceau.
+
+- [x] **Banc d'écoute : quelle ponctuation remplacer le « ! » ?**
+  (18/09/2026).
+- [x] **Les points d'exclamation sont retirés du texte envoyé au moteur**
+  (18/09/2026).
+- [x] **Le silence après « M. » (lu monsieur) / « Mme » : cause trouvée,
+  garde-fou posé** (18/09/2026).
+- [x] **Ne plus couper les phrases après une abréviation — le vrai correctif**
+  (18/09/2026).
+- [x] **Babil du moteur XTTS sur les phrases courtes — corrigé** (16/09/2026).
+- [x] **Rogner les silences de bord des fichiers TTS** (08/09/2026).
+- [x] **Préchargement « burst » au passage en arrière-plan** (20/09/2026).
+- [x] **Lecteur intégré « façon Deezer » + lecteur système complet**
+  (20/09/2026).
+- [x] **Les phrases sont collées en UN SEUL morceau (la modale reste
+  affichée)** (20/09/2026).
+- [x] **Pause par le casque, et bouton de lecture qui dit la VÉRITÉ**
+  (20/09/2026).
+- [x] **Résidus de balises dans le texte lu (« M class="textsuperscript">lle
+  »)** (20/09/2026).
+- [x] **Bouton « Installer l'application » : seulement sur téléphone**
+  (20/09/2026).
+- [x] **Installation de l'application : l'option manquait dans Chrome**
+  (20/09/2026).
+- [x] **UX pendant une coupure réseau** (15/09/2026).
+- [x] **Un changement de voix ne s'applique pas pendant la lecture (surtout
+  sur mobile)** (15/09/2026).
+- [x] **Voir et changer la voix d'une phrase (tap mobile + bouton PC)**
+  (15/09/2026).
+- [x] **Panneau « Voir la voix » → une PORTE vers le casting** (20/09/2026).
+- [x] **Icônes des moteurs + « 🔖 Onglets » à la même échelle** (20/09/2026).
+- [x] **Barre de navigation : quatre flèches symétriques, RSVP déplacé**
+  (20/09/2026).
+- [x] **Bibliothèque mobile : le titre du livre en entier sous la couverture**
+  (15/09/2026).
+- [x] **Couvertures écrasées sur mobile dès que la bibliothèque est remplie**
+  (16/09/2026).
+- [x] **Barre de lecture : suppression du bouton ⏩ (phrase suivante)**
+  (15/09/2026).
+- [x] **Barre de réglages du lecteur : boutons compacts et thème sombre
+  cohérent** (15/09/2026).
+- [x] **Le point-virgule ferme l'incise** (19/09/2026).
+  ⚠️ Leçon : — donc le contrôle visait un **mot orphelin**, pas le retrait. Il
+    vérifie maintenant cela précisément : jamais d'orphelin après le verbe, et
+    la réplique garde ses deux morceaux.
+
+- [x] **Le cas « Danglars » : rien à changer** (19/09/2026).
+- [x] **Les mots TOUT EN MAJUSCULES sont lus normalement** (19/09/2026).
+  ⚠️ Leçon : ⚠️ Piège évité : il faut compter « Jim » (majuscule initiale)
+    comme casse normale, **pas** seulement les mots tout en minuscules — sinon
+    « JIM » était classé sigle à tort.
+
+- [x] **Des ONGLETS : marquer un passage et le retrouver** (19/09/2026).
+  ⚠️ Leçon : ⚠️ **Piège noté pour la suite** : `TestClient` n'exécute **pas**
+    le « lifespan » de l'application, donc pas de `init_db()` — un test qui
+    touche une table doit appeler `main.init_db()` lui-même.
+
+  ⚠️ Leçon : 🔎 **Leçon du premier essai de Laurent (19/09/2026 au soir)** : le
+    panneau s'ouvrait mais la pose échouait (« Impossible de poser l'onglet
+    »). **Cause trouvée en direct** : le serveur qui répondait était
+    **l'ANCIEN**, lancé avant la livraison → `GET /api/bookmarks/16` renvoyait
+    **404**.
+
+- [x] **« MR. CURRIE » lu « MR[féè]. CURRIE » — corrigé** (21/09/2026).
+- [x] **Les syllabes inventées autour des prénoms : CORRIGÉ (étape 1)**
+  (21/09/2026).
+
+#### 🟠 Priorité 2 — Voix & casting
+
+- [x] **🧹 La fenêtre du casting respire : en-tête compact, tiroir des
+  réglages, et la fenêtre ne sort plus de l'écran** (21/09/2026).
+- [x] **🎭 Les petits rôles sont joués par DEUX voix : Jessica (femmes) et
+  Pierre (hommes)** (21/09/2026).
+- [x] **🔒 Le cadenas du casting est un DESSIN, plus un emoji : verrouillé et
+  déverrouillé ne se ressemblent plus sur le téléphone** (21/09/2026).
+- [x] **La vitesse réglée sur un personnage n'était JAMAIS appliquée —
+  corrigé** (20/09/2026).
+- [x] **La voix du NARRATEUR passe d'un livre à l'autre — chaque livre doit
+  garder la sienne** (20/09/2026).
+- [x] **Voir les voix par THÈME, et non par moteur** (20/09/2026).
+- [x] **Menus de voix : des DRAPEAUX et tes notes d'écoute** (19/09/2026).
+- [x] **Timbre : « très grave » et « très aigu » ajoutés** (19/09/2026).
+  ⚠️ Leçon : *Hypothèse, pas acquis* : Laurent dit « je pense que ça
+    améliorera » — la mesure ci-dessus dit seulement ce que contiennent les
+    extraits actuels, elle ne prouve pas encore l'effet sur la prosodie. À
+    confirmer à l'oreille.
+
+- [x] **Critères FIXES d'annotation des voix (listes déroulantes)**
+  (16/09/2026).
+- [x] **Re-cast par critères (gratuit) — étape 1 de l'attribution assistée**
+  (16/09/2026).
+- [x] **Étape 2 — bouton « Re-caster avec l'IA »** (16/09/2026).
+- [x] **Re-cast : la cohérence de SAGA est désormais préservée** (16/09/2026).
+- [x] **Nouvel ordre du pool automatique de casting, avec XTTS v2**
+  (14/09/2026).
+- [x] **Filtre / regroupement par genre (H/F) dans la fenêtre du casting**
+  (12/09/2026).
+- [x] **Ne proposer dans les menus que les voix « écoutables » selon le moteur
+  allumé** (14/09/2026).
+- [x] **Barre de recherche dans la fenêtre du casting** (20/09/2026).
+- [x] **START.bat : rallumer le DERNIER moteur utilisé** (14/09/2026).
+  ⚠️ Leçon : *Deux pièges `cmd` trouvés au test et documentés dans
+    `ARCHITECTURE.md`* : une **parenthèse dans un texte** à l'intérieur d'un
+    bloc `if (...)` ferme le bloc et **arrête tout le script** ; et un bloc
+    `if exist ( for ... )` sur plusieurs lignes déraille aussi.
+
+- [x] **Bouton de bascule entre les moteurs de voix (Kyutai ↔ XTTS v2)**
+  (15/09/2026).
+  ⚠️ Leçon : `_pids_moteur_kyutai()`) ; **ne jamais interrompre une génération
+    en cours** (les demandes sont mises en file une par une) ; prévenir que la
+    lecture s'arrêtera si la voix en cours appartenait à l'autre moteur.
+
+- [x] **Regrouper les appellations d'un même personnage — étape 1 (doublons
+  d'écriture)** (12/09/2026).
+- [x] **Regrouper les appellations d'un même personnage — étape 2
+  (rattachement manuel des pseudonymes)** (12/09/2026).
+- [x] **Regroupement par alias sur mobile** (12/09/2026).
+- [x] **Distribution fine des petits rôles** (12/09/2026).
+- [x] **XTTS v2 : la voix « bute » sur les guillemets `« »`** (15/09/2026).
+- [x] **XTTS : rogner les silences de bord des fichiers générés**
+  (15/09/2026).
+- [x] **Notes « stars » définitives pour les 35 voix XTTS v2** (16/09/2026).
+  ⚠️ Leçon : *Piège évité au passage* : `piper:tom:0` sert de constante
+    `GENERIC_VOICE_M` dans `modules/voice_casting.py` — mais elle **n'est plus
+    utilisée** depuis le 15/09/2026 (les petits rôles sont lus par le
+    narrateur). Si un jour on redonne une voix aux petits rôles, il faudra
+    choisir une autre voix que Tom.
+
+- [x] **Peut-on cloner les voix Kokoro avec XTTS, comme on l'a fait pour
+  Kyutai ? — question de Laurent (14/09/2026), analysée et tranchée : NON.**
+  (14/09/2026).
+- [x] **🎧 Fenêtre « Écouter les voix » (le listener)** (14/09/2026).
+- [x] **Règle des paliers d'étoiles pour le pool automatique** (15/09/2026).
+- [x] **Report des notes d'écoute dans les catalogues (étape 3 du listener)**
+  (15/09/2026).
+- [x] **Badges d'état dans la fenêtre du casting** (15/09/2026).
+- [x] **Noms des voix dans la fenêtre du casting (identifiants au lieu des
+  prénoms)** (15/09/2026).
+- [x] **Voir les voix LIBRES et PAR QUI une voix est partagée** (19/09/2026).
+- [x] **Prendre une voix déjà attribuée : « Partager » ou « Déplacer »**
+  (19/09/2026).
+- [x] **Attribuer une voix libre depuis la fiche du personnage** (19/09/2026).
+- [x] **Symboles ♀️ / ♂️ pour repérer le genre d'un coup d'œil** (20/09/2026).
+  ⚠️ Leçon : *Pièges à ne pas oublier* : écrire les symboles avec leur
+    **sélecteur emoji** (`\u2640\uFE0F` = ♀️ et `\u2642\uFE0F` = ♂️), sinon
+    ils s'affichent en petit noir et blanc ; et **le genre vide** (« ni F ni M
+    ») ne doit pas tomber sur « Homme »
+
+- [x] **Reprise d'une analyse voix multiples interrompue** (13/09/2026).
+- [x] **Savoir pourquoi l'IA a refusé de répondre** (13/09/2026).
+- [x] **Parade aux filtres de l'IA (refus de traiter un passage)**
+  (13/09/2026).
+- [x] **Optimisation du coût : format de réponse compact** (13/09/2026).
+  ⚠️ Leçon : *Surprise* : **0 token de réflexion** mesuré — l'hypothèse « la
+    réflexion explique la facture » n'est PAS confirmée ; le coût venait
+    surtout du volume de réponse demandé, que ce chantier attaque directement.
+
+- [x] **Incises lues par le narrateur** (13/09/2026).
+- [x] **Moteur local intégré + repli automatique des passages refusés par
+  Google** (13/09/2026).
+- [x] **Libération automatique de la carte graphique pendant une analyse
+  locale** (13/09/2026).
+- [x] **Cascade de secours Gemini → DeepSeek → local** (14/09/2026).
+- [x] **Estimation de coût recalibrée** (14/09/2026).
+  ⚠️ Leçon : *À retenir* : le **comptage des tokens était juste**, ce sont les
+    **prix unitaires** qui étaient approximatifs — ils venaient d'ordres de
+    grandeur, jamais d'une facture. DeepSeek et Mistral restent dans ce cas :
+    à calibrer de la même façon le jour où Laurent donnera le montant réel.
+
+- [x] **La saga transmet désormais aussi la FICHE des personnages**
+  (14/09/2026).
+  ⚠️ Leçon : *À retenir* : la saga doit transmettre **les deux** — les voix
+    (pour l'attribution) et la fiche (pour que le modèle réutilise les mêmes
+    noms).
+
+- [x] **Journal des erreurs de casting** (14/09/2026).
+- [x] **Parade aux réponses illisibles (JSON malformé)** (14/09/2026).
+  ⚠️ Leçon : *Leçon* : sans le journal `data/journal_erreurs_casting.log`, ce
+    bug aurait été indétectable après coup (le message n'existait que dans la
+    console) ; il a révélé à la fois la cause ET la ligne de code en cause.
+
+- [x] **Installer le moteur XTTS v2 dans NIMM ePub** (14/09/2026).
+  ⚠️ Leçon : **Deux pièges mesurés, documentés dans `requirements.txt`** :
+    PyTorch **2.8** obligatoire (2.9+ réclame `torchcodec`, qui réclame les
+    DLL FFmpeg « partagées » absentes ici) et `transformers` **borné à la
+    branche 4.x** (transformers 5.x fait échouer l'import de TTS).
+
+- [x] **Licence NeuTTS lue et tranchée — 14/09/2026** (14/09/2026).
+- [x] **« Les retraits se font-ils mécaniquement, ou avec un LLM ? »**
+  (18/09/2026).
+
+#### 🟡 Priorité 3 — Robustesse & architecture
+
+- [x] **🔌 Pocket TTS s'éteint en fermant sa fenêtre (comme Kyutai), et le
+  veilleur respecte l'arrêt volontaire** (21/09/2026).
+- [x] **Serveurs fantômes sur le port 8081 — le piège, et son garde-fou**
+  (18/09/2026).
+  ⚠️ Leçon : *Le piège* : fermer la fenêtre de commande ne tue pas toujours le
+    processus Python. Le port 8081 reste pris par l'**ancien serveur** ; le
+    nouveau ne peut pas démarrer (erreur d'une seconde, la fenêtre se ferme)
+    et c'est l'ancien qui répond, **avec l'ancien code en mémoire**.
+
+- [x] **Ménage : environnements de moteurs dupliqués retirés de l'atelier**
+  (16/09/2026).
+- [x] **Le mauvais moteur de voix peut se lancer tout seul** (15/09/2026).
+- [x] **Cache audio : statistiques et purge** (20/09/2026).
+- [x] **Sécuriser et documenter `test_voix/`** (16/09/2026).
+
+#### 🌍 Diffusion / partage — idée de Laurent (14/09/2026, à ouvrir dans quelques jours)
+
+- [x] **README d'installation** (14/09/2026).
+- [x] **Installateur des voix locales** (14/09/2026).
+- [x] **Vérification « aucun livre dans le dépôt »** (14/09/2026).
+- [x] **Licence du programme : GPL-3.0** (14/09/2026).
+
+#### ⚪ Actions utilisateur (pas du code)
+
+- [x] **Tester l'écran verrouillé sous Brave** (20/09/2026).
+  ⚠️ Leçon : ⚠️ **Leçon** : ce réglage est **la première chose à vérifier**
+    avant de chercher dans le code — il a coûté deux jours de doute. Détails
+    dans ARCHITECTURE.md (« Lire écran verrouillé »).
+
+
+---
+
+### Leçons recopiées TELLES QUELLES (elles ne se lisent pas seules)
+
+Ces phrases viennent de l'ancien fichier, où elles étaient prises dans
+des listes à puces. Elles ne se lisent pas seules (début ou fin
+tronqués) : elles sont recopiées **telles quelles** plutôt que
+raccommodées à la va-vite, parce que **rien ne doit disparaître** — et
+l'audit du 22/09/2026 a montré que plusieurs ne sont **pas** dans
+`ARCHITECTURE.md`. Le titre de leur item est dans la liste, ci-dessus.
+
+- Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS  —
+  *Deux pièges d'atelier trouvés le même jour, et corrigés* (ils dormaient
+  depuis le 16/09/2026) : - **`test_start_moteur.py` tuait le lecteur de
+  Laurent** : sa « copie neutre » de `START.bat` ne neutralisait pas le
+  garde-fou du 18/09/2026
+
+- Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS  —
+  complet** fonctionne. Leçon écrite dans le test.
+
+- Le bouton du bas ne change plus de moteur : il RÉPARE — et Pocket TTS  —
+  *Deux pièges de plus, trouvés en testant le geste FORT (et corrigés)* : -
+  **un nom court ne se résout plus dans un `cmd` lancé par le lecteur** : le
+  bouton « Redémarrer » ouvrait bien une fenêtre, mais elle disait «
+  `START.bat` n'est pas reconnu » — et le lecteur **n'était jamais
+
+- 🎒 Pocket TTS : volume qui s'affaisse dans un long paragraphe, et début —
+  résultat dément l'attribution** : - **Pocket TTS est STABLE** : niveaux des
+  dix phrases `42 39 38 40 30 37 40 34 29 38` → de la première à la dernière
+  **−1,1 dB seulement** (une oscillation normale de ±1,5 dB). **Il n'y a pas
+  d'affaissement.**
+
+- 🎒 Pocket TTS : volume qui s'affaisse dans un long paragraphe, et début —
+  l'ancien niveau (leçon du 17/09/2026).
+
+- ⚡ Kyutai : les derniers mots de la phrase d'avant s'entendent parfois  — -
+  et **le piège que Laurent redoutait est réel** : avec **une virgule dans le
+  contexte** (« pas, alors »), la virgule fait une pause de **~0,5 s** qui
+  arrive **avant** celle du séparateur — les points de suspension tombent
+  alors à 0,28 / 0,43 / 0,70 s.
+
+- Les incises de parole sont RETIRÉES du texte parlé — phrases déjà générées
+  ne repassent pas par la règle — c'est le piège habituel après un changement
+  de texte ; 2. la règle **ratait trois formes très fréquentes** chez Dumas :
+  - le **« t » euphonique** (« ajouta-**t**-il », « demanda-**t**-elle ») ;
+
+- Les phrases sont collées en UN SEUL morceau (la modale reste affichée) —
+  suit grâce à des durées **calculées** (donc pas de dérive, le piège du
+  15/09/2026), et la **barre du lecteur système avance en douceur** au lieu de
+  sauter d'une phrase à l'autre.
+
+- Le point-virgule ferme l'incise — *Deux tests ont démenti une formulation
+  trop étroite, et ont été REFORMULÉS (avec la raison écrite dedans, pour que
+  la question ne revienne pas)* : - `test_nettoyage_tts.py` : le contrôle « le
+  sujet de la phrase n'est jamais supprimé » exigeait que « jeune homme »
+  RESTE dans « j'écoute, répondit le
+
+- Le point-virgule ferme l'incise — le point-virgule orphelin est nettoyé, et
+  un mot piège (« maudit-il ») n'est pas pris pour une incise (ce dernier
+  garde-fou n'était testé nulle part). - `test_ponctuation_incises.py` : même
+  cas. Son commentaire expliquait le vrai
+
+- Des ONGLETS : marquer un passage et le retrouver — **Règle à retenir** : une
+  modification dans `modules/` ou `main.py` demande un
+
+- Les syllabes inventées autour des prénoms : CORRIGÉ (étape 1) — écoutées
+  doivent être refaites (leçon du 17/09).
+
+- Critères FIXES d'annotation des voix (listes déroulantes) — étoiles et la
+  remarque libre restent à part ; un critère renseigné se voit (bordure
+  accentuée).
+
+- Re-cast par critères (gratuit) — étape 1 de l'attribution assistée — accent
+  « paysan »** sont volontairement ignorés : trop peu renseignés (constat sur
+  les 148 voix annotées).
+
+- Bouton de bascule entre les moteurs de voix (Kyutai ↔ XTTS v2) — modèle
+  (n'annoncer « prêt » qu'avec `pret: true`) ; **ne jamais tuer un processus
+  au hasard** (cibler par ligne de commande, comme
+
+- Report des notes d'écoute dans les catalogues (étape 3 du listener) —
+  **Monique** — un prénom masculin sur une voix féminine est un piège dans le
+  casting ; - les **5 voix laissées en « – »** par Laurent avec une remarque
+  de défaut (« probleme timbre », « probleme de souffle », « souffle »)
+  devaient en fait
+
+- Symboles ♀️ / ♂️ pour repérer le genre d'un coup d'œil — *Les deux pièges
+  annoncés sont traités* : les symboles portent leur
