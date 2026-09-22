@@ -22,6 +22,8 @@ Ce que l'outil VERIFIE (tout ce qui est verifiable mecaniquement) :
      base ?
   5. les TESTS cites : existent-ils ? et tournent-ils dans le lanceur global ?
   6. les DOUBLONS du BACKLOG : un item « a faire » dont le sujet est deja livre.
+  7. la STRUCTURE de ARCHITECTURE.md : son sommaire dit-il la verite sur son
+     propre plan, ou envoie-t-il au mauvais endroit ?
 
 Ce qu'il ne fait PAS : il ne juge pas le style et il ne reecrit RIEN. C'est un
 DIAGNOSTIC, et chaque alerte doit etre LUE dans le document : la lecon du
@@ -390,6 +392,79 @@ def section_doublons_backlog():
     return len(ouverts), len(livres), signales
 
 
+SEUIL_SECTION = 500        # lignes : au-dela, un sujet est trop gros a lire
+
+
+def section_structure():
+    """7. Le sommaire de ARCHITECTURE.md dit-il la verite sur son propre plan ?
+
+    Deux verites a tenir. D'abord le SOMMAIRE : s'il ne correspond plus aux
+    vrais titres `##`, il envoie au mauvais endroit -- comme un mode d'emploi
+    qui cite un fichier disparu. Ensuite la TAILLE des sections : le
+    22/09/2026, une seule section avalait 61,5 % du document (« Profils
+    familiaux » contenait tout le casting, les moteurs et le cache), donc le
+    plan ne servait a rien.
+
+    Renvoie (nombre_de_titres, taille_de_la_plus_grosse, alertes).
+    """
+    texte = lire(RACINE / 'ARCHITECTURE.md')
+    if not texte:
+        return 0, 0, ['ARCHITECTURE.md introuvable']
+    lignes = texte.splitlines()
+
+    titres = [(n, l[3:].strip()) for n, l in enumerate(lignes, 1)
+              if l.startswith('## ')]
+    # La taille se mesure sur les SUJETS (`###`) : depuis le regroupement en
+    # parties (22/09/2026), une partie contient legitimement plusieurs sujets --
+    # c'est le sujet qui doit rester lisible d'un seul tenant.
+    sujets = [(n, l[4:].strip()) for n, l in enumerate(lignes, 1)
+              if l.startswith('### ')]
+    plus_grosse = 0
+    for i, (numero, _titre) in enumerate(sujets):
+        fin = sujets[i + 1][0] - 1 if i + 1 < len(sujets) else len(lignes)
+        plus_grosse = max(plus_grosse, fin - numero + 1)
+
+    alertes = []
+    if plus_grosse > SEUIL_SECTION:
+        alertes.append('la plus grosse section fait %d lignes (seuil %d) : un '
+                       'sujet de trop, ou des titres manquants'
+                       % (plus_grosse, SEUIL_SECTION))
+    if not sujets:
+        alertes.append('aucun sujet `###` : le document n est plus regroupe '
+                       'en parties')
+
+    # Le sommaire : les puces qui suivent la ligne « **Sommaire** ».
+    ecrits = []
+    depart = next((n for n, l in enumerate(lignes)
+                   if l.strip() == '**Sommaire**'), None)
+    if depart is None:
+        alertes.append('aucun sommaire (« **Sommaire** ») en tete de fichier')
+    else:
+        for ligne in lignes[depart + 1:]:
+            if ligne.startswith('  - '):
+                # Sous-puce : un SUJET, pas une partie (le sommaire liste les
+                # `##` en puces et leurs `###` en dessous).
+                continue
+            if ligne.startswith('- '):
+                ecrits.append(ligne[2:].strip().strip('*').strip())
+            elif ligne.strip():
+                break
+        attendus = [t for _n, t in titres]
+        if ecrits == list(reversed(attendus)):
+            alertes.append('le sommaire est A L ENVERS (%d titres)'
+                           % len(ecrits))
+        elif ecrits != attendus:
+            manquants = [t for t in attendus if t not in ecrits]
+            en_trop = [t for t in ecrits if t not in attendus]
+            alertes.append('sommaire : %d titre(s) liste(s) pour %d titre(s) '
+                           'reel(s)' % (len(ecrits), len(attendus)))
+            for titre in manquants[:5]:
+                alertes.append('  absent du sommaire        : %s' % titre[:58])
+            for titre in en_trop[:5]:
+                alertes.append('  cite mais plus un titre   : %s' % titre[:58])
+    return len(titres), len(sujets), plus_grosse, alertes
+
+
 def _afficher_section(numero, titre, alertes, complement=''):
     print('')
     print('-' * 74)
@@ -460,6 +535,20 @@ def main():
         print('  ligne %-6d %s' % (bloc['ligne'], bloc['titre'][:58]))
         print('  %-13s %s' % ('', raison))
     total += len(doublons)
+
+    nb_parties, nb_sujets, plus_grosse, alertes = section_structure()
+    print('')
+    print('-' * 74)
+    print('7. STRUCTURE de ARCHITECTURE.md (sommaire et taille des sections)')
+    print('-' * 74)
+    print('  %d parties `##`, %d sujets `###` ; la plus grosse section fait '
+          '%d lignes (seuil %d)'
+          % (nb_parties, nb_sujets, plus_grosse, SEUIL_SECTION))
+    if not alertes:
+        print('  RIEN A SIGNALER')
+    for alerte in alertes:
+        print('  ' + alerte)
+    total += len(alertes)
 
     print('')
     print('=' * 74)

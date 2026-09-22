@@ -274,6 +274,19 @@
                   title="Vider le cache audio (l'audio déjà synthétisé sera recréé à la prochaine écoute)">
             🧹 Vider le cache
           </button>
+          <!-- Incises de parole : muettes, ou lues par le narrateur (22/09/2026,
+               décision de Laurent). Le bon réglage dépend du STYLE du livre, et de
+               lui seul : dans Monte-Cristo les incises sont des étiquettes
+               redondantes (muettes), dans 22/11/63 (« j'ai dit ») elles font
+               partie du récit (lues par le narrateur). Le libellé du bouton PORTE
+               l'état ; app.js le remplit à l'ouverture du livre et l'enregistre
+               pour ce livre (colonne books.incises_narrateur). -->
+          <button id="incises-btn"
+                  aria-label="Incises de parole : muettes ou lues par le narrateur"
+                  aria-pressed="false"
+                  title="Incises de parole : muettes, ou dites par le narrateur.">
+            Incises : muettes
+          </button>
           <!-- Les deux menus sont groupes sur leur propre rangee (15/09/2026,
                demande de Laurent : agencement plus compact) : la voix du
                narrateur prend la place restante, la vitesse garde sa taille. -->

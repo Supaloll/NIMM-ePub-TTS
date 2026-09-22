@@ -130,6 +130,20 @@ def init_db():
     # voix pour Monte-Cristo et pour 22/11/63. NULL = voix par defaut.
     if "narrator_voice" not in books_cols:
         conn.execute("ALTER TABLE books ADD COLUMN narrator_voice TEXT DEFAULT NULL")
+    # Ajout non destructif de la colonne "incises_narrateur" (22/09/2026, decision
+    # de Laurent). Les INCISES DE PAROLE (« , dit-il, », « m'a-t-elle repondu. »)
+    # sont soit MUETTES -- retirees du texte parle, comportement historique -- soit
+    # LUES PAR LE NARRATEUR. Le bon choix depend du STYLE du livre, et de lui
+    # seul : dans Monte-Cristo ce sont des etiquettes redondantes ; dans 22/11/63
+    # (« j'ai dit », « m'a-t-il dit ») elles font partie du recit. Mesure du
+    # 22/09/2026 (part des incises au « je ») : 0 a 1 % dans les classiques, 25 %
+    # dans 22/11/63, 51 % dans Shantaram -- AUCUN seuil automatique ne separe
+    # proprement ces livres (22/11/63 serait classe « classique » a tort). D'ou un
+    # reglage PAR LIVRE, et un bouton dans le lecteur pour le changer a l'ecoute.
+    # 0 = muettes (defaut : aucun livre deja caste ne change de comportement).
+    if "incises_narrateur" not in books_cols:
+        conn.execute(
+            "ALTER TABLE books ADD COLUMN incises_narrateur INTEGER DEFAULT 0")
     # Ajout non destructif de la colonne "decoupe_dialogue" (21/09/2026,
     # demande de Laurent) : le livre est en « mode dialogue », ou la NARRATION
     # est separee de la REPLIQUE au decoupage -- le beat (« Richie est
@@ -329,6 +343,12 @@ class TTSRequest(BaseModel):
     # MAJUSCULES avec le vocabulaire de CE livre (demande de Laurent,
     # 19/09/2026). Sans lui, le nettoyage garde son comportement d'avant.
     book_id: int = 0
+    # La piece envoyee EST une incise de parole, et elle doit etre LUE (decision de
+    # Laurent, 22/09/2026 : « incises lues par le narrateur »). Sans ce drapeau,
+    # le serveur la rendrait MUETTE : un texte qui n'est qu'une incise
+    # (« , dit-il. ») est remplace par un court silence (voir `_est_incise_seule`).
+    # Le lecteur ne l'envoie que pour les morceaux qu'il confie au narrateur.
+    incise_a_lire: bool = False
 
 class VoiceUpdateRequest(BaseModel):
     character_name: str
@@ -872,6 +892,37 @@ async def set_narrator_voice(book_id: int, demande: NarratorVoiceRequest,
     conn.close()
     return {"ok": True, "narrator_voice": demande.voice}
 
+
+class IncisesRequest(BaseModel):
+    """Incises de parole lues par le narrateur, pour un livre (22/09/2026)."""
+    narrateur: bool = False
+
+
+@app.put("/api/books/{book_id}/incises")
+async def set_incises_narrateur(book_id: int, demande: IncisesRequest,
+                                user_id: int):
+    """Retient, POUR CE LIVRE, si les incises de parole sont LUES PAR LE NARRATEUR.
+
+    Decision de Laurent (22/09/2026) : « Entre un Monte-Cristo, ou elles sont
+    inutiles la plupart du temps, et Stephen King, c'est tout a fait different :
+    quand il ecrit des "j'ai dit", ca fait partie du recit. » Le reglage appartient
+    donc au LIVRE (comme la voix du narrateur), et il est modifiable a l'ecoute :
+    c'est le bouton « Incises » du lecteur.
+
+    Ce reglage ne touche a AUCUNE donnee : ni le texte affiche, ni l'attribution
+    des locuteurs, ni les voix du casting. Il ne change que la FACON DE LIRE :
+    muettes = l'incise est retiree du texte parle (comportement historique) ;
+    lues = le lecteur confie le morceau au narrateur.
+    """
+    conn = get_db()
+    conn.execute(
+        "UPDATE books SET incises_narrateur = ? WHERE id = ? AND user_id = ?",
+        (1 if demande.narrateur else 0, book_id, user_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "incises_narrateur": bool(demande.narrateur)}
+
+
 @app.get("/api/books/{book_id}/chapter/{chapter_index}")
 async def get_chapter(book_id: int, chapter_index: int, user_id: int):
     conn = get_db()
@@ -898,6 +949,53 @@ async def get_chapter(book_id: int, chapter_index: int, user_id: int):
     }
 
     return chapter
+
+
+@app.get("/api/books/{book_id}/chapter/{chapter_index}/incises")
+async def get_chapter_incises(book_id: int, chapter_index: int, user_id: int):
+    """Positions des incises de parole d'un chapitre : {n° de phrase: [[début, fin]]}.
+
+    Demande de Laurent (22/09/2026, reglage « incises lues par le narrateur ») :
+    pour que l'incise soit dite par le NARRATEUR sans re-cast, sans re-decoupage et
+    sans toucher aux index attribues, la page coupe la phrase aux positions des
+    incises et donne le morceau au narrateur.
+
+    POURQUOI C'EST LE SERVEUR QUI LES CALCULE : la regle reste ecrite UNE SEULE
+    FOIS (`modules/incises.py`). La page ne connait aucune regle, elle applique des
+    positions -- et le jour ou l'on apprendra de nouvelles formes d'incises (item
+    ouvert du BACKLOG, « les incises a la 1re personne »), la lecture en profitera
+    SANS qu'une ligne du JavaScript ne bouge. Deux copies de la regle auraient
+    derive, c'est deja arrive avec le decoupage des phrases.
+
+    Cout : un calcul par chapitre, et il n'est demande QUE si le livre est regle
+    sur « lues ». Reglage eteint = ce point d'entree n'est jamais appele.
+    """
+    conn = get_db()
+    book = conn.execute(
+        "SELECT * FROM books WHERE id = ? AND user_id = ?", (book_id, user_id)
+    ).fetchone()
+    conn.close()
+    if not book:
+        raise HTTPException(404, "Livre introuvable")
+
+    from core.epub_parser import get_chapter
+    chapter = get_chapter(str(LIBRARY_DIR / book["filename"]), chapter_index)
+    if chapter is None:
+        raise HTTPException(404, "Chapitre introuvable")
+
+    from modules.decoupage import phrases as _phrases
+    from modules.incises import incises as _incises
+    # La regle du LIVRE : la page decoupe avec la meme, sinon les numeros de phrase
+    # ne seraient plus les bons (voir `_regle_du_livre`). `chapter["incises"]` est
+    # aligne sur le meme chapitre que celui renvoye par `get_chapter`.
+    regle = _regle_du_livre(book)
+    trouvees = {}
+    for idx, texte in enumerate(_phrases(chapter.get("text") or "", regle)):
+        spans = _incises(texte)
+        if spans:
+            trouvees[idx] = [[debut, fin] for debut, fin in spans]
+
+    return {"chapter_index": chapter_index, "regle": regle, "incises": trouvees}
 
 # --- Distribution de voix par personnage (IA) ---
 
@@ -2854,10 +2952,29 @@ def _est_incise_seule(texte: str) -> bool:
     return not _re.search(r'[A-Za-z\u00c0-\u024f]', reste)
 
 
+def _doit_taire_l_incise(texte: str, incise_a_lire: bool = False) -> bool:
+    """Le serveur doit-il remplacer ce texte par un COURT SILENCE ?
+
+    Toute la decision est ici, pour qu'elle soit testable sans lancer de moteur
+    (`test_voix/test_incise_seule.py`). Deux cas :
+      - `incise_a_lire` : le LECTEUR a isole ce morceau pour le confier au
+        narrateur (reglage « incises lues par le narrateur », 22/09/2026) : il faut
+        la DIRE ;
+      - sinon, la regle historique s'applique : une phrase qui n'est QU'une incise
+        est tue (sinon le moteur refuserait un texte vide).
+    """
+    return (not incise_a_lire) and _est_incise_seule(texte)
+
+
 @app.post("/api/tts")
 async def tts(request: TTSRequest):
-    # Une phrase qui n'est qu'une incise ne se lit pas : court silence.
-    if _est_incise_seule(request.text):
+    # Une phrase qui n'est qu'une incise ne se lit pas : court silence. SAUF si
+    # c'est le LECTEUR qui l'a isolee pour la confier au narrateur (22/09/2026,
+    # reglage « incises lues par le narrateur ») : le drapeau `incise_a_lire` dit
+    # alors qu'elle doit etre DITE, et non pas tue. Verifie le 22/09/2026 : sans
+    # ce garde-fou, les incises de forme connue (« , dit-il. ») sortiraient en
+    # silence, et la fonction semblerait cassee.
+    if _doit_taire_l_incise(request.text, request.incise_a_lire):
         from modules.silence import wav_silence
         return Response(content=wav_silence(), media_type="audio/wav")
 

@@ -9,6 +9,22 @@ let _currentBookId   = null;
 let _currentBookData = null;
 let _castPollTimer   = null;
 let _chapterSpeakers = {};
+// Positions des INCISES de parole du chapitre ouvert : { n° de phrase:
+// [[début, fin], …] }. Elles sont calculées par le SERVEUR (`modules/incises.py`,
+// point d'entrée `GET …/chapter/{i}/incises`) et chargées à la demande : la page
+// n'applique AUCUNE règle, elle coupe aux positions reçues. C'est ce qui fera que
+// l'ajout de nouvelles formes d'incises (item ouvert du BACKLOG) profitera à la
+// lecture sans qu'une ligne de ce fichier ne change.
+let _chapterIncises  = {};
+let _incisesChapitre = -1;        // chapitre dont `_chapterIncises` vient
+// Chargement d'incises EN COURS (l'affichage du chapitre ne doit PAS l'attendre :
+// il part en tache de fond, et seule la CONSTRUCTION DE LA PLAYLIST l'attend --
+// voir `_runTTS`). `null` quand il n'y a rien en attente.
+let _incisesEnCours  = null;
+// Le livre ouvert est-il réglé sur « incises lues par le narrateur » ?
+// (colonne `books.incises_narrateur`). Faux = comportement historique : l'incise
+// de parole est retirée du texte lu.
+let _incisesNarrateur = false;
 let _allVoices       = [];
 // Catalogue COMPLET des voix (toutes familles, moteurs eteints compris),
 // charge par /api/voix_catalogue. Il ne sert PAS a proposer des voix (c'est le
@@ -854,6 +870,172 @@ document.getElementById('voice-select').addEventListener('change', (e) => {
 });
 
 // ============================================================
+// INCISES DE PAROLE : MUETTES, OU LUES PAR LE NARRATEUR (22/09/2026)
+// ============================================================
+// Décision de Laurent : « Entre un Monte-Cristo, où elles sont inutiles la plupart
+// du temps, et Stephen King, c'est tout à fait différent : quand il écrit des
+// "j'ai dit", ça fait partie du récit. » Le réglage appartient donc au LIVRE
+// (colonne `books.incises_narrateur`, comme la voix du narrateur) et il se change
+// À L'ÉCOUTE : c'est le bouton « Incises » de la barre du lecteur.
+//
+// AUCUN RE-CAST, AUCUN RE-DÉCOUPAGE, AUCUN INDEX TOUCHÉ : le lecteur construit
+// déjà des morceaux plus fins qu'une phrase (phrases longues,
+// `_splitLongSentence`), chacun portant son texte, sa voix, sa hauteur et sa
+// vitesse. L'incise est donc un morceau de plus, confié au NARRATEUR -- et le
+// surlignage ne bouge pas, tous les morceaux d'une phrase portant le même
+// `sentIdx`.
+//
+// Qui dit OÙ SONT les incises ? Le SERVEUR (`modules/incises.py`). La page ne
+// connaît aucune règle : elle coupe aux positions reçues.
+const LIBELLE_INCISES_MUETTES = 'Incises : muettes';
+const LIBELLE_INCISES_LUES    = 'Incises : lues par le narrateur';
+const TITRE_INCISES =
+  'Incises de parole (« , dit-il, », « m\'a-t-il dit. ») :\n'
+  + 'muettes = retirées du texte lu ;\n'
+  + 'lues par le narrateur = dites par lui (utile dans un récit à la 1ʳᵉ personne).';
+
+// Le libellé du bouton PORTE l'état (le réglage se fait à l'oreille, sans ouvrir
+// quoi que ce soit) : 🔇 quand on ne les entend pas, 🗣️ quand c'est le narrateur
+// qui les dit.
+function _majBoutonIncises() {
+  const bouton = document.getElementById('incises-btn');
+  if (!bouton) return;
+  bouton.textContent = (_incisesNarrateur ? '\uD83D\uDDE3\uFE0F ' : '\uD83D\uDD07 ')
+    + (_incisesNarrateur ? LIBELLE_INCISES_LUES : LIBELLE_INCISES_MUETTES);
+  bouton.title = TITRE_INCISES;
+  bouton.setAttribute('aria-pressed', _incisesNarrateur ? 'true' : 'false');
+}
+
+// Ce que le livre ouvert a enregistré (0 = muettes, 1 = lues par le narrateur).
+function _restaurerIncises(book) {
+  _incisesNarrateur = !!(book && book.incises_narrateur);
+  _majBoutonIncises();
+}
+
+async function _enregistrerIncises() {
+  if (!_currentBookId) return;
+  try {
+    const res = await fetch('/api/books/' + _currentBookId
+                            + '/incises?user_id=' + _currentUserId, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ narrateur: !!_incisesNarrateur })
+    });
+    // Le cas le plus probable d'echec : un serveur demarre AVANT cette fonction
+    // (il ne connait pas encore ce point d'entree). On le DIT, sinon le reglage
+    // semblait enregistre alors qu'il repartirait a zero au rechargement.
+    if (!res.ok) {
+      console.warn('Réglage des incises NON enregistré (serveur à relancer ?) : '
+                   + res.status);
+    }
+  } catch (e) {
+    // Le réglage reste valable pour la session en cours : on ne casse pas la
+    // lecture pour un enregistrement raté.
+    console.warn('Réglage des incises non enregistré :', e);
+  }
+}
+
+const _btnIncises = document.getElementById('incises-btn');
+if (_btnIncises) {
+  _btnIncises.addEventListener('click', async () => {
+    _incisesNarrateur = !_incisesNarrateur;
+    _majBoutonIncises();
+    if (_currentBookData) {
+      _currentBookData.incises_narrateur = _incisesNarrateur ? 1 : 0;
+    }
+    _enregistrerIncises();
+    // Le changement doit s'ENTENDRE tout de suite : on relit les positions du
+    // chapitre (elles ne sont demandées QUE quand le réglage est actif), puis on
+    // relance la lecture depuis la phrase en cours -- même mécanisme que le
+    // changement de voix d'un personnage (15/09/2026).
+    if (_currentChapter >= 0) await _chargerIncises(_currentChapter);
+    if (_ttsState === 'playing' || _ttsState === 'loading') {
+      _stopTTS();
+      _startTTS();
+    }
+  });
+}
+
+// Charge les positions des incises du chapitre (calculées par le serveur).
+// Ne fait RIEN quand le livre est réglé sur « muettes » : aucun calcul, aucune
+// requête, aucun octet échangé.
+async function _chargerIncises(index) {
+  _chapterIncises  = {};
+  _incisesChapitre = index;
+  if (!_incisesNarrateur || !_currentBookId) return;
+  try {
+    const res = await fetch('/api/books/' + _currentBookId + '/chapter/' + index
+                            + '/incises?user_id=' + _currentUserId);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (_incisesChapitre === index) _chapterIncises = data.incises || {};
+  } catch (e) {
+    // Sans les positions, la lecture reste EXACTEMENT celle d'avant (incises
+    // retirées à la synthèse) : un réglage ne doit jamais pouvoir casser la
+    // lecture.
+    console.warn('Incises du chapitre indisponibles :', e);
+  }
+}
+
+// Voix du NARRATEUR : celle du menu du bas, à SA vitesse (le menu est son
+// réglage, voir `_vitesseDeFiche`). Sert au récit, aux petits rôles -- et, depuis
+// le 22/09/2026, aux incises de parole quand le livre les confie au narrateur.
+function _voixDuNarrateur() {
+  const choix = document.getElementById('voice-select');
+  return { voice: (choix && choix.value) ? choix.value : NARRATEUR_VOIX_DEFAUT,
+           pitch: '+0Hz', rate: null };
+}
+
+// Découpe une phrase en MORCEAUX DE VOIX : le texte du personnage, et -- quand le
+// livre est réglé sur « incises lues par le narrateur » -- les incises de parole,
+// confiées au narrateur. Sans incise (réglage muet, ou phrase sans incise) :
+// UNE seule pièce, exactement comme avant.
+//
+// Les positions viennent du serveur : `[[début, fin], …]` dans la phrase.
+function _morceauxDeLaPhrase(texte, idx, voixPersonnage) {
+  const piece = (t, voix, incise) => ({
+    text: t, voice: voix.voice, pitch: voix.pitch, rate: voix.rate, incise: !!incise
+  });
+  const seule = [piece(texte, voixPersonnage, false)];
+  if (!_incisesNarrateur) return seule;
+  const spans = _chapterIncises[idx];
+  if (!spans || !spans.length) return seule;
+
+  const narrateur = _voixDuNarrateur();
+  const morceaux  = [];
+  let debut = 0;
+  for (const [a, b] of spans) {
+    if (a > debut) morceaux.push(piece(texte.slice(debut, a), voixPersonnage, false));
+    morceaux.push(piece(texte.slice(a, b), narrateur, true));
+    debut = b;
+  }
+  if (debut < texte.length) morceaux.push(piece(texte.slice(debut), voixPersonnage, false));
+
+  // Nettoyage : un morceau sans LETTRE (un « . » ou une virgule seuls) ne se
+  // synthétise pas -- ce serait une requête pour rien, et parfois un silence. Mais
+  // son texte ne doit pas disparaître pour autant : il est RATTACHÉ au morceau
+  // voisin. Sans cela la phrase perd un caractère (mesuré le 22/09/2026 : le point
+  // final d'une incise terminale restait orphelin et était jeté). Le texte lu
+  // reste donc EXACTEMENT la phrase d'origine -- c'est l'invariant vérifié par
+  // `_test_morceaux_incises.py`.
+  const propres = [];
+  let enAttente = '';
+  for (const m of morceaux) {
+    if (/[A-Za-z\u00c0-\u024f]/.test(m.text)) {
+      m.text      = enAttente + m.text;
+      enAttente   = '';
+      propres.push(m);
+    } else if (propres.length) {
+      propres[propres.length - 1].text += m.text;   // ponctuation de FIN
+    } else {
+      enAttente += m.text;                          // ponctuation de TÊTE
+    }
+  }
+  if (enAttente && propres.length) propres[propres.length - 1].text += enAttente;
+  return propres;
+}
+
+// ============================================================
 // BIBLIOTHEQUE
 // ============================================================
 
@@ -1032,6 +1214,9 @@ async function openBook(bookId) {
     // precedent. L'appel vient APRES `_currentBookId` : l'enregistrement vise
     // bien le livre qu'on ouvre.
     _restaurerVoixNarrateur(_currentBookData.narrator_voice);
+    // ... et SON réglage d'incises (22/09/2026), qui décide si les incises de
+    // parole sont muettes ou dites par le narrateur dans ce livre.
+    _restaurerIncises(_currentBookData);
 
     document.getElementById('reader-book-title').textContent =
       _currentBookData.title || 'Sans titre';
@@ -3835,6 +4020,11 @@ async function loadChapter(index, scrollTo, cursorTo = 0, autoPlay = false) {
   // --- Chargement RÉUSSI : c'est seulement ici que le chapitre change ------
   _currentChapter = index;
   _chapterSpeakers = data.speakers || {};
+  // Positions des incises de CE chapitre (22/09/2026) : demandees en TACHE DE
+  // FOND -- l'affichage du texte ne doit pas attendre un aller-retour reseau (la
+  // lecture, elle, attendra ce chargement : voir `_runTTS`). Reglage « muettes » =
+  // rien a charger, aucun aller-retour.
+  _incisesEnCours = _chargerIncises(index);
   // Mode « dialogue » du livre (21/09/2026) : le découpage de la page doit être
   // EXACTEMENT celui du serveur, sinon les phrases attribuées à un personnage ne
   // seraient plus les bonnes. Le réglage appartient au LIVRE, pas à la page :
@@ -4375,7 +4565,6 @@ function _vitesseDeFiche(rate) {
 }
 
 function _voiceForSentence(idx) {
-  const defaultVoice = document.getElementById('voice-select').value;
   const speaker = _chapterSpeakers[idx];
   if (speaker && speaker !== 'narration' && _currentBookData && _currentBookData.voices) {
     const v = _currentBookData.voices[speaker];
@@ -4400,7 +4589,9 @@ function _voiceForSentence(idx) {
                rate: _vitesseDeFiche(v.rate) || PERSONNAGE_RATE_DEFAUT };
     }
   }
-  return { voice: defaultVoice, pitch: '+0Hz', rate: null };
+  // Repli : le récit, les petits rôles et les personnages sans voix dédiée sont
+  // lus par le NARRATEUR (voix et vitesse du menu du bas).
+  return _voixDuNarrateur();
 }
 
 // Playlist de lecture : UNE unite audio = UNE phrase (ou, pour les phrases
@@ -4466,25 +4657,35 @@ function _buildPlaylist(startIdx, endIdx) {
     const s = _sentences[i];
     const v = _voiceForSentence(i);
 
-    // Phrase trop longue : decoupee en sous-segments de synthese aux
-    // virgules/points-virgules (aucune coupure en plein milieu d'un texte).
-    // Tous les sous-segments portent le meme index de phrase : le curseur
-    // reste pose sur la phrase jusqu'a la fin de son dernier sous-segment.
-    const segs = _splitLongSentence(s.text);
-    for (const seg of segs) {
-      units.push({
-        text:    seg,
-        sentIdx: i,
-        paraIdx: s.paraIdx,
-        voice:   v.voice,
-        pitch:   v.pitch,
-        // Vitesse de la phrase (regle clarifiee le 20/09/2026) : celle de la
-        // fiche quand le personnage en a une, « Normale » quand il a une voix
-        // dediee mais aucun reglage, et `null` pour le recit et les petits
-        // roles -- la phrase prend alors la vitesse du menu, qui est le reglage
-        // du NARRATEUR (voir `launchFetch`, dans `_runTTS`).
-        rate:    v.rate,
-      });
+    // MORCEAUX DE VOIX de la phrase (22/09/2026) : un seul, sauf quand le livre
+    // est réglé sur « incises lues par le narrateur » -- l'incise de parole est
+    // alors un morceau de plus, confié au narrateur (positions données par le
+    // serveur, voir `_morceauxDeLaPhrase`).
+    const morceaux = _morceauxDeLaPhrase(s.text, i, v);
+    for (const morceau of morceaux) {
+      // Phrase trop longue : decoupee en sous-segments de synthese aux
+      // virgules/points-virgules (aucune coupure en plein milieu d'un texte).
+      // Tous les sous-segments portent le meme index de phrase : le curseur
+      // reste pose sur la phrase jusqu'a la fin de son dernier sous-segment.
+      const segs = _splitLongSentence(morceau.text);
+      for (const seg of segs) {
+        units.push({
+          text:    seg,
+          sentIdx: i,
+          paraIdx: s.paraIdx,
+          voice:   morceau.voice,
+          pitch:   morceau.pitch,
+          // Vitesse de la phrase (regle clarifiee le 20/09/2026) : celle de la
+          // fiche quand le personnage en a une, « Normale » quand il a une voix
+          // dediee mais aucun reglage, et `null` pour le recit et les petits
+          // roles -- la phrase prend alors la vitesse du menu, qui est le reglage
+          // du NARRATEUR (voir `launchFetch`, dans `_runTTS`).
+          rate:    morceau.rate,
+          // Morceau qui EST une incise de parole : le serveur doit la DIRE, et
+          // non la remplacer par un court silence (voir `/api/tts`).
+          incise:  morceau.incise,
+        });
+      }
     }
   }
 
@@ -4573,6 +4774,14 @@ function _couperMessageHorsLigne() {
 async function _runTTS(startIdx, endIdx) {
   if (_sentences.length === 0 || startIdx >= _sentences.length) return;
 
+  // Les positions d'incises du chapitre doivent etre connues AVANT de construire
+  // la playlist (elle est construite UNE fois par lecture, voir `_buildPlaylist`) :
+  // on attend donc le chargement lance au chargement du chapitre -- quelques
+  // millisecondes en local, et rien du tout si le livre est regle sur « muettes ».
+  if (_incisesNarrateur && _incisesEnCours) {
+    try { await _incisesEnCours; } catch (e) { /* sans incises : lecture d'avant */ }
+  }
+
   _ttsSession++;
   const mySession = _ttsSession;
   _ttsAbort      = new AbortController();
@@ -4627,7 +4836,7 @@ async function _runTTS(startIdx, endIdx) {
     // que pour le recit et les petits roles : ces phrases-la suivent le menu,
     // qui est le reglage du NARRATEUR.
     cache[i] = _fetchAudio(u.text, u.voice, u.rate || rate, u.pitch, signal,
-                           u.context).then(blob => {
+                           u.context, u.incise).then(blob => {
       if (!blob) { cache[i] = null; return null; }  // echec : pourra etre retente
       blobs[i] = blob;                              // pret pour le collage
       return blob;
@@ -4942,7 +5151,7 @@ function _livreCourantId() {
   return (d && d.id) ? d.id : 0;
 }
 
-async function _fetchAudio(text, voice, rate, pitch, signal, context) {
+async function _fetchAudio(text, voice, rate, pitch, signal, context, inciseALire) {
   // Retry renforcé pour le tunnel Tailscale : en mobile, chaque requête TTS
   // traverse le tunnel VPN. Quand l'écran est éteint ou le téléphone est
   // verrouillé, Android peut suspendre le réseau de la page SANS erreur :
@@ -4964,7 +5173,12 @@ async function _fetchAudio(text, voice, rate, pitch, signal, context) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ text, voice, rate, pitch,
                                   context: context || '',
-                                  book_id: _livreCourantId() }),
+                                  book_id: _livreCourantId(),
+                                  // Ce morceau EST une incise de parole à DIRE
+                                  // (22/09/2026) : sans ce drapeau, le serveur la
+                                  // remplacerait par un court silence, comme il le
+                                  // fait pour une phrase qui n'est qu'une incise.
+                                  incise_a_lire: !!inciseALire }),
         signal:  timeoutCtrl.signal
       });
       if (res.status === 503) {

@@ -92,6 +92,43 @@ def main():
     verifier('le nettoyage garde la phrase entiere (garde-fou)',
              retirer_incises(phrase) == phrase)
 
+    # --- 5) LE DRAPEAU incise_a_lire (22/09/2026) ---------------------------
+    # Nouveau reglage « incises lues par le narrateur » : le LECTEUR isole
+    # l'incise et la confie au narrateur. Le morceau envoye est donc une incise
+    # SEULE, et le serveur la tairait -- la fonction semblerait cassee. Le
+    # drapeau `incise_a_lire` leve ce silence.
+    print('')
+    print('5) le drapeau « incise a lire » : le serveur DIT au lieu de taire')
+    from main import _doit_taire_l_incise, TTSRequest
+    verifier('le drapeau est FACULTATIF et vaut FAUX par defaut (aucun appel '
+             'existant ne change de comportement)',
+             TTSRequest(text='Bonjour.').incise_a_lire is False)
+    pieces = ('dit Monte-Cristo.',
+              ', dit-il.',
+              ', r\u00e9pondit Morrel.')
+    for piece in pieces:
+        verifier('forme connue %r : TUE sans drapeau' % piece[:26],
+                 _doit_taire_l_incise(piece, False))
+        verifier('forme connue %r : DIT avec drapeau' % piece[:26],
+                 not _doit_taire_l_incise(piece, True))
+    # Formes PAS ENCORE reconnues par la regle (participes et auxiliaire : item
+    # ouvert du BACKLOG, « les incises a la 1re personne »). Aujourd'hui elles
+    # passent meme SANS le drapeau -- mais c'est un hasard heureux. Le jour ou la
+    # regle les connaitra (chantier prevu), le drapeau sera la seule chose qui
+    # empeche l'incise de disparaitre de l'ecoute : le comportement attendu est
+    # donc fixe des maintenant.
+    a_venir = (', m\u2019a-t-elle r\u00e9pondu.', ', lui ai-je recommand\u00e9.',
+               ', me dit Annette Founijello.')
+    for piece in a_venir:
+        verifier('forme a venir %r : DIT avec drapeau' % piece[:26],
+                 not _doit_taire_l_incise(piece, True))
+    # Un texte normal ne doit JAMAIS etre touche, drapeau ou pas.
+    for piece in ('\u2014 Annette Founijello.', 'Le comte regarda Morrel.'):
+        verifier('texte normal jamais tue : %r' % piece[:30],
+                 not _doit_taire_l_incise(piece, False))
+        verifier('texte normal jamais tue (drapeau) : %r' % piece[:30],
+                 not _doit_taire_l_incise(piece, True))
+
     print('')
     print('%d controles, %d en echec' % (CONTROLES, ECHECS))
     print('TOUT EST OK' if ECHECS == 0

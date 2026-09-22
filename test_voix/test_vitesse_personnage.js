@@ -57,6 +57,31 @@ function lireNombre(nom) {
 const seuilPhrase  = lireNombre('SPLIT_SENTENCE_CHARS');
 const seuilSegment = lireNombre('SPLIT_SEGMENT_CHARS');
 
+// Depuis le 22/09/2026, la playlist s'appuie sur deux fonctions definies PLUS
+// HAUT dans le fichier : `_voixDuNarrateur` (la voix du menu) et
+// `_morceauxDeLaPhrase` (le decoupage d'une phrase en morceaux de voix, pour les
+// incises confiees au narrateur). On les EXTRAIT DU FICHIER REEL, comme le reste :
+// les recopier ici les laisserait deriver sans que rien ne le signale.
+function extraireFonction(nom) {
+  const lignes = source.split(/\r?\n/);
+  const debutFn = lignes.findIndex(l => l.startsWith('function ' + nom + '('));
+  if (debutFn < 0) {
+    console.error('ECHEC : fonction ' + nom + ' introuvable dans app.js');
+    process.exit(1);
+  }
+  let finFn = -1;
+  for (let i = debutFn + 1; i < lignes.length; i++) {
+    if (lignes[i] === '}') { finFn = i; break; }
+  }
+  if (finFn < 0) {
+    console.error('ECHEC : fin de ' + nom + ' introuvable dans app.js');
+    process.exit(1);
+  }
+  return lignes.slice(debutFn, finFn + 1).join('\n');
+}
+const codeIncises = extraireFonction('_voixDuNarrateur') + '\n'
+                  + extraireFonction('_morceauxDeLaPhrase');
+
 const entete = [
   'const SPLIT_SENTENCE_CHARS = ' + seuilPhrase + ';',
   'const SPLIT_SEGMENT_CHARS  = ' + seuilSegment + ';',
@@ -65,10 +90,15 @@ const entete = [
   'let _currentBookData = null;',
   'let _voixMenu = "fr-FR-DeniseNeural";',
   'const document = { getElementById: () => ({ value: _voixMenu }) };',
+  // Reglages des incises de parole (22/09/2026) : au repos, « muettes » -- c'est
+  // le defaut d'un livre, et la playlist ne coupe alors RIEN.
+  'let _incisesNarrateur = false;',
+  'let _chapterIncises = {};',
+  'const NARRATEUR_VOIX_DEFAUT = "fr-CH-ArianeNeural";',
 ].join('\n');
 
 const api = new Function(
-  entete + '\n' + source.slice(debut, fin)
+  entete + '\n' + codeIncises + '\n' + source.slice(debut, fin)
   + '\nreturn { _vitesseDeFiche: _vitesseDeFiche,'
   + ' _voiceForSentence: _voiceForSentence,'
   + ' _buildPlaylist: _buildPlaylist,'

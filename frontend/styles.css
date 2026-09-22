@@ -752,7 +752,8 @@ body {
 #voices-open-btn,
 #bookmarks-open-btn,
 #rsvp-open-btn,
-#cache-open-btn {
+#cache-open-btn,
+#incises-btn {
   flex: 0 1 auto;
   min-height: 30px;
   padding: 5px 10px;
@@ -770,7 +771,8 @@ body {
 #voices-open-btn:hover,
 #bookmarks-open-btn:hover,
 #rsvp-open-btn:hover,
-#cache-open-btn:hover {
+#cache-open-btn:hover,
+#incises-btn:hover {
   border-color: var(--accent-dim);
   color: var(--accent);
 }

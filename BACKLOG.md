@@ -57,7 +57,7 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   mode dialogue (c'est le cas du 28, de Lazarille et du chapitre d'essai) — le
   remapper décalerait ses voix.
 
-- [ ] **📄 AUDIT d'`ARCHITECTURE.md` — le sujet de la PROCHAINE session**
+- [ ] **📄 AUDIT d'`ARCHITECTURE.md` — étape 1 FAITE le 22/09/2026 (titres + sommaire) ; le reste à trancher**
   (décidé par Laurent le 22/09/2026 : « Je vais ouvrir une nouvelle session pour
   l'audit de ARCHITECTURE.md, parce que je me suis encore éparpillé dans
   celle-ci. » → **cette note existe pour qu'on démarre directement dessus**.)
@@ -71,23 +71,115 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   - cinq dérives réelles ont été corrigées (dont une contradiction sur
     `_forcer_beats_en_narration`, un nom de fonction qui n'a jamais existé,
     l'item « cache audio » resté ouvert alors qu'il était livré).
-  *Ce qui reste : `ARCHITECTURE.md` (251 Ko, 4 406 lignes).* Deux étapes
-  proposées, **à valider par Laurent avant toute écriture** :
-  1. **réparer la structure des titres**, sans rien déplacer : la page compte
-     **108 sections `##` et 87 `###`**, mais **une seule section `##` avale 65 %
-     du fichier** (« Profils familiaux (multi-utilisateurs) », ligne ~1512 jusqu'à
-     la fin) : tout le savoir des moteurs, du casting, du cache et du mode
-     dialogue est **imbriqué dessous**, donc la table des matières ne correspond
-     pas au contenu ;
-  2. **séparer « comment ça marche aujourd'hui » de « pourquoi on l'a fait »**
-     (état actuel court vs chronique datée), avec **copie datée** avant chaque
-     fichier touché, et l'audit repassé **après**, pour vérifier qu'aucune
-     référence n'est cassée.
-  ⚠️ **Rien d'urgent** : l'audit du 22/09/2026 a montré que la documentation est
-  **fidèle** (les 85 alertes de l'outil sont en majorité **légitimes** : des pages
-  qui citent exprès d'anciens noms, « les anciennes `_xtts_pool()` », les mémos
-  d'un autre atelier). C'est un travail de **lisibilité**, pas de vérité — donc
-  à faire **sans se presser**, et jamais au détriment d'un défaut audible.
+  *Consigne de Laurent, 22/09/2026 — c'est elle qui fixe l'objectif* :
+  « Idéalement, ce que je voudrais, c'est que ce document **TE** soit utile. Il
+  faut qu'il soit "pratique" à lire pour **TOI**. C'est un peu un journal de
+  bord, mais qui doit **t'aider dans les recherches**. Je ne le lis pas, je l'ai
+  créé au début pour toi, mais il devient très gros et peut être pas pratique à
+  lire pour toi. Si tu peux le réorganiser pour qu'il te serve mieux, je m'en
+  remets à ta décision. » → **c'est un document de travail pour l'IA, pas un
+  livre pour Laurent.**
+  *Étape 1, LIVRÉE et prouvée (22/09/2026)* — la structure des titres, **sans
+  déplacer une seule ligne de contenu** :
+  - **42 titres réparés** : les **34 `###` qui étaient des SUJETS à part** et se
+    trouvaient imbriqués sous « Profils familiaux (multi-utilisateurs) »
+    (ligne 1512) passent en `##` — cette section n'avale plus 2 740 lignes
+    (61,5 % du fichier) mais **70 lignes**, et **la plus grosse section du
+    document passe de 2 740 à 416 lignes** ;
+  - les **8 sujets écrits en gras** au milieu d'une autre section (banque de
+    voix, paliers d'étoiles, symboles de genre, ordre du pool, NIMM Voix,
+    détail de `voice_casting.py`…) deviennent de **vrais titres** ;
+  - **un sommaire en tête** (63 entrées, **calculé** depuis les titres) et un
+    **mode d'emploi du document** : « état actuel = phrases sans date, histoire
+    = passages datés, identifiants du code en accents graves » ;
+  - **aucune ligne de contenu touchée** : l'outil `_restructurer_architecture.py`
+    tient la comptabilité des **4 453 lignes** d'origine — 4 409 inchangées
+    + 42 titres + 2 remplacées — et **refuse d'écrire** si le compte ne tombe
+    pas juste. Copie datée :
+    `ARCHITECTURE.md.bak_avant_audit_structure_20260922_1413` ;
+  - **vérifié APRÈS** : l'audit redonne **exactement les mêmes 11 références**
+    (seuls les numéros de ligne ont bougé), les **40 tests passent**, et le
+    contrôle du sommaire est **branché dans l'auditeur** (section 7 : sommaire
+    conforme ; plus grosse section sous le seuil de 500 lignes).
+  *Deux chiffres de cette note, corrigés par la mesure* : elle annonçait
+  **108 `##` et 87 `###`** (le vrai compte était **21 `##`, 85 `###`**), et
+  « une table des matières qui ne correspond pas au contenu » — en réalité il
+  n'y avait **aucun sommaire**. *(Honnêteté technique : un chiffre faux dans une
+  note fait perdre une session.)*
+  *Réponse technique à retenir* : **les autres documents renvoient aux sections
+  de `ARCHITECTURE.md` par leur TITRE**, jamais par un numéro de ligne —
+  vérifié le 22/09/2026 (`BACKLOG.md` renvoie à « Mode dialogue », « Lire écran
+  verrouillé », « Accès HTTPS via Tailscale »…) → **on ne renomme jamais un titre
+  de cette page** sans corriger tous les renvois.
+  ⚠️ **Et la vérité sur le fond : rien à réparer.** Les 11 références qui
+  touchent `ARCHITECTURE.md` (dont `books.narrator_rate`, `_xtts_pool`,
+  `_sans_fenetre`, `_remplirMenuVoixPhrase`) sont **toutes légitimes** : le
+  document raconte lui-même qu'elles ont été écartées ou renommées (« piste
+  écartée », « les anciennes… », « ex-… »). C'est donc un travail de
+  **lisibilité**, pas de vérité — exactement ce que la note supposait.
+  ⚠️ **LA QUESTION CAPITALE DE LAURENT (22/09/2026)** : « Est-ce que ce qui est
+  écrit dans ce document reflète réellement l'état du code ? C'est un point
+  capital. » **Réponse mesurée, pas une opinion** — et il faut savoir ce que
+  l'audit du matin ne voyait pas : il vérifie les **NOMS** (le fichier cité
+  existe, la fonction citée existe, la route existe, la colonne existe), il ne
+  vérifie **jamais si la phrase dit vrai**. Nouveau contrôle livré :
+  `_verifier_faits_architecture.py` (racine, **lecture seule**) — il confronte
+  au code les **phrases vérifiables** : plan du dossier, **constantes citées
+  avec leur valeur**, ports, fichiers de données, version de cache. Verdict :
+  - ✅ **fidèles** : les constantes (`MINOR_THRESHOLD` = 8, `NARRATEUR_VOIX_DEFAUT`
+    = `fr-CH-ArianeNeural`, le seuil des petits rôles identique dans les deux
+    codes), **les cinq ports** (8081 à 8085), les **fichiers de données**
+    (`config.json`, `moteur_voix.txt`, `annotations_voix.json`, la base), la
+    **version de cache** de la page, et **les 11 références** de l'audit
+    (vérifiées une par une) ;
+  - ❌ **une vraie dérive, invisible jusqu'ici** : le **plan du dossier** en tête
+    du document datait de plusieurs sessions — il oubliait **5 modules sur 12**
+    (`decoupage.py`, `incises.py`, `silence.py`, `majuscules.py`,
+    `prononciation.py`), **4 dossiers** (`test_voix/`, `xtts_service/`,
+    `neutts_service/`, `pocket_tts_service/`), la description de `tts.py`
+    s'arrêtait à **4 moteurs sur 7**, et `manifest.json` avait **déménagé** dans
+    `frontend/` sans que le plan le suive. **Corrigé le 22/09/2026** : le plan
+    compte maintenant **59 entrées, toutes vérifiées existantes** — et le
+    vérificateur le contrôle à chaque passage ;
+  - ⚠️ **une nuance** : le doc écrivait `PERSONNAGE_RATE_DEFAUT` = « Normale »
+    quand le code porte `'+0%'` (c'est le **libellé** du réglage, pas sa
+    valeur). Reformulé.
+  *Leçon à garder* : **le plan du dossier échappait à tous les contrôles**
+  parce qu'il est écrit sans accents graves — un audit qui ne lit que ce qui
+  est entre `` ` `` laisse passer tout le texte en prose. C'est pourquoi ce
+  deuxième outil existe.
+  *Les trois étapes — état au 22/09/2026 (soir)* :
+  1. ✅ **FAITE — déménagement.** Les pistes du 21/08 et les **deux idées RSVP**
+     sont ici (deux items créés), les **quatre notes périmées** ont été retirées,
+     et les renvois recousus (dont un renvoi de ce BACKLOG vers
+     `ARCHITECTURE.md`, qui serait devenu mort). Outil :
+     `_demenager_pistes_architecture.py`. **Découverte au passage** : la note
+     « Profil Nadia créé » cachait un **fait faux** — le document disait
+     « Laurent et Maya » à trois endroits, alors que la base a **3 profils**
+     (`init_db()` insère Nadia depuis le 21/08/2026) ; corrigé.
+  2. ✅ **FAITE — regroupement en parties.** Les **61 sujets** sont rangés en
+     **10 parties** (projet, serveur, page, texte lu, casting, voix, moteurs,
+     mode dialogue, écoute, historique), le **sommaire suit**, et le contenu de
+     chaque sujet est **identique au caractère près** — preuve affichée par
+     `_regrouper_architecture.py`, qui refuse de tourner deux fois. Un renvoi
+     devenu inutile a été retiré (« Profils familiaux — renvoi »). **Aucun titre
+     n'a été renommé** : les renvois des autres documents (« Mode dialogue »,
+     « Lire écran verrouillé »…) fonctionnent toujours.
+  3. 🔄 **EN COURS — état actuel / chronique.** Chaque sujet doit commencer par un
+     bloc « **Aujourd'hui** » **court et vérifiable**, la chronique datée restant
+     dessous ; **3 sujets sur 61** sont faits (le narrateur, le changement de
+     moteur, le mode dialogue) et le vérificateur de faits compte l'avancement
+     (sa section 8). **Un sujet par session**, à poursuivre : c'est ce chantier
+     qui répond définitivement à la question « le document dit-il la vérité ? »,
+     parce que c'est lui qui rend l'état actuel **court, nommé et vérifiable**.
+  4. **outils** (racine, cités dans `test_voix/LIRE_MOI.md`) :
+     `_restructurer_architecture.py` (titres + sommaire),
+     `_regrouper_architecture.py` (parties),
+     `_demenager_pistes_architecture.py` (déménagement),
+     `_corriger_separateurs_architecture.py` (les séparateurs en double),
+     `_analyse_structure_architecture.py` (mesure),
+     `_verifier_faits_architecture.py` (les faits) — à garder tels quels, ou à
+     déplacer dans `test_voix/` avec un lanceur double-clic (à trancher).
   *Rappel des autres chantiers ouverts* : les **35 tests Python hors lanceur**
   (item « Suite de tests automatisés + CI », priorité 3) — le piège du 21/09 :
   un test absent de la liste du lanceur **ne tourne jamais**.
@@ -281,6 +373,11 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
      Lazarille (« lui dis-je. », « s'écria-t-il. »). *À FAIRE* : étendre
      `incises.py` (délicat : ce module a ses propres tests, et retirer du texte
      est risqué). **Sans re-cast** : l'incise est retirée à la synthèse.
+     *Mesure à l'échelle du livre (22/09/2026)* : **134 phrases** dans 22/11/63
+     (0,53 %), dont **114 terminales** ; **697** dans Shantaram (2,30 %), 6 dans
+     le tome 5. Un **prototype de règle est prêt et validé sur les phrases de
+     Laurent** (voir « Retours d'écoute du 22/09/2026 », ci-dessous) : la forme
+     composée est le trou le plus rentable des règles d'incises.
   3. **Acronymes** : « URSS » (et « TSBD ») ne sont pas prononcés comme « FBI »
      et « CIA ». *À FAIRE* : entrées dans la table de `modules/prononciation.py`
      — **validées à l'oreille de Laurent** (la règle du module : une graphie
@@ -638,6 +735,14 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   (le motif `MOTIF_PRONOM` les acceptera tel quel : « , répondis-je » suit
   exactement la même forme que « , dis-je »). Les formes composées
   (« ai-je dit ») demandent, elles, un **motif séparé** — à mesurer.
+  ✅ *Mesuré le 22/09/2026, à l'échelle du livre (22/11/63)* : les formes
+  composées sont **le trou le plus rentable** des règles d'incises — **134
+  phrases** dans ce seul livre (0,53 %), dont **114 terminales**, et **697** dans
+  Shantaram (2,30 %). Le pronom « je » manquait aussi dans le motif (`ai-je`,
+  `lui ai-je`), et les **participes accentués** (« répondu ») étaient absents de
+  la liste. Un prototype est **validé sur les phrases exactes de Laurent**
+  (« – Annette Founijello, m'a-t-elle répondu. » → « – Annette Founijello. »).
+  Voir « Retours d'écoute du 22/09/2026 », ci-dessus.
   ⏸️ **EN ATTENTE du retour de Claude** (test adverse lancé le 19/09/2026, voir
   l'item correspondant) : Laurent a demandé à ne pas s'éparpiller. On regroupera
   les cas trouvés par Claude et celui-ci en **un seul chantier mesuré**.
@@ -744,6 +849,307 @@ lecture seule) sur les **5 105 phrases** du tome 5 :
   scanner existe déjà côté NIMM Voix.
   **Rappel de gouvernance** : Laurent a choisi le **20/09/2026** de **documenter
   d'abord, sans coder** — la correction n'est pas lancée.
+
+- [ ] **RSVP — les mots longs débordent du cadre** (idée du 21/08/2026, portée ici
+  le 22/09/2026 depuis `ARCHITECTURE.md`) : certains mots (« traitements »,
+  « appréhendé »…) sortent légèrement du cadre sur mobile (`#rsvp-word`, police
+  à `2.6rem`). À faire : réduire un peu la police, ou la réduire
+  **dynamiquement** selon la longueur du mot affiché.
+
+- [ ] **RSVP — le fondu de contexte à l'arrêt est confus** (idée du 21/08/2026,
+  portée ici le 22/09/2026 depuis `ARCHITECTURE.md`) : le texte de fondu
+  (`#rsvp-fade-text`) se superpose au chapitre visible derrière, plusieurs
+  colonnes de texte se chevauchent, la lisibilité en souffre. À revoir : fond
+  plus opaque derrière le texte de fondu, et/ou repositionnement pour ne plus
+  recouvrir le texte du lecteur.
+
+### Retours d'écoute du 22/09/2026 (22/11/63, chapitres 10 et 11) — la moisson
+
+Laurent a écouté « quelques heures » du livre 28 (chapitres 10 et 11) : « voilà la
+première moisson, mais à vrai dire ça se fait de plus en plus rare ». **Six causes
+distinctes**, toutes **mesurées** le 22/09/2026 par des outils jetables en lecture
+seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
+`_preuve_candidat.py`, `_voix_narrateur.py`).
+
+- [ ] **1. Incises de participe et d'auxiliaire — l'incise qui dit QUI parle est
+  lue par le PERSONNAGE** (cas signalé : « – Annette Founijello, m'a-t-elle
+  répondu. », dite par la fillette déguisée). C'est la famille de l'item
+  « incise isolée sans virgule » du 19/09 (ci-dessus), mesurée ici **à l'échelle
+  du livre** : **134 phrases** dans 22/11/63 (0,53 % du livre), dont **114
+  terminales** ; **697** dans Shantaram (2,30 %), 6 dans le tome 5, 3 dans
+  Notre-Dame de Paris, 8 dans le chapitre d'essai. *Cause* : la liste `VERBES`
+  connaît « dit / répondit », mais **pas les participes** (« répondu »,
+  « recommandé », « confirmé »), **pas l'auxiliaire** (« m'a-t-elle … »,
+  « lui ai-je … ») et **pas le pronom devant le verbe** (« me dit Annette »).
+  *Prototype mesuré le 22/09/2026* (règle candidate, **rien n'a été modifié**) :
+  il retire exactement les deux phrases entendues → « – Annette Founijello. » et
+  « « Merci, monsieur. », et rattrape au passage « – Baissez le ton », lui ai-je
+  recommandé. » → « – Baissez le ton ». ».
+  *Deux défauts PRÉEXISTANTS que la règle rendrait plus fréquents — à trancher* :
+  (a) la **virgule de jonction** disparaît quand l'incise est coupée au milieu
+  (« Hé, a-t-il dit en ricanant, on n'est jamais assez prudent ! » → « Hé on
+  n'est jamais assez prudent ! ») ; (b) un **complément long** reste emporté avec
+  l'incise (« …, a-t-elle dit d'une voix posée en me regardant tout en rêvant à
+  autre chose. » → « … magnifique »). Ce sont **les comportements déjà validés le
+  18/09** sur « , dit-il, » : la règle n'en invente pas de nouveaux, elle les
+  applique à des formes qu'elle ratait. *À faire* : étendre `incises.py`,
+  **incrémenter `VERSION_CACHE`** (le texte parlé change), rejouer le test adverse
+  et un banc d'écoute. **Sans re-cast** : l'incise est traitée à la lecture
+  (retirée, ou confiée au narrateur — voir l'item 1bis juste après).
+
+- [ ] **1bis. OÙ SE PREND LA DÉCISION : incise MUETTE ou incise AU NARRATEUR ?
+  (réflexion de Laurent, 22/09/2026 — la plus importante de la session)** —
+  « Entre un Monte-Cristo, où elles sont inutiles la plupart du temps, et Stephen
+  King, c'est tout à fait différent : quand il écrit des « j'ai dit », ça fait
+  partie du récit, plus que des « dit untel » dans Monte-Cristo. Reste à savoir
+  où on place ça… »
+  **Ce qui débloque la question (constat technique du 22/09/2026)** : les deux
+  comportements sont possibles **sans re-cast, sans re-découpage, et sans toucher
+  aux index d'attribution**. Le lecteur construit **déjà** des unités audio plus
+  fines qu'une phrase pour les phrases longues (`_buildPlaylist` /
+  `_splitLongSentence`, `frontend/app.js`, `SPLIT_SENTENCE_CHARS`) : chaque unité
+  porte son propre texte, sa voix, sa hauteur et sa vitesse, et **toutes gardent
+  le même index de phrase** (le curseur reste posé sur la phrase). Traiter une
+  incise n'est donc qu'une **variante de ce découpage** : soit on ne pousse pas le
+  morceau (elle est **muette**), soit on le pousse avec la **voix du narrateur**.
+  Environ 15 lignes dans la page ; le cache audio prend chaque morceau
+  séparément, donc rien à migrer.
+  **Où placer ce réglage — trois pistes, à trancher** :
+  - **(A) Par livre, deux positions** (« incises muettes » / « incises au
+    narrateur »), dans le menu du lecteur, à côté de la voix du narrateur — qui
+    est **déjà** un réglage par livre (`books.narrator_voice`). Simple,
+    prévisible, et c'est Laurent qui tranche à l'oreille, une fois par livre.
+  - **(B) Le même réglage + une règle automatique** : incise au « je » (récit du
+    narrateur-protagoniste) **gardée**, incise sur un tiers (« m'a-t-elle
+    répondu », « dit Morrel ») **muette**, le réglage restant là pour forcer.
+    Plus confortable, mais c'est une heuristique à régler et à mesurer.
+  - **(C) Aucun réglage** : tout muet (comportement d'aujourd'hui) ou tout au
+    narrateur. À n'envisager que si le réglage par livre s'avère inutile à l'usage.
+  ✅ **DÉCIDÉ par Laurent le 22/09/2026 : (A) PAR LIVRE, AVEC UN BOUTON** —
+  « Idéalement un bouton (dans casting) avec « incises lues » ou « incises non
+  lues » […] la règle est bonne pour le moment, les incises à la 1ʳᵉ personne sont
+  bonnes : inexistantes dans Monte-Cristo, et faisant partie de la narration dans
+  22/11/63. »
+  *Pourquoi un bouton et pas une règle automatique — MESURÉ le 22/09/2026*
+  (outil `_moisson_profil_incises.py`, part des incises au « je » sur tous les
+  livres castés) :
+
+  | Livre | incises | dont au « je » | ce que l'oreille de Laurent dit |
+  |---|---|---|---|
+  | Monte-Cristo t. 5 | 788 | **1 %** | « inexistantes » ✔ |
+  | Monte-Cristo t. 6 | 596 | **0 %** | idem ✔ |
+  | Notre-Dame de Paris | 772 | **0 %** | idem ✔ |
+  | Shantaram | 717 | **51 %** | récit à la 1ʳᵉ personne ✔ |
+  | **22/11/63** | 274 | **25 %** | « font partie de la narration » ✔ |
+
+  **Le seuil automatique est un piège** : un critère naïf (« plus de 30 % au
+  "je" ») classerait 22/11/63 en « roman classique » — c'est-à-dire **le contraire
+  de ce que Laurent entend** sur le seul livre dont on parle. Le profil doit donc
+  **informer** (« ce livre : 274 incises, dont 25 % au "je" »), **jamais trancher**.
+  C'est la réponse honnête à « pour savoir à l'avance sur un livre inconnu, c'est
+  impossible » : on ne saura pas, mais on peut montrer les nombres.
+
+  *Emplacement retenu — avis de Cline* : le réglage vit **par livre**, comme
+  `books.narrator_voice`, donc **dans le menu du lecteur, à côté de la voix du
+  narrateur** (`#settings-menus`, `frontend/index.html`) — c'est là que sont déjà
+  la voix et la vitesse du narrateur, et c'est le menu qu'on a sous les yeux **au
+  moment où l'on entend le défaut**. Le libellé doit dire QUI lit (sinon « lues »
+  ne dit rien) : **« Incises : muettes » / « Incises : lues par le narrateur »**.
+  Si Laurent veut le bouton **aussi** dans la fenêtre du casting : possible, et
+  sans risque de divergence — ce serait **la même valeur**, vue de deux endroits,
+  pas deux réglages.
+
+  ⚠️ **LE PIÈGE À ÉVITER, identifié le 22/09/2026** (sinon la fonction paraîtrait
+  cassée) : aujourd'hui le serveur retire les incises **dans la synthèse**
+  (`_clean_text` → `retirer_incises`) et une phrase qui n'est **qu'une incise**
+  devient un **silence** (`_est_incise_seule`, `main.py`). En mode « lues », le
+  morceau-confiance envoyé au serveur serait donc **muet**. Il faut un **drapeau
+  explicite** sur la requête de synthèse (« ne retire pas les incises ici »).
+  ⚠️ **À écouter avant de généraliser** : un morceau séparé = un **micro-silence**
+  possible à la jonction, et sur ce morceau c'est la **vitesse du menu** (celle du
+  narrateur) qui s'applique, pas celle du personnage. C'est ce que le banc
+  d'écoute servira à juger.
+
+  **Ordre des travaux, mis à jour après la décision** :
+  **(1)** le réglage par livre + le bouton (l'audio change : c'est le chantier) ;
+  **(2)** un **banc d'écoute** des deux positions sur les vraies phrases, pour
+  juger à l'oreille (si « lues » déçoit, il reste « muettes ») ;
+  **(3)** l'**item 1** (les formes manquantes) : il devient alors **sans risque**,
+  puisque le comportement est un choix par livre — et les 134 incises de 22/11/63
+  suivront le réglage choisi pour ce livre.
+
+  ✅ **LIVRÉ le 22/09/2026 (étape 1)** — réglage par livre, bouton, et rien d'autre :
+  - **Base** : colonne `books.incises_narrateur` (0 = muettes, 1 = lues), ajout non
+    destructif, **défaut 0** → aucun des 10 livres déjà castés ne change de
+    comportement tant que le bouton n'est pas touché.
+  - **Serveur** : `PUT /api/books/{id}/incises` (enregistre le réglage pour le
+    livre) et `GET /api/books/{id}/chapter/{i}/incises` (renvoie les positions des
+    incises du chapitre). **C'est le SERVEUR qui calcule les positions**
+    (`modules/incises.py`) : la page n'applique aucune règle, elle coupe aux
+    positions reçues — donc une seule copie de la règle, et l'item 1 profitera à la
+    lecture sans toucher au JavaScript.
+  - **Le piège du silence, évité** : `/api/tts` reçoit un drapeau `incise_a_lire`.
+    Sans lui, un morceau qui n'est qu'une incise (« , dit-il. ») est remplacé par un
+    court silence (`_est_incise_seule`) — vérifié le 22/09/2026 sur `, fit-il
+    d'une voix sifflante.` : **SILENCE** sans le drapeau, **dit** avec. La décision
+    est isolée dans `_doit_taire_l_incise()`, donc testable sans lancer de moteur.
+  - **Page** : bouton `#incises-btn` dans la barre du lecteur, juste après « Vider
+    le cache » — son libellé PORTE l'état (« 🔇 Incises : muettes » / « 🗣️ Incises :
+    lues par le narrateur »). Il enregistre le choix pour le livre et **relance la
+    lecture depuis la phrase en cours** (même mécanisme que le changement de voix
+    d'un personnage). Le découpage se fait dans `_morceauxDeLaPhrase` : la phrase
+    est coupée aux positions reçues, l'incise part avec la **voix du narrateur**,
+    et tous les morceaux gardent le même `sentIdx` (le surlignage ne bouge pas).
+  - **Invariant vérifié** : les morceaux **reconstruisent la phrase à l'identique**
+    (aucun caractère perdu). Un premier jet perdait le point final d'une incise
+    terminale — trouvé par le test, corrigé (la ponctuation orpheline est
+    rattachée au morceau voisin au lieu d'être jetée).
+  - **Tests** : `_test_morceaux_incises.py` (bout en bout sur le vrai chapitre 10
+    de 22/11/63 : colonne, positions, reconstruction, drapeau) — et surtout un
+    **test de PARITÉ Python / JavaScript** : le script extrait la VRAIE fonction
+    `_morceauxDeLaPhrase` de `frontend/app.js`, la fait tourner sous `node`
+    (`_test_morceaux_js.js`) et compare les morceaux un par un. Deux tests de la
+    suite ont été mis à jour pour la nouvelle dépendance, sans rien assouplir :
+    `test_vitesse_personnage.js` (il **extrait** désormais les vraies fonctions
+    `_voixDuNarrateur` et `_morceauxDeLaPhrase` au lieu d'ignorer qu'elles
+    existent) et `test_chargement_chapitre.js` (témoin pour le chargement
+    d'incises, pour ne pas fausser son compteur d'appels réseau). **Suite
+    complète au vert.**
+  - **Banc d'écoute LIVRÉ (étape 2)** : `test_voix/LANCER_BANC_INCISES.bat`
+    (double-clic) → dossier `test_voix/ecoute_incises_<date>/` avec les WAV
+    numérotés, un `index.txt` (ce qu'on demande) et `ECOUTER_LE_LOT.cmd`. Un lot
+    a été fabriqué **le 22/09/2026 à 23h13** (14 fichiers) → **écouté et jugé par
+    Laurent** (verdict ci-dessous). Chaque fichier passe par le **vrai chemin du
+    lecteur** (`/api/tts` avec
+    le drapeau `incise_a_lire`, collage des morceaux comme la page), et le banc
+    **prévient** si le serveur en marche ne connaît pas encore le drapeau (sinon il
+    produirait des incises muettes en croyant tester « lues »).
+  - **Premiers enseignements du lot** (à confirmer par l'oreille) :
+    (a) en « muettes », `– Ouais, fit-il d'une voix sifflante.` perd **tout** le
+    « fit-il d'une voix sifflante » — 0,50 s au lieu de 2,66 s. C'est le
+    comportement validé le 18/09 (l'incise part avec son complément), mais on le
+    voit ici **en secondes** ;
+    (b) quand le personnage est chez un moteur et le narrateur chez un autre
+    (**Piper 22 050 Hz / Kyutai 24 000 Hz**, cas de la fillette), les morceaux **ne
+    peuvent pas être collés** : le lecteur les joue un par un, et un petit silence
+    reste possible à la jonction. Le banc écrit alors **B1, B2** ;
+    (c) quand le personnage a la **même voix que le narrateur** (Jake Epping dans
+    22/11/63, récit à la 1ʳᵉ personne), « lues » ne change presque rien : c'est
+    rassurant, le réglage ne dégrade pas ce livre-là.
+  - *Piste notée au passage* : **un seul format audio en sortie du serveur**
+    (rééchantillonner chaque moteur en 24 000 Hz mono 16 bits) permettrait de coller
+    **aussi entre deux moteurs**. Le lecteur y gagnerait ses morceaux longs (donc la
+    modale Android, correctif du 20/09/2026) dès qu'un dialogue change de moteur —
+    ce qui arrive **déjà** aujourd'hui entre deux phrases. À ouvrir un jour.
+  - **VERDICT DE LAURENT (22/09/2026, à l'écoute du lot)** : « je trouve que c'est
+    plus immersif, même si c'est un peu moins qualitatif ». → Pour 22/11/63, la
+    décision est **« incises lues par le narrateur »**. Le défaut reste « muettes »
+    partout ailleurs : **aucun autre livre ne change sans décision**.
+    *Restent sans réponse* les deux questions de détail du banc (petit silence à la
+    jonction, vitesse du narrateur sur le morceau d'incise) : rien de gênant n'a
+    été signalé, à confirmer à la prochaine écoute.
+  - **Reste à faire** : l'**item 1** (étape 3 : les formes d'incises manquantes,
+    134 phrases dans 22/11/63).
+
+- [ ] **7. Baisser la fréquence audio fait-il GAGNER en réactivité ?**
+  (question de Laurent, 22/09/2026 : « je suis sur un casque audio, ce n'est pas ma
+  priorité : si on baisse la fréquence, est-ce qu'on gagne en réactivité ? »)
+  **Réponse : non, pas chez nos moteurs.** La fréquence est une propriété du
+  **modèle entraîné**, pas un curseur d'exécution : XTTS v2 = **24 000 Hz** natif
+  (la chaîne de préparation des extraits le confirme), Kokoro = **24 000 Hz**,
+  Kyutai = **24 000 Hz**, Piper = **22 050 Hz** — ces deux derniers mesurés au banc
+  des incises du 22/09/2026 (c'est même ce qui empêche de coller un morceau Piper et
+  un morceau Kyutai). La vitesse de génération suit **deux** choses : la **taille du
+  modèle** et la **durée de parole produite** (donc la longueur du texte) — jamais
+  la fréquence de sortie. Repère déjà mesuré : Kyutai calcule **×3,3 plus vite que
+  le temps réel** sur la RTX 4060 (27,4 s d'audio en 8,3 s, soit **1 h d'audio
+  ≈ 18 min de calcul**).
+  **Là où une fréquence plus basse gagne vraiment : le TRANSFERT.** WAV 24 000 Hz
+  mono 16 bits = **48 ko/s** (≈ 2,9 Mo/min) ; 16 000 Hz = 32 ko/s ; **MP3 32 kbit/s
+  = 4 ko/s**, soit **12 fois moins**. Sur le téléphone à travers le tunnel Tailscale,
+  c'est le seul levier que la fréquence ouvre — et il est mesurable.
+  *En pratique, la réactivité se joue ailleurs* : le **choix du moteur** (Piper et
+  Kokoro sont bien plus rapides que Kyutai 1,6B), la **longueur de la phrase**, et
+  surtout le **cache + le préchargement**, déjà en place — on n'attend plus au fil
+  du chapitre. Le seul moment où un moteur lent se paie est la **première** écoute
+  d'un chapitre (constat déjà écrit, chantier NeuTTS, item 3).
+  *Piste à ouvrir un jour, si Laurent le veut* : envoyer l'audio en **MP3 bas débit**
+  au lieu du WAV quand la lecture passe par le tunnel (gain de **transfert**, pas de
+  génération). À mesurer avant de promettre quoi que ce soit.
+  *Outil prêt* : `_mesurer_vitesse_moteurs.py` — il **chronomètre les moteurs** sur
+  la même phrase neuve (Piper, Kokoro, Kyutai, Edge) et rapporte le rapport
+  « × temps réel », avec le poids du WAV et sa cadence. **Non lancé le 22/09/2026 à
+  23h20 : NIMM était éteint** (serveur absent sur le port 8081). À lancer une
+  prochaine fois, serveur allumé, pour avoir les chiffres de la machine.
+    ⚠️ **Pour l'essayer maintenant : relancer NIMM** (START.bat) — le serveur en
+    marche ne connaît pas les nouveaux points d'entrée.
+  *Note utile* : dans 22/11/63, une incise au « je » est lue par la voix de
+  **Jake Epping**, et `books.narrator_voice` porte **la même voix** — donc
+  « garder » ou « confier au narrateur » ne change rien à l'oreille **dans ce
+  livre**. La différence s'entend sur les incises de **tiers** (le cas Annette).
+
+- [ ] **2. Narration ENTRE TIRETS au milieu d'une réplique — lue par le
+  personnage** (cas signalé : « – il a brandi la baïonnette devant son visage pâle
+  aux traits tirés –, « ce sera moi. »). **Mesure : 1 phrase sur 25 216** dans
+  22/11/63. Deux raisons de ne pas ouvrir le chantier maintenant : le découpage ne
+  coupe pas À L'INTÉRIEUR d'une réplique, et le lecteur construit **une unité
+  audio = une phrase, avec une seule voix** (`_voiceForSentence`, `app.js`) ;
+  couper la phrase demanderait de **remigrer les 25 216 index** d'attribution pour
+  une seule phrase. *Piste, pas ce soir* : mesurer la fréquence du motif dans les
+  autres livres avant d'ouvrir quoi que ce soit.
+
+- [ ] **3. Genre des petits rôles : une fillette lue par une voix d'homme** — la
+  « Fillette déguisée » (6 répliques, donc < 8 = petit rôle) porte le genre **H**
+  dans la fiche, donc la voix générique **Pierre** (`piper:upmc:1`). Le livre
+  compte **86 petits rôles** (67 en voix homme, 19 en voix femme) : le mécanisme
+  marche, c'est le **genre de la fiche** qui est faux. Le modèle s'est trompé, et
+  le repli `deviner_genre` ne rattrape rien : il connaît « fille », « jeune
+  fille », mais **pas « fillette »**, ni « gamine ». Deux correctifs indépendants :
+  (a) compléter `_MOTS_F` (`fillette`, `gamine`, `petite fille`, `demoiselle`,
+  `nourrisson`…) — gratuit et sans re-cast, mais **ne corrige que les castings
+  FUTURS** (la fiche de ce livre restera « H ») ; (b) **dans l'application, le
+  genre d'un personnage n'est pas modifiable** : seule sa VOIX l'est (vérifié le
+  22/09/2026 : aucun point d'entrée ne touche `cast_fiche`). *À trancher* :
+  ajouter deux boutons ♀ / ♂ dans la fenêtre du casting, qui re-piochent la voix
+  générique du bon genre ? En attendant, Laurent change la voix à la main.
+
+- [ ] **4. Deux noms pour la même personne : « Col-bleu sans bretelles » et
+  « Bill Turcotte »** — Laurent s'étonne que Bill Turcotte ne soit étiqueté que
+  sur la **dernière** phrase du passage. **Ce n'est pas un bug** : le narrateur
+  décrit le personnage (« le col bleu sans bretelles ») avant de le nommer, et
+  l'incise « grinça Bill Turcotte » donne le nom au modèle — d'où **une étiquette
+  par phrase**. Le regroupement 🔗 est déjà en base (`Bill Turcotte → Col-bleu
+  sans bretelles`), c'est le travail de Laurent. Ce que 🔗 ne fait pas, par choix
+  (les pseudos du *Comte* gardent leur voix) : **il ne réunit pas les voix**. Ici
+  les deux sont le même timbre (`kokoro:am_onyx`) mais à **+0 Hz / +4 Hz** — d'où
+  un léger changement en pleine scène. *À trancher* : proposer « même voix » au
+  moment du 🔗 (alignement seulement si Laurent le demande) ?
+
+- [ ] **5. « George Amberson » n'existe pas comme personnage — et c'est une
+  bonne nouvelle** — question de Laurent (22/09/2026) : « je vois Jake Epping,
+  mais pas Georges Amberson, alors que les 2 devraient être présents, non ? »
+  Vérifié dans **toute la base** : **0 ligne** contenant « Amberson » dans
+  `voices`, `cast_fiche` et `speaker_attribution`. Le modèle a gardé **« Jake
+  Epping »** d'un bout à l'autre du livre, alors que d'autres personnages
+  l'appellent « monsieur Amberson » dans le texte. Conséquence : un seul nom,
+  **une seule voix** — c'est le résultat SOUHAITÉ (sinon il aurait eu deux voix,
+  comme Bill / Col-bleu). L'item ouvert du 19/09 est donc **déjà réglé dans ce
+  livre** : `books.narrator_voice` vaut **la voix de Jake Epping**
+  (`kyutai:1770_1028_000036-0002`), aussi pour la narration. À revérifier le jour
+  où un autre récit à la 1ʳᵉ personne sera casté.
+
+- [ ] **6. Le modèle du casting peut-il PROPOSER les alias ? (idée de Laurent,
+  22/09/2026)** — oui, et c'est presque gratuit : la Passe 2 du casting reçoit
+  **déjà** la fiche complète (176 noms pour ce livre) et renvoie **déjà** une table
+  de `fusion` pour les doublons d'écriture (`_build_passe2_prompt`). Ajouter une
+  liste d'**alias proposés** (« Col-bleu sans bretelles » = « Bill Turcotte »,
+  avec la raison) **ne coûte aucun appel supplémentaire** sur un nouveau casting ;
+  pour un livre déjà casté, un petit appel séparé (outil `_PAYANT_…` + `--je-paie`,
+  comme les autres appels facturés). Les propositions iraient dans
+  `character_aliases` — la table du 🔗 — donc visibles en retrait sous le nom
+  principal et **détachables d'un clic (✂)**, et **jamais appliquées sans
+  validation** : un alias faux, c'est deux personnes différentes qui partagent une
+  voix au re-cast. *À trancher* : ouvrir ce chantier, oui / non, et quand.
 
 ## 🟠 Priorité 2 — Voix & casting
 
@@ -3527,8 +3933,7 @@ désert) :
   personnages.
 
 - [ ] **Gard « citation ouverte »** : surveiller les tirets de dialogue
-  coupés par un `!`/`?` interne (noté dans ARCHITECTURE, pas encore
-  rencontré en pratique).
+  coupés par un `!`/`?` interne (pas encore rencontré en pratique).
 
 ## 🌍 Diffusion / partage — idée de Laurent (14/09/2026, à ouvrir dans quelques jours)
 

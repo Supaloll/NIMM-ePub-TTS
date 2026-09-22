@@ -97,6 +97,11 @@ function preparerLecteur(reponses) {
     var _setCursor = () => {};
     var _startTTS = () => {};
     var saveProgress = () => {};
+    var _incisesEnCours = null;      // chargement d'incises en tache de fond
+    // Chargement des positions d'incises du chapitre (22/09/2026) : le VRAI code
+    // est dans app.js, ici un simple temoin -- ce test porte sur l'enchainement du
+    // chargement, et un appel reseau de plus fausserait son compteur.
+    var _chargerIncises = async () => {};
     ${codePause}
     _pause = () => Promise.resolve();   // pas d'attente reelle dans le test
     var reponses = ${JSON.stringify(reponses)};
