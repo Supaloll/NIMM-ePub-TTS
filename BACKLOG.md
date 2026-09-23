@@ -4914,6 +4914,13 @@ disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~270 
   y entre doit être publiable.
   ⚠️ Leçon : le `README.md` annonçait « **dépôt privé** pour l'instant » — faux
   depuis le passage en public ; corrigé le même jour (**« en développement »**).
+  **Décision de Laurent, le même soir** : **le dépôt RESTE public** — « je fais
+  pas de pub, il n'y a personne qui va tomber dessus par hasard ». Assumé, le
+  contrôle ci-dessus étant passé. *Rappel honnête* : un dépôt public est indexé
+  par les moteurs et les robots d'aspiration du code **même sans publicité** —
+  sans conséquence ici, puisque rien de sensible n'y est ; mais la règle qui en
+  découle vaut pour la suite : **n'entre dans ce dépôt que ce qui est
+  publiable**.
   Contrôle à refaire dans l'autre sens le jour où le dépôt redevient privé.
 
 
