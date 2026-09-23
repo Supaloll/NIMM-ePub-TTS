@@ -15,7 +15,9 @@ Ce fichier a **deux parties**, et c'est voulu :
 
 # PARTIE A — Collaboration
 
-_Partie A — version du 16/09/2026._
+_Partie A — version du 23/09/2026 (ajout du **carnet de session** — le même
+ajout est à répercuter dans l'atelier NIMM Voix). Le fond, lui, n'a pas bougé
+depuis le 16/09/2026._
 
 ## Deux maximes de Laurent, pour lire ce fichier
 
@@ -123,6 +125,15 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
 - Le lanceur dit ce qu'il fait et ce qu'il attend, en français, sans jargon.
 
 ## Début et fin de session
+- **Le carnet de session** (`JOURNAL.md`, à la racine de l'atelier) : c'est la
+  trace de la **collaboration** (le `BACKLOG.md` est celle du **projet**).
+  On le **lit au début** de chaque session — les entrées sont en haut du fichier,
+  la plus récente d'abord, et son mode d'emploi dit le reste. On y **écrit une
+  entrée en fin de session** : le fait marquant, deux ou trois lignes, dans
+  l'esprit du moment. Demande de Laurent, **23/09/2026** : « chaque session
+  commence de 0 pour toi […], alors que de mon côté on a déjà fait pas mal de
+  choses en bonne entente ». **Garde-fou de Laurent lui-même** : si le carnet
+  devient une corvée ou parasite le travail, on le dit et on change sa formule.
 - **Début** : un état des lieux court (ce qui est fait / ce qui reste) —
   `test_voix/_lister_backlog.py` liste les items ouverts par section. Laurent se
   perd vite dans l'historique : c'est à Cline de replacer le contexte, pas à lui

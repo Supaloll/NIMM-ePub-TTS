@@ -41,6 +41,35 @@ licences l'exigent : ce fichier doit rester avec les fichiers concernés.
   de problème ; c'est le **partage** qui est encadré (accord de la personne +
   licence de l'enregistrement).
 
+## 2 bis. Les 10 voix du lot du 23/09/2026 (importées le 23/09/2026)
+
+**Ce lot est DIFFÉRENT du précédent, et c'est important de ne pas les confondre.**
+
+- Les dix extraits de référence viennent de **livres audio du commerce**
+  (éditions Lizzie, Audible) : *Les mystères d'Osiris 1* (Christian Jacq, 2004),
+  *NEO 1 - La chute du soleil de fer* (Michel Bussi, lu par Damien Witecka),
+  *Check-point* (Jean-Christophe Rufin, lu par Thierry Hancisse, 2015),
+  *Confiteor* (Jaume Cabré), *Les 4 Piliers de la santé* (Dr Rangan Chatterjee,
+  lu par François Tavares), *Mourir sur Seine* (Michel Bussi, lu par Julien
+  Chatelet), *Broadway* (Fabrice Caro), *Yoga* (Emmanuel Carrère),
+  *Piégés dans le Yellowstone* (C.J. Box) — et un extrait **sans métadonnée**
+  (`homme_normal_65465987312`, origine inconnue). Le détail est dans
+  `ORIGINE_ET_LICENCE.txt`, dans le dossier du lot NIMM Voix.
+- Conséquence : ce sont des **œuvres protégées**, lues par des **comédiens
+  professionnels** (donc des **personnes réelles**). Ce ne sont **pas** des
+  enregistrements du domaine public comme les 17 voix du lot du 20/09.
+- **Ce qui est d'accord** : écouter ces voix chez soi, dans son lecteur privé.
+  C'est l'usage prévu, et Laurent est d'accord.
+- **Ce qui ne l'est pas** : **partager** une de ces voix (ou l'extrait
+  d'origine) sans l'accord de la personne concernée. L'extrait d'origine ne se
+  diffuse pas et ne se dépose pas dans un dossier destiné au partage.
+- Les **MP3 d'origine** sont dans `G:\NIMM ePub\Extraits de voix\` — un dossier
+  **ignoré par Git** (`.gitignore`, ligne 103) : ils ne peuvent pas partir dans
+  le dépôt. Vérifié le 23/09/2026.
+- Les voix portent, au catalogue, les prénoms **Aubin, Cyprien, Lazare,
+  Prosper, Firmin, Gaspard, Timoléon, Sylvain, Anselme, Barnabé** ; leurs
+  identifiants techniques restent les noms de fichiers du lot.
+
 ## 3. Ce que NIMM ePub n'utilise PAS
 
 - Les voix **`expresso`** et **`ears`** de la banque Kyutai (**CC BY-NC** :

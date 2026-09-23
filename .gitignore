@@ -8,6 +8,12 @@ data/moteur_voix.txt
 # Notes prises en ecoutant les voix dans le lecteur (fenetre « Ecouter les
 # voix ») : observations personnelles de Laurent sur SA machine.
 data/annotations_voix.json
+# Carnet de session (JOURNAL.md, 23/09/2026) : le journal de la collaboration
+# entre Laurent et son assistant -- notes personnelles, en cours d'ecriture.
+# Decision de Laurent : il reste prive tant qu'il ne s'est pas rempli ; on
+# l'ouvrira au depot plus tard. Ses sauvegardes datees (*.bak_*) sont deja
+# ignorees plus bas.
+JOURNAL.md
 
 # Python
 __pycache__/
@@ -180,3 +186,20 @@ _apres_*.txt
 _passe*.txt
 APERCU_CADENAS_*.html
 _essais/
+
+# Captures de session et brouillons restants du 22-23/09/2026 (sorties de
+# commandes, essais jetables) : meme regle que les lignes du dessus, jamais
+# versionnes. En revanche PROBLEMATIQUE_decoupage_voix.md et la reponse a Claude
+# sont cites par le BACKLOG et ARCHITECTURE.md : eux partent avec le projet.
+_apercu_*.txt
+_audit_*.txt
+_migration_dialogue_*.txt
+_debug_proto.py
+_test_piece_incise.py
+
+# Rapports recus de Claude (23/09/2026) : notes de travail venues de l'exterieur.
+# Aucun extrait de livre dedans (verifie le 23/09/2026), mais rien a faire sur un
+# depot public : ils restent sur le PC.
+Rapport de Claude
+Rapport de Claude *.md
+Reponse Claude *.txt

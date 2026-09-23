@@ -50,8 +50,10 @@ MAX_PAR_SECTION = 25 if '--tout' not in sys.argv else 10 ** 6
 # sont des sauvegardes datees, elles ont le droit d'etre perimees.
 DOCUMENTS = [
     'ARCHITECTURE.md', 'BACKLOG.md', 'README.md', 'CONTRIBUER.md',
+    'JOURNAL.md', 'METHODE_DE_TRAVAIL.md',
     'REGLES_INCISES_a_eprouver.md', 'MEMO_XTTS_v2_pour_Cline.md',
     'MEMO_POCKET_TTS_pour_la_session_NIMM_ePub.md',
+    'PROBLEMATIQUE_decoupage_voix.md',
     'test_voix/LIRE_MOI.md', 'test_voix/MEMO_pour_NIMM_Voix.md',
     'kyutai_service/LIRE_MOI.md', 'neutts_service/LIRE_MOI.md',
     'pocket_tts_service/LIRE_MOI.md', 'xtts_service/LIRE_MOI.md',
@@ -71,9 +73,13 @@ DOCUMENTS_ACTIFS = {
 
 # Fichiers cites qui vivent AILLEURS (l'atelier NIMM Voix) : leur absence ici
 # est normale, elle doit etre expliquee dans le document, pas signalee.
+# `JOURNAL.md` est dans le meme cas pour une autre raison : c'est le carnet de
+# session de Laurent, volontairement HORS du depot (voir .gitignore, 23/09/2026)
+# -- un clone du depot ne l'a donc pas, et ce n'est pas une reference morte.
 FICHIERS_D_AILLEURS = {
     'scripts/tester_prenoms_kokoro.py', 'TESTER_PRENOMS_KOKORO.cmd',
     'CHERCHER_PRENOMS_DUN_LIVRE.cmd',
+    'JOURNAL.md',
 }
 
 # Le code ou l'on cherche les identifiants cites par les documents.
@@ -83,6 +89,7 @@ MOTIFS_CODE = ['main.py', 'modules/*.py', 'core/*.py', 'test_voix/*.py',
 
 # Dossiers ou l'on accepte qu'un fichier cite par son seul nom se trouve.
 DOSSIERS_CONNUS = ('', 'test_voix', 'modules', 'core', 'frontend', 'data',
+                   '_essais',
                    'kyutai_service', 'neutts_service', 'pocket_tts_service',
                    'xtts_service')
 

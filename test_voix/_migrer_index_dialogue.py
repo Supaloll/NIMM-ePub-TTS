@@ -101,9 +101,31 @@ def _contenante(anciennes, nouvelles):
 
 
 def _citation_ouverte(texte, position):
-    """La position est-elle DANS une citation deja ouverte ? (« > »)."""
-    avant = texte[:position]
-    return avant.count('«') > avant.count('»')
+    """La position est-elle DANS une citation deja ouverte ? (« > »).
+
+    LE COMPTEUR S ARRETE AUX BORDS DU PARAGRAPHE (correctif du 23/09/2026,
+    signale par un relecteur exterieur puis MESURE sur les 10 livres) : la
+    convention francaise rouvre « au debut de chaque paragraphe d'une longue
+    citation, donc un compteur qui remonte au debut du CHAPITRE reste positif
+    apres toute lecture a voix haute -- et refuse alors TOUT le reste du
+    chapitre. Mesure de la derive : 244 beats refuses a tort (dont 200 sur les
+    9 livres migres le 23/09), ex. Notre-Dame ch.55 ou le roi n'aurait jamais
+    du garder 38 morceaux de narration.
+
+    Deux points de la regle :
+      - on compte « et » DANS LE PARAGRAPHE qui contient la position ;
+      - un paragraphe qui COMMENCE par « est ouvert des son premier caractere :
+        c'est la suite d'une citation longue, et ce « est deja compte par le
+        comptage, donc rien de special a faire.
+
+    Le vrai cas « Lazarille » (un personnage qui rapporte ses propres paroles a
+    l'interieur de sa tirade) reste protege : le « ouvrant y est dans le meme
+    paragraphe.
+    """
+    debut = texte.rfind('\n\n', 0, position)
+    debut = 0 if debut < 0 else debut + 2
+    paragraphe = texte[debut:position]
+    return paragraphe.count('«') > paragraphe.count('»')
 
 
 def _beat(texte, nouvelles, j):

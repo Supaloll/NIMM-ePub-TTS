@@ -137,7 +137,7 @@ nimm-epub/
 │   ├── INSTALLER_NEUTTS.bat — Installation unique (environnement, torch épinglé)
 │   ├── DEMARRER_NEUTTS.bat  — Allume le moteur
 │   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
-├── pocket_tts_service/    — Moteur Pocket TTS (18 voix, tourne sur le processeur), À PART (port 8085)
+├── pocket_tts_service/    — Moteur Pocket TTS (28 voix, tourne sur le processeur), À PART (port 8085)
 │   ├── servir_pocket_tts.py — Service HTTP local (127.0.0.1:8085)
 │   ├── INSTALLER_POCKET_TTS.bat — Installation unique (environnement, modèle, voix)
 │   ├── DEMARRER_POCKET_TTS.bat  — Allume le moteur, dans SA fenêtre (l'arrêt se fait là)
@@ -665,6 +665,51 @@ console Tailscale (Machines → … → *Disable key expiry*).
 
 ### Logique TTS — app.js
 
+**Aujourd'hui — l'état actuel en clair** (vérifié contre le code le 23/09/2026) :
+- **une unité de lecture = une phrase** : `_buildSentences(text, decoupeDialogue)`
+  remplit `_sentences` (`{text, paraIdx}`) et `_paragraphStarts`, le curseur est
+  `_cursorIdx` (`_setCursor(idx)`) ; `_buildPlaylist(startIdx, endIdx)` **fige**
+  la voix, la hauteur et la vitesse de chaque phrase (`_voiceForSentence(idx)`) ;
+- **la vitesse d'une phrase vient de sa fiche** : `_vitesseDeFiche(rate)`, une
+  fonction **pure** — un réglage neutre rend `PERSONNAGE_RATE_DEFAUT = '+0%'` ;
+  le menu du bas ne règle que le **narrateur** ;
+- **préchargement** : `_runTTS(startIdx, endIdx)` et son `pump()` tiennent
+  `PREFETCH_CONCURRENCY = 2` requêtes simultanées sur une fenêtre de
+  `PREFETCH_MAX_AHEAD_CHARS = 5000` caractères ; quand la page passe **en
+  arrière-plan** pendant une lecture (`visibilitychange`), `_prechargementBurst`
+  lève le plafond à `PREFETCH_MAX_AHEAD_CHARS_BURST = 400000` — c'est la
+  « réserve à bloc » qui tient l'écran verrouillé ;
+- **phrases-fleuves** : au-delà de `SPLIT_SENTENCE_CHARS = 500`,
+  `_splitLongSentence()` coupe aux virgules en sous-segments de
+  `SPLIT_SEGMENT_CHARS = 450`, tous porteurs du même `sentIdx` ;
+- **pause entre paragraphes** : `PARAGRAPH_PAUSE_MS = 300` (valeur **revenue à
+  300 le 17/09/2026**, voir la chronique), insérée par `_pause(ms, signal)` quand
+  le `paraIdx` change — interrompue par le signal d'abandon ;
+- **réseau** : `FETCH_TIMEOUT_MS = 20000` (`KYUTAI_TIMEOUT_MS = 90000` pour
+  Kyutai) ; `waitUnitNetworkRetry()` retente et repart seule ; le message parlé
+  `MESSAGE_HORS_LIGNE` part après `MESSAGE_ATTENTES_AVANT = 2` attentes, puis au
+  plus une fois par `MESSAGE_RAPPEL_MS = 45000` ;
+- **états** : `_ttsState` — `idle` → `loading` → `playing` ⇄ `paused` → `idle`
+  (`_startTTS` / `_pauseTTS` / `_stopTTS`, dessinés par `setTTSUI(state)`) ; le
+  curseur ne bouge ni à la pause ni à l'arrêt ;
+- **mobile** : `_isTouchDevice` ; le **tap** ouvre le panneau « voix de cette
+  phrase » (`_openVoicePanel(idx)`, `_personnageDePhrase`, `_voixDePhrase`) et ne
+  lit plus ; la liste des voix est `_lignesVoixListe()` (**pure**) →
+  `_peindreListeVoixPhrase()` → `_choisirVoixPhrase()`, l'aperçu
+  `_apercuVoixPhrase(voixId, btn)` ;
+- **navigation** : `_PAS_PARAGRAPHES = 4` pour le saut moyen, une phrase pour
+  ◀ / ▶, et le casque suit la **phrase** (`previoustrack` / `nexttrack` →
+  `_cursorSentPrev()` / `_cursorSentNext()`) ;
+- **tiroir du bas** : `_tiroirLecteurOuvert = null` (l'écran décide tant que la
+  poignée n'a pas été touchée), `_tiroirLecteurDoitEtreOuvert()` (**pure**),
+  `_appliquerTiroirLecteur()` — l'état est porté par `aria-expanded` ;
+- *vérifications* : `test_voix/test_voix_phrase.js` (**50 contrôles**),
+  `test_voix/test_sauts_navigation.js` (**15**),
+  `test_voix/test_vitesse_personnage.js` (**27**),
+  `test_voix/test_tiroir_lecteur.js` (**38**),
+  `test_voix/test_lecteur_media.js` (**42**),
+  `test_voix/test_message_reseau.js` (**8**).
+
 #### Structure de données
 Le texte de chaque chapitre est découpé côté client en deux niveaux :
 
@@ -1070,6 +1115,16 @@ d'une phrase à l'autre ; Edge : déjà ramené à 0,25 s depuis le 08/09/2026).
 Une fois le silence de queue XTTS ramené lui aussi à 0,25 s (voir plus bas),
 la pause ajoutée par le lecteur devenait inutile : `PARAGRAPH_PAUSE_MS` est
 donc passé à **0** (mettre 300 rétablit l'ancien comportement).
+
+> **Le retour en arrière, jamais écrit ici — corrigé le 23/09/2026.** La pause est
+> **revenue à 300 ms** dès le **17/09/2026** : à l'écoute de Kyutai, Laurent a
+> trouvé que « le point passe très très vite » et les sauts de ligne trop rapides
+> (le commentaire de `PARAGRAPH_PAUSE_MS` dans `app.js` raconte ces deux
+> révisions : 100 ms, puis 300 ms). Le passage à 0 décrit ci-dessus n'a donc tenu
+> que **deux jours** — et **cette page a annoncé « 0 » pendant six jours alors que
+> le code portait 300**. Relevé par l'audit de `ARCHITECTURE.md` (étape 3, le bloc
+> « Aujourd'hui ») le 23/09/2026, et désormais contrôlé par
+> `_verifier_faits_architecture.py`.
 
 Sans cette pause, deux phrases de paragraphes différents s'enchaînaient
 sans aucun silence — un titre de chapitre type "La tempête" (souvent
@@ -4013,6 +4068,39 @@ Robert, Paul, Jules, Arthur**, et **Edgar** (unique prénom nouveau, pour
 Edgar restant à annoter à l'oreille. L'**accent** est à revérifier — Pocket TTS
 garde la diction de l'extrait, ce qui n'a jamais été mesuré ici.
 
+**Les 10 voix du lot du 23/09/2026 (importées le 23/09/2026)** : Laurent a
+préparé dix nouveaux extraits, clonés par l'atelier NIMM Voix dans un seul lot
+(`G:\NIMM Voix\sorties\pocket_tts_retenues_20260923\`) et **tous retenus** par
+son écoute du 23/09/2026. Elles **gardent les noms de fichiers de l'atelier**
+(`homme_grave_5649798_reference.wav` → voix `homme_grave_5649798`) et portent des
+**prénoms neufs**, vérifiés uniques dans les 339 entrées du catalogue :
+**Aubin, Cyprien, Lazare, Prosper, Firmin, Gaspard, Timoléon, Sylvain, Anselme,
+Barnabé**. Choix de Laurent du 23/09/2026 : entrée directe à **3 étoiles**, donc
+**éligibles au casting automatique** (comme les 18 voix du 20/09). Le catalogue
+passe à **28 voix Pocket TTS**.
+
+Nouveauté par rapport au premier lot : ces voix n'ont **aucune jumelle** dans un
+autre moteur, donc l'héritage des annotations
+(`_heriter_annotations_neutts_vers_pocket.py`) ne pouvait rien pour elles. C'est
+`test_voix/_importer_voix_pocket.py` (**nouveau**, aperçu par défaut, `--ecrire`
+avec copie datée) qui écrit leurs critères : **timbre** lu sur la **hauteur
+mesurée dans le clone** par l'atelier (aigu / grave / medium), **débit** `vif`
+(les 20-25 car/s du moteur), **accent** `neutre` **à revérifier à l'oreille**
+(Pocket TTS garde la diction de l'extrait, jamais mesurée ici), `role` vide (elles
+peuvent être castées). **Edgar reste volontairement non annoté** : l'outil porte
+une liste `LAISSEES_A_L_OREILLE` justement pour ne pas « boucher » ce trou avec
+des valeurs inventées — c'est l'oreille de Laurent qui doit le remplir.
+
+⚠️ **Licences : ce lot n'est PAS comme celui du 20/09.** Ces dix extraits viennent
+de **livres audio du commerce** (Lizzie, Audible), lus par des **comédiens
+professionnels** : personnes réelles, œuvres protégées. **Écoute privée :
+d'accord** (c'est l'usage de Laurent) ; **partage : interdit** sans l'accord de
+la personne. Le détail extrait par extrait (livre, auteur, lecteur, année) est
+dans `ORIGINE_ET_LICENCE.txt`, dans le dossier du lot ; les **MP3 d'origine**
+restent dans `Extraits de voix\`, un dossier **ignoré par Git** (vérifié le
+23/09/2026 : ils ne peuvent pas partir dans le dépôt). Voir aussi
+`pocket_tts_service/ATTRIBUTION.md`, section 2 bis.
+
 **Le service** (`pocket_tts_service/servir_pocket_tts.py`, port **8085**) suit
 exactement le contrat des autres : `GET /sante` (`pret: true/false`),
 `GET /voix`, `POST /tts` (JSON → WAV), `POST /recharger`. Trois différences :
@@ -4056,7 +4144,8 @@ n'aurait, de nouveau, aucun geste d'arrêt. Conséquence : les journaux
 `journal_service*.txt` ne grandissent plus (la fenêtre montre tout) —
 `journal_installation.txt` reste le journal de l'installation.
 
-**Dans le lecteur** : `POCKET_VOICES` (18 entrées, identifiants `pocket:<fichier>`),
+**Dans le lecteur** : `POCKET_VOICES` (28 entrées depuis le 23/09/2026,
+identifiants `pocket:<fichier>`),
 un client `synthesize_pocket()` / `_demander_au_moteur_pocket()` et une branche
 `pocket:` dans `POST /api/tts` (503 et message clair si le moteur est éteint).
 Vitesse et hauteur n'existent pas dans le moteur : mêmes post-traitements que
@@ -4118,7 +4207,7 @@ en bout **à travers le lecteur** : 3 phrases synthétisées avec `pocket:Femme0
 
 ### ✂️ Mode dialogue : la narration séparée des répliques — 21/09/2026
 
-**Aujourd'hui — l'état actuel en clair** (vérifié contre le code le 22/09/2026) :
+**Aujourd'hui — l'état actuel en clair** (vérifié contre le code le 23/09/2026) :
 - la règle vit dans `modules/decoupage.py` (`REGLE_DIALOGUE`,
   `VERBES_DE_PAROLE`, `introduit_une_replique()`) et elle est recopiée **mot
   pour mot** dans `frontend/app.js` — un test compare les deux listes de verbes ;
@@ -4127,11 +4216,32 @@ en bout **à travers le lecteur** : 3 phrases synthétisées avec `pocket:Femme0
   sont **enregistrés** et qu'un découpage différent décalerait leurs voix ;
 - **activation automatique au nouveau casting** (22/09/2026) : un livre neuf est
   casté directement en mode dialogue ;
+- **migration des livres déjà castés, faite le 23/09/2026** : **9 livres** sont
+  passés en mode dialogue (Monte-Cristo T2→T6, Souvenirs d'une gamine,
+  Shantaram, Notre-Dame de Paris, le Chevalier Errant) — **327 morceaux** de
+  narration remis au narrateur, reprise de lecture remappée, et le **casting
+  vérifié intact** (voix, hauteur, vitesse, verrous, fiches, alias) par
+  comparaison avec une copie datée de la base. « Dialogues désaccordés »
+  (livre d'entretien, 68 morceaux) est **laissé de côté** : ses beats sont du
+  discours de personnage, pas de la narration — la problématique est écrite dans
+  `PROBLEMATIQUE_decoupage_voix.md` ;
+- **la dérive du compteur de citation ouverte, corrigée puis rattrapée**
+  (23/09/2026) : `_citation_ouverte()` comptait les guillemets depuis le début du
+  **chapitre** au lieu du **paragraphe**, donc après un passage lu à voix haute,
+  tout le reste du chapitre était refusé — **244** morceaux mesurés. Le compteur
+  est corrigé dans l'outil de migration, et
+  `test_voix/_rattraper_beats_derive.py` a remis **155** morceaux au narrateur
+  sur les livres déjà migrés (copie datée avant, contrôle après). *Restent* :
+  74 morceaux « impurs » (règle R3) et 12 morceaux à 2ᵉ personne, laissés exprès
+  (« je vous dirais : » du docteur d'Avrigny est du discours de personnage) ;
 - outils : `test_voix/MODE_DIALOGUE.bat` (+ `test_voix/regler_mode_dialogue.py`)
-  dit qui est en mode dialogue ; `test_voix/_migrer_index_dialogue.py` migre les
-  index d'un livre déjà casté (**refuse** de tourner sur un livre déjà en mode
-  dialogue) ;
-- *vérifications* : `test_voix/test_decoupage_phrases.py` (**41 contrôles**) et
+  dit qui est en mode dialogue ; `test_voix/MIGRER_DIALOGUE.bat` (double-clic)
+  migre un livre déjà casté, un par un, essai puis écriture ;
+  `test_voix/_migrer_index_dialogue.py` fait le travail (**refuse** de tourner
+  sur un livre déjà en mode dialogue) ; `test_voix/_etat_migration_dialogue.py`
+  dit qui doit migrer, en une page ; `test_voix/_simuler_migration_dialogue.py`
+  mesure tous les livres d'un coup ;
+- *vérifications* : `test_voix/test_decoupage_phrases.py` (**44 contrôles**) et
   `test_voix/test_decoupage_auto_casting.py`.
 
 Demande de Laurent : « des marqueurs nets sur "dialogue" et "narrateur" […]
@@ -4175,7 +4285,7 @@ passe à `_buildSentences(text, decoupeDialogue)`.
 *Outil* : `test_voix/MODE_DIALOGUE.bat` (+ `regler_mode_dialogue.py`) — liste des
 livres, activation/désactivation, **copie datée de la base** avant écriture.
 
-*Vérifications* : `test_voix/test_decoupage_phrases.py` — **36 contrôles** : la
+*Vérifications* : `test_voix/test_decoupage_phrases.py` — **44 contrôles** : la
 règle et ses trois garde-fous, l'exemple exact de Laurent, les positions exactes,
 aucun texte perdu, et l'identité des listes de verbes entre Python et la page.
 

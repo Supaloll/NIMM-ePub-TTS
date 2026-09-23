@@ -164,6 +164,7 @@ réglage du dernier moteur utilisé est mémorisé (`data/moteur_voix.txt`).
 | `README.md` | installation et prise en main, pour l'utilisateur |
 | `ARCHITECTURE.md` | la **mémoire technique** : comment chaque pièce fonctionne |
 | `BACKLOG.md` | les décisions, les mesures, ce qui reste à faire |
+| `JOURNAL.md` | le **carnet de session** de l'auteur et de son assistant : ce qui a marqué, session après session. Fichier **local** : il reste sur le PC de l'auteur tant qu'il ne s'est pas rempli (il est dans `.gitignore`) |
 | `CONTRIBUER.md` | ce document |
 | `MEMO_XTTS_v2_pour_Cline.md` | les mesures et pièges du moteur XTTS v2 |
 

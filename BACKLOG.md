@@ -15,47 +15,165 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🚩 À FAIRE EN PRIORITÉ — décidé le 22/09/2026
 
-- [ ] **🔄 Passer les 10 livres DÉJÀ CASTÉS en narration séparée** (migration des
-  index, **0 €** — « juste ton travail et un peu de temps », Laurent,
-  22/09/2026). **Prévu le soir du 22/09/2026.**
-  *Devis mesuré le 22/09/2026* (simulation, rien n'écrit) — « beats » = morceaux
-  de narration qui passent du personnage au **narrateur** (le gain audible) :
+- [x] **🚑 Les 53 morceaux qui étaient DANS une réplique en tiret — ✅ FAIT le
+  23/09/2026 à 15 h** (note urgente de Claude, confirmée par la mesure).
+  *La cause* : `_beat()` refuse un morceau qui contient `«`, mais une **réplique
+  en tiret** n'en contient pas — elle a un verbe de parole et le morceau suivant
+  commence par `«` (chez Dumas : la première réplique est entre `«`, les
+  suivantes en tiret). Elle a donc été prise pour un beat et **remise au
+  narrateur**. *Mesure* (`_essais/_mesurer_dans_la_replique.py`) : **134**
+  morceaux sont dans une réplique en tiret (dont **79 préexistants** — Claude
+  annonçait ~80 sur les 173), et **81 sont déjà au personnage**. Restent **53**
+  à réparer : **14** par la migration du 23/09 et **39** par le **rattrapage des
+  beats** du même jour (celui-ci a fait cette erreur parce qu'il ne testait que
+  la tête du morceau). *Outil prêt* : `test_voix/_restaurer_hors_replique.py`
+  (simulation : **53**, exemples tous justes — Caderousse, Karla, Dunk,
+  Grongoire, « Le narrateur » de Shantaram) — il **restaure l'étiquette
+  d'origine** de la copie `bak_avant_dialogue_20260922_1311`, ce n'est pas un
+  nouveau casting : copie datée avant, contrôle après. *Règle à intégrer
+  ensuite* (étape 4 de Claude) : `dans_la_replique(ligne, position)` — une ligne
+  à tiret est une citation ouverte jusqu'à son `»` — et elle **remplace le
+  garde-fou G1** de R8, sans son coût de prudence.
+  *Fait le 23/09/2026 à 15 h* : **53 morceaux rendus à leur personnage** (copie
+  datée `nimm_epub.db.bak_avant_restauration_repliques_20260923_1459`), et le
+  contrôle des phrases hors casting sur trois états (22/09, avant restauration,
+  actuel) montre que **la restauration n'a inventé aucune étiquette** (107 → 103
+  pour le T2, 136 → 131 pour le T6, 306 → 303 pour Notre-Dame : ce sont des
+  états **préexistants**, du casting, pas du découpage).
 
-  | # | Livre | Morceaux | Beats (gain) | Refusés (*) |
-  |---|---|---|---|---|
-  | 34 | **Notre-Dame de Paris** | 12 066 → 12 389 | **230** | 111 |
-  | 18 | **Dialogues désaccordés** | 1 779 → 1 851 | **68** | 7 |
-  | 35 | **Le Chevalier Errant** | 6 270 → 6 307 | **36** | 37 |
-  | 33 | Shantaram | 30 285 → 30 292 | 22 | 57 |
-  | 27 | Souvenirs d'une gamine | 6 133 → 6 190 | 11 | 0 |
-  | 17 | Monte-Cristo **T6** | 4 144 → 4 153 | 12 | 97 |
-  | 16 | Monte-Cristo **T5** | 5 105 → 5 127 | 5 | 74 |
-  | 14 | Monte-Cristo **T3** | 4 947 → 4 972 | 5 | 127 |
-  | 8 | Monte-Cristo **T2** | 5 036 → 5 052 | 4 | 99 |
-  | 15 | Monte-Cristo **T4** | 5 378 → 5 388 | 2 | 82 |
-  | | **TOTAL** | 81 143 → 81 721 | **395** | 691 |
+- [ ] **🎧 Les répliques en tiret attribuées au narrateur — 147 morceaux**
+  (retour d'écoute de Laurent, 23/09/2026 : « – Ah bah ! » lu par le narrateur
+  dans *Notre-Dame*, ch. 28). **Décision de Laurent le même jour : on ne touche
+  à rien pour le moment** — ce livre a peut-être été casté par un modèle moins
+  bon que Gemini (« un livre *DeepSeek* », dit-il), et son étiquetage d'origine
+  est douteux par endroits : mieux vaut ne pas corriger au coup par coup tant
+  qu'on ne sait pas si c'est un défaut isolé ou une **famille**. L'outil de
+  correction ciblée est prêt pour le jour où on voudra
+  (`test_voix/_corriger_locuteur.py` + `CORRIGER_UN_MORCEAU.bat`).
+  *Mesure* (`_essais/_mesurer_repliques_tiret.py`) :
+  **147** morceaux commencent par un tiret **et** appartiennent au narrateur, dont
+  **71** courts et exclamatifs — mais l'essentiel des 147 sont des **digressions
+  de l'auteur** (« – Ce qui prouve cette vérité neuve : … ») ou des tirets de
+  continuation : **aucune règle simple ne tranche** (« tiret = réplique » est
+  faux ici). *Diagnostic* (`_essais/_diagnostiquer_passage.py` : les trois états
+  de la base donnent le **même** résultat) : le défaut vient de **l'étiquetage
+  d'origine par l'IA**, pas de la migration ni du rattrapage. *En attendant une
+  règle* : correction ciblée, morceau par morceau, avec
+  `test_voix/_corriger_locuteur.py` (+ lanceur `CORRIGER_UN_MORCEAU.bat`,
+  copie datée avant écriture). *Piste à creuser* : dans ce même passage, l'IA a
+  donné à **Oudarde_Musnier** une tirade qui appartient à **Gervaise** — le nom
+  de la personne **interpellée** dans la réplique (« que dites-vous donc là,
+  damoiselle Oudarde Musnier ? ») trompe l'étiquetage. À mesurer comme famille.
 
-  (*) **Refusés** = laissés au personnage, parce que le beat se trouve **dans une
-  citation ouverte** (un personnage qui rapporte ses propres paroles). Vérifié sur
-  le Tome 5, les 74 refus sont **légitimes** : « Si elle avait commis un second
-  crime, je vous dirais : » est **dans** le discours du docteur d'Avrigny — le
-  donner au narrateur couperait sa voix en deux (leçon de Lazarille, 21/09/2026).
-  *À savoir* : les tomes du Comte ne gagneront presque **rien** (2 à 12 beats) —
-  c'est le style de Dumas (beaucoup de discours longs) ; le gain est concentré
-  sur **Notre-Dame, Dialogues désaccordés, le Chevalier Errant, Shantaram**.
-  La migration reste **gratuite et sans risque** : elle se fait quand même.
-  *Procédure, livre par livre* (l'outil fait tout) :
-  1. `python test_voix/_migrer_index_dialogue.py --livre <id> --variante B` →
-     **simulation** : je **lis** les beats proposés avant d'écrire (leçon du
-     21/09 : un chiffre ne vaut rien sans la lecture du texte) ;
-  2. la même commande avec `--ecrire` → **copie datée de la base AVANT**,
-     écriture, puis **contrôle APRÈS** (chaque voix doit pointer sur une phrase
-     qui existe, tous les locuteurs dans le casting) ;
-  3. Laurent **recharge la page** et écoute ; le mode se vérifie avec
-     `MODE_DIALOGUE.bat`.
-  *Garde-fou déjà en place* : l'outil **refuse** de tourner sur un livre déjà en
-  mode dialogue (c'est le cas du 28, de Lazarille et du chapitre d'essai) — le
-  remapper décalerait ses voix.
+- [ ] **🧩 Les 74 beats « impurs » + les 12 morceaux à 2ᵉ personne — suite du
+  rattrapage** (23/09/2026). Le rattrapage du compteur est **fait** pour
+  l'essentiel (**155** morceaux remis au narrateur — voir « ✅ Déjà livré »,
+  23/09/2026). Restent deux familles, volontairement laissées de côté parce
+  qu'un morceau y appartient peut-être encore au personnage :
+  - **74 IMPURS** : le morceau porte la fin d'une réplique (« une seule, dit le
+    Lucquois avec un soupir. », « — Fais venir trois taxis », ai-je dit… ») →
+    règle **R3** (coupe en trois : la tête reste au personnage, l'incise part
+    au narrateur ; si aucun point de coupe, on ne coupe pas) ;
+  - **12 à 2ᵉ PERSONNE** : « Si elle avait commis un second crime, **je vous**
+    dirais : » (docteur d'Avrigny, T5), « Vivant, mes meilleurs amis évitent ma
+    maison… » (Morrel, T2), « Rappelle-toi ce que nous a dit si souvent notre
+    bon père : » — des morceaux de **discours** : à relire un par un à l'oreille
+    avant de décider.
+  *Outil* : `test_voix/_rattraper_beats_derive.py --avec-impurs --avec-personne`
+  (simulation par défaut, puis `--ecrire`). Les deux listes sont déjà écrites :
+  `_essais/_rattrapage_simu5.txt`.
+  *Réponse chiffrée à Claude, à transmettre* :
+  `REPONSE_DE_CLINE_a_Claude_20260923.md`.
+
+- [ ] **🧪 Les règles proposées par Claude (23/09/2026) : état des mesures**
+  (une règle à la fois, chacune avec son chiffre **et** la lecture de ses cas).
+  - **R1 — compteur par paragraphe** : ✅ **LIVRÉ le 23/09/2026** — compteur
+    corrigé dans `_migrer_index_dialogue.py` (`--livre 18` passe de 68/7 à
+    71/4, ce qui valide le correctif), et **155** morceaux rattrapés sur les
+    livres déjà migrés. Restent les 74 impurs (R3) et 12 à 2ᵉ personne.
+  - **R2 — terminaisons verbales strictes** : ⛔ **écarté, mesuré deux fois**.
+    Avec sa liste **complétée** (il a reconnu l'oubli de `u`, `us`, `ut`, `s`,
+    `ient`, `îmes`, `îtes`), R2 perdrait **23** beats sur les 166 détectés par
+    verbe — et **21 des 23 sont des cas où le narrateur est JUSTE** (« Vivant,
+    mes meilleurs amis évitent ma maison », « Guillaume Rym crut devoir
+    intervenir. », « Heureusement la discrète damoiselle… ») : c'est de la
+    **narration que l'IA avait donnée à un personnage**. Donc R2, même corrigé,
+    **retire des corrections utiles**. *Son compromis, retenu* : R2 complet +
+    une **liste noire COURTE** des vrais verbes non-parole (*exige*, *repris*).
+    Chiffres : `_essais/_mesurer_demandes_claude.py`.
+  - **R4 — 2e personne** : ✅ **retenu, `ton / ta / tes` sortis** (homographes du
+    nom commun : « d'un **ton** sec » = 4 des 5 cas de Notre-Dame). Ce filtre est
+    celui qui a sauvé les 12 morceaux de **discours** du rattrapage.
+  - **R5 — mode par livre (+ score)** : ✅ **retenu**. Le score proposé
+    (« entretien si narration < 20 % **et** deux locuteurs > 15 % ») classe
+    parfaitement nos livres : **seul le livre 18 sort en « entretien »**. *À
+    figer dans un test avec les 11 livres comme cas gelés* ; **réserve de
+    Claude acceptée** : un **roman épistolaire** serait classé « entretien » à
+    tort (le bouton corrige d'un clic). Chiffres :
+    `_essais/_mesurer_score_mode_livre.py`.
+  - **R6 — dans le doute, hériter** : ✅ **retenu** — c'est la **variante A** qui
+    existe déjà dans l'outil de migration (option à brancher, pas une
+    réécriture).
+  - **R3 — beat impur (coupe en trois)** : à faire, **75 cas mesurés** (plus que
+    l'estimation de Claude, qui venait du document et non d'une mesure), avec le
+    garde-fou « si aucun point de coupe, ne pas couper ». **À lire en premier**
+    (demande de Claude) : ceux qui contiennent un `»` sans commencer par une
+    minuscule ni par `»` — c'est un **troisième motif** qu'il n'avait pas prévu,
+    et il faut savoir où couper dans ces cas-là.
+  - **R7 — citation refermée dans la phrase** : à mesurer (coupes annulées).
+    **Ordre décidé : R7 AVANT R3** (argument de Claude, retenu) — R7 **annule**
+    des coupes, donc il réduit ce que R3 a à traiter ; R3 en ajoute.
+  - **R8 — ré-étiquetage STRUCTUREL des préexistants** : ⏸️ **mesurée deux fois,
+    PAS EN BASE avant relecture**. L'idée de Claude : la liste de verbes fait
+    deux métiers (couper un morceau mixte / ré-étiqueter un morceau
+    **préexistant** suivi d'une citation) ; pour le second, le verbe est un
+    critère **parasite** (« Le roi se leva. » suivi d'une citation est de la
+    narration). *Première mesure* : 161 morceaux, dont beaucoup sont de la
+    **vraie narration** (« Valentine poussa un gémissement. »). *Puis Claude a
+    relu le surplus **ligne par ligne** et a trouvé qu'environ **un tiers est
+    faux**, en deux familles : (1) des **textes LUS par un personnage**
+    (testament, acte, lettre de mourant, signalement — propriété 5 du document) ;
+    (2) la **deuxième phrase d'une réplique en tiret** (« — Oui. Ils me
+    haïssent… »). *Ses trois garde-fous, mesurés* :
+    **G1** (la **LIGNE** du morceau ouvre un dialogue) → 82 ;
+    **G1+G2** (1re personne dans un livre à la 3e personne) → 74 ;
+    **G1+G2+G3** (le morceau suit un bloc du même locuteur) → **56**.
+    **105 retenus sur 161**, et les témoins survivent. G2 (8 retenus, tous
+    justes) et G3 (18, tous justes) sont excellents ; **G1 est conservateur** —
+    il retient aussi de la vraie narration, parce qu'une même ligne peut
+    contenir la réplique **puis** du récit : indiscernable localement, donc on
+    protège. *Chiffres* : `_essais/_mesurer_r8_garde_fous.py` ; *relecture* :
+    `_essais/POUR_LE_LLM/r8_garde_fous.txt` (les 56), `r2_textes_complets_T5_T3.txt`,
+    `preexistants_173.txt`. *Colonne à ajouter au rapport* :
+    `ORIGINE = coupe | verbe | structure`. *Shantaram* : 2 morceaux seulement.
+  - **Compteurs `NE_DE_LA_COUPE` / `PREEXISTANT`** : ✅ **mesurés** — sur les
+    **896** beats, **723 nés de la coupe** et **173 préexistants** : c'est la
+    mesure que Claude demandait (« combien de narration l'IA donne aux
+    personnages »). Verdict : **0,2 % des 81 000 phrases** seulement, donc **le
+    casting n'a pas un problème massif** — et ces 173 morceaux-là, invisibles à
+    la règle (ils n'introduisent aucune citation), montrent que le vrai sujet
+    restant est **la qualité de l'étiquetage par l'IA**, pas la découpe.
+
+- [ ] **🔄 « Dialogues désaccordés » (livre 18) en narration séparée — EN ATTENTE
+  D'UNE RÈGLE** (décision de Laurent, 23/09/2026). Les **9 autres** livres déjà
+  castés sont **faits** (voir « ✅ Déjà livré », 23/09/2026 — **327 morceaux**).
+  Ici, la **lecture des beats** (la leçon du 21/09 : un chiffre ne vaut rien sans
+  la lecture du texte) a montré que les **68** morceaux proposés ne sont **pas**
+  de la narration : ce sont les paroles du personnage qui introduit une citation —
+  « En prologue de ces entretiens, j'ai donc entrepris de te lire… » (Naulleau),
+  « Première remarque : j'ai passé sept ans au PC… » (Interlocuteur). Mesure :
+  **narration 11,8 %** du livre, contre 36,1 % Naulleau, 33,7 % Interlocuteur,
+  18,3 % Soral. La règle actuelle regarde la **forme** (deux-points ou verbe de
+  parole) et ne peut pas savoir **qui parle** : elle donnerait ces 68 passages au
+  narrateur et **couperait la voix du personnage en deux** (leçon de Lazarille).
+  *Ce qui est prêt pour reprendre* : l'outil `test_voix/_migrer_index_dialogue.py
+  --livre 18` (simulation, aucun frais) et la **problématique complète** rédigée
+  pour être soumise à un autre assistant : `PROBLEMATIQUE_decoupage_voix.md`
+  (mécanique actuelle, cas traités, cas qui résistent, jeu d'essai de 10 exemples
+  réels). *Pistes déjà identifiées* : personnes grammaticales (`je` / `tu`) dans
+  le morceau, mode « roman / entretien » par livre, et détection des guillemets
+  non français (« " " ») pour que le garde-fou « citation ouverte » fonctionne
+  aussi dans ce livre.
 
 - [ ] **📄 AUDIT d'`ARCHITECTURE.md` — étape 1 FAITE le 22/09/2026 (titres + sommaire) ; le reste à trancher**
   (décidé par Laurent le 22/09/2026 : « Je vais ouvrir une nouvelle session pour
@@ -167,11 +285,34 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
      « Lire écran verrouillé »…) fonctionnent toujours.
   3. 🔄 **EN COURS — état actuel / chronique.** Chaque sujet doit commencer par un
      bloc « **Aujourd'hui** » **court et vérifiable**, la chronique datée restant
-     dessous ; **3 sujets sur 61** sont faits (le narrateur, le changement de
-     moteur, le mode dialogue) et le vérificateur de faits compte l'avancement
-     (sa section 8). **Un sujet par session**, à poursuivre : c'est ce chantier
-     qui répond définitivement à la question « le document dit-il la vérité ? »,
-     parce que c'est lui qui rend l'état actuel **court, nommé et vérifiable**.
+     dessous ; **4 sujets sur 61** sont faits (le narrateur, le changement de
+     moteur, le mode dialogue, et **« Logique TTS — app.js »**, le plus gros du
+     document) et le vérificateur de faits compte l'avancement (sa section 8).
+     **Un sujet par session**, à poursuivre : c'est ce chantier qui répond
+     définitivement à la question « le document dit-il la vérité ? », parce que
+     c'est lui qui rend l'état actuel **court, nommé et vérifiable**.
+     *Session du 23/09/2026 — sujet fait : « Logique TTS — app.js », un bloc de
+     **44 lignes** (10 constats + les tests : structures de phrases, vitesse par
+     fiche, préchargement et « réserve à bloc », phrases-fleuves, pause, réseau,
+     états, mobile, navigation, tiroir).*
+     - ⚠️ **UNE VRAIE DÉRIVE TROUVÉE, ET CORRIGÉE le 23/09/2026** : la page
+       annonçait `PARAGRAPH_PAUSE_MS` **passé à 0** (15/09/2026) alors que le code
+       portait **300** depuis le **17/09/2026** — un retour arrière raconté dans le
+       commentaire du code, jamais écrit dans la page. **Six jours de faux** sur la
+       pause entre paragraphes (soit, à l'oreille, 0,3 s qui existaient bel et
+       bien). La chronique du sujet porte désormais le fait daté, et la valeur est
+       **contrôlée** par `_verifier_faits_architecture.py` (section 4) ;
+       **preuve** que ce contrôle *aurait* attrapé l'ancien état :
+       `_essais/_preuve_controle_pause.py` (lecture seule).
+     - **Attention au plafond** : ce sujet passe de **416 à 471 lignes** et le
+       seuil de l'audit est de **500 lignes par section** — toute addition à
+       « Logique TTS — app.js » devra être courte, sinon l'audit alertera (c'est
+       son rôle).
+     - **Mesurer avant de choisir le sujet** : `_essais/_mesurer_sujets_architecture.py`
+       (lecture seule) classe les 61 sujets par taille. Les gros qui restent :
+       `modules/tts.py` — Synthèse vocale (347), `frontend/` — Interface (228),
+       Pocket TTS (173), Report des notes d'écoute (162), Distribution de voix par
+       personnage (IA) (159).
   4. **outils** (racine, cités dans `test_voix/LIRE_MOI.md`) :
      `_restructurer_architecture.py` (titres + sommaire),
      `_regrouper_architecture.py` (parties),
@@ -1178,7 +1319,289 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   propositions en attente dans la fenêtre du casting.
   **À faire APRÈS l'étape 3** (les incises) : un chantier à la fois.
 
+
 ## 🟠 Priorité 2 — Voix & casting
+- [ ] **🎯 « LE POURQUOI » DU CASTING : l'étiquetage, la source des défauts
+  résiduels** — constat de Laurent, 23/09/2026 : « là on fait du cas par cas, ça
+  contredit *l'esprit plutôt que la lettre* ; le LLM qui traite le casting
+  n'arrive pas à attribuer correctement les rôles, alors qu'on lui mâche le
+  travail. Peut-être qu'il faudrait réessayer, comme les choses ont changé, et
+  peut-être améliorer le prompt. »
+  *Ce que les mesures du jour disent* : l'étiquetage n'est **pas mauvais** — il
+  se trompe sur **0,2 %** des phrases (173 morceaux de narration donnés à des
+  personnages sur ~81 000). Mais ses erreurs se concentrent sur **cinq formes**
+  typographiques que le prompt ne lui explique pas :
+  1. **la réplique en tiret** (chez Dumas : 1ʳᵉ réplique entre `«`, suivantes en
+     tiret) — prise pour un beat de narration (**79** cas) ;
+  2. **le texte LU par un personnage** : testament, acte notarié, lettre de
+     mourant, signalement de passeport, signature (**~15** cas sur le surplus
+     R8) ;
+  3. **le nom interpellé dans la réplique** : « que dites-vous donc là,
+     damoiselle Oudarde Musnier ? » attribué à… Oudarde (Notre-Dame ch. 28) ;
+  4. **le récit encadré** : le long récit de Bertuccio ou de Caderousse, où la
+     narration appartient au personnage qui raconte ;
+  5. **les pensées en italique** (22/11/63, Chevalier Errant) dont l'italique a
+     disparu à l'extraction (piste non vérifiée : si l'ePub marque `<em>`/`<i>`,
+     une étiquette « italique » par morceau rendrait ces cas décidables).
+  *Les trois leviers, dans l'ordre de simplicité* : (1) **le découpage** —
+  mâcher encore mieux (c'est gratuit et déjà bien avancé) ; (2) **le
+  post-traitement** — nos règles R1..R8 corrigent l'aval ; (3) **le prompt** —
+  lui apprendre ces cinq formes, avec les exemples réels qu'on a maintenant.
+  *L'essai qui rendrait la réponse mesurable* : **re-caster un livre sur une
+  copie** (le chapitre d'essai n° 37 existe pour ça ; les verrous « je garde »
+  sont préservés), puis **comparer** les étiquettes avec les actuelles : combien
+  de ces cinq formes restent ? Le chiffre avant/après tranche.
+  *Document à écrire* (le pendant de `PROBLEMATIQUE_decoupage_voix.md`, pour le
+  casting) : ce que le LLM reçoit, les cinq formes, les leviers, un jeu d'essai.
+  **À faire à froid, une chose à la fois.**
+
+- [ ] **🧪 MESURER LE CASTING IA SEUL, avant d'ajouter du contexte narratif** —
+  protocole proposé par Claude (23/09/2026), à exécuter **avant** toute
+  construction. *La question de Laurent* : un humain repère sans effort qui
+  parle parce qu'il lit le chapitre en continu (qui est présent, à qui c'est le
+  tour, le ton). Donner ce contexte au casting — résumé de scène, personnages
+  présents — le rendrait-il meilleur ? Ou en deux passes (notes de scène, puis
+  casting) ?
+  *Pourquoi ne pas construire tout de suite* : (1) **le taux d'erreur du casting
+  IA pris seul n'a jamais été mesuré** ; (2) le contexte **intra-chapitre**
+  existe déjà (le prompt reçoit le chapitre entier et la fiche personnages) —
+  c'est le contexte **entre chapitres** qui manquerait plausiblement (qui reste
+  présent, l'identité du « je » d'un livre à l'autre, une relation qui explique
+  un ton) ; (3) une architecture à **deux passes** double l'appel payant et
+  **accumule les erreurs** : une passe « notes » fausse, invisible, pollue
+  silencieusement le casting qui s'appuie dessus.
+  *Protocole* : **1.** un échantillon difficile (Monte-Cristo T3 ch. 8, dialogue
+  en tiret et Bertuccio qui raconte ; Notre-Dame ch. 55, longue lecture ; un
+  chapitre d'entretien à citation imbriquée ; un chapitre de Shantaram pour le
+  cas « Le narrateur » / « narration ») ; **2.** une **vérité de référence
+  humaine**, morceau par morceau, faite **à neuf** (pas une relecture de ce que
+  l'IA a produit) — c'est le travail le plus coûteux, et le seul qui rende la
+  suite mesurable ; **3.** faire tourner `voice_casting.py` **sans aucune règle**
+  de migration, comparer → taux d'erreur par chapitre **et la liste des erreurs
+  à lire** (c'est elle qui dit si le manque est du contexte ou autre chose) ;
+  **4.** seulement si le taux le justifie : refaire **avec** une ligne de
+  contexte inter-chapitres, même échantillon, même vérité ; **5.** décision —
+  casting fiable → on ne construit rien ; le contexte corrige → construire avec
+  le chiffre exact du gain et du coût ; le contexte ne corrige pas → le problème
+  est ailleurs (confusion entre personnages, consignes 8/9, structure du
+  prompt).
+  *Ce que le protocole ne dit pas* (délibérément) : ni le format du contexte, ni
+  le prompt à deux passes, ni où stocker un résumé — pas d'implémentation sur une
+  hypothèse non vérifiée.
+  *Note de Cline (23/09 au soir) — **la mesure gratuite est FAITE** :
+  `test_voix/_mesurer_casting_erreurs.py` (+ lanceur `MESURER_LE_CASTING.bat`)
+  sur les 4 chapitres difficiles. Résultat, en séparant ce qui est défendable de
+  ce qui ne l'est pas :
+
+  | Chapitre | Erreurs **dures** | Taux |
+  |---|---|---|
+  | Notre-Dame ch. 55 (le long mémoire) | **60** | 6,47 % |
+  | Monte-Cristo T3 ch. 8 (Bertuccio) | 7 | 1,47 % |
+  | Dialogues désaccordés ch. 9 (entretien) | 0 | 0 % |
+  | Shantaram ch. 6 (récit à la 1ʳᵉ personne) | 1 | 0,03 % |
+  | **TOTAL** | **68** | **1,52 %** |
+
+  « Dures » = une réplique lue par le narrateur, ou un locuteur que le casting
+  ne connaît pas. À part : 27 « discutables » (une incise seule chez un
+  personnage — la consigne 8 dit non, l'oreille tranche) et une liste « à lire »
+  qui n'est **pas** un compte (le dialogue continu d'un personnage n'est pas une
+  erreur : c'est ce qui a fait croire à 62 % sur le livre d'entretien avant
+  correction de l'outil).
+  *Ce que ça dit* : le casting est bon sur 3 chapitres sur 4 ; **un seul cas
+  concentre 60 des 68 erreurs** — le chapitre 55 de Notre-Dame, où un personnage
+  lit un long mémoire. C'est donc **ce chapitre qu'il faut lire** (verité de
+  référence humaine) avant de conclure quoi que ce soit sur le contexte
+  narratif : lire un mémoire officiel par le narrateur est-il une faute, ou un
+  choix acceptable ? **Premier travail de la prochaine session**, et il coûte
+  une lecture, pas un euro.
+  *Note de Cline (23/09/2026, juste après la mesure) — **les cas sont lus, et
+  deux biais de l'outil sont apparus.** Les 68 « erreurs dures » ne sont pas
+  toutes des erreurs d'attribution, loin de là :
+  1. **46 des 60 de Notre-Dame ch. 55 ne sont pas des fautes de l'IA.** Ce sont
+  trois noms — Évêque_de_Verdun (35), Olivier_le_Daim (8),
+  Gouverneur_de_la_Bastille (3) — qui **existent dans le texte** et que l'IA a
+  **bien** identifiés comme locuteurs... mais qui ne sont pas dans `voices` :
+  l'app les lit donc avec la **voix du narrateur** (repli silencieux, `app.js`
+  l. 1592 ; `ARCHITECTURE.md` l. 1991-1994). C'est un **trou de casting** — une
+  voix à créer —, pas une erreur d'attribution. Vérifié en base : ces trois noms ont
+  0 fiche dans `cast_fiche` et 0 alias. Seule vraie faute du lot : **2 morceaux
+  de narration** donnés à Olivier_le_Daim (#826 « En cet instant Olivier le
+  Daim rentra. », #829 « C'est lui qui prit la parole : »).
+  2. **Trois des 14 « répliques au narrateur » sont en fait des incises seules**
+  (#136 « dit le roi. », #165 « interrompit le roi. », #379 « repartit le roi… »)
+  — or la **consigne 8** demande justement de les mettre en narration : l'IA a
+  obéi. L'outil range « réplique » et « incise » dans la même famille sans les
+  distinguer : **défaut de l'outil**, à corriger (gratuit). Les 13 autres incises
+  seules du chapitre sont, elles, données à un personnage (le roi, Gringoire,
+  Coictier, Coppenole) : c'est la famille « à discuter », où l'oreille tranche.
+  *Ce qui reste vraiment en cause* — **21 morceaux sur 4 481 phrases (0,47 %)**,
+  et c'est **un seul type de défaut** : un **morceau de dialogue ou de récit
+  continu donné au narrateur**. Notre-Dame, 11 morceaux : #125 (le mémoire lu),
+  #143 (« – Voilà des bêtes qui sont chères, dit Louis XI. »), #152, #236,
+  #381-382, #422-426, #665 ; Monte-Cristo T3 ch. 8, **7 morceaux, #456 à #476**
+  (paragraphes du récit de Bertuccio, entre guillemets) ; Shantaram #3. Plus les
+  **2 morceaux de narration** donnés à Olivier_le_Daim (point 1).
+  → Ordre de grandeur corrigé : **de l'ordre de 1 % au plus**, et **aucun**
+  chapitre où le casting se trompe en masse. Conclusion provisoire (à confirmer
+  par l'oreille de Laurent) : **le contexte narratif n'est pas le levier.** Les
+  leviers gratuits restent le balisage des répliques en tiret, les cinq formes
+  de dialogue, et la **création des trois voix manquantes** de Notre-Dame.
+  Liste de lecture prête : `_essais/_a_lire_casting.txt` (chaque cas avec sa
+  ligne complète ; dossier `_essais/`, hors dépôt).
+
+  *Vérifié avant d'écouter (23/09/2026)* : les cas sont **toujours en base** —
+  69 des 73 de Notre-Dame, **20 sur 20** à Monte-Cristo T3 ch. 8, 2 sur 2 à
+  Shantaram. Seuls 4 ont été corrigés par la migration du matin (#210, #220,
+  #829, #845, passés en narration : c'est juste). Comparaison faite **par
+  position dans le texte**, **jamais** par le texte du morceau : « Sire ! » et
+  « cria le roi. » reviennent des dizaines de fois dans le chapitre, et un
+  appariement par texte compare le mauvais morceau — premier essai **faux**,
+  refait dans la soirée. Détail savoureux : #826 (« En cet instant Olivier le
+  Daim rentra. ») reste attribué à Olivier_le_Daim, mais comme ce nom n'a pas
+  de voix, le repli sur le narrateur **produit le bon résultat sonore** : un
+  défaut d'étiquette **invisible à l'oreille**.
+
+  *Puis l'oreille de Laurent, et son verdict (23/09/2026, même soirée)* : après
+  écoute dans le lecteur, il tranche net — « quelque chose ne va pas du tout
+  dans ce livre » (Notre-Dame) et, pour Monte-Cristo, « c'est de la narration
+  dans de la narration : il faut que ce soit Bertuccio **ou** le narrateur, les
+  deux mélangés c'est étrange ». Ses relevés sont **exacts** : dans un même
+  discours du roi, il a entendu narration → Jacques_Charmolue → Louis XI, et la
+  fin de réplique « Il ne m'arrache pas une dent qui ne soit un diamant. » lue
+  par le narrateur. **La mesure ne voyait rien de tout ça** : elle ne comptait
+  que 4 familles « propres », et un locuteur jamais nommé dans son chapitre
+  n'y entrait pas.
+  *Mesure refaite avec deux indicateurs neufs* (`_essais/_mesurer_desordre_tmp.py`) :
+  **la voix change en pleine parole** (un morceau attribué à un AUTRE personnage
+  sans qu'une réplique s'ouvre, ou la narration qui poursuit une réplique après
+  une incise) → **182 morceaux à Notre-Dame** (1,50 % de ses 12 171 phrases),
+  **1 seul** à Monte-Cristo T3 ch. 8 ; et **locuteur jamais nommé dans son
+  chapitre** → **739 morceaux** (6,07 %) — une **alerte**, pas un compte :
+  Frollo n'est réellement nommé nulle part dans « Lasciate ogni speranza ».
+  Deux vrais défauts en sont sortis : un locuteur nommé « **Narrateur** »
+  (majuscule : ce n'est pas la convention `narration`) sur 68 morceaux de la
+  NOTE de 1832, et « **JaquesCoppenole** » (orthographe fautive) sur 14 morceaux
+  du ch. 6, alors que le reste du livre dit Jacques_Coppenole — **deux
+  personnages pour un seul**.
+  *Deux leçons de méthode, écrites pour ne pas les repayer* : (1) un critère
+  trop **grossier** a d'abord compté 208 « coupures » à Monte-Cristo (c'étaient
+  les tours de parole normaux du dialogue), un critère trop **large** ensuite
+  1 134 à Notre-Dame (c'était le narrateur qui décrit) — c'est le critère
+  ci-dessus qui tient, vérifié sur les deux livres ; (2) **jamais de `-replace`
+  PowerShell sur un script accentué** : `Set-Content -Encoding UTF8` a corrompu
+  les tirets et les guillemets du script (`'—'` devenu `'â€”'`), le détecteur ne
+  reconnaissait plus les répliques et les chiffres étaient **faux** — même
+  famille de piège que le 16/09.
+
+  *Et un point rassurant* : la « contradiction » du casting par la migration
+  (Bertuccio, Beauchamp, où l'IA avait raison) est **déjà réparée** — c'est la
+  restauration des 53 morceaux du 23/09.
+
+  *Décisions de Laurent (23/09/2026, fin de soirée)*, après son écoute :
+  **1. La règle du récit encadré** — formulation de Laurent, à appliquer telle
+  quelle : « si un personnage raconte une histoire, il devient le narrateur le
+  temps du récit. Quand son récit finit, c'est le narrateur du livre qui reprend
+  son rôle de narrateur. » Donc, dans un bloc encadré de guillemets, **la narration
+  appartient à qui raconte**, et **l'incise suit la même règle** : jamais
+  d'aller-retour entre deux voix dans le même récit (c'est exactement l'étrangeté
+  qu'il a entendue sur Monte-Cristo T3 ch. 8). À mesurer avant d'appliquer :
+  combien de morceaux de narration dans les récits encadrés, et sur quels livres.
+  **2. Notre-Dame de Paris reste TEL QUEL** pour le moment (« je ne suis pas sûr de
+  lire tout de suite ») : les 182 cas sont instruits et écrits, on ne répare pas
+  maintenant. Espoir de Laurent, à garder tel quel : « d'ici 1 mois on aura
+  tellement progressé qu'il se castera pour 0,10 € ».
+  **3. L'évêque de Verdun** : toute sa tirade est lue par le narrateur, et il n'a
+  pas de fiche de personnage — cas compris, rien à faire pour l'instant.
+
+  *Question ouverte de Laurent, posée le 23/09/2026 au soir* : **faut-il
+  uniformiser la ponctuation des textes** « à nos normes » avant le casting, pour
+  faciliter le travail du LLM et du découpage ? Il observe « des `--`, des `«`,
+  parfois rien, parfois même `-- «` ». **Mesuré le soir même** sur les 15 livres de
+  la bibliothèque (outils `_essais/_formes_dialogue_tmp.py` et
+  `_essais/_motifs_dialogue_tmp.py`) :
+  - `--` (deux traits ASCII) : **0 occurrence**, partout. Le guillemet droit aussi
+  (0). Donc ces deux formes ne viennent **pas** de la bibliothèque — reste à
+  savoir où Laurent les voit (question posée) ;
+  - en revanche **deux tirets coexistent** : `—` **14 858** fois et `–` **6 983**
+  fois (32 % des tirets sont des demi-cadratins) : c'est la vraie hétérogénéité ;
+  - « tiret ET guillemet » collés : **2 cas seulement** (tiret AVANT guillemet,
+  dans « Dialogues désaccordés ») ; et **la convention classique existe bel et
+  bien** : `«` + **espace insécable** + tiret moyen = **159 fois** dans le seul
+  tome 3 de Monte-Cristo. Ma première mesure disait « 0 » : elle cherchait une
+  espace **normale**, alors que l'édition écrit une espace **insécable** (U+00A0)
+  et un tiret **moyen** (U+2013). Leçon de plus : **ne jamais supposer un
+  caractère**, afficher ses codes (`repr`) — c'est Laurent qui a vu l'erreur ;
+  - **42,8 % des lignes n'ont aucune marque** — et pour deux livres c'est presque
+  tout : « Dialogues désaccordés » 99,4 %, « Lazarille de Tormès » 96,6 %. Là, il
+  n'y a **rien à uniformiser** : l'information manque, et aucune normalisation ne
+  peut l'inventer.
+  *Puis Laurent apporte une correction décisive* : lui voit, dans Monte-Cristo,
+  le guillemet PUIS le tiret, et des guillemets « jamais fermants ». Il a raison
+  sur les deux tableaux : l'école enseigne la convention **moderne** (tiret
+  seul), Monte-Cristo suit la **classique** (guillemets qui courent + tirets
+  dedans). La mesure ci-dessous, refaite, lui donne raison — mes premiers
+  chiffres (« 386 blocs », « 62 % ») étaient **faux** et sont corrigés ici.
+
+  *Ce que Laurent voit, et qui change la conclusion (mesure refaite)* : dans
+  Monte-Cristo, **chaque réplique** peut s'ouvrir par `«` + insécable + tiret, et
+  **les guillemets ne se ferment pas** (tome 3 : **676 guillemets ouverts pour
+  372 fermants**, donc **304 jamais fermés**). La vraie signature du **récit
+  encadré** n'est donc pas « un guillemet non fermé » (il y en a partout), mais
+  **une longue SÉRIE de paragraphes qui commencent par un guillemet** — le
+  guillemet est reposé à chaque paragraphe du récit. Mesuré
+  (`_essais/_series_guillemets_tmp.py`) :
+  - Monte-Cristo T2 : série la plus longue = **251 paragraphes** ; T3 **165** ;
+    T1 28, T4 40, T5 31, T6 9 ;
+  - partout ailleurs les séries sont **courtes** — 22/11/63 : 4, Shantaram : 3,
+    Notre-Dame : 6 : ce sont des citations normales, pas des récits.
+  Conclusion pour la règle de Laurent : elle se détecte par **la longueur de la
+  série** (seuil à calibrer), et elle est **massive dans Monte-Cristo**. On ne
+  touche pas aux guillemets : ils portent l'information.
+
+  *Ce que ça implique* : un filtre « normes maison » se justifie, mais **plus
+  étroit qu'imaginé** (deux tirets à ramener à un seul, espaces à uniformiser), et
+  il ne réglera ni Lazarille ni le livre d'entretien. Point important pour la
+  suite : nos règles de **découpage** ne se servent **pas** des tirets
+  aujourd'hui (`modules/decoupage.py` coupe sur la ponctuation forte ; la règle
+  « dialogue » s'appuie sur un beat à deux-points ou verbe de parole) — donc
+  uniformiser ne changerait presque rien au découpage **tant que** le découpage
+  n'apprend pas à reconnaître un tiret comme début de tour de parole (ce qui est
+  justement le manque de Notre-Dame). Et le filtre ne doit **jamais** toucher les
+  fichiers EPUB ni le texte affiché : seulement la version d'analyse, comme pour
+  le « ! » (voir ARCHITECTURE.md, « le texte affiché garde son `!` »).
+  *Décision* : **mesurer avant de construire** — sur 2 ou 3 livres, comparer
+  avant/après normalisation : combien de répliques correctement reconnues, combien
+  de morceaux mieux découpés. Gratuit, lecture seule, et ça évite d'y croire sur
+  parole.
+
+
+
+- [ ] **🗣️ Renommer « Le narrateur » en « Lin » (Shantaram, livre 33)** — retour
+  d'écoute de Laurent, 23/09/2026 : « un personnage qui doit être Lin, j'imagine.
+  Lin n'existe même pas dans le casting. » Mesure : le casting a bien un
+  personnage « **Le narrateur** » (voix `fr-FR-HenriNeural`, **verrouillé**, 4 912
+  répliques), et le texte du livre appelle son héros « **Lin** » 606 fois (et
+  « Linbaba » 69 fois). Le renommage touche : `voices` (1 ligne), `cast_fiche`
+  (1), `speaker_attribution` (4 912) — « Lin » n'existe nulle part, donc aucun
+  doublon. *Outil de diagnostic* : `_essais/_renommage_personnage.py` (lecture
+  seule). L'application n'a **pas** de route de renommage : il faudra un petit
+  outil d'atelier (copie datée avant, contrôle après), ou l'ajouter au casting.
+
+- [ ] **🗣️ Récits à la PREMIÈRE personne : la narration et le héros ont deux
+  voix** (constat du 23/09/2026, en écoutant Shantaram). Dans un récit à la
+  1ʳᵉ personne, **c'est le héros qui raconte** : il devrait donc y avoir UNE voix,
+  pas deux. Mesure sur Shantaram (livre 33) : « narration » = **14 713** phrases
+  (48,6 %) lues par la voix du narrateur du livre (`fr-CH-ArianeNeural`, une voix
+  **féminine**) et « Le narrateur » = **4 912** phrases (16,2 %) lues par
+  `fr-FR-HenriNeural` (un homme). Exemple entendu : « — Fais venir trois
+  taxis », ai-je dit… (Henri), puis trois morceaux plus loin « Une demi-heure
+  plus tard, **j'**étais à l'arrière d'un taxi… » (Ariane) — la voix change au
+  milieu du récit. *Les autres livres de la même famille sont à vérifier* :
+  22/11/63 (56 % de narration), Souvenirs d'une gamine (52 %), Lazarille (72 %).
+  *Deux options à trancher avec Laurent* : (a) **fusionner** — tout mettre sur la
+  voix du héros (cohérent avec le livre) ; (b) **garder** la voix du narrateur du
+  livre pour la narration et celle du personnage pour ses paroles (choix
+  esthétique, mais il faut alors que la voix du narrateur soit choisie exprès).
 
 - [ ] **🎯 Le chapitre d'essai devient le TEXTE DE RÉFÉRENCE, puis on compare les
   LLM (DeepSeek en premier)** — demandé par Laurent le **21/09/2026 au soir** :
@@ -4066,6 +4489,46 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 
 ## ✅ Déjà livré (pour mémoire)
 
+- **Rattrapage de la dérive du compteur de citation ouverte** (23/09/2026) :
+  `_citation_ouverte()` comptait les guillemets depuis le **début du chapitre**
+  au lieu du **paragraphe** — après un passage lu à voix haute, tout le reste du
+  chapitre était refusé. Signalé par un relecteur externe, **mesuré puis
+  corrigé** : **155 morceaux** de narration remis au narrateur sur les livres
+  déjà migrés (8, 14, 15, 16, 17, 28, 33, 34, 35 — 22/11/63 compris, migré le
+  22/09 avec le même défaut), via le nouvel outil
+  `test_voix/_rattraper_beats_derive.py` (copie datée de la base avant,
+  contrôle après : index dans les bornes, locuteurs au casting, **reste à
+  corriger : 0**). Le correctif du compteur est dans `_migrer_index_dialogue.py`
+  (il profitera à la migration du livre 18). *Laissés exprès* : **74 morceaux
+  « impurs »** (règle R3) et **12 morceaux à 2ᵉ personne** — dont le cas du
+  docteur d'Avrigny (« Si elle avait commis un second crime, **je vous**
+  dirais : »), qui est du **discours de personnage** : c'est la règle R6, « dans
+  le doute, ne pas dégrader ». *Leçon* : le premier filtre (1ʳᵉ **et** 2ᵉ
+  personne) écartait 46 morceaux, dont « Il **m'**a adressé un sourire en
+  ajoutant : » — de la narration dans un récit à la première personne. La
+  **2ᵉ personne seule** garde 12 cas, tous justes.
+
+- **Migration des 9 livres déjà castés en narration séparée** (23/09/2026) :
+  `test_voix/_migrer_index_dialogue.py` a remappé les index **et** activé le mode
+  dialogue pour **9 des 10** livres déjà castés (Monte-Cristo T2→T6, Souvenirs
+  d'une gamine, Shantaram, Notre-Dame de Paris, le Chevalier Errant) — **327
+  morceaux** de narration remis au narrateur. **Le livre 18 « Dialogues
+  désaccordés » est laissé de côté** : la lecture a montré que ses 68 beats sont
+  du **discours de personnage** (item à part, avec la problématique écrite dans
+  `PROBLEMATIQUE_decoupage_voix.md`). *Le casting de Laurent n'a pas bougé d'un
+  iota* : voix, hauteur, vitesse, verrous, fiches et alias **prouvés identiques**
+  (`_essais/_preuve_casting_intact.py`, comparaison avec la copie du 22/09) ;
+  0 index hors bornes, 0 locuteur créé, 0 morceau orphelin, reprise de lecture
+  remappée sur la même phrase. Copies datées de la base avant écriture
+  (`nimm_epub.db.bak_avant_dialogue_20260923_*`). *Deux outils neufs* :
+  `test_voix/_etat_migration_dialogue.py` (qui doit migrer, en une page) et
+  `test_voix/_simuler_migration_dialogue.py` (mesure des dix livres d'un coup,
+  en tâche de fond) ; lanceur double-clic `test_voix/MIGRER_DIALOGUE.bat`.
+  *Leçon de méthode vérifiée une fois de plus* : la mesure reproduisait le devis
+  **à l'unité près** (395 beats / 691 refusés), mais c'est la **lecture** des
+  beats qui a évité une erreur de 68 morceaux — un chiffre juste ne dit pas que
+  le texte a raison.
+
 - **Bouton de bascule des moteurs de voix** (15/09/2026) : le voyant du bas de
   la fenêtre de lecture est devenu un bouton (XTTS v2 / Kyutai / aucun), avec
   la règle « un seul moteur à la fois » appliquée côté serveur **et** dans
@@ -4374,6 +4837,36 @@ disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~270 
 - [x] **« Les retraits se font-ils mécaniquement, ou avec un LLM ? »**
   (18/09/2026).
 
+- [x] **🎒 Pocket TTS : le second lot (10 voix) entre au catalogue — 18 → 28**
+  (23/09/2026). Les dix voix du lot NIMM Voix du 23/09
+  (`pocket_tts_retenues_20260923`) sont copiées dans `pocket_tts_service\voix\`
+  (**28 WAV**) et ajoutées à `POCKET_VOICES` (`modules/tts.py`) sous des
+  **prénoms neufs** — Aubin, Cyprien, Lazare, Prosper, Firmin, Gaspard,
+  Timoléon, Sylvain, Anselme, Barnabé (vérifiés uniques dans les 339 entrées du
+  catalogue) — et **directement à 3 étoiles** (choix de Laurent) : elles peuvent
+  donc entrer dans le **casting automatique**. Nouvel outil
+  `test_voix/_importer_voix_pocket.py` (rapport seul, `--ecrire` avec copie
+  datée) pour écrire leurs critères d'écoute : ces voix n'ont **aucune jumelle**,
+  l'héritage NeuTTS ne pouvait rien pour elles, et `pocket:JEAN_EDGAR` reste
+  **volontairement** laissé à l'oreille de Laurent. Vérifié : moteur relancé →
+  **« MOTEUR PRET : 28 voix disponibles »**, deux voix synthétisées par le
+  service (Lazare 3,8 s / Cyprien 3,3 s), `data/annotations_voix.json` de 350 à
+  **360** (copie datée), copies datées de `modules/tts.py` et du fichier
+  d'annotations, et **tous les tests** (`LANCER_TOUS_LES_TESTS`) : TOUT EST OK.
+  ⚠️ Leçon : **une note venue d'un autre atelier peut décrire un état périmé.**
+  Le mémo de NIMM Voix (écrit dans la nuit du 20 au 21/09) affirme que « NIMM
+  ePub n'a encore aucun service Pocket TTS » : c'était vrai à l'heure où il a
+  été écrit, mais le service **existait déjà ici** (installé le 20/09, branché
+  le 21/09, 18 voix au catalogue). Quand un atelier parle de l'état de l'autre,
+  **c'est le disque qui tranche** — le mémo le dit lui-même : « si quelque chose
+  ne colle pas avec ce que tu vois sur le disque, c'est le disque qui a raison ».
+  ⚠️ Leçon : **même moteur, licences différentes.** Les 18 voix du 20/09 venaient
+  du **domaine public** ; les 10 du 23/09 viennent de **livres audio du commerce**
+  (Lizzie, Audible, lus par des comédiens professionnels) : écoute **privée**
+  d'accord, **partage interdit** sans l'accord de la personne. Un lot n'hérite
+  jamais des droits du lot précédent : la provenance se note **lot par lot**
+  (`pocket_tts_service/ATTRIBUTION.md`, section 2 bis).
+
 #### 🟡 Priorité 3 — Robustesse & architecture
 
 - [x] **🔌 Pocket TTS s'éteint en fermant sa fenêtre (comme Kyutai), et le
@@ -4397,6 +4890,32 @@ disparaître. *Réduction du 22/09/2026 : le fichier passe de **~490 Ko à ~270 
 - [x] **Installateur des voix locales** (14/09/2026).
 - [x] **Vérification « aucun livre dans le dépôt »** (14/09/2026).
 - [x] **Licence du programme : GPL-3.0** (14/09/2026).
+
+- [x] **🔐 Le dépôt passe PUBLIC — contrôle de sécurité complet** (23/09/2026).
+  Demande de Laurent (« J'ai passé le dépôt en public, tu crois que j'ai bien
+  fait ? ») : vérifié **par la mesure**, pas à l'œil — `git ls-files`,
+  `git log -S` (chaque clé connue), `git rev-list origin/main --objects`, et les
+  **466 fichiers** jamais ajoutés depuis le premier commit, passés au crible.
+  **Verdict : ce qui est publié est propre.** Aucune clé d'API (`cles_api.txt`
+  n'est entré dans **aucun** objet Git, pas même dans les points de restauration
+  de l'IDE), aucun `data/config.json`, aucune base `nimm_epub.db`, aucun livre,
+  aucun audio, aucun extrait d'œuvre sous droits dans les fichiers versionnés
+  (`passage_monte_cristo.txt` = 609 caractères de **Dumas, domaine public**).
+  `HEAD` local et `origin/main` étaient le même commit au moment du contrôle.
+  ⚠️ Leçon : l'adresse e-mail de l'auteur est dans les **63 commits** — donc
+  visible publiquement, et non effaçable sans réécrire l'historique (à ne pas
+  tenter). Ce qui reste possible : mettre l'adresse *noreply* de GitHub pour les
+  commits **suivants**.
+  ⚠️ Leçon : les points de restauration locaux de l'IDE
+  (`refs/cline/checkpoints/*`) contiennent, **eux**, un EPUB sous droits et 7
+  extraits de voix MP3 — **pas atteignables depuis `origin/main`**, donc non
+  publiés, mais **ne jamais lancer `git push --mirror`** (ni un refspec large) :
+  ça les enverrait. Et partir du principe qu'un dépôt public est **lu** : ce qui
+  y entre doit être publiable.
+  ⚠️ Leçon : le `README.md` annonçait « **dépôt privé** pour l'instant » — faux
+  depuis le passage en public ; corrigé le même jour (**« en développement »**).
+  Contrôle à refaire dans l'autre sens le jour où le dépôt redevient privé.
+
 
 #### ⚪ Actions utilisateur (pas du code)
 

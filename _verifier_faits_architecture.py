@@ -185,6 +185,19 @@ def check_constantes():
          "frontend/app.js porte '%s' ; le document ecrit : %s"
          % (code_rate, fenetre[:130].replace('\n', ' ')))
 
+    # PARAGRAPH_PAUSE_MS : la pause entre paragraphes. Derive REELLE, trouvee
+    # par l'audit du 23/09/2026 : la page annoncait « 0 » (15/09/2026) alors que
+    # le code etait REVENU a 300 le 17/09/2026 -- personne ne l'avait ecrit.
+    # Comme l'etat actuel est en tete de sujet (regle du document), c'est la
+    # PREMIERE mention qui fait foi.
+    code_pause = _valeur(r'(?m)^const PARAGRAPH_PAUSE_MS = (\d+);', page)
+    m = re.search(r'PARAGRAPH_PAUSE_MS', doc)
+    fenetre = doc[m.start():m.start() + 120] if m else ''
+    fait('PARAGRAPH_PAUSE_MS : la valeur citee en tete de sujet est celle du code',
+         code_pause is not None and ('= %s' % code_pause) in fenetre,
+         "frontend/app.js porte %s ; le document ecrit : %s"
+         % (code_pause, fenetre[:100].replace('\n', ' ')))
+
 
 def check_ports():
     """5. Les ports des moteurs : ceux du code doivent etre ceux du document."""

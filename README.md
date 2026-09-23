@@ -11,8 +11,11 @@ cette voix, chapitre après chapitre, en mémorisant la progression de chaque
 lecteur.
 
 > **État du projet** : application personnelle, en usage quotidien chez son
-> auteur, **dépôt privé** pour l'instant. Ce document explique ce que fait le
-> programme et comment l'installer sur une nouvelle machine.
+> auteur, **en développement** — le code avance à chaque session, tout n'est pas
+> encore fini ni figé. Le dépôt est **public** depuis le 23/09/2026, pour montrer
+> le travail ; aucun livre ne l'accompagne (voir juste en dessous). Ce document
+> explique ce que fait le programme et comment l'installer sur une nouvelle
+> machine.
 >
 > **Aucun livre n'accompagne le programme.** NIMM ePub lit les fichiers EPUB
 > que son utilisateur lui confie ; ces fichiers ne quittent pas son
@@ -364,6 +367,7 @@ nimm-epub/
 ├── test_voix/               — outils de test et de diagnostic (développement)
 ├── ARCHITECTURE.md          — la logique en vigueur, en détail
 ├── BACKLOG.md               — les améliorations notées au fil des sessions
+├── JOURNAL.md               — le carnet de session (local, non versionné)
 └── README.md                — ce document
 ```
 

@@ -48,9 +48,11 @@ machine** (l'atelier NIMM Voix l'a récupéré le 17/09/2026, conditions accept�
 
 ```
 voix\
-    Femme001_reference.wav    ... 18 fichiers : les VOIX de Laurent
-    Homme002_reference.wav        (17 retenues + JEAN_EDGAR), copiés le
-    ...                           20/09/2026 depuis NIMM Voix
+    Femme001_reference.wav    ... 28 fichiers au 23/09/2026 : les VOIX de Laurent
+    Homme002_reference.wav        - 18 copiées le 20/09/2026 (17 retenues du lot
+    homme_grave_5649798_...         du 20/09 + JEAN_EDGAR) ;
+                                  - 10 copiées le 23/09/2026 (le lot des
+                                    « nouveaux découpages », toutes retenues).
 ```
 
 - **Un fichier de voix = un extrait audio** : c'est ce que le moteur utilise
@@ -59,8 +61,15 @@ voix\
 - Extrait : **10 à 20 s** de parole (idéal), **jamais moins de 5 s** ; le moteur
   **tronque à 30 s**, et une référence plus longue rend la voix **plus grave**
   (mesuré : 133 Hz à 2 s → 116 Hz à 6,5 s).
-- Étoiles, genres et mesures des 18 voix :
-  `G:\NIMM Voix\sorties\pocket_tts_retenues_20260920\INDEX_RETENUES.txt`.
+- Étoiles, genres et mesures : les 18 voix du 20/09 sont dans
+  `G:\NIMM Voix\sorties\pocket_tts_retenues_20260920\INDEX_RETENUES.txt` ; les
+  10 voix du 23/09 dans
+  `G:\NIMM Voix\sorties\pocket_tts_retenues_20260923\INDEX_RETENUES.txt`.
+- Ajouter des voix : **copier le WAV** dans `voix\` (nom = identifiant +
+  `_reference.wav`), ajouter la ligne au catalogue `POCKET_VOICES`
+  (`modules/tts.py`), puis écrire leurs critères d'écoute avec
+  `python test_voix/_importer_voix_pocket.py --ecrire` (après avoir lu
+  l'aperçu). Le service les voit à son redémarrage, ou après `POST /recharger`.
 
 ## 📊 La mesure du 20/09/2026 — RÉSULTATS (étape 1 terminée)
 
@@ -176,10 +185,15 @@ dans ce dossier. L'essentiel :
 
 - **Le moteur** : poids **CC BY 4.0** (citer **Kyutai**), code **MIT** ; dépôt
   Hugging Face « gated » (conditions acceptées le 17/09/2026 sur cette machine).
-- **Les 18 voix** : 17 viennent d'extraits du **domaine public** (libres, y
-  compris pour un partage) ; **JEAN_EDGAR** vient d'un enregistrement d'une
-  **personne réelle** → écoute privée sans problème, **partage = accord de la
-  personne**.
+- **Les 18 voix du 20/09/2026** : 17 viennent d'extraits du **domaine public**
+  (libres, y compris pour un partage) ; **JEAN_EDGAR** vient d'un enregistrement
+  d'une **personne réelle** → écoute privée sans problème, **partage = accord de
+  la personne**.
+- **Les 10 voix du 23/09/2026** (importées depuis l'atelier NIMM Voix) : leurs
+  extraits viennent de **livres audio du commerce** (Lizzie, Audible), lus par
+  des **comédiens professionnels**. Écoute **privée** : d'accord. **Partage :
+  interdit** sans l'accord de la personne — et l'extrait d'origine ne se diffuse
+  pas. Le détail est dans la section **2 bis** d'`ATTRIBUTION.md`.
 - Ne **pas** ajouter ici les voix `expresso` / `ears` de la banque Kyutai
   (**CC BY-NC** : ni commercial, ni partage).
 

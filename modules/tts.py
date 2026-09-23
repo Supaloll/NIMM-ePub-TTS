@@ -1270,6 +1270,11 @@ NEUTTS_VOICES = [
 # utiliser, c'est bien plus intuitif ». Un seul est nouveau : JEAN_EDGAR,
 # valide le 18/09, qui devient **Edgar**.
 #
+# SECOND LOT, importe le 23/09/2026 (les 10 derniers du catalogue) : dix voix
+# SANS jumelle, nees d'extraits de LIVRES AUDIO DU COMMERCE, donc avec des
+# prenoms neufs (Aubin, Cyprien, Lazare, Prosper, Firmin, Gaspard, Timoleon,
+# Sylvain, Anselme, Barnabe). Voir le commentaire du bloc, plus bas.
+#
 # Mesures du 20/09/2026 (meme machine) : ratio 0,82 (1 h d'audio = 49 min de
 # calcul), modele charge en 1,7 s, encodage d'une voix 3,8 s, 2,3 Go de RAM au
 # pic. Le service tourne sur le port 8085 (`pocket_tts_service/`).
@@ -1303,6 +1308,28 @@ POCKET_VOICES = [
     {"id": "pocket:Homme313213265", "name": "Paul", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
     {"id": "pocket:Homme65462104", "name": "Jules", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
     {"id": "pocket:Homme87976454321", "name": "Arthur", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    # --- LES 10 VOIX DU LOT DU 23/09/2026 (importees le 23/09/2026) -------
+    # Dix nouveaux extraits prepares par Laurent, clones par l'atelier NIMM
+    # Voix dans un seul lot, tous retenus et notes 3 etoiles par son ecoute du
+    # 23/09/2026 (sorties\pocket_tts_retenues_20260923\). Ce sont les noms de
+    # fichiers de l'atelier (ils disent d'ou vient la voix) ; le PRENOM est ce
+    # que Laurent voit dans le lecteur.
+    # ATTENTION, provenance DIFFERENTE du lot du 20/09 : ces 10 extraits
+    # viennent de LIVRES AUDIO DU COMMERCE (Lizzie, Audible), lus par des
+    # COMEDIENS PROFESSIONNELS (personnes reelles, oeuvres protegees). Ecoute
+    # privee : d'accord. PARTAGE : interdit sans l'accord de la personne --
+    # detail extrait par extrait dans ORIGINE_ET_LICENCE.txt du lot, et
+    # `pocket_tts_service\ATTRIBUTION.md`.
+    {"id": "pocket:homme_aigu_6877654", "name": "Aubin", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_aigu_987654", "name": "Cyprien", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_grave_5649798", "name": "Lazare", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_grave_65121598", "name": "Prosper", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_grave_6546546", "name": "Firmin", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_grave_6549821", "name": "Gaspard", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_normal_21545605", "name": "Timoléon", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_normal_65465987312", "name": "Sylvain", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_normal65465409", "name": "Anselme", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
+    {"id": "pocket:homme_voix_grave265146", "name": "Barnabé", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
     # --- l'unique voix SANS jumelle : JEAN_EDGAR, valide le 18/09/2026 ---
     # Il n'a ni etoiles ni criteres releves : il faudra l'ecouter pour les
     # remplir (etoiles provisoires a 3, comme les autres voix retenues).
