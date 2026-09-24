@@ -34,7 +34,11 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 from modules import audio_gain
 
-# Une synthese Kyutai reelle, dans l'atelier : niveau de parole mesure 7,1 %.
+# Une synthese Kyutai REELLE, dans l'atelier. ATTENTION : son niveau n'est pas
+# fige -- `test_kyutai_branchement.py` reecrit ce fichier (la phrase lui est
+# servie par le CACHE DISQUE quand le moteur est eteint). Il valait 7,1 % a
+# l'origine, 8,6 % le 23/09/2026 : les controles qui l'utilisent sont donc
+# ecrits pour tenir dans les deux cas (voir le controle 2).
 EXEMPLE = RACINE / 'test_voix' / 'kyutai_branchement_normal.wav'
 
 ECHECS = 0
@@ -101,10 +105,44 @@ def main():
     verifier('elle revient INCHANGEE',
              audio_gain.normaliser_wav_parole(dans) == dans,
              '%.1f %%' % _parole(dans))
-    verifier('une vraie phrase Kyutai a %.1f %% est remontee vers la cible'
-             % _parole(avant_bytes),
-             _parole(audio_gain.normaliser_wav_parole(avant_bytes))
-             > _parole(avant_bytes))
+
+    # --- LE TEMOIN REEL, ET POURQUOI L'ATTENTE A CHANGE LE 23/09/2026 --------
+    # Ce controle demandait « la vraie phrase Kyutai est REMONTEE vers la
+    # cible » : c'etait vrai tant que le temoin valait 7,1 % (le chiffre note
+    # ici depuis le 15/09/2026). Or `test_kyutai_branchement.py` REEcrit ce
+    # fichier -- et comme la phrase lui est servie par le CACHE DISQUE quand le
+    # moteur est eteint, elle peut valoir autre chose : 8,6 % le 23/09/2026.
+    # A 8,6 %, elle est DEJA a la cible (8,5 %) : depuis la revision du
+    # 21/09/2026 la correction est bornee des DEUX cotes, donc elle n'est plus
+    # touchee -- et l'attente « remontee » ne pouvait plus etre satisfaite.
+    # Ce qui est vrai DANS TOUS LES CAS, et qui est donc teste ici : le module
+    # RAPPROCHE le temoin de la cible sans jamais l'en ecarter, et si le temoin
+    # est vraiment hors fourchette, il le corrige dans le bon sens. Le niveau du
+    # temoin est affiche : le jour ou le chiffre changera encore, on saura
+    # pourquoi sans chercher.
+    niveau_avant = _parole(avant_bytes)
+    niveau_apres = _parole(audio_gain.normaliser_wav_parole(avant_bytes))
+    cible = audio_gain.CIBLE_POURCENT
+    ecart_avant = abs(20 * math.log10(niveau_avant / cible))
+    ecart_apres = abs(20 * math.log10(niveau_apres / cible))
+    print('        temoin reel : %.1f %% -> %.1f %% (cible %.1f %%, '
+          'ecart %.1f -> %.1f dB)'
+          % (niveau_avant, niveau_apres, cible, ecart_avant, ecart_apres))
+    verifier('le temoin reel n est JAMAIS eloigne de la cible',
+             ecart_apres <= ecart_avant + 0.05,
+             '%.2f -> %.2f dB' % (ecart_avant, ecart_apres))
+    verifier('et il finit DANS la fourchette de +/- 3 dB',
+             ecart_apres <= 3.0, 'ecart final %.2f dB' % ecart_apres)
+    if ecart_avant > 3.0:
+        # Hors fourchette : le module doit agir, et dans le bon sens.
+        if niveau_avant < cible:
+            verifier('(temoin faible) il est bien REMONTE',
+                     niveau_apres > niveau_avant,
+                     '%.1f -> %.1f' % (niveau_avant, niveau_apres))
+        else:
+            verifier('(temoin trop fort) il est bien RAMENE',
+                     niveau_apres < niveau_avant,
+                     '%.1f -> %.1f' % (niveau_avant, niveau_apres))
 
     print('')
     print('3) une phrase TROP FORTE est ramenee, sans etre ecrasee')

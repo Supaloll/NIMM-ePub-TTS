@@ -10,6 +10,7 @@ from modules import tts_cache as _tts_cache
 from modules import audio_trim as _audio_trim
 from modules import audio_rate as _audio_rate
 from modules import audio_gain as _audio_gain
+from modules import audio_queue as _audio_queue
 from modules import incises as _incises
 from modules import majuscules as _majuscules
 from modules import prononciation as _prononciation
@@ -885,7 +886,7 @@ KYUTAI_VOICES = [
     {"id": "kyutai:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},     # etait Kyutai 30
     {"id": "kyutai:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 31
     {"id": "kyutai:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "F", "stars": 3},     # etait Kyutai 32
-    {"id": "kyutai:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 1},     # etait Kyutai 33, NON retenue a l'ecoute
+    {"id": "kyutai:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1E8\U0001F1E6 Canada (Kyutai)", "gender": "M", "stars": 1},     # etait Kyutai 33 -- RETENUE le 23/09/2026 (1 etoile, accent canadien)
     {"id": "kyutai:928_486_000075-0001", "name": "Raymond", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 34
     {"id": "kyutai:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (Kyutai)", "gender": "M", "stars": 3},      # etait Kyutai 35
 ]
@@ -977,6 +978,19 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
     if not wav_bytes:
         return b""
 
+    # Rognage du silence de QUEUE (23/09/2026, demande de Laurent) : le moteur
+    # Kyutai ne rogne pas ses bords -- il garde la respiration qu'il vient de
+    # produire (0,30 a 0,43 s mesurees les 17 et 21/09/2026 ; queue MEDIANE de
+    # 0,37 s sur les 300 fichiers du cache le 23/09/2026). A l'ecoute, Laurent a
+    # trouve les pauses APRES LES POINTS trop longues et les SAUTS DE LIGNE trop
+    # rapides : la queue est ramenee a 0,20 s ICI, et la pause entre paragraphes
+    # remonte a 600 ms dans `frontend/app.js` (les deux se cumulent, on regle
+    # donc les deux ensemble).
+    # Le rognage se fait AVANT la vitesse, la hauteur et le niveau : c'est le son
+    # natif du moteur qu'on rogne -- le meme esprit que XTTS et NeuTTS, qui
+    # rognent dans leur service. Le fichier mis en cache est deja rogne.
+    wav_bytes = _audio_queue.rogner_queue_wav(wav_bytes)
+
     # Vitesse puis hauteur (aucun des deux n'existe dans le moteur).
     wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
@@ -1057,7 +1071,7 @@ XTTS_VOICES = [
     {"id": "xtts:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
     {"id": "xtts:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "F", "stars": 2},
-    {"id": "xtts:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 1},
+    {"id": "xtts:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1E8\U0001F1E6 Canada (XTTS)", "gender": "M", "stars": 1},
     {"id": "xtts:928_486_000075-0001", "name": "Raymond", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     {"id": "xtts:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (XTTS)", "gender": "M", "stars": 3},
     # --- Voix CML-TTS versees le 14/09/2026 (lot d'ecoute de Laurent) ---
@@ -1171,7 +1185,7 @@ NEUTTS_VOICES = [
     {"id": "neutts:7591_6742_000149-0002", "name": "Suzanne", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "F", "stars": 2},
     {"id": "neutts:7601_7727_000062-0001", "name": "Octave", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "M", "stars": 3},
     {"id": "neutts:7762_8734_000048-0002", "name": "Monique", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "F", "stars": 2},
-    {"id": "neutts:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "M", "stars": 1},
+    {"id": "neutts:8128_7016_000047-0002", "name": "Quentin", "region": "\U0001F1E8\U0001F1E6 Canada (NeuTTS)", "gender": "M", "stars": 1},
     {"id": "neutts:928_486_000075-0001", "name": "Raymond", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "M", "stars": 3},
     {"id": "neutts:9834_9697_000150-0003", "name": "Simon", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "M", "stars": 3},
     {"id": "neutts:cml10065", "name": "Auguste", "region": "\U0001F1EB\U0001F1F7 France (NeuTTS)", "gender": "M", "stars": 3},

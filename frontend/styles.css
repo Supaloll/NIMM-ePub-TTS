@@ -1045,7 +1045,8 @@ body {
 
 #cast-modal-header,
 #partage-modal-header,
-#voixlibres-modal-header {
+#voixlibres-modal-header,
+#cast-voix-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1054,10 +1055,12 @@ body {
 }
 #cast-modal-header h3,
 #partage-modal-header h3,
-#voixlibres-modal-header h3 { font-size: 1rem; margin: 0; }
+#voixlibres-modal-header h3,
+#cast-voix-modal-header h3 { font-size: 1rem; margin: 0; }
 #cast-close-btn,
 #partage-close-btn,
-#voixlibres-close-btn {
+#voixlibres-close-btn,
+#cast-voix-close-btn {
   background: none;
   border: none;
   color: var(--text-muted);
@@ -1066,7 +1069,8 @@ body {
 }
 #cast-close-btn:hover,
 #partage-close-btn:hover,
-#voixlibres-close-btn:hover { color: var(--text); }
+#voixlibres-close-btn:hover,
+#cast-voix-close-btn:hover { color: var(--text); }
 
 /* --- En-tete compact de la fenetre du casting (22/09/2026) --- */
 /* Demande de Laurent : « Sur mobile, le menu deroulant pour choisir les
@@ -1154,9 +1158,10 @@ body {
 #cast-filtre-resume:empty,
 #cast-libres-info:empty { display: none; }
 
-/* LE TIROIR DES REGLAGES (22/09/2026) : voix proposees dans les menus, age de
-   la voix, genre du personnage, saga, re-cast. Il se replie d'un tap sur le
-   bouton Filtres de l'en-tete.
+/* LE TIROIR DES REGLAGES (22/09/2026) : voix proposees dans les menus, genre du
+   personnage, saga, re-cast. (L'age de la voix n'y est plus depuis le 24/09/2026 :
+   il se regle dans la modale des voix d'un personnage.) Il se replie d'un tap sur
+   le bouton Filtres de l'en-tete.
    Il peut SE REDUIRE (et defiler) quand la place manque : la liste des
    personnages garde, elle, sa hauteur minimale (voir #cast-list). C'est ce qui
    garantit qu'on voit toujours des personnages, meme tiroir ouvert sur un petit
@@ -1279,16 +1284,35 @@ body {
 /* La barre des ages et du genre (21/09/2026) porte DEUX groupes de boutons :
    elle passe donc a la ligne sur un ecran etroit, comme celle des etats. */
 #cast-filtre-bar { flex-wrap: wrap; justify-content: flex-start; }
-#cast-age-actions,
 #cast-perso-genre-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-#cast-age-actions { margin-right: 10px; }
 /* Les compteurs « ... personnages affiches sur ... » et « N voix libres » ne
    sont plus ici : depuis le 22/09/2026 ils sont TOUJOURS visibles, dans
    #cast-info-bar, parce que la barre qui les portait peut etre repliee. */
 #cast-gender-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* LES FILTRES DE LA MODALE DES VOIX (24/09/2026) : les memes pastilles que
+   celles du casting, mais sur UNE SEULE LIGNE qui defile au doigt. Deux rangs de
+   boutons mangeraient la place de la liste des voix, qui est justement ce qu'on
+   vient lire (meme raison que #cast-etat-actions, 22/09/2026). */
+#cast-voix-genre-actions,
+#cast-voix-age-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Pas de barre de defilement sous les pastilles : la derniere dit deja qu'il y
+     en a d'autres a droite. */
+  scrollbar-width: none;
+}
+#cast-voix-genre-actions::-webkit-scrollbar,
+#cast-voix-age-actions::-webkit-scrollbar { display: none; }
+#cast-voix-genre-actions button,
+#cast-voix-age-actions button { flex-shrink: 0; }
 #cast-gender-actions button,
 #cast-etat-actions button,
-#cast-age-actions button,
+#cast-voix-age-actions button,
+#cast-voix-genre-actions button,
 #cast-perso-genre-actions button {
   background: var(--bg-card);
   color: var(--text-muted);
@@ -1301,11 +1325,13 @@ body {
 }
 #cast-gender-actions button:hover,
 #cast-etat-actions button:hover,
-#cast-age-actions button:hover,
+#cast-voix-age-actions button:hover,
+#cast-voix-genre-actions button:hover,
 #cast-perso-genre-actions button:hover { color: var(--text); }
 #cast-gender-actions button.actif,
 #cast-etat-actions button.actif,
-#cast-age-actions button.actif,
+#cast-voix-age-actions button.actif,
+#cast-voix-genre-actions button.actif,
 #cast-perso-genre-actions button.actif {
   background: var(--accent-dim);
   color: var(--text);
@@ -1710,7 +1736,8 @@ body {
      seule ligne, et deux pixels par bouton font gagner une pastille visible. */
   #cast-gender-actions button,
   #cast-etat-actions button,
-  #cast-age-actions button,
+  #cast-voix-age-actions button,
+  #cast-voix-genre-actions button,
   #cast-perso-genre-actions button { min-height: 38px; padding: 8px 12px; }
   #cast-etat-actions button { padding: 8px 10px; }
   /* La fenetre du casting occupe presque tout l'ecran (22/09/2026) : ses marges
@@ -1724,6 +1751,16 @@ body {
     padding: 14px;
     max-height: 80vh;
     max-height: calc(100dvh - 24px);
+  }
+  /* La modale des voix d'un personnage (24/09/2026) suit la même règle : elle
+     prend presque tout l'écran, en largeur comme en hauteur. C'est ici que la
+     différence avec l'ancien encart (240 px de haut, largeur d'une colonne) se
+     voit le mieux. Les marges se resserrent d'autant. */
+  #cast-voix-modal { padding: 10px; overflow-y: auto; }
+  #cast-voix-modal .voix-perso-box {
+    padding: 14px;
+    max-height: 80vh;
+    max-height: calc(100dvh - 20px);
   }
 }
 
@@ -2110,22 +2147,72 @@ body {
   color: var(--text-muted);
   white-space: nowrap;
 }
-/* L'ENCART DE LA LISTE, DÉPLIÉ DANS UNE LIGNE DU CASTING (22/09/2026) : même
-   apparence que la liste du panneau (`#voice-phrase-liste`), mais inséré dans
-   la ligne du personnage. Il défile tout seul, et un liseré d'accent dit qu'il
-   est ouvert — le personnage concerné reste juste au-dessus, on ne peut donc
-   pas se tromper de destinataire. Un seul encart est ouvert à la fois
-   (_basculerListeVoixPersonnage, app.js). */
-.voix-liste-encart {
+/* L'ENCART DE LA LISTE, DÉPLIÉ DANS UNE LIGNE DU CASTING (22/09/2026) a été
+   REMPLACÉ le 24/09/2026 par la modale `#cast-voix-modal` ci-dessous. */
+/* LA MODALE DES VOIX D'UN PERSONNAGE (24/09/2026) — demande de Laurent : « une
+   genre de modale classique, qui prend plus de place sur l'ecran (mobile et pc),
+   pour une meilleure visibilite ». Avant, la liste se dépliait DANS la ligne du
+   personnage (`.voix-liste-encart`) : sa largeur était celle de la colonne du
+   casting, sa hauteur de 240 px au plus — sur un téléphone, quatre ou cinq voix
+   visibles, alors que c'est justement la liste qu'on vient lire.
+   Les LIGNES, elles, ne changent pas : ce sont les mêmes classes `.voix-liste-*`
+   que le panneau « Voix de cette phrase », remplies par la même fonction
+   (`_lignesVoixPersonnage`, app.js). Seule la FENÊTRE qui les porte change. */
+.voix-perso-box {
+  /* Plus large que la fenêtre du casting (440 px) : ici, il n'y a QUE la liste.
+     La hauteur reprend la leçon du 22/09/2026 (80 vh se calcule sur l'écran SANS
+     la barre d'adresse du navigateur) : la première ligne est le repli des
+     navigateurs qui ne connaissent pas `dvh`. */
+  max-width: 560px;
+  max-height: 88vh;
+  max-height: min(88vh, calc(100dvh - 24px));
+  padding: 18px;
+}
+/* La barre des filtres de la modale, au-dessus de la liste : deux rangs de
+   pastilles qui défilent, puis le compte des voix. Elle ne prend que la hauteur
+   qu'il faut — la liste, elle, s'étire (`.voix-perso-box` est en colonne, et
+   `#cast-voix-liste` porte `flex: 1`). */
+#cast-voix-filtres {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 10px;
+  flex-shrink: 0;
+}
+/* « 118 voix » : sans lui, un filtre resté actif ferait croire que des voix ont
+   disparu du catalogue (règle du 22/09/2026, déjà appliquée au casting). */
+#cast-voix-recap {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+#cast-voix-recap:empty { display: none; }
+
+/* La liste défile ELLE-MÊME : les boutons du bas restent donc atteignables, même
+   avec 175 voix. `min-height: 0` est indispensable — sans lui, une longue liste
+   refuse de se laisser écraser et pousse le bouton « Fermer » hors de l'écran. */
+#cast-voix-liste {
   list-style: none;
-  max-height: 240px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  margin: 8px 0 2px;
-  border: 1px solid var(--accent-dim);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
 }
-.voix-liste-encart .voix-liste-nom { font-size: 0.8rem; }
+/* Un cran plus grand que dans l'ancien encart : c'est la raison d'être de cette
+   fenêtre (la visibilité), et la place ne manque plus. Ces tailles sont
+   volontairement limitées à cette liste : le panneau « Voix de cette phrase »
+   garde les siennes. */
+#cast-voix-liste .voix-liste-groupe { padding: 10px 12px 5px; }
+#cast-voix-liste .voix-liste-item { min-height: 52px; }
+#cast-voix-liste .voix-liste-choix { padding: 9px 12px; }
+#cast-voix-liste .voix-liste-nom { font-size: 0.9rem; }
+#cast-voix-liste .voix-liste-etat { font-size: 0.76rem; }
+#cast-voix-liste .voix-liste-ecoute {
+  width: 40px;
+  height: 40px;
+  font-size: 0.8rem;
+}
 
 #voice-phrase-liste {
   list-style: none;

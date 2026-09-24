@@ -285,9 +285,14 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
      « Lire écran verrouillé »…) fonctionnent toujours.
   3. 🔄 **EN COURS — état actuel / chronique.** Chaque sujet doit commencer par un
      bloc « **Aujourd'hui** » **court et vérifiable**, la chronique datée restant
-     dessous ; **4 sujets sur 61** sont faits (le narrateur, le changement de
-     moteur, le mode dialogue, et **« Logique TTS — app.js »**, le plus gros du
-     document) et le vérificateur de faits compte l'avancement (sa section 8).
+     dessous ; **11 sujets sur 61** sont faits (le narrateur, le changement de
+     moteur, le mode dialogue, **« Logique TTS — app.js »**,
+     **« modules/tts.py — Synthèse vocale »**, **« frontend/ — Interface »**,
+     **« 🎒 Moteur de voix Pocket TTS »**, **« Report des notes d'écoute dans les
+     catalogues »**, **« 🎭 Distribution de voix par personnage (IA) »**,
+     **« Symboles ♀️/♂️ de genre devant les prénoms »** et **« 🔒 Lire écran
+     verrouillé »**) et le vérificateur de faits compte l'avancement (sa
+     section 8).
      **Un sujet par session**, à poursuivre : c'est ce chantier qui répond
      définitivement à la question « le document dit-il la vérité ? », parce que
      c'est lui qui rend l'état actuel **court, nommé et vérifiable**.
@@ -295,6 +300,307 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
      **44 lignes** (10 constats + les tests : structures de phrases, vitesse par
      fiche, préchargement et « réserve à bloc », phrases-fleuves, pause, réseau,
      états, mobile, navigation, tiroir).*
+     *Session du 23/09/2026 (le soir de la même journée) — sujet fait :
+     **« modules/tts.py — Synthèse vocale »**, un bloc de **60 lignes**
+     (9 constats + les tests : les sept moteurs et l'aiguillage par préfixe, les
+     services à part et leurs 503, le nettoyage du texte, les phonèmes de Kokoro,
+     vitesse et hauteur, le niveau de la parole, le cache, les catalogues), et
+     **deux vraies dérives corrigées** : le sujet annonçait « les **quatre**
+     moteurs de voix » alors que le module en porte **sept** (le tableau du Rôle
+     ne listait ni **NeuTTS** ni **Pocket**), et trois comptes de voix étaient
+     périmés — Kokoro **84 → 94** (les voix allemandes du 20/09), XTTS **60 → 79**,
+     NeuTTS et Pocket **absents**. Les comptes sont maintenant **mesurés**
+     (`_essais/_mesurer_voix_tts.py`) **et contrôlés** : la **section 9** du
+     vérificateur de faits lit le tableau du Rôle et compare chaque nombre au
+     catalogue du code. **Preuve** (`_essais/_preuve_controle_tts.py`) : le
+     contrôle **crie 5 fois** sur la copie d'avant la session, et **se tait** sur
+     le document d'aujourd'hui. Le sujet passe de 347 à **410 lignes** (sous le
+     seuil de 500).
+     *Session du 23/09/2026 (fin de soirée) — sujet fait : **« frontend/ —
+     Interface »**, un bloc de **48 lignes** (9 constats + les tests : les quatre
+     vues, les trois fichiers, le service worker, la PWA et ses icônes, le bouton
+     d'installation, la grille de la bibliothèque, le chargement d'un chapitre,
+     l'accès), et **deux vraies dérives corrigées** :
+     - le sujet annonçait « **Deux vues dans une seule page** » (bibliothèque et
+       lecteur) alors que la page en porte **quatre** : `view-profile` (« Qui
+       lit ? », arrivé avec les profils familiaux) et `view-rsvp` (le mode RSVP)
+       n'étaient jamais comptés ici — chacun documenté dans sa partie, mais le
+       sujet qui décrit la page disait faux depuis le 20/08 ;
+     - le bouton « Installer l'application » a une **troisième** raison de
+       disparaître, jamais écrite : `_majBoutonInstaller()` le cache aussi **sur
+       ordinateur** (`_appareilMobile()`) depuis le 20/09/2026.
+     **Nouveau contrôle** : la **section 10** du vérificateur de faits lit le bloc,
+     compte les vues réelles dans `index.html`, les retrouve dans `showView()`,
+     compare `CHARGEMENT_ESSAIS` / `CHARGEMENT_PAUSE_MS` au code et exige que les
+     quatre fonctions du bouton soient nommées. **Preuve**
+     (`_essais/_preuve_controle_vues.py`, lecture seule) : le contrôle **crie
+     4 fois** sur la copie d'avant la session, et **se tait** sur le document
+     d'aujourd'hui. Le sujet passe de **228 à 300 lignes** (sous le seuil de 500).
+     ⚠️ **La leçon de ce sujet** : **aucun test ne couvrait les vues** — c'est le
+     trou qui a laissé passer la dérive pendant cinq semaines. Le contrôle neuf ne
+     teste pas la page (ce n'est pas son rôle), il empêche le **document** de
+     raconter autre chose que le code.
+     *Session du 23/09/2026 (la suite de la suite) — sujet fait : **« 🎒 Moteur de
+     voix Pocket TTS »**, un bloc de **58 lignes** (onze constats + les tests : le
+     service et ses quatre routes, la double préparation du texte, le verrou et
+     les cœurs, l'auto-extinction, le catalogue et ses fichiers de voix, le tic
+     corrigé à la source, le niveau, la cohabitation et le veilleur, l'arrêt
+     volontaire, la page, le modèle), et **trois dérives corrigées** :
+     - **« 100 M de paramètres »** — c'est le chiffre des variantes **légères** de
+       Pocket TTS (`config/english.yaml` : **6 couches**). Le modèle que NIMM ePub
+       utilise, `french_24l`, en porte **336 M** (**24 couches**), mesuré le
+       23/09/2026 dans l'en-tête de `model.safetensors` (358 tenseurs, BF16,
+       641 Mo) — **sans rien charger** : l'outil lit l'en-tête du fichier de poids ;
+     - **« Sixième moteur »** — le lecteur en compte **sept** (Edge compris), et
+       Pocket est le **quatrième « lourd »**, après Kyutai, XTTS et NeuTTS, comme
+       le disent les sujets voisins ;
+     - **« la vérification de l'accent des 18 voix »** (« Ce qui reste ») — le
+       catalogue est passé à **28 voix** le 23/09/2026, et les dix nouvelles ont
+       le **même** trou : un accent `neutre` posé par l'outil, jamais entendu.
+     Deux endroits portaient le même « 100 M » et ont été corrigés au passage : le
+     tableau du Rôle du sujet `modules/tts.py` et `pocket_tts_service/LIRE_MOI.md`.
+     **Nouveau contrôle** : la **section 11** du vérificateur de faits vérifie le
+     **nombre de voix** du catalogue, que **chaque voix a son WAV**
+     (`pocket_tts_service/voix/` : 28 fichiers, **aucun manquant, aucun
+     orphelin**), les **cinq constantes** du service (`NIVEAU_MINI`, `ESSAIS_MAX`,
+     `PORT`, `COEURS`, `INACTIF_MIN`), le drapeau **`cohabite`** de `MOTEURS_VOIX`,
+     l'ancien nom `_sans_fenetre` (le sujet l'écrit « ex- ») et le **nombre de
+     paramètres** lu dans le poids. **Preuve**
+     (`_essais/_preuve_controle_pocket.py`, lecture seule) : le contrôle **crie
+     6 fois** sur la copie d'avant la session et **se tait** sur le document
+     d'aujourd'hui. Le sujet passe de **173 à 254 lignes** (sous le seuil de 500).
+
+     *Session du 23/09/2026 (fin de soirée) — sujet fait : **« Report des notes
+     d'écoute dans les catalogues »**, le plus utile de la série parce qu'il
+     prolonge le travail de Laurent sur ses notes d'écoute.* Il s'ouvre par un
+     bloc « Aujourd'hui » de **57 lignes** (le report, l'outil, la barre d'état,
+     les voix libres, la recherche) et il a demandé **quatre corrections** —
+     deux chiffres et deux affirmations :
+     - **« les trois boutons »** de la barre d'état : il y en a **quatre** depuis
+       le 19/09/2026 (« 🔓 Voix libres ») — et `test_ids_ecran.py` vérifiait déjà
+       les quatre : c'est le **document seul** qui était en retard ;
+     - **« 175 personnages »** pour le livre de référence : **176** aujourd'hui
+       (relevé en base), et le test disait déjà 176 ;
+     - **« Jake Epping (3 634 répliques) »** : **3 615** (relevé en base) ;
+     - **« une voix portée par dix-huit personnages dans 22/11/63 »** : la plus
+       grande famille **hors voix génériques** en porte **3** (`kokoro:fm_papi`) ;
+       les 67 porteurs de `piper:upmc:1` sont la voix générique des petits rôles,
+       comptée à part. Le chiffre vivait **aussi dans un commentaire du code**
+       (`frontend/app.js`) : corrigé là également, et **sans chiffre** — un
+       chiffre écrit dans un commentaire redevient faux au re-cast suivant.
+     **Ce que la mesure a trouvé** (`_essais/_mesurer_faits_notes.py`, lecture
+     seule) : **360 voix annotées**, **356 reportées** (l'aperçu répond « TOUT EST
+     À JOUR »), **une seule** voix du catalogue jamais annotée — `pocket:JEAN_EDGAR`
+     (Edgar), laissée à l'oreille de Laurent — et **quatre notes Piper** hors
+     catalogues (`piper:siwis:0`, `piper:tom:0`, `piper:upmc:0`, `piper:upmc:1`) :
+     rien à reporter pour elles. **Détail sans conséquence** : dix notes Pocket
+     portent `M` (convention des catalogues) au lieu de `H` — la conversion ne
+     connaît que H/F, donc le genre du catalogue est conservé tel quel, et la page
+     lit `M` comme « homme ».
+     **Nouveau contrôle** : la **section 12** du vérificateur de faits tient les
+     faits **stables** du sujet (l'outil de report et ses garde-fous, les **six**
+     catalogues balayés, le **nombre de boutons** de la barre d'état, les **deux**
+     seuils et les **deux** voix génériques, le **plafond de six noms**, et le
+     nombre de contrôles annoncé pour les **trois** tests JavaScript). **Preuve**
+     (`_essais/_preuve_controle_notes.py`, lecture seule) : le contrôle **crie
+     neuf fois** sur la copie d'avant la session — dont une fois sur les « trois
+     boutons » — et **se tait** sur le document d'aujourd'hui. Le sujet passe de
+     **162 à 239 lignes** (sous le seuil de 500).
+
+     *Session du 23/09/2026 (le neuvième sujet, le plus gros des restants) —
+     sujet fait : **« 🎭 Distribution de voix par personnage (IA) »**, un bloc
+     « Aujourd'hui » de **60 lignes** (les quatre moteurs et le défaut, le repli
+     automatique, l'estimation avant paiement, les deux passes, les paquets de
+     150 phrases, la reprise qui ne repaie jamais un chapitre, le découpage avant
+     l'IA, les huit colonnes de `voices`, la voix décidée à la lecture, les onze
+     routes, les clés et la configuration du moteur local, les tests). C'est le
+     sujet qui portait **le plus de dérives de tout l'audit** — cinq :
+     - **« DeepSeek par défaut »** était faux : depuis le 23/08/2026, c'est
+       **Gemini** le défaut et le bouton « recommandé » — et le sujet voisin
+       « 🔀 Système multi-moteur » le disait déjà : deux pages du **même**
+       document se contredisaient ;
+     - **le modèle local (Ollama)** — arrivé le **13/09/2026** — n'était **nulle
+       part** dans `ARCHITECTURE.md` (zéro occurrence du mot « Ollama ») : le
+       sujet annonçait un système à **trois** moteurs qui en compte **quatre** ;
+     - **une seule route** décrite là où le code en porte **onze**
+       (`/cast/estimate`, `/cast/voice`, `/cast/lock`, `/cast/reassign`,
+       `reassign_ia`, `autogroup`, `ungroup`, `group`, `propagate-saga`…), plus
+       `GET /api/llm/local` ;
+     - la table `voices` annoncée à **quatre** colonnes : elle en porte **huit**
+       (`genre`, `line_count`, `rate` et `locked` en plus) ;
+     - des attributs `data-voice` / `data-pitch` posés « sur chaque `<span>` » qui
+       n'existent **nulle part** dans la page — la voix d'une phrase se décide
+       **à la lecture** (`_voiceForSentence`), seul `data-idx` est gravé.
+     **Nouveau contrôle** : la **section 13** du vérificateur de faits tient ces
+     faits-là (les quatre moteurs et leur aiguillage, le défaut, le repli
+     `MOTEURS_DE_SECOURS`, les **onze** routes comparées une par une, les **huit**
+     colonnes de `voices`, l'absence de `data-voice`, le seuil des petits rôles,
+     les tests cités et leur nombre de contrôles). **Preuve**
+     (`_essais/_preuve_controle_casting.py`, lecture seule) : le contrôle **crie
+     17 fois** sur la copie d'avant la session et **se tait** sur le document
+     d'aujourd'hui. Copie datée :
+     `ARCHITECTURE.md.bak_avant_etat_casting_20260923`. Le sujet passe de **159 à
+     282 lignes** (les 60 lignes du bloc, plus les notes de correction) — sous le
+     seuil de 500.
+     ⚠️ **Le sujet voisin reste à corriger, et c'est noté ici exprès** :
+     « 🔀 Système multi-moteur — Gemini / Mistral / DeepSeek » (62 lignes) porte
+     le même retard dans son **titre** (« Gemini / Mistral / DeepSeek » : le
+     moteur local manque) et dans son paragraphe « Choix du moteur » (il décrit
+     **trois** boutons, la fenêtre en porte **quatre** depuis le 13/09/2026).
+     **Vérifié le 23/09/2026 : aucun autre document ne renvoie à ce titre** — la
+     règle « on ne renomme jamais un titre de cette page sans corriger les
+     renvois » s'applique donc sans risque ; à faire quand ce sujet passera, le
+     sommaire recalculé au passage.
+
+     *Session du 23/09/2026 (le dixième sujet) — sujet fait : **« Symboles ♀️ / ♂️
+     de genre devant les prénoms »**, un bloc « Aujourd'hui » de **57 lignes** qui
+     tient les quatre morceaux d'un même sujet composite (les symboles de genre du
+     19/09, les icônes des moteurs, la mise à l'échelle des boutons de la barre du
+     lecteur et le bouton « Vider le cache », tous du 20/09). **Trois dérives**,
+     toutes dans le même sujet :*
+     - **un tableau d'icônes qui s'arrêtait à six moteurs** : `FAMILLES_VOIX` en
+       porte **sept** depuis l'arrivée de **Pocket TTS** (**🎒**) le 21/09/2026 —
+       et son icône n'était contrôlée par **aucun** test (`test_ids_ecran.py`
+       vérifie les six autres, une par une) ;
+     - **un exemple de libellé périmé le jour même** : le sujet annonçait « ♀️ Eva
+       🇩🇪 **Allemagne (NIMM Voix)** … — **Kokoro** » là où le code écrit
+       « ♀️ Eva 🇫🇷🇩🇪 adulte médium — 🎎 » — les **drapeaux** remplacent le pays
+       en toutes lettres, la provenance ne s'écrit plus, et le moteur est réduit à
+       son **icône seule** ;
+     - **une règle de style annoncée « les trois »** alors qu'elle en porte
+       **six** (`#multivoice-btn`, `#voices-open-btn`, `#bookmarks-open-btn`,
+       `#rsvp-open-btn`, `#cache-open-btn`, `#incises-btn`) — et le bouton du cache,
+       annoncé « le prochain concerné », l'avait rejointe **le jour même**.
+     Et une **quatrième dérive, dans le code cette fois** : `modules/tts_cache.py`
+     annonçait « défaut : **20 Go** » dans son en-tête alors que la valeur est
+     **2 Go** depuis le 17/09/2026 (le commentaire de la constante, lui, disait
+     juste) — **corrigé**, et désormais **contrôlé**. Deux détails sortis en
+     écrivant le contrôle : l'icône **⚡** du tableau s'écrivait **sans** son
+     sélecteur emoji (le code porte `\u26A1\uFE0F`) — corrigé aux deux endroits du
+     sujet ; et le **défaut `H`** de la colonne `genre` se vérifie à la **source**
+     (`main.py`, la déclaration de la table), pas dans la base.
+     **Nouveau contrôle** : la **section 14** du vérificateur de faits — la
+     fonction des symboles et ses deux conventions `M`/`H`, les trois emplacements,
+     le libellé exact, **les sept icônes comparées une par une** (c'est ce contrôle
+     qui aurait attrapé Pocket), le nombre de boutons de la règle commune, les deux
+     routes du cache, son quota, et les **six** tests cités avec leur nombre de
+     contrôles. **Preuve** (`_essais/_preuve_controle_symboles.py`, lecture seule) :
+     **10 écarts** sur la copie d'avant, **0** sur le document d'aujourd'hui. Copie
+     datée : `ARCHITECTURE.md.bak_avant_etat_symboles_20260923`. Le sujet passe de
+     **145 à 229 lignes** (sous le seuil de 500).
+
+     *Session du 23/09/2026 (le onzième sujet) — sujet fait : **« 🔒 Lire écran
+     verrouillé : la « réserve à bloc », et le lecteur »**, un bloc « Aujourd'hui »
+     de **50 lignes** qui tient les huit constats du sujet et les tests (la vraie
+     cause, qui est la batterie d'Android ; la réserve « à bloc » et ses quatre
+     constantes ; les huit actions du lecteur du système ; le lecteur intégré et
+     ses sept télécommandes ; le collage des phrases ; la pause venue d'ailleurs).
+     **Une dérive, de la même famille que celle du casting** : le sujet annonçait
+     « **160 contrôles** au total » pour `test_voix/test_ids_ecran.py` alors que la
+     **même page** écrivait **168** vingt lignes plus haut — et le test en
+     **exécute 168** (dont **25** dans sa seule section « 3 sexies », celle du
+     lecteur). Le chiffre faux est parti ; la chronique renvoie maintenant au
+     compte tenu par le bloc « Aujourd'hui ».*
+     **Nouveau contrôle** : la **section 15** du vérificateur de faits — les
+     quatre constantes du préchargement avec leur valeur, le déclencheur de la
+     réserve « à bloc », les **huit** actions du lecteur du système, les **sept**
+     télécommandes du lecteur intégré, les fonctions du collage et son filet, la
+     pause venue de l'extérieur, **et le nombre de contrôles des quatre tests
+     cités**, compté **par exécution** (les sections 12 et 14 comptaient les
+     `verifier(` **écrits** : 22 au lieu de 42 pour le lecteur intégré).
+     **Preuve** (`_essais/_preuve_controle_ecran.py`, lecture seule) : **13 écarts**
+     sur la copie d'avant, **0** sur le document d'aujourd'hui ; copie datée
+     `ARCHITECTURE.md.bak_avant_etat_ecran_20260923`. Le sujet passe de **130 à
+     183 lignes** ; audit documentaire **78 alertes avant, 78 après** (les mêmes),
+     plus grosse section **471 lignes** (sous le seuil de 500), suite complète
+     **« TOUT EST OK »**.
+     *Session du 23/09/2026 (le douzième sujet) — sujet fait : **« ✂️ Rognage des
+     silences de bord »** (113 lignes au départ), avec un bloc « Aujourd'hui » qui
+     tient les constats et les tests. C'est le sujet le plus **dépassé** de la
+     série après le casting : il parlait d'un monde à **deux** rognages (Edge et
+     XTTS) alors que le code en compte **trois**, dans trois fichiers différents,
+     plus un moteur qui règle sa respiration au lieu de rogner. **Trois dérives** :
+     - **« ~0,15 s en fin » était faux** : `modules/audio_trim.py` porte **0,35 s**
+       depuis le 17/09/2026 (0,15 s au départ, 0,25 s le 15/09, puis 0,35 s le
+       17/09 après l'écoute de Kyutai) — la chronique, elle, était restée au
+       08/09/2026 ;
+     - **« 12 contrôles »** pour `test_voix/test_rogner_babil_xtts.py` : il en
+       **exécute 11** (compté en le lançant — 14 et 16, eux, étaient justes) ;
+     - **NeuTTS et Kyutai manquaient au sujet** : NeuTTS **rogne** depuis le
+       16/09/2026 (`rogner_queue()`, même marge de 0,25 s qu'Edge et qu'XTTS, plus
+       un filet anti-dérive très large, `duree_max_derivee()`) ; Kyutai, lui, règle
+       sa **respiration** de fin de phrase (`SILENCE_QUEUE_S`, ajoutée puis retirée
+       le 17/09/2026 — donc **0** par défaut) ; et Pocket, qui ne rogne rien,
+       **régénère** une prise trop faible (`NIVEAU_MINI` = 0,05, `ESSAIS_MAX` = 4).
+     **Une quatrième correction, de vérité celle-ci** : le sujet annonçait que
+     « le rognage change la **clé du cache audio** » — la clé porte en réalité
+     `VERSION_CACHE` (**17** aujourd'hui) + le texte + la voix + la vitesse + la
+     hauteur, et le rognage n'y apparaît nulle part : ce qui invalide un rendu,
+     c'est la **version**, incrémentée à la main. Reformulé.
+     **Nouveau contrôle** : la **section 16** du vérificateur de faits — les marges
+     réelles du filtre d'Edge (-45 dB, 0,08 s / 0,35 s), le rognage en place
+     **avant** la mise en cache, les constantes du service XTTS et ses **deux**
+     filets (les bornes de longueur **recalculées** avec le code du service), le
+     rognage de NeuTTS, la respiration de Kyutai, ce que Pocket fait à la place, la
+     version du cache, et les **quatre** tests cités, comptés **par exécution**
+     (14 / 16 / **11** / 46).
+     **Preuve** (`_essais/_preuve_controle_rognage.py`, lecture seule) : **17
+     écarts** sur la copie d'avant, **0** sur le document d'aujourd'hui ; copie
+     datée `ARCHITECTURE.md.bak_avant_etat_rognage_20260923`. Le sujet passe de
+     **113 à 164 lignes** ; audit documentaire **78 alertes avant, 78 après** (les
+     mêmes), plus grosse section **471 lignes**, suite complète **« TOUT EST OK »**.
+     - **Un fait à ne pas perdre** : **aucun des quatre tests** du rognage n'est
+       dans la liste du **lanceur** `test_voix/lancer_tous_les_tests.py` — ils ne
+       tournent que si on les appelle à la main (le piège du 21/09/2026, noté ici
+       plutôt que corrigé : la liste des tests hors lanceur est un chantier à part).
+     - **Mesure** : `_essais/_mesurer_faits_rognage.py` (lecture seule) refait tous
+       ces relevés. ⚠️ **Piège de parcours, appris à ses dépens** : les quatre
+       dossiers `*_service` embarquent chacun leur environnement Python —
+       **42 626 fichiers `.py`** dans tout l'arbre. Un script qui balaie le projet
+       doit s'arrêter aux dossiers de **code** (une mesure y a perdu dix minutes).
+     - *Détail de méthode* : les deuxième et troisième mesures du script ont montré
+       que **lire une constante ne va pas de soi** — celles des services s'écrivent
+       aussi sur deux lignes (`float(os.environ.get("NIMM_...", "0.0"))`), et il a
+       fallu **écrire un vrai script** plutôt qu'un `findstr` : la mesure d'un
+       sujet est un outil, pas une commande jetable.
+
+
+     - **Leçon de comptage, gardée avec le onzième sujet** : le nombre de contrôles
+       d'un test ne se lit pas dans son texte. `test_lecteur_media.js` écrit **22** appels
+       `verifier(` et en **exécute 42** (les boucles des sept télécommandes et des
+       quinze identifiants de la fenêtre) ; `test_ids_ecran.py` passe de **70** à
+       **168**. C'est la raison du contrôle par exécution de la section 15. Les
+       chiffres du sujet se remesurent avec `_essais/_mesurer_faits_ecran.py`
+       (lecture seule : il lance les quatre tests et compare au document).
+     - ~~*Point signalé, non tranché*~~ **TRANCHÉ le 24/09/2026** : le document
+       annonçait `test_ids_ecran.py` **70** dans le sujet « Symboles de genre »
+       (les **écrits**) et **168** dans « frontend/ — Interface » (les
+       **exécutés**) — deux conventions pour le même test. C'est la session du
+       24/09/2026 qui a tranché, en le faisant : ce test a gagné des contrôles (la
+       modale des voix, puis ses filtres), donc les deux chiffres étaient périmés
+       et le vérificateur `_verifier_faits_architecture.py` l'a **vu et dit**
+       (« 2 écarts à lire »). La convention est maintenant **écrite sur place**,
+       dans chaque phrase : `**187** pour le fichier entier` = les **exécutés**
+       (c'est ce que le vérificateur mesure), et un chiffre de section = les
+       **écrits**, sauf quand la phrase s'appuie sur l'exécution (section « 3
+       sexies »). Les deux phrases le disent désormais — plus de convention
+       implicite.
+
+     *Décision de Laurent, le soir du 23/09/2026* : **on reste à UN sujet par
+     session** (« on va rester prudent, 1 par session »), chaque sujet étant
+     traité dans une **session propre**. **Douze** sujets sont **faits** :
+     « Logique TTS — app.js », **« modules/tts.py — Synthèse vocale »**,
+     **« frontend/ — Interface »**, **« 🎒 Moteur de voix Pocket TTS »**,
+     **« Report des notes d'écoute dans les catalogues »**,
+     **« 🎭 Distribution de voix par personnage (IA) »**, **« Symboles ♀️/♂️ de
+     genre devant les prénoms »**, **« 🔒 Lire écran verrouillé »** et **« ✂️
+     Rognage des silences de bord »** (les quatre derniers sont décrits ci-dessus),
+     plus les trois de la première heure (le narrateur, le changement de moteur et
+     le mode dialogue) — la liste complète est à l'**étape 3** ci-dessus.
+     La suite est **nommée ici**, pour que la prochaine session reprenne sans
+     chercher : *Extraits de voix libres de droits pour XTTS* (**110 lignes**),
+     puis *🛠️ Réparer les moteurs de voix* (101). Les tailles se
+     remesurent avec `_essais/_mesurer_sujets_architecture.py`.
      - ⚠️ **UNE VRAIE DÉRIVE TROUVÉE, ET CORRIGÉE le 23/09/2026** : la page
        annonçait `PARAGRAPH_PAUSE_MS` **passé à 0** (15/09/2026) alors que le code
        portait **300** depuis le **17/09/2026** — un retour arrière raconté dans le
@@ -309,10 +615,15 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
        « Logique TTS — app.js » devra être courte, sinon l'audit alertera (c'est
        son rôle).
      - **Mesurer avant de choisir le sujet** : `_essais/_mesurer_sujets_architecture.py`
-       (lecture seule) classe les 61 sujets par taille. Les gros qui restent :
-       `modules/tts.py` — Synthèse vocale (347), `frontend/` — Interface (228),
-       Pocket TTS (173), Report des notes d'écoute (162), Distribution de voix par
-       personnage (IA) (159).
+       (lecture seule) classe les 61 sujets par taille. Tailles du **23/09/2026
+       (le douzième sujet)** : `Logique TTS — app.js` (471, fait), `modules/tts.py`
+       — Synthèse vocale (422, fait), `frontend/` — Interface (300, fait),
+       **Distribution de voix par personnage (IA) (282, fait)**, **Moteur de voix
+       Pocket TTS (254, fait)**, **Report des notes d'écoute (239, fait)**,
+       **Symboles ♀️/♂️ de genre (229, fait)**, **Lire écran verrouillé (183,
+       fait)** et **Rognage des silences de bord (164, fait)** ; les gros qui
+       restent : Extraits de voix libres de droits pour XTTS (110), Réparer les
+       moteurs de voix (101), En-tête compact de la fenêtre du casting (95).
   4. **outils** (racine, cités dans `test_voix/LIRE_MOI.md`) :
      `_restructurer_architecture.py` (titres + sommaire),
      `_regrouper_architecture.py` (parties),
@@ -328,6 +639,76 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 ---
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
+
+- [ ] **🎚️ Les pauses restent IRRÉGULIÈRES : tous les moteurs ne rognent pas leur
+  queue** — **diagnostiqué le 24/09/2026**, à partir du retour d'écoute de Laurent
+  (« les pauses ont l'air un peu aléatoires avec Kyutai, parfois ça enchaîne vite,
+  parfois non ; à l'oreille, la pause des sauts de ligne et des points est
+  sensiblement identique »). **Décision de Laurent le même jour : on ne touche à
+  rien pour le moment** (« ça fluidifie un peu mieux qu'avant l'écoute ») — l'item
+  reste ouvert pour que le diagnostic ne se reperde pas.
+  *Ce qui marche déjà* : le rognage de Kyutai du 23/09/2026 fait son travail.
+  Mesure sur les fichiers produits depuis le changement
+  (`_essais/_mesurer_bords_cache.py --recent 304`, lecture seule) :
+  **203 fichiers sur 303** ont une queue **≤ 0,25 s**, **médiane 0,19 s** — la
+  queue médiane est bien passée de 0,37 s à 0,19 s.
+  *La cause de l'irrégularité, mesurée* : **les livres mélangent les moteurs** —
+  relevé du 24/09/2026 (`_essais/_repartition_moteurs_voix.py`, lecture seule) :
+  **682 personnages en Piper, 203 en Kyutai, 161 en Kokoro, 78 en Edge**, 2 en
+  Pocket. Or seuls **Kyutai** (0,20 s depuis le 23/09), **Edge** (0,35 s) et
+  **XTTS / NeuTTS** (0,25 s) rognent leur queue : **Piper, Kokoro et Pocket ne
+  rognent rien**. Dans un même chapitre, une phrase du narrateur (Kyutai) et une
+  réplique en Piper n'ont donc pas la même respiration — c'est ça, le « hasard ».
+  Deuxième cause, plus discrète : le silence de **tête** va de 0,00 à **1,77 s**
+  (médiane 0,08 s), et la pause entendue est `queue + tête` (on peut voir le
+  profil de fin d'un fichier : `_essais/_mesurer_bords_cache.py --profil <début
+  du nom>`).
+  *Le remède, si Laurent le décide un jour* : rogner aussi Piper, Kokoro et
+  Pocket — la fonction existe déjà (`modules/audio_queue.py`,
+  `rogner_queue_wav`) et travaille sur un WAV, donc sur tous ces moteurs ; il
+  faudrait la brancher dans `synthesize_piper` / `synthesize_kokoro` /
+  `synthesize_pocket` et incrémenter `VERSION_CACHE`. **À mesurer avant** : la
+  variabilité réelle de chaque moteur, moteur par moteur
+  (`test_voix/_mesurer_pause_phrases.py`, lecteur et moteurs allumés).
+  **INFO DE LAURENT, 24/09/2026 — c'est Pocket TTS qui lit chez lui** : « il y a
+  aussi Pocket TTS qui est en moteur actif ». Vérifié dans le code, et c'est
+  cohérent : `data/moteur_voix.txt` ne porte que le moteur **LOURD** (il dit
+  « kyutai »), tandis que **Pocket TTS cohabite** (processeur) et n'y figure
+  jamais ; il est donc disponible en permanence, et le narrateur du livre d'essai
+  37 est bel et bien `pocket:Homme87976454321` (`books.narrator_voice`).
+  Or **`synthesize_pocket` ne rogne rien** (vérifié : vitesse, hauteur, niveau —
+  c'est tout), et Pocket est un moteur **génératif** : sa queue de silence
+  **varie d'une prise à l'autre**. C'est très plausiblement ÇA, le « parfois ça
+  enchaîne vite, parfois non » entendu le 24/09 — un moteur qui ne rogne rien, et
+  qui en plus ne redonne jamais deux fois le même silence.
+  ➡️ **Cible prioritaire du remède : POCKET TTS** (le moteur d'écoute de Laurent),
+  avant Piper et Kokoro.
+  *Leçon à garder* : le 23/09, l'hypothèse était « la queue non rognée de Kyutai
+  explique les pauses trop longues ». Le test terrain l'a **partiellement
+  démentie** — la queue est bien rognée, mais une **deuxième** source de
+  variabilité (les autres moteurs) se cachait derrière. C'est écrit ici pour
+  qu'on ne la redécouvre pas.
+  *Piste examinée le 24/09/2026* (idée de Laurent : « est-ce que ça peut venir du
+  contexte glissant ? Peut-être en le supprimant pour essayer ? ») :
+  **non, pas pour les sauts de ligne** — `_buildPlaylist` ne donne un contexte
+  qu'aux suites de phrases du **même locuteur dans le même paragraphe** : jamais
+  après un saut de ligne, jamais quand la voix change. Et sa **suppression a déjà
+  été essayée** le 21/09/2026 (lot d'écoute
+  `test_voix/ecoute_contexte_20260921_1835` : phrase seule / 3 mots / 8 mots) —
+  verdict de Laurent, écrit dans `app.js` : sans contexte, « l'attaque est
+  écrasée », le premier phonème part avalé ; le **3 mots** est retenu, et le
+  contexte n'agit donc que sur le **début** des phrases (la coupe du service peut
+  y laisser un mot du précédent : 4 cas sur 6 avec 8 mots, **aucun** avec 3).
+  *Et une part de variabilité qui ne se règle pas* : **Kyutai n'est pas
+  déterministe** (mesuré le 21/09/2026 par `test_voix/_mesurer_contexte_mots.py` :
+  deux demandes identiques donnent deux audios différents) — le moteur explique
+  donc lui-même qu'un défaut « n'arrive que de temps en temps ».
+  *Un interrupteur a été posé le 24/09/2026* pour pouvoir refaire l'essai en
+  conditions réelles : `CONTEXTE_MOTS = 0` (`frontend/app.js`) **désactive** le
+  contexte, avec un garde-fou contre le piège `slice(-0)` (qui aurait donné le
+  contexte le **plus long** au lieu d'aucun). L'essai est **sans perte** : le
+  contexte entre dans la clé du cache, donc l'aller (sans contexte) et le retour
+  (avec les 3 mots) sont immédiats et se font dans les deux sens.
 
 - [ ] **✂️ Découpage : séparer la NARRATION des RÉPLIQUES (mode dialogue, livre
   par livre)** — demandé et commencé le **21/09/2026**. Laurent : « j'aimerais
@@ -3791,6 +4172,12 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   (moins de 8 répliques) gardent la voix générique Edge. Les **accents
   étrangers** restent volontairement hors du pool : assignation à la main
   (Kokoro, ou voix d'essai dans `voix_autres/`).
+  ⚠️ **Rectifié le 23/09/2026** : la n° 33 (**Quentin**) **n'est plus écartée** —
+  elle porte `stars: 1` depuis le 20/09/2026, et **Laurent l'a confirmée
+  RETENUE** le 23/09/2026 (1 étoile, **accent canadien** : région
+  « Canada (Kyutai) » et drapeau 🇨🇦, dans les **trois** catalogues qui clonent
+  cet extrait). Elle est donc **dans** le pool automatique ; le détail est dans
+  « Déjà livré » à la date du 23/09/2026.
   **Étiquetage livré (12/09/2026, suite)** : chaque voix Kyutai porte
   désormais, comme les voix Edge / Kokoro / Piper, un **prénom français**
   (35 prénoms, **aucun en double** avec les 91 noms déjà utilisés — contrôle
@@ -4488,6 +4875,118 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 ---
 
 ## ✅ Déjà livré (pour mémoire)
+
+- **Dans le casting on filtre les PERSONNAGES, dans la modale des voix on cherche
+  la VOIX** (24/09/2026, demande de Laurent). Deux changements d'un même geste,
+  parce qu'ils se répondent :
+  1. **Retrait des cinq boutons d'âge** (Tous les âges / 👦 Enfant / 👨‍🦱 Jeune /
+     🧑‍🦲 Adulte / 👴 Vieux) de la fenêtre du casting. Laurent : « Elle ne sert à
+     rien ici. Elle devrait servir à sélectionner les personnages, pas les
+     voix. » Ce qui lui a été dit **franchement** : ces boutons ne *triaient*
+     pas, ils *filtraient* les lignes de personnages sur l'**âge de la VOIX
+     portée** — une vérification réelle (« qui parle avec une voix de vieux ? »),
+     mais qui n'a pas sa place sous une liste de personnages. La barre ne garde
+     donc que le **genre du personnage**, sous l'étiquette « **Personnages :** ».
+  2. **Ajout de deux rangs de pastilles dans la modale « Voix de *<personnage>* »**
+     (livrée le même jour) : `#cast-voix-genre-actions` (Toutes / ♀️ Femmes / ♂️
+     Hommes) et `#cast-voix-age-actions` (Tous / 👦 Enfant / 👨‍🦱 Jeune / 🧑‍🦲
+     Adulte / 👴 Vieux). Elles filtrent la **liste des voix** sur le **tag** de
+     chacune (genre du catalogue, âge des notes d'écoute) et **sans fermer** la
+     fenêtre : on essaie « Vieux », on regarde, on essaie « Enfant », on choisit.
+     Un **compte** (`#cast-voix-recap`) dit ce que la liste montre, la **voix
+     portée** reste toujours visible (groupe « ⚠️ Voix actuelle »), et les
+     filtres sont **remis à zéro à la fermeture**.
+  **Deux refus de Laurent, notés ici pour ne pas les reproposer** : le **champ de
+  recherche par prénom** (« je ne me souviendrais jamais de tous ces prénoms »)
+  et le **timbre** (« c'est anecdotique »).
+  *Vérifications* : `test_voix/test_filtre_age_casting.js` **réécrit** — il
+  surveillait le filtre d'âge des personnages, il surveille maintenant celui des
+  voix — **44 contrôles** ; `test_voix/test_entete_casting.js` adapté (le filtre
+  de liste actif ne dépend plus que du genre) ; `test_ids_ecran.py` (nouveaux
+  éléments, et disparition de l'ancien groupe) ; `test_libelle_deux_lignes_rendu.py`
+  (la liste garde **499 px** sous les filtres, et les pastilles tiennent sur un
+  rang qui défile) ; **toute la batterie** au vert. *Détail* : ARCHITECTURE.md,
+  sujet « Distribution de voix par personnage (IA) » et ses deux tableaux de
+  barres de filtre.
+
+- **La liste des voix d'un personnage s'ouvre dans une MODALE** (24/09/2026,
+  demande de Laurent : « une genre de modale classique, qui prend plus de place
+  sur l'écran (mobile et pc), pour une meilleure visibilité »). La liste était
+  dépliée **dans la ligne du personnage** (`.voix-liste-encart`) depuis le
+  22/09/2026 : sa largeur était celle de la colonne du casting et sa hauteur de
+  **240 px** au plus, soit quatre ou cinq voix visibles sur un téléphone. Elle
+  s'affiche maintenant dans `#cast-voix-modal` : **560 px** de large sur un
+  ordinateur (contre 440 pour la fenêtre du casting), **toute la largeur de
+  l'écran** sur un téléphone, des lignes de **52 px** (texte 0,9 rem, ▶ de
+  40 px), un titre qui porte le **nom du personnage**, et quatre façons de
+  fermer (croix, « Fermer », clic à côté, Échap) plus la fermeture **avec la
+  fenêtre du casting**. Le contenu ne change pas d'un iota (même fonction pure
+  `_lignesVoixPersonnage`, mêmes groupes, mêmes deux lignes par voix, même ▶
+  **qui ne ferme rien** : on écoute, on compare, on choisit). La fonction
+  devient `_ouvrirVoixPersonnage()` — `_basculerListeVoixPersonnage()` et
+  `.voix-liste-encart` disparaissent — et `_boutonVoixPersonnage()` reçoit le nom
+  du personnage pour porter `aria-haspopup="dialog"`. *Vérification* :
+  `test_voix/test_libelle_deux_lignes_rendu.py` section 3 (**20 contrôles**,
+  téléphone 360 px **et** écran 1200 px, Chromium) + `test_ids_ecran.py`.
+  *Piège du jour, gardé avec l'item* : `node --check` a attrapé une **collision
+  de nom** — le paramètre `nom` ajouté à `_boutonVoixPersonnage()` écrasait la
+  variable locale `nom` qui écrit le libellé ; vérifier la syntaxe n'est pas une
+  formalité. *Détail* : ARCHITECTURE.md, sujet « Distribution de voix par
+  personnage (IA) ».
+
+- **Les pauses de Kyutai : queue rognée à 0,20 s, sauts de ligne à 600 ms**
+  (23/09/2026, demande de Laurent : « les pauses après les points un peu
+  longues, les sauts de ligne trop rapides »). Les deux réglages se **cumulent**
+  — le silence après un saut de ligne, c'est la queue du moteur **plus** la pause
+  du lecteur — donc ils ont été changés **ensemble**, sinon les sauts de ligne
+  auraient perdu de l'air au lieu d'en gagner. Mesure avant de toucher
+  (`_essais/_mesurer_bords_cache.py`, lecture seule, sur les **300 WAV du cache**,
+  aucun moteur allumé) : queue **médiane 0,37 s**, maximum **1,15 s**, **219
+  fichiers sur 300** au-delà de 0,18 s — c'est la respiration du modèle (0,30 à
+  0,43 s), que **rien ne rognait** (le service de Kyutai ne règle que sa
+  respiration, à 0 par défaut). `modules/audio_queue.py`
+  (`QUEUE_GARDEE_S = 0,20`) est appelé par `synthesize_kyutai` **avant** la
+  vitesse, la hauteur et le niveau, donc **avant la mise en cache** ;
+  `VERSION_CACHE` passe à **18** (sans quoi les phrases déjà écoutées gardaient
+  l'ancien silence) et `PARAGRAPH_PAUSE_MS` de 300 à **600 ms**. Effet à
+  l'oreille : environ **0,20 s après un point** (au lieu de 0,37 s) et **0,80 s
+  après un saut de ligne** (au lieu de 0,67 s). *Vérification* :
+  `test_voix/test_rogner_queue_kyutai.py` (**18 contrôles**, rien à allumer) +
+  la suite complète des tests. *Détail* : ARCHITECTURE.md, sujet « ✂️ Rognage
+  des silences de bord ».
+
+- **La voix « Quentin » (Kyutai n° 33) : constatée, retenue, et passée au
+  drapeau canadien** (23/09/2026) : en écrivant l'état actuel de
+  `modules/tts.py`, on a trouvé que cette voix était écrite « **écartée**,
+  `stars: 0` » **partout** — `ARCHITECTURE.md`, BACKLOG, **et le commentaire de
+  sa propre ligne de code** — alors que le code portait **`stars: 1`** depuis le
+  commit **`6da7d2d` du 20/09/2026** : elle était donc **déjà dans le pool
+  automatique** (la règle est `stars > 0`, `voice_casting.py`).
+  **Décision de Laurent, 23/09/2026** : elle est **retenue** à 1 étoile, et son
+  timbre a un **accent canadien** → région « **Canada (Kyutai)** » et drapeau
+  🇨🇦, appliqué aux **trois** catalogues qui clonent ce même extrait (`kyutai:`,
+  `xtts:`, `neutts:`). Copie datée du module avant écriture :
+  `modules/tts.py.bak_avant_quentin_20260923`. Les 34 autres voix Kyutai sont
+  intactes. *Leçon* : une valeur qui change dans un commit **sans que le
+  commentaire de sa ligne suive** est une dérive invisible — celle-ci a vécu
+  trois jours en contradiction avec trois documents.
+
+- **`test_niveau_audio.py` : l'attente réparée, pas le module** (23/09/2026) :
+  la suite était revenue avec **un test rouge**, `test_niveau_audio.py` — et
+  c'est un **lancement de `test_kyutai_branchement.py`** qui l'avait provoqué,
+  sans le vouloir : ce test **écrit** le témoin
+  `test_voix/kyutai_branchement_normal.wav` (la phrase lui est servie par le
+  **cache disque** quand le moteur est éteint), et le témoin est passé de
+  **7,1 %** (le chiffre noté dans le commentaire) à **8,6 %**. Or depuis la
+  révision du 21/09/2026 la correction du niveau est **bornée des deux côtés** :
+  une phrase **déjà à la cible** (8,5 %) n'est plus remontée — le test attendait
+  donc une remontée qui n'avait plus lieu d'être. **Le module avait raison.**
+  Le contrôle a été réécrit (deux contrôles qui tiennent **quel que soit** le
+  niveau du témoin : jamais éloigné de la cible, et corrigé dans le bon sens
+  s'il est hors fourchette de ±3 dB), et le niveau du témoin est **affiché** —
+  le jour où il changera encore, on saura pourquoi sans chercher. Copie datée
+  avant écriture : `test_voix/test_niveau_audio.py.bak_avant_temoin_20260923`.
+  Suite complète : **« TOUT EST OK », 40 tests**.
 
 - **Rattrapage de la dérive du compteur de citation ouverte** (23/09/2026) :
   `_citation_ouverte()` comptait les guillemets depuis le **début du chapitre**

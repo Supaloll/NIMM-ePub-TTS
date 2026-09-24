@@ -375,6 +375,53 @@ def main():
              and "v.genre === 'F' ? 'Femme' : 'Homme'" not in js)
 
     print('')
+    print('6 septies) la MODALE des voix d un personnage (24/09/2026)')
+    # Demande de Laurent : « une genre de modale classique, qui prend plus de place
+    # sur l'ecran (mobile et pc), pour une meilleure visibilite ». La liste des
+    # voix n'est plus un encart deplie DANS la ligne du personnage : elle s'ouvre
+    # dans une fenetre. Ce test verifie les trois choses qui peuvent casser en
+    # silence -- un element manquant (planterait tout le script au chargement), une
+    # fonction renommee, et le RETOUR de l'ancien encart (code mort qui ferait
+    # douter de ce qui s'affiche vraiment).
+    for identifiant in ('cast-voix-modal', 'cast-voix-titre', 'cast-voix-liste',
+                        'cast-voix-close-btn', 'cast-voix-annuler-btn',
+                        'cast-voix-genre-actions', 'cast-voix-age-actions',
+                        'cast-voix-recap'):
+        verifier('element #%s present dans la page' % identifiant,
+                 identifiant in ids_html)
+    for fonction in ('_ouvrirVoixPersonnage', '_fermerVoixPersonnage',
+                     '_peindreVoixPersonnage'):
+        verifier('fonction %s' % fonction, ('function %s' % fonction) in js)
+    # Les filtres de la modale (24/09/2026) : le genre et l'AGE des VOIX. L'age les
+    # filtrait autrefois en tant que LIGNES de personnages (voir le test
+    # test_filtre_age_casting.js, reecrit le meme jour) : on verifie ici qu'il ne
+    # reste aucun bouton d'age dans la fenetre du casting.
+    verifier('l ancien groupe d ages a disparu de la fenetre du casting',
+             'cast-age-actions' not in ids_html
+             and 'cast-age-actions' not in js)
+    verifier('l age des VOIX a son propre filtre (variable dediee)',
+             'let _castAgeVoixFiltre' in js
+             and 'btn.dataset.age' in js)
+    verifier('le filtre des personnages ne demande plus que le genre',
+             '_lignePasseFiltres(r, _castPersoGenre)' in js
+             and '_lignePasseFiltres(r, _castAgeFiltre' not in js)
+    verifier('le titre de la fenetre porte le NOM du personnage',
+             "document.getElementById('cast-voix-titre').textContent"
+             " = 'Voix de ' + etat.nom;" in js)
+    verifier('la modale se ferme AVEC la fenetre du casting',
+             '_fermerVoixPersonnage();' in js[js.index('function _closeCastModal')
+                                              :js.index('function _closeCastModal') + 1600])
+    verifier('l ancien encart deplie a bien disparu (app.js)',
+             "className = 'voix-liste-encart'" not in js
+             and '_basculerListeVoixPersonnage' not in js)
+    verifier('l ancien encart deplie a bien disparu (styles.css)',
+             '.voix-liste-encart {' not in STYLES_CSS.read_text(encoding='utf-8'))
+    verifier('les branchements de la fenetre sont en dehors de la tranche '
+             'extraite sans navigateur',
+             js.index("document.getElementById('cast-voix-close-btn')")
+             > js.index('function _openCastModal'))
+
+    print('')
     print('7) un changement de voix relance la lecture en cours')
     # Pourquoi (constat de Laurent, 15/09/2026) : la playlist de lecture fige la
     # voix de chaque phrase ; sans relance, la suite du chapitre continuait avec

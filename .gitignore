@@ -184,7 +184,11 @@ _tests_*.txt
 _avant_*.txt
 _apres_*.txt
 _passe*.txt
-APERCU_CADENAS_*.html
+# Les pages d'apercu (APERCU_<sujet>_<date>.html) ne sont pas versionnees : ce
+# sont des maquettes regenerees par un script, pas du code. La regle visait les
+# cadenas (21/09/2026) avant de valoir pour tous les apercus (24/09/2026 : la
+# modale des voix, regeneree par `python _essais/_apercu_modale_voix.py`).
+APERCU_*.html
 _essais/
 
 # Captures de session et brouillons restants du 22-23/09/2026 (sorties de

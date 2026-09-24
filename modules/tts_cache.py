@@ -13,7 +13,7 @@ genere :
 - lecture possible sans reseau pour les passages deja ecoutes (ecran
   verrouille inclus).
 
-Quota reglable (defaut : 20 Go) : au-dela, les fichiers les plus anciens
+Quota reglable (defaut : 2 Go) : au-dela, les fichiers les plus anciens
 sont supprimes automatiquement. Les fichiers sont ecrits de facon atomique
 (fichier temporaire + rename) : on ne lit jamais un fichier a moitie ecrit,
 et deux requetes simultanees sur la meme cle ne se marchent pas dessus.
@@ -124,7 +124,16 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       avait ete essayee, puis abandonnee -- elle laissait 3,7 dB d'ecart, soit
 #       le defaut lui-meme). Aucun fichier livre ne portait cette version : c'est
 #       un nettoyage de l'essai, pas un nouveau reglage.
-VERSION_CACHE = 17
+#  18 = 23/09/2026 : ROGNAGE DU SILENCE DE QUEUE de Kyutai. `modules/audio_queue.py`
+#       ramene la queue du moteur a 0,20 s (il gardait sa respiration : 0,30 a
+#       0,43 s mesurees, queue MEDIANE de 0,37 s sur les 300 fichiers du cache) et
+#       la pause entre paragraphes remonte de 300 a 600 ms (`frontend/app.js`) :
+#       decision de Laurent, qui trouvait les pauses apres les points « un peu
+#       longues » et les sauts de ligne « trop rapides ». Meme raison que le
+#       17/09/2026 : sans cet increment, une phrase deja ecoutee continuerait de
+#       servir l'ancien silence, et Laurent entendrait deux rhythmes differents
+#       dans le meme chapitre.
+VERSION_CACHE = 18
 
 
 def _hash_key(text, voice, rate, pitch):

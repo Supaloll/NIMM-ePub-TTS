@@ -21,6 +21,12 @@ Ce qu'il prouve, et ce qu'il ne prouve pas -- dit franchement :
     elle peut aplatir le saut de ligne. Seul l'oeil de Laurent tranche, sur son
     telephone.
 
+Depuis le 24/09/2026, sa section 3 ne mesure plus l'encart qui se depliait DANS
+la ligne du personnage (`.voix-liste-encart`, supprime) mais la MODALE qui l'a
+remplace : `#cast-voix-modal`, ouverte par le bouton de voix. Elle verifie la
+taille qu'elle prend sur un telephone et sur un ordinateur, le defilement de la
+liste, et le fait que le bouton « Fermer » reste DANS l'ecran.
+
 Sortie ASCII uniquement. Il faut Playwright (comme test_couverture_mobile.py).
 Usage : python test_voix/test_libelle_deux_lignes_rendu.py
 """
@@ -230,62 +236,170 @@ with sync_playwright() as p:
     navigateur.close()
 
 print("")
-print("3) L'ENCART DU CASTING, deplie sous un personnage (22/09/2026)")
+print("3) LA MODALE DES VOIX D'UN PERSONNAGE (24/09/2026)")
+print("   (elle remplace l'encart qui se depliait DANS la ligne du personnage :")
+print("   demande de Laurent, « une genre de modale classique, qui prend plus de")
+print("   place sur l'ecran (mobile et pc), pour une meilleure visibilite »)")
 print("")
 
-# Le fragment est celui que _basculerListeVoixPersonnage construit : le bouton
-# de voix (avec un libelle volontairement TROP LONG, pour verifier la coupure)
-# puis l'encart de 20 lignes. La VRAIE feuille de style est injectee.
-LIGNE_ENCART = LIGNE % {"actuelle": '', "nom": '\u2640\ufe0f Anna \U0001F1EB\U0001F1F7 m\u00e9dium',
+# Le fragment est celui que _ouvrirVoixPersonnage remplit : la fenetre du
+# casting (pour comparer les largeurs) PUIS la modale des voix, avec vingt
+# lignes -- assez pour que la liste defile et pour verifier que le bouton
+# « Fermer » ne part pas hors de l'ecran. La VRAIE feuille de style est
+# injectee, et les classes sont celles du code : une faute de classe ferait
+# echouer les mesures.
+LIGNE_MODALE = LIGNE % {"actuelle": '', "nom": '\u2640\ufe0f Anna \U0001F1EB\U0001F1F7 m\u00e9dium',
                         "etat": '\U0001F9EC \u00b7 LIBRE'}
-HTML_CASTING = """<!DOCTYPE html>
+LIGNE_ACTUELLE = LIGNE % {"actuelle": ' data-actuelle="true"',
+                          "nom": '\u2714 \u2642\ufe0f Edmond \U0001F1EB\U0001F1F7 adulte grave',
+                          "etat": '\U0001F9EC \u00b7 LIBRE'}
+HTML_MODALE = """<!DOCTYPE html>
 <html lang="fr" data-theme="dark"><head><meta charset="utf-8">
 <style>%s</style>
-</head><body><div id="app"><div id="cast-list" style="width:340px">
-<li class="cast-row" id="ligne-personnage">
-  <button type="button" class="cast-voice-btn" aria-expanded="true">
-    <span class="cast-voice-nom">\u2640\ufe0f Anne-Charlotte de la Rochefoucauld \U0001F1EB\U0001F1F7 \u2014 \U0001F9EC</span>
-    <span class="cast-voice-fleche">\u25be</span>
-  </button>
-  <ul class="voix-liste-encart">%s</ul>
-</li>
-</div></div></body></html>""" % (CSS_INLINE, LIGNE_ENCART * 20)
+</head><body>
+<div id="cast-modal" class="modal-overlay">
+  <div class="modal-box cast-box" id="boite-casting">
+    <ul id="cast-list" style="height:180px"></ul>
+  </div>
+</div>
+<div id="cast-voix-modal" class="modal-overlay">
+  <div class="modal-box cast-box voix-perso-box" id="boite-voix">
+    <div id="cast-voix-modal-header">
+      <h3 id="cast-voix-titre">Voix de Edmond Dantes</h3>
+      <button id="cast-voix-close-btn">&#x2715;</button>
+    </div>
+    <div id="cast-voix-filtres">
+      <div id="cast-voix-genre-actions">
+        <button type="button" data-genre="T" class="actif">Toutes</button>
+        <button type="button" data-genre="F">&#x2640;&#xFE0F; Femmes</button>
+        <button type="button" data-genre="M">&#x2642;&#xFE0F; Hommes</button>
+      </div>
+      <div id="cast-voix-age-actions">
+        <button type="button" data-age="T" class="actif">Tous</button>
+        <button type="button" data-age="enfant">&#x1F466; Enfant</button>
+        <button type="button" data-age="jeune">&#x1F468;&#x200D;&#x1F9B1; Jeune</button>
+        <button type="button" data-age="adulte">&#x1F9D1;&#x200D;&#x1F9B2; Adulte</button>
+        <button type="button" data-age="vieux">&#x1F474; Vieux</button>
+      </div>
+      <span id="cast-voix-recap">20 voix</span>
+    </div>
+    <ul id="cast-voix-liste">%s</ul>
+    <div class="modal-actions">
+      <button id="cast-voix-annuler-btn" class="btn-secondary">Fermer</button>
+    </div>
+  </div>
+</div>
+</body></html>""" % (CSS_INLINE, LIGNE_ACTUELLE + LIGNE_MODALE * 19)
 
 with sync_playwright() as p:
     navigateur = p.chromium.launch()
-    page = navigateur.new_page(viewport={"width": 360, "height": 740})
-    page.set_content(HTML_CASTING)
-    page.wait_for_timeout(150)
-    encart = page.evaluate("""() => {
-      const e  = document.querySelector('.voix-liste-encart');
-      const b  = document.querySelector('.cast-voice-btn');
-      const n  = b.querySelector('.cast-voice-nom');
-      const style = getComputedStyle(e);
-      return {
-        hauteurVisible: Math.round(e.getBoundingClientRect().height),
-        maxHauteur: style.maxHeight,
-        defile: e.scrollHeight > e.clientHeight + 2,
-        fond: style.backgroundColor,
-        lignes: e.querySelectorAll('.voix-liste-item').length,
-        boutonDeborde: n.scrollWidth > n.clientWidth + 2,
-        boutonTient: Math.round(b.getBoundingClientRect().width)
-                     <= Math.round(document.getElementById('cast-list')
-                         .getBoundingClientRect().width * 0.5),
-      };
-    }""")
-    print("    encart %s px (max %s) | %s lignes | fond %s"
-          % (encart["hauteurVisible"], encart["maxHauteur"], encart["lignes"],
-             encart["fond"]))
-    verifier("l'encart garde une hauteur raisonnable (il ne pousse pas tout)",
-             encart["hauteurVisible"] <= 245, encart["hauteurVisible"])
-    verifier("et il defile a l'interieur (les 20 voix restent atteignables)",
-             encart["defile"])
-    verifier("son fond est celui du theme, pas du blanc",
-             encart["fond"] == "rgb(13, 13, 13)", encart["fond"])
-    verifier("un libelle trop long est coupe (ellipse), il ne casse pas la ligne",
-             encart["boutonDeborde"])
-    verifier("le bouton reste dans la moitie de la ligne (comme l'ancien menu)",
-             encart["boutonTient"])
+    for nom, largeur, hauteur in (("telephone", 360, 740),
+                                  ("ordinateur", 1200, 800)):
+        print("")
+        print("--- %s (%s x %s px) ---" % (nom, largeur, hauteur))
+        page = navigateur.new_page(viewport={"width": largeur, "height": hauteur})
+        page.set_content(HTML_MODALE)
+        page.wait_for_timeout(150)
+        mesure = page.evaluate("""() => {
+          const boite   = document.getElementById('boite-voix');
+          const liste   = document.getElementById('cast-voix-liste');
+          const modal   = document.getElementById('cast-voix-modal');
+          const casting = document.getElementById('boite-casting');
+          const fermer  = document.getElementById('cast-voix-annuler-btn');
+          const styleModal = getComputedStyle(modal);
+          const items = Array.from(liste.querySelectorAll('.voix-liste-item'));
+          return {
+            largeur: Math.round(boite.getBoundingClientRect().width),
+            hauteur: Math.round(boite.getBoundingClientRect().height),
+            largeurCasting: Math.round(casting.getBoundingClientRect().width),
+            largeurListe: Math.round(liste.getBoundingClientRect().width),
+            position: styleModal.position,
+            zIndex: styleModal.zIndex,
+            ecran: window.innerHeight,
+            fermerBas: Math.round(fermer.getBoundingClientRect().bottom),
+            defile: liste.scrollHeight > liste.clientHeight + 2,
+            lignes: items.length,
+            hauteurMin: items.length
+              ? Math.round(Math.min.apply(null, items.map(
+                  li => li.getBoundingClientRect().height))) : 0,
+            fond: getComputedStyle(liste).backgroundColor,
+            actuelle: liste.querySelectorAll('[data-actuelle]').length,
+            nomPx: Math.round(parseFloat(getComputedStyle(
+              liste.querySelector('.voix-liste-nom')).fontSize)),
+            ecoutePx: Math.round(liste.querySelector('.voix-liste-ecoute')
+              .getBoundingClientRect().width),
+            hauteurListe: Math.round(liste.getBoundingClientRect().height),
+            // Les pastilles de filtre (24/09/2026) doivent tenir sur UN SEUL rang
+            // qui defile : deux rangs mangeraient la place de la liste.
+            ageDefile: (() => {
+              const e = document.getElementById('cast-voix-age-actions');
+              return e.scrollWidth > e.clientWidth + 2;
+            })(),
+            recap: (document.getElementById('cast-voix-recap') || {}).textContent,
+          };
+        }""")
+        print("    fenetre .............. %s x %s px (ecran de %s px de haut)"
+              % (mesure["largeur"], mesure["hauteur"], mesure["ecran"]))
+        print("    liste ................ %s px de large, %s lignes, defile : %s"
+              % (mesure["largeurListe"], mesure["lignes"], mesure["defile"]))
+        print("    une voix ............. %s px de haut, texte %s px, ▶ %s px"
+              % (mesure["hauteurMin"], mesure["nomPx"], mesure["ecoutePx"]))
+        print("    filtres .............. liste %s px de haut, compte : « %s »"
+              % (mesure["hauteurListe"], mesure["recap"]))
+        # 1) C'est une VRAIE fenetre (overlay plein ecran), plus un encart glisse
+        #    dans la ligne : c'est toute la demande de Laurent.
+        verifier("la liste s'ouvre dans une VRAIE fenetre (overlay fixe)",
+                 mesure["position"] == "fixed" and mesure["zIndex"] == "300",
+                 "%s / z-index %s" % (mesure["position"], mesure["zIndex"]))
+        # 2) La demande, precisement : « qui prend plus de place sur l'ecran ».
+        if nom == "telephone":
+            verifier("sur telephone, la fenetre prend toute la largeur de l'ecran",
+                     mesure["largeur"] >= largeur - 20,
+                     "%s px pour un ecran de %s px" % (mesure["largeur"], largeur))
+        else:
+            verifier("sur ordinateur, la fenetre est plus large que celle du casting",
+                     mesure["largeur"] > mesure["largeurCasting"],
+                     "%s px contre %s px"
+                     % (mesure["largeur"], mesure["largeurCasting"]))
+        # 3) La liste occupe cette largeur (elle ne reste pas etroite au milieu)
+        verifier("la liste occupe toute la largeur offerte",
+                 mesure["largeurListe"] >= mesure["largeur"] - 38,
+                 "%s px pour %s px de fenetre"
+                 % (mesure["largeurListe"], mesure["largeur"]))
+        # 4) Les vingt voix sont atteignables, et le bouton « Fermer » reste DANS
+        #    l'ecran (c'est ce que `min-height: 0` garantit sur une longue liste).
+        verifier("les vingt voix sont atteignables (la liste defile)",
+                 mesure["defile"], mesure["lignes"])
+        verifier("le bouton « Fermer » reste dans l'ecran",
+                 mesure["fermerBas"] <= mesure["ecran"],
+                 "%s px pour un ecran de %s px"
+                 % (mesure["fermerBas"], mesure["ecran"]))
+        # 4 bis) Les FILTRES de la liste (24/09/2026, demande de Laurent : « les
+        #        boutons Femme / Homme + Tous / Enfant / Adulte / Vieux doivent
+        #        trier les voix selon leur tag ») : ils ne doivent pas manger la
+        #        place de la liste, et le compte doit dire ce qu'elle montre.
+        verifier("la liste garde de la place sous les filtres",
+                 mesure["hauteurListe"] >= 150, mesure["hauteurListe"])
+        verifier("le compte des voix est annonce",
+                 str(mesure["recap"]).endswith("voix"), mesure["recap"])
+        if nom == "telephone":
+            verifier("sur telephone, les pastilles tiennent sur UN rang qui defile",
+                     mesure["ageDefile"] is True, mesure["ageDefile"])
+        # 5) Les lignes sont plus aerees que dans l'ancien encart (240 px de haut,
+        #    quatre ou cinq voix visibles sur un telephone).
+        verifier("chaque voix se lit sur 52 px au moins (avant : une quarantaine)",
+                 mesure["hauteurMin"] >= 52, mesure["hauteurMin"])
+        verifier("le texte est un cran plus grand (0,9 rem)", mesure["nomPx"] >= 14,
+                 mesure["nomPx"])
+        verifier("le bouton d'ecoute a grossi (40 px, le doigt le vise)",
+                 mesure["ecoutePx"] >= 40, mesure["ecoutePx"])
+        # 6) L'apparence reste celle de l'application, et la voix portee par le
+        #    personnage reste marquee (comme la valeur du menu deroulant d'origine).
+        verifier("le fond de la liste est celui du theme, pas du blanc",
+                 mesure["fond"] == "rgb(13, 13, 13)", mesure["fond"])
+        verifier("la voix portee par le personnage est toujours marquee",
+                 mesure["actuelle"] == 1, mesure["actuelle"])
+        page.close()
     navigateur.close()
 
 print("")

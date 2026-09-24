@@ -147,10 +147,10 @@ verifier('tiroir replie sur telephone, ouvert sur ordinateur',
          doitOuvrir(null, 360) === false && doitOuvrir(null, 1024) === true);
 verifier('le choix de Laurent l emporte sur la taille de l ecran',
          doitOuvrir(true, 360) === true && doitOuvrir(false, 1024) === false);
-verifier('un filtre de liste actif est reconnu (age ou genre)',
-         filtreActif('T', 'T') === false
-         && filtreActif('jeune', 'T') === true
-         && filtreActif('T', 'H') === true);
+verifier('un filtre de liste actif est reconnu (le genre du personnage)',
+         filtreActif('T') === false
+         && filtreActif('H') === true
+         && filtreActif('F') === true);
 verifier('l etat de l en-tete est reapplique a chaque reconstruction',
          source.indexOf('  _appliquerEnteteCasting();') >= 0);
 verifier('les deux boutons de l en-tete sont branches',

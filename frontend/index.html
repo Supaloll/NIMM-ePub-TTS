@@ -696,9 +696,11 @@
         </div>
         <!-- LE TIROIR DES REGLAGES (22/09/2026). Tout ce qui se regle une fois
              puis s'oublie est ici, derriere le bouton Filtres de l'en-tete :
-             voix proposees dans les menus, age de la voix, genre du personnage,
-             saga, re-cast. Replie par defaut sur telephone, ouvert sur
-             ordinateur (voir _castOutilsDoiventEtreOuverts, app.js). -->
+             voix proposees dans les menus, genre du personnage, saga, re-cast.
+             (L'age de la VOIX n'y est plus depuis le 24/09/2026 : il se regle
+             dans la modale des voix d'un personnage, la ou on choisit une voix.)
+             Replie par defaut sur telephone, ouvert sur ordinateur (voir
+             _castOutilsDoiventEtreOuverts, app.js). -->
         <div id="cast-tools" class="hidden">
           <div id="cast-gender-bar">
             <span>Voix proposées :</span>
@@ -714,29 +716,20 @@
           </div>
           <!-- (les pastilles d'etat et les compteurs sont remontes juste sous la
                barre de recherche : 22/09/2026) -->
-          <!-- Filtre par AGE DE LA VOIX et par GENRE DU PERSONNAGE (21/09/2026).
-               Demande de Laurent : « Un filtre ; Homme / Femme et les 4 âges.
-               Cliquer sur "jeune" n'affiche que les jeunes. Les boutons qui sont
-               actifs affichent la catégorie. »
-               A NE PAS CONFONDRE avec la barre « Voix proposées » plus haut : elle
-               ne filtre que les voix des menus déroulants, celle-ci fait
-               disparaître des LIGNES de personnages. L'âge est celui de la VOIX
-               portée (les quatre catégories de ses annotations d'écoute, servies
-               par une seule liste côté serveur) ; le genre est celui de la FICHE
-               du personnage. -->
+          <!-- Le filtre des PERSONNAGES : leur GENRE, et rien d'autre (24/09/2026).
+               Demande de Laurent : « Elle ne sert à rien ici. Elle devrait servir à
+               sélectionner les personnages, pas les voix. […] Donc juste Homme /
+               Femme. On retire Tous les âges 👦 Enfant 👨‍🦱 Jeune 🧑‍🦲 Adulte 👴 Vieux ».
+               Ce que portaient ces cinq boutons, dit franchement : ils ne TRIaient
+               pas les personnages, ils FILTRAIENT la liste sur l'âge de la VOIX
+               portée (« montre-moi qui parle avec une voix de vieux »). Laurent a
+               jugé que ça n'avait pas sa place ici — et l'âge comme le genre de la
+               VOIX se cherchent désormais LÀ OÙ L'ON CHOISIT UNE VOIX : dans la
+               modale « Voix de <personnage> » (#cast-voix-age-actions).
+               A NE PAS CONFONDRE avec la barre « Voix proposées » du tiroir : elle
+               filtre les VOIX proposées, celle-ci les LIGNES de personnages. -->
           <div id="cast-filtre-bar">
-            <span>Voix des personnages :</span>
-            <div id="cast-age-actions">
-              <button type="button" data-age="T" class="actif">Tous les âges</button>
-              <!-- Les quatre âges, avec les repères demandés par Laurent. Les
-                   emojis sont écrits en entités, avec leur SÉLECTEUR EMOJI
-                   (&#xFE0F;) là où il en faut un : sans lui, ils s'affichent en
-                   petit noir et blanc selon les claviers (piège du 19/09/2026). -->
-              <button type="button" data-age="enfant">&#x1F466; Enfant</button>
-              <button type="button" data-age="jeune">&#x1F468;&#x200D;&#x1F9B1; Jeune</button>
-              <button type="button" data-age="adulte">&#x1F9D1;&#x200D;&#x1F9B2; Adulte</button>
-              <button type="button" data-age="vieux">&#x1F474; Vieux</button>
-            </div>
+            <span>Personnages :</span>
             <div id="cast-perso-genre-actions">
               <button type="button" data-perso="T" class="actif">Hommes et femmes</button>
               <button type="button" data-perso="F">&#x2640;&#xFE0F; Femmes</button>
@@ -776,6 +769,74 @@
           </div>
         </div><!-- /#cast-tools -->
         <ul id="cast-list" role="list"></ul>
+      </div>
+    </div>
+
+    <!-- ========== MODALE « VOIX DE <PERSONNAGE> » (24/09/2026) ========== -->
+    <!-- Demande de Laurent : la liste des voix « s'ouvre attachee a son bouton »
+         et il voudrait « une genre de modale classique, qui prend plus de place
+         sur l'ecran (mobile et pc), pour une meilleure visibilite ».
+         Ce qu'elle remplace : l'encart `.voix-liste-encart`, la meme liste mais
+         inseree DANS la ligne du personnage -- sa largeur etait celle de la
+         colonne du casting (etroite sur un telephone) et sa hauteur de 240 px
+         au plus, donc on ne voyait qu'une poignee de voix a la fois.
+         Ce qu'elle garde, exactement : le meme contenu, la meme fonction qui le
+         calcule (`_lignesVoixPersonnage`), les memes groupes (Femmes / Hommes /
+         Autres), les deux lignes par voix, le ▶ qui ecoute sans rien changer et
+         le tap sur une ligne qui choisit. Rien de nouveau a apprendre : c'est la
+         PLACE de la liste qui change.
+         Le titre porte le NOM du personnage : la liste n'est plus accrochee a sa
+         ligne, il faut donc pouvoir verifier a qui l'on donne cette voix.
+         Elle passe devant la fenetre du casting sans `z-index` a declarer : les
+         deux sont des `.modal-overlay` (300) et celle-ci est ecrite APRES
+         `#cast-modal` dans cette page. La modale « Partager / Deplacer », qui
+         peut suivre un choix, s'ouvre toujours APRES la fermeture de celle-ci
+         (voir `_ouvrirVoixPersonnage`, app.js) : rien ne se superpose. -->
+    <div id="cast-voix-modal" class="modal-overlay hidden" role="dialog"
+         aria-modal="true" aria-label="Voix du personnage">
+      <div class="modal-box cast-box voix-perso-box">
+        <div id="cast-voix-modal-header">
+          <h3 id="cast-voix-titre">Voix du personnage</h3>
+          <button id="cast-voix-close-btn" aria-label="Fermer">&#x2715;</button>
+        </div>
+        <!-- LES FILTRES DE LA LISTE (24/09/2026). Demande de Laurent : « Je veux
+             bien soit un champ de recherche dans la modale qui s'ouvre : Homme /
+             Femme, Enfant, jeune, adulte, vieux. Sous forme de boutons, comme pour
+             "Ecouter les voix". C'est là que la recherche par âge, timbre, genre est
+             pertinent. » Décisions de Laurent le même jour : PAS de champ de
+             recherche (« je ne me souviendrais jamais de tous ces prénoms ») et PAS
+             de timbre (« c'est anecdotique »).
+             Ce qui est filtré est le TAG de la VOIX, c'est-à-dire ses notes d'écoute
+             (âge) et son genre au catalogue -- exactement ce que les cinq boutons
+             d'âge faisaient de travers dans la fenêtre du casting, où ils
+             filtraient les PERSONNAGES.
+             Les deux rangs défilent au doigt, pour ne pas prendre la place de la
+             liste : c'est elle qu'on vient lire. -->
+        <div id="cast-voix-filtres">
+          <div id="cast-voix-genre-actions" role="group"
+               aria-label="Filtrer les voix par genre">
+            <button type="button" data-genre="T" class="actif">Toutes</button>
+            <!-- Symboles écrits avec leur SÉLECTEUR EMOJI (&#xFE0F;) : sans lui,
+                 ils s'affichent en petit noir et blanc selon les claviers (piège
+                 signalé au BACKLOG du 19/09/2026). -->
+            <button type="button" data-genre="F">&#x2640;&#xFE0F; Femmes</button>
+            <button type="button" data-genre="M">&#x2642;&#xFE0F; Hommes</button>
+          </div>
+          <div id="cast-voix-age-actions" role="group"
+               aria-label="Filtrer les voix par âge">
+            <button type="button" data-age="T" class="actif">Tous</button>
+            <button type="button" data-age="enfant">&#x1F466; Enfant</button>
+            <button type="button" data-age="jeune">&#x1F468;&#x200D;&#x1F9B1; Jeune</button>
+            <button type="button" data-age="adulte">&#x1F9D1;&#x200D;&#x1F9B2; Adulte</button>
+            <button type="button" data-age="vieux">&#x1F474; Vieux</button>
+          </div>
+          <span id="cast-voix-recap"></span>
+        </div>
+        <ul id="cast-voix-liste" role="list"
+            aria-label="Voix disponibles pour ce personnage"></ul>
+        <div class="modal-actions">
+          <button id="cast-voix-annuler-btn" class="btn-secondary">Fermer</button>
+        </div>
       </div>
     </div>
 

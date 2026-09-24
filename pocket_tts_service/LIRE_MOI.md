@@ -18,7 +18,7 @@ toucher au lecteur**.
 | | |
 |---|---|
 | Il tourne sur le **processeur** | pas sur la carte graphique : il **cohabite** donc avec Kyutai (qui l'occupe, lui), Edge, Kokoro et Piper |
-| Il est **léger** | 100 M de paramètres (Kyutai : 1,8 milliard) — environ 300 Mo d'environnement |
+| Il est **léger** | **336 M de paramètres** pour le modèle français `french_24l` (mesure du 23/09/2026 ; les variantes légères de Pocket TTS, comme `english` à 6 couches, en comptent ~100 M — Kyutai : 1,8 milliard) — environ 300 Mo d'environnement |
 | Il **clone** | un WAV de référence suffit ; **pas besoin du texte dit dans l'extrait** (contrairement à NeuTTS) |
 | Il est **lent** | environ 1× le temps réel en français (`french_24l` non distillé, « aperçu » chez Kyutai) → la mesure le dira précisément |
 | Il **varie** | **il n'est pas déterministe** (aucune graine dans le moteur) : volume et durée changent d'une prise à l'autre — d'où l'importance de la normalisation de niveau du lecteur |

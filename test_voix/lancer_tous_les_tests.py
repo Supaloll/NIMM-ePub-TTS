@@ -43,6 +43,11 @@ TESTS_PY = [
     # ce test protege ce chemin (et separe les livres deja attribues, qu'il ne
     # faut jamais toucher). Sans navigateur, sans moteur, sans appel facture.
     "test_decoupage_auto_casting.py",
+    # Ajoute le 23/09/2026 : le ROGNAGE DU SILENCE DE QUEUE de Kyutai, qui
+    # remplace le reglage de la pause entre paragraphes (Kyutai garde sa
+    # respiration : 0,30 a 0,43 s). Testable A FROID -- aucun moteur a allumer,
+    # et c'est justement ce qui permet de le mesurer sur de vrais WAV.
+    "test_rogner_queue_kyutai.py",
 ]
 
 

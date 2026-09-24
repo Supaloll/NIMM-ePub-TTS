@@ -45,6 +45,9 @@ let _ttsFatalError   = null;
 // Filtre par genre des voix proposees dans la fenetre du casting : 'T'
 // (toutes), 'F' (femmes) ou 'M' (hommes). Avec 135 voix au catalogue, cela
 // evite de chercher une voix feminine au milieu de tout le reste.
+// Depuis le 24/09/2026, ce reglage se fait AUSSI dans la modale des voix d'un
+// personnage (`#cast-voix-genre-actions`) : une seule variable, deux endroits
+// pour la regler -- la barre du tiroir du casting reste en place.
 let _castGenreFiltre = 'T';
 
 // --- Etat des PERSONNAGES dans la fenetre du casting (15/09/2026) ---
@@ -61,19 +64,24 @@ let _castEtatFiltre = 'T';
 // toujours la fenetre sur la liste complete.
 let _castRecherche = '';
 
-// --- Filtre par AGE DE LA VOIX et par GENRE DU PERSONNAGE (21/09/2026) ---
-// Demande de Laurent : « Des boutons juste pour trier les voix par age [...]
-// Cliquer sur "jeune" n'affiche que les jeunes. Les boutons qui sont actifs
-// affichent la categorie. Idealement un filtre ; Homme / Femme et les 4 ages. »
-// Troisieme filtre de LIGNES (avec l'etat et la recherche) -- a ne pas
-// confondre avec _castGenreFiltre, qui filtre les VOIX des menus deroulants.
-//   _castAgeFiltre   : 'T' ou 'enfant' / 'jeune' / 'adulte' / 'vieux' -- l'age
-//                      annote de la VOIX que porte le personnage ;
-//   _castPersoGenre  : 'T', 'F' ou 'H' -- le genre de la FICHE du personnage.
-// Les deux se combinent avec l'etat et la recherche, et sont remis a zero a la
-// fermeture (comme la recherche : on rouvre toujours sur la liste complete).
-let _castAgeFiltre  = 'T';
-let _castPersoGenre = 'T';
+// --- Le GENRE DES PERSONNAGES, et l'AGE DES VOIX (nés le 21/09/2026, rangés à
+//     leur place le 24/09/2026) ---
+// Demande de Laurent, 21/09/2026 : « Des boutons juste pour trier les voix par
+// age [...] Idealement un filtre ; Homme / Femme et les 4 ages. »
+// Puis sa précision du 24/09/2026, qui a remis chaque filtre à sa place : « Elle
+// ne sert à rien ici. Elle devrait servir à sélectionner les personnages, pas les
+// voix. [...] Donc juste Homme / Femme. On retire Tous les âges Enfant Jeune
+// Adulte Vieux ». L'âge est donc allé LÀ OÙ L'ON CHOISIT UNE VOIX : dans la
+// modale « Voix de <personnage> ».
+//   _castAgeVoixFiltre : 'T' ou 'enfant' / 'jeune' / 'adulte' / 'vieux' -- l'age
+//                        annote de la VOIX proposee (ses notes d'ecoute) ;
+//   _castPersoGenre    : 'T', 'F' ou 'H' -- le genre de la FICHE du personnage.
+// Les LIGNES de personnages ne se filtrent donc plus que par leur genre (avec
+// l'etat et la recherche) ; l'age, lui, filtre la liste des VOIX proposees. Les
+// deux sont remis à zéro à la fermeture (on rouvre toujours sur la liste
+// complète).
+let _castAgeVoixFiltre = 'T';
+let _castPersoGenre    = 'T';
 
 // --- En-tete compact de la fenetre du casting (22/09/2026) ---
 // Demande de Laurent : « Sur mobile, le menu deroulant pour choisir les
@@ -1327,13 +1335,14 @@ function _filtrerPersonnages(rows, recherche) {
 // Fonctions PURES (aucun DOM, aucun appel reseau) : extraites du fichier reel
 // par test_voix/test_filtre_age_casting.js, comme _filtrerPersonnages.
 //
-// L'AGE vient des ANNOTATIONS D'ECOUTE de la voix portee (la fenetre « Ecouter
-// les voix »), pas du personnage : c'est la voix qui a un age. Une voix jamais
+// L'AGE vient des ANNOTATIONS D'ECOUTE de la voix (la fenetre « Ecouter les
+// voix »), pas du personnage : c'est la VOIX qui a un age. Une voix jamais
 // annotee n'a donc PAS d'age -- et elle ne passe pas un filtre d'age, ce qui est
 // voulu : on cherche ce qu'on a entendu, pas ce qu'on ne sait pas.
-// Le GENRE vient de la FICHE du personnage (colonne `genre` : 'H' par defaut,
-// 'F' pour une femme). On accepte 'M' comme masculin : les CATALOGUES de voix
-// ecrivent « M », les fiches ecrivent « H » (meme tolerance que _symboleGenre).
+// Depuis le 24/09/2026, cet age filtre la LISTE DES VOIX proposees
+// (`_lignesVoixPersonnage`, modale « Voix de <personnage> ») et non plus les
+// lignes de personnages : c'est une propriete de la voix, et Laurent l'a
+// demande la ou on choisit une voix.
 function _ageDeLaVoix(voiceId) {
   const annotations = (typeof _annotationsVoix === 'undefined')
     ? {} : _annotationsVoix;
@@ -1341,13 +1350,15 @@ function _ageDeLaVoix(voiceId) {
   return annote.age || '';
 }
 
-function _lignePasseFiltres(row, ageFiltre, genreFiltre) {
+// Le GENRE, lui, vient de la FICHE du personnage (colonne `genre` : 'H' par
+// defaut, 'F' pour une femme). On accepte 'M' comme masculin : les CATALOGUES de
+// voix ecrivent « M », les fiches ecrivent « H » (meme tolerance que
+// _symboleGenre). C'est le SEUL filtre des LIGNES de personnages depuis le
+// 24/09/2026 : l'age en a ete retire (il filtrait des personnages sur une
+// propriete de leur VOIX, ce que Laurent a juge hors sujet).
+function _lignePasseFiltres(row, genreFiltre) {
   if (!row) return false;
   const fiche = row.v || {};
-
-  if (ageFiltre && ageFiltre !== 'T') {
-    if (_ageDeLaVoix(fiche.voice_id) !== ageFiltre) return false;
-  }
 
   if (genreFiltre && genreFiltre !== 'T') {
     const genre = String(fiche.genre || '').toUpperCase();
@@ -1507,8 +1518,8 @@ function _etatVoix(etatCasting, voixProposees, voixNarrateur) {
       return 'Port\u00e9e par ' + noms[0].nom + ' (' + noms[0].total
         + ' r\u00e9pliques).';
     }
-    // Au-dela de six noms, la phrase deviendrait un pave (un livre reel a une
-    // voix portee par DIX-HUIT personnages) : on s'arrete a six et on renvoie a
+    // Au-dela de six noms, la phrase deviendrait un pave (une voix partagee peut
+    // avoir beaucoup de porteurs) : on s'arrete a six et on renvoie a
     // l'onglet « Voix partagee », qui les liste TOUS, un par ligne.
     const montres = noms.slice(0, 6)
       .map(x => x.nom + ' (' + x.total + ' r\u00e9pliques)');
@@ -1562,6 +1573,19 @@ function _lignesVoixPersonnage(voiceIdActuelle, etatVoix) {
   const usage = (!etatVoix || typeof etatVoix.marque !== 'function')
     ? () => '' : (id) => etatVoix.marque(id);
   const toutes = (_allVoices || []).filter(v => v && v.id);
+
+  // LE FILTRE D'AGE DES VOIX (24/09/2026). Il vient des notes d'ecoute de Laurent
+  // (« Ecouter les voix ») et il s'applique ICI, sur des VOIX -- plus sur des
+  // personnages : c'est tout le changement demande (« On retire Tous les ages
+  // Enfant Jeune Adulte Vieux » de la fenetre du casting).
+  // Une voix jamais annotee n'a pas d'age : elle ne passe donc pas un filtre
+  // d'age, ce qui est voulu (on cherche ce qu'on a entendu, pas ce qu'on ne sait
+  // pas). Les deux `typeof` protegent le test node, qui isole cette fonction du
+  // reste de app.js.
+  const ageVoulu = (typeof _castAgeVoixFiltre === 'undefined')
+    ? 'T' : _castAgeVoixFiltre;
+  const ageDe    = (typeof _ageDeLaVoix === 'function') ? _ageDeLaVoix : () => '';
+  const passeAge = (v) => ageVoulu === 'T' || ageDe(v.id) === ageVoulu;
   // Meme libelle que partout ailleurs depuis le 19/09/2026 (drapeaux, age,
   // timbre et moteur). Le genre n'est pas repete dans chaque ligne : le groupe
   // « Femmes » / « Hommes » le donne deja. Le `typeof` protege le test node, qui
@@ -1618,13 +1642,23 @@ function _lignesVoixPersonnage(voiceIdActuelle, etatVoix) {
     return info.actif ? nom + ' en chargement' : nom + ' eteint';
   };
 
+  // Le GENRE et l'AGE filtrent la liste des voix (l'age est arrive ici le
+  // 24/09/2026, venant des cinq boutons retires de la fenetre du casting).
   const parGenre = (genre) => toutes
     .filter(v => (v.gender || '') === genre)
+    .filter(passeAge)
     .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
 
+  // La voix PORTEE par le personnage reste TOUJOURS visible, meme si un filtre la
+  // masque : sinon on croirait que le personnage n'a plus de voix (regle du
+  // 14/09/2026, etendue a l'age le 24/09/2026). Elle passe alors en tete, dans un
+  // groupe « ⚠️ Voix actuelle ».
   const actuelles = toutes.filter(v => v.id === voiceIdActuelle);
-  if (_castGenreFiltre !== 'T' && actuelles.length &&
-      (actuelles[0].gender || '') !== _castGenreFiltre) {
+  const actuelleMasquee = actuelles.length
+    && ((_castGenreFiltre !== 'T'
+         && (actuelles[0].gender || '') !== _castGenreFiltre)
+        || !passeAge(actuelles[0]));
+  if (actuelleMasquee) {
     groupe('\u26A0\uFE0F Voix actuelle', actuelles);
   }
   if (_castGenreFiltre === 'T' || _castGenreFiltre === 'F') {
@@ -1675,11 +1709,20 @@ function _lignesVoixPersonnage(voiceIdActuelle, etatVoix) {
 
 // Le BOUTON qui remplace le menu deroulant : il ecrit la voix du personnage sur
 // UNE ligne (le CSS coupe proprement si c'est long) et ouvre la liste au tap.
-function _boutonVoixPersonnage(voiceId) {
+// Depuis le 24/09/2026, ce tap ouvre une MODALE (`_ouvrirVoixPersonnage`) et non
+// plus un encart glisse DANS la ligne du personnage : c'est ce que dit
+// `aria-haspopup="dialog"`. `aria-expanded` suit, lui, l'etat de la fenetre (le
+// CSS s'en sert pour peindre le bouton pendant qu'elle est ouverte), et
+// `personnage` (le nom porte par la ligne) permet de retrouver CE bouton a la
+// fermeture via `data-personnage` -- sans requete CSS, qui serait fragile sur un
+// nom a apostrophe.
+function _boutonVoixPersonnage(voiceId, personnage) {
   const bouton = document.createElement('button');
   bouton.type = 'button';
   bouton.className = 'cast-voice-btn';
   bouton.setAttribute('aria-expanded', 'false');
+  bouton.setAttribute('aria-haspopup', 'dialog');
+  bouton.dataset.personnage = personnage || '';
   const nom = document.createElement('span');
   nom.className = 'cast-voice-nom';
   nom.textContent = _libelleVoixBouton(voiceId);
@@ -1705,43 +1748,72 @@ function _libelleVoixBouton(voiceId) {
   return catalogue || voiceId;
 }
 
-// Ouvre (ou referme) la LISTE des voix SOUS la ligne du personnage (22/09/2026).
-// Un seul encart ouvert a la fois : sur un casting de 176 personnages, deux
-// listes depliees rendraient la fenetre illisible, et on ne saurait plus a quel
-// personnage se rapporte celle qu'on regarde.
+// Le bouton de voix de la ligne dont la modale est OUVERTE (null quand elle est
+// fermee) : c'est lui qui porte `aria-expanded`, et lui qu'on remet a « ferme ».
+let _voixPersoBouton = null;
+
+// Ce que la modale affiche : le personnage, la voix qu'il porte, et les deux
+// actions (choisir, ecouter). Garde ici pour pouvoir REAFFICHER la fenetre quand
+// un filtre change (24/09/2026) : cliquer « Vieux » ne doit pas la refermer.
+let _voixPersoEtat = null;
+
+// OUVRE LA MODALE DES VOIX D'UN PERSONNAGE (24/09/2026).
+// Elle remplace l'encart qui se depliait SOUS la ligne du personnage
+// (`.voix-liste-encart`, 22/09/2026) : demande de Laurent, « une genre de modale
+// classique, qui prend plus de place sur l'ecran (mobile et pc), pour une
+// meilleure visibilite ». L'ancien encart heritait de la largeur de la colonne du
+// casting et de 240 px de haut : sur un telephone, on ne voyait donc qu'une
+// poignee de voix a la fois.
+// Le CONTENU ne change pas : meme fonction pure (`_lignesVoixPersonnage`), memes
+// groupes, memes deux lignes par voix, meme ▶. C'est la PLACE de la liste qui
+// change.
+// Il n'y a plus d'encart a refermer au second tap : un seul bouton l'ouvre, et la
+// fenetre se ferme par sa croix, son bouton « Fermer », un clic a cote ou Echap.
 //   `voixActuelle` : la voix portee aujourd'hui (elle est marquee d'un ✔) ;
 //   `choisir(id)`  : appele au tap sur une ligne (void le choix a '' = « lu par
 //                    le narrateur ») ;
-//   `apercu(id, btn)` : appele par le ▶, sans rien changer.
-function _basculerListeVoixPersonnage(li, nom, voixActuelle, choisir, apercu) {
-  const dejaOuverte = li.querySelector('.voix-liste-encart');
-  if (dejaOuverte) {
-    dejaOuverte.remove();
-    const b = li.querySelector('.cast-voice-btn');
-    if (b) b.setAttribute('aria-expanded', 'false');
-    return;
-  }
-  document.querySelectorAll('.voix-liste-encart').forEach(e => e.remove());
-  document.querySelectorAll('.cast-voice-btn[aria-expanded="true"]')
-    .forEach(b => b.setAttribute('aria-expanded', 'false'));
-  const bouton = li.querySelector('.cast-voice-btn');
-  if (bouton) bouton.setAttribute('aria-expanded', 'true');
+//   `apercu(id, btn)` : appele par le ▶, sans rien changer ;
+//   `bouton`       : le bouton de voix de la ligne, pour tenir son etat ARIA.
+function _ouvrirVoixPersonnage(nom, voixActuelle, choisir, apercu, bouton) {
+  const modal = document.getElementById('cast-voix-modal');
+  if (!modal) return;
+  _voixPersoBouton = bouton || null;
+  _voixPersoEtat = { nom: nom, voixActuelle: voixActuelle,
+                     choisir: choisir, apercu: apercu };
+  // Le bouton porte l'etat « ouvert » (le CSS s'en sert), et il est retenu pour
+  // pouvoir le remettre a « ferme » -- c'est `_voixPersoBouton`.
+  if (_voixPersoBouton) _voixPersoBouton.setAttribute('aria-expanded', 'true');
+  _peindreVoixPersonnage();
+  modal.classList.remove('hidden');
+}
 
-  const encart = document.createElement('ul');
-  encart.className = 'voix-liste-encart';
-  encart.setAttribute('role', 'list');
-  encart.setAttribute('aria-label', 'Voix disponibles pour ' + nom);
+// PEINT (ou repeint) le contenu de la modale : son titre, les pastilles de
+// filtre, le compte des voix et la liste.
+// Depuis le 24/09/2026, un clic sur un filtre rappelle cette fonction SANS
+// fermer la fenetre : la liste se recalcule, et la fenetre ne bouge pas.
+function _peindreVoixPersonnage() {
+  const etat = _voixPersoEtat;
+  const modal = document.getElementById('cast-voix-modal');
+  if (!etat || !modal) return;
 
-  const etatVoix = _etatVoixLivre();
-  _lignesVoixPersonnage(voixActuelle, etatVoix).forEach(l => {
+  // Le NOM dans le titre : la liste n'est plus accrochee a sa ligne, il faut donc
+  // pouvoir verifier a qui l'on donne cette voix.
+  document.getElementById('cast-voix-titre').textContent = 'Voix de ' + etat.nom;
+
+  const list = document.getElementById('cast-voix-liste');
+  list.innerHTML = '';
+  const lignes = _lignesVoixPersonnage(etat.voixActuelle, _etatVoixLivre());
+  let nbVoix = 0;
+  lignes.forEach(l => {
     const item = document.createElement('li');
     if (l.genre === 'groupe') {
       item.className = 'voix-liste-groupe';
       item.textContent = l.libelle;
-      encart.appendChild(item);
+      list.appendChild(item);
       return;
     }
     item.className = 'voix-liste-item';
+    nbVoix++;
     if (l.actuelle) item.dataset.actuelle = 'true';
 
     // Toute la ligne est le bouton de choix : cible large pour le doigt.
@@ -1759,7 +1831,15 @@ function _basculerListeVoixPersonnage(li, nom, voixActuelle, choisir, apercu) {
       sous.textContent = l.deuxiemeLigne;
       choix.appendChild(sous);
     }
-    choix.addEventListener('click', () => choisir(l.id));
+    // Le choix FERME la fenetre AVANT d'enregistrer : ce qui suit (l'arbitrage
+    // « Partager / Deplacer », le deplacement, l'enregistrement, le
+    // rafraichissement du casting) se deroule donc sous les yeux, sur la fenetre
+    // du casting -- et la modale du partage, que ce choix peut ouvrir, n'a plus
+    // rien au-dessus d'elle.
+    choix.addEventListener('click', () => {
+      _fermerVoixPersonnage();
+      etat.choisir(l.id);
+    });
     item.appendChild(choix);
 
     // Le ▶ n'a pas de sens pour « (lu par le narrateur) » : il n'y a pas de voix
@@ -1771,13 +1851,72 @@ function _basculerListeVoixPersonnage(li, nom, voixActuelle, choisir, apercu) {
       play.textContent = '\u25B6';
       play.title = '\u00c9couter cette voix';
       play.setAttribute('aria-label', '\u00c9couter ' + l.identite);
-      play.addEventListener('click', () => apercu(l.id, play));
+      play.addEventListener('click', () => etat.apercu(l.id, play));
       item.appendChild(play);
     }
-    encart.appendChild(item);
+    list.appendChild(item);
   });
-  li.appendChild(encart);
+
+  // Liste VIDE : le DIRE. Un cadre muet ferait croire que les voix ont disparu du
+  // catalogue, alors que c'est le filtre qui ne laisse rien passer.
+  if (!nbVoix) {
+    const vide = document.createElement('li');
+    vide.className = 'cast-empty';
+    vide.textContent = 'Aucune voix ne correspond à ce filtre.';
+    list.appendChild(vide);
+  }
+
+  // LE COMPTE des voix : il dit ce que la liste MONTRE vraiment. Depuis le
+  // 24/09/2026, un filtre peut la raccourcir, et sans ce chiffre on ne saurait pas
+  // si le catalogue est pauvre ou si c'est le filtre qui coupe.
+  const recap = document.getElementById('cast-voix-recap');
+  if (recap) {
+    const filtreActif = (_castGenreFiltre !== 'T')
+      || (_castAgeVoixFiltre !== 'T');
+    recap.textContent = nbVoix + ' voix' + (nbVoix > 1 ? 's' : '')
+      + (filtreActif ? ' (filtre actif)' : '');
+  }
+
+  // Les pastilles des DEUX filtres montrent le choix en cours.
+  document.querySelectorAll('#cast-voix-genre-actions button').forEach(b => {
+    b.classList.toggle('actif', b.dataset.genre === _castGenreFiltre);
+  });
+  document.querySelectorAll('#cast-voix-age-actions button').forEach(b => {
+    b.classList.toggle('actif', b.dataset.age === _castAgeVoixFiltre);
+  });
 }
+
+// FERME la modale des voix d'un personnage (24/09/2026) : sa croix, son bouton
+// « Fermer », un clic a cote de la fenetre, ou la touche Echap.
+function _fermerVoixPersonnage() {
+  const modal = document.getElementById('cast-voix-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  // `contains` : le casting a pu etre reconstruit depuis l'ouverture (le choix
+  // d'une voix rafraichit la liste). Le bouton retenu n'est alors plus dans la
+  // page, et repeindre un bouton detache ne servirait a rien.
+  if (_voixPersoBouton && document.body.contains(_voixPersoBouton)) {
+    _voixPersoBouton.setAttribute('aria-expanded', 'false');
+  }
+  _voixPersoBouton = null;
+  _voixPersoEtat   = null;
+  // Les FILTRES de la fenetre ne survivent PAS a sa fermeture (24/09/2026) : on la
+  // rouvre toujours sur la liste complete. Sans cela, un « Vieux » reste actif
+  // ferait croire a des voix disparues du catalogue -- meme regle que la recherche
+  // et les filtres de la fenetre du casting.
+  // ATTENTION : `_castGenreFiltre` est AUSSI le filtre de la barre « Voix
+  // proposees » du tiroir (une seule variable pour les deux endroits) : la remettre
+  // a zero remet donc cette barre sur « Toutes ». C'est voulu, et c'est coherent --
+  // le reglage appartient a la fenetre qu'on vient de fermer.
+  _castGenreFiltre   = 'T';
+  _castAgeVoixFiltre = 'T';
+}
+
+// Les branchements des quatre facons de fermer la fenetre (croix, « Fermer »,
+// clic a cote, Echap) sont PLUS BAS, avec ceux de la fenetre du casting : cette
+// zone-ci est extraite TELLE QUELLE par deux tests node (`test_filtre_genre.js`,
+// `test_voix_ecoutables.js`) qui l'executent SANS navigateur -- un
+// `document.getElementById` ecrit ici les ferait echouer.
 
 async function _openCastModal(rafraichirVoix, listeSeule) {
   // Les voix proposees dependent des moteurs allumes : on rafraichit leur etat
@@ -1855,16 +1994,17 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
   const rowsTrouvees = _filtrerPersonnages(rows, recherche);
   const rowsAffichees = etat.rowsFiltrees
     .filter(r => rowsTrouvees.indexOf(r) >= 0)
-    // Troisieme filtre (21/09/2026) : age de la VOIX et genre du PERSONNAGE.
-    // Il se combine avec les deux autres, et il ne compte PAS dans les badges ni
-    // dans les partages : ceux-ci restent calcules sur tout le livre.
-    .filter(r => _lignePasseFiltres(r, _castAgeFiltre, _castPersoGenre));
+    // Troisieme filtre (21/09/2026) : le GENRE DU PERSONNAGE -- et LUI SEUL depuis
+    // le 24/09/2026, son âge étant parti filtrer les VOIX (dans la modale des
+    // voix). Il se combine avec les deux autres, et il ne compte PAS dans les
+    // badges ni dans les partages : ceux-ci restent calcules sur tout le livre.
+    .filter(r => _lignePasseFiltres(r, _castPersoGenre));
 
-  // Compteur du filtre d'age / de genre : il dit ce que la liste MONTRE, et sur
-  // combien de personnages -- sans lui, une liste vide n'expliquerait rien.
+  // Compteur du filtre de GENRE : il dit ce que la liste MONTRE, et sur combien
+  // de personnages -- sans lui, une liste vide n'expliquerait rien.
   const resumeFiltre = document.getElementById('cast-filtre-resume');
   if (resumeFiltre) {
-    const filtreActif = _castAgeFiltre !== 'T' || _castPersoGenre !== 'T';
+    const filtreActif = _castPersoGenre !== 'T';
     if (filtreActif && _castEtatFiltre !== 'libres') {
       resumeFiltre.textContent = rowsAffichees.length + ' personnage'
         + (rowsAffichees.length > 1 ? 's' : '') + ' affich\u00E9'
@@ -2013,11 +2153,13 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
       // LA VOIX DU PERSONNAGE (22/09/2026, voie B) : un MENU DÉROULANT se
       // trouvait ici. Il est remplacé par un BOUTON qui écrit la voix actuelle
       // sur une ligne, et par une LISTE de l'application (deux lignes par voix,
-      // fond du thème) qui se déplie SOUS cette ligne au tap.
+      // fond du thème) que ce bouton ouvre. Depuis le 24/09/2026 cette liste
+      // s'affiche dans une MODALE (`#cast-voix-modal`) et non plus sous la ligne
+      // du personnage : même contenu, mais toute la place de l'écran.
       // La voix portée vit dans `voixChoisie` : c'est elle que lisent l'aperçu
       // ▶, l'enregistrement des curseurs et le choix d'une voix.
       let voixChoisie = v.voice_id || '';
-      const boutonVoix = _boutonVoixPersonnage(voixChoisie);
+      const boutonVoix = _boutonVoixPersonnage(voixChoisie, nom);
 
       const lockBtn = document.createElement('button');
       lockBtn.type = 'button';
@@ -2165,16 +2307,19 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
         await _rafraichirCastingApresChangement();
       };
 
-      // Le BOUTON ouvre (ou referme) la LISTE des voix, juste sous la ligne.
-      // `choisirVoix` enregistre puis rafraichit : l'encart disparait avec la
-      // reconstruction de la ligne, et le bouton affiche la NOUVELLE voix.
+      // Le BOUTON ouvre la MODALE des voix de ce personnage (24/09/2026), qui
+      // remplace l'encart autrefois deplie sous la ligne.
+      // `choisirVoix` enregistre puis rafraichit : la fenetre se ferme des le tap
+      // sur une voix (voir `_ouvrirVoixPersonnage`), et le bouton affiche la
+      // NOUVELLE voix. Le ▶, lui, ne ferme rien : on ecoute, on compare, on
+      // choisit -- c'est tout l'interet d'une liste qu'on garde sous les yeux.
       boutonVoix.addEventListener('click', () => {
-        _basculerListeVoixPersonnage(li, nom, voixChoisie, choisirVoix,
+        _ouvrirVoixPersonnage(nom, voixChoisie, choisirVoix,
           (voixId, btn) => {
             const rateStr  = _formatPercent(parseInt(rateInput.value, 10));
             const pitchStr = _formatHz(parseInt(pitchInput.value, 10));
             _previewCharacterVoice(nom, voixId, rateStr, pitchStr, btn);
-          });
+          }, boutonVoix);
       });
       rateInput.addEventListener('input', () => {
         rateLabel.textContent = 'Vitesse ' + _formatPercent(parseInt(rateInput.value, 10));
@@ -2191,8 +2336,12 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
     });
   }
 
-  // Barre de filtre par genre : on met en evidence le choix en cours.
-  document.querySelectorAll('#cast-gender-actions button').forEach(b => {
+  // Barre de filtre par genre des VOIX : on met en evidence le choix en cours,
+  // AUX DEUX ENDROITS qui le portent depuis le 24/09/2026 (la barre « Voix
+  // proposees » du tiroir, et la modale des voix d'un personnage -- une seule
+  // variable pour les deux, donc toujours le meme etat a l'ecran).
+  document.querySelectorAll('#cast-gender-actions button, '
+                           + '#cast-voix-genre-actions button').forEach(b => {
     b.classList.toggle('actif', b.dataset.genre === _castGenreFiltre);
   });
 
@@ -2201,11 +2350,11 @@ async function _openCastModal(rafraichirVoix, listeSeule) {
     b.classList.toggle('actif', b.dataset.etat === _castEtatFiltre);
   });
 
-  // Barre de filtre par age de la voix et par genre du personnage (21/09/2026) :
-  // meme mise en evidence -- c'est ce qui montre d'un coup d'oeil la categorie
-  // choisie, comme Laurent l'a demande.
-  document.querySelectorAll('#cast-age-actions button').forEach(b => {
-    b.classList.toggle('actif', b.dataset.age === _castAgeFiltre);
+  // Barre de filtre par age des VOIX et par genre des PERSONNAGES (21/09/2026,
+  // rangee le 24/09/2026) : meme mise en evidence -- c'est ce qui montre d'un
+  // coup d'oeil la categorie choisie, comme Laurent l'a demande.
+  document.querySelectorAll('#cast-voix-age-actions button').forEach(b => {
+    b.classList.toggle('actif', b.dataset.age === _castAgeVoixFiltre);
   });
   document.querySelectorAll('#cast-perso-genre-actions button').forEach(b => {
     b.classList.toggle('actif', b.dataset.perso === _castPersoGenre);
@@ -2672,16 +2821,21 @@ function _closeCastModal() {
   _castRecherche = '';
   const champ = document.getElementById('cast-search');
   if (champ) champ.value = '';
-  // Les filtres d'AGE et de GENRE non plus (21/09/2026) : meme raison -- on
-  // rouvre toujours la fenetre sur la liste complete, jamais sur un filtre
-  // oublie (un « jeune » resté actif ferait croire a des personnages disparus).
-  _castAgeFiltre  = 'T';
-  _castPersoGenre = 'T';
+  // Les filtres de GENRE et d'AGE non plus (21/09/2026, étendu le 24/09/2026) :
+  // même raison — on rouvre toujours la fenêtre sur la liste complète, jamais
+  // sur un filtre oublié (un « jeune » resté actif ferait croire à des voix ou à
+  // des personnages disparus).
+  _castPersoGenre    = 'T';
+  _castAgeVoixFiltre = 'T';
   // L'en-tete compact se replie aussi : on rouvre toujours la fenetre sur sa
   // forme la plus courte (le champ de recherche cache, voir le drapeau plus
   // haut). Le choix du TIROIR des reglages, lui, est garde : c'est une
   // preference d'affichage, pas un filtre oublie.
   _castRechercheOuverte = false;
+  // La modale des voix d'un personnage se ferme AVEC la fenetre du casting
+  // (24/09/2026) : elle n'a aucun sens toute seule a l'ecran, et la laisser
+  // ouverte ferait croire a une fenetre qui n'obéit plus.
+  _fermerVoixPersonnage();
 }
 
 async function _updateCharacterVoice(characterName, voiceId, rate, pitch) {
@@ -3541,6 +3695,42 @@ document.getElementById('cast-modal').addEventListener('click', (e) => {
 document.getElementById('cast-recast-btn').addEventListener('click', _recasterLivre);
 document.getElementById('cast-recast-ia-btn').addEventListener('click', _recasterAvecIA);
 document.getElementById('cast-autogroup-btn').addEventListener('click', _autogrouperDoublons);
+// La modale des voix d'un personnage (24/09/2026) se ferme de QUATRE facons :
+// sa croix, son bouton « Fermer », un clic a cote de la fenetre, la touche Echap
+// (elle se ferme aussi avec la fenetre du casting, voir `_closeCastModal`).
+// Les branchements sont ICI, avec ceux du casting, et non a cote de la fonction :
+// la zone qui porte `_lignesVoixPersonnage` est extraite et executee par deux
+// tests node SANS navigateur (`test_filtre_genre.js`, `test_voix_ecoutables.js`),
+// ou `document` n'existe pas.
+document.getElementById('cast-voix-close-btn')
+  .addEventListener('click', _fermerVoixPersonnage);
+document.getElementById('cast-voix-annuler-btn')
+  .addEventListener('click', _fermerVoixPersonnage);
+document.getElementById('cast-voix-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'cast-voix-modal') _fermerVoixPersonnage();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') _fermerVoixPersonnage();
+});
+
+// LES FILTRES DE CETTE MODALE (24/09/2026) : le genre et l'age de la VOIX.
+// Un clic REFAIT la liste sans fermer la fenetre (`_peindreVoixPersonnage`) --
+// c'est tout l'interet: on essaie « Vieux », on voit ce qui reste, on essaie
+// « Enfant », et on choisit en gardant tout sous les yeux.
+// Les deux reglages sont les MEMES variables que la barre « Voix proposees » du
+// tiroir : un seul filtre, deux endroits pour le regler.
+document.querySelectorAll('#cast-voix-genre-actions button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _castGenreFiltre = btn.dataset.genre;
+    _peindreVoixPersonnage();
+  });
+});
+document.querySelectorAll('#cast-voix-age-actions button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    _castAgeVoixFiltre = btn.dataset.age;
+    _peindreVoixPersonnage();
+  });
+});
 
 // ============================================================
 // EN-TETE COMPACT DE LA FENETRE DU CASTING (22/09/2026)
@@ -3566,11 +3756,14 @@ function _castOutilsDoiventEtreOuverts(choix, largeur) {
   return !_castEcranEtroit(largeur);
 }
 
-// Un filtre de LISTE est-il actif (age de la voix, genre du personnage) ? Cela
-// allume le bouton Filtres quand le tiroir est replie : sans ce repere, une
-// liste courte ferait croire a des personnages disparus.
-function _castFiltreListeActif(age, perso) {
-  return (!!age && age !== 'T') || (!!perso && perso !== 'T');
+// Un filtre de LISTE est-il actif ? Cela allume le bouton Filtres quand le
+// tiroir est replie : sans ce repere, une liste courte ferait croire a des
+// personnages disparus.
+// Depuis le 24/09/2026, il n'y a PLUS qu'un filtre de liste : le GENRE du
+// personnage. L'age de la voix n'en fait plus partie -- il filtre les VOIX
+// proposees, dans la modale des voix, et non les lignes de personnages.
+function _castFiltreListeActif(perso) {
+  return !!perso && perso !== 'T';
 }
 
 // Applique les deux etats d'affichage. Appelee par _openCastModal (a chaque
@@ -3584,7 +3777,7 @@ function _appliquerEnteteCasting() {
     if (btnOutils) {
       btnOutils.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
       btnOutils.classList.toggle('actif',
-        _castFiltreListeActif(_castAgeFiltre, _castPersoGenre));
+        _castFiltreListeActif(_castPersoGenre));
     }
   }
   const barre = document.getElementById('cast-search-bar');
@@ -3678,19 +3871,13 @@ document.querySelectorAll('#cast-etat-actions button').forEach(btn => {
   });
 });
 
-// --- Filtre par age de la VOIX et par genre du PERSONNAGE (21/09/2026) ---
-// Deux groupes de boutons dans la MEME barre : l'age annote de la voix que
-// porte le personnage, et le genre de sa fiche. Comme les deux autres barres,
-// chaque clic reconstruit la fenetre : les quatre filtres se combinent (etat,
-// recherche, age, genre), et aucun ne touche aux badges ni aux compteurs de
-// voix -- ceux-ci restent calcules sur tout le livre.
-document.querySelectorAll('#cast-age-actions button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    _castAgeFiltre = btn.dataset.age;
-    _openCastModal();
-  });
-});
-
+// --- Le filtre des PERSONNAGES : leur GENRE (21/09/2026, rangé le 24/09/2026) ---
+// Une seule barre, un seul groupe de boutons : l'âge de la VOIX a été retiré d'ici
+// (demande de Laurent) et se cherche maintenant dans la modale des voix, là où
+// l'on choisit une voix. Comme les autres barres de la fenêtre, chaque clic
+// reconstruit la liste : les trois filtres se combinent (état, recherche, genre),
+// et aucun ne touche aux badges ni aux compteurs de voix — ceux-ci restent
+// calculés sur tout le livre.
 document.querySelectorAll('#cast-perso-genre-actions button').forEach(btn => {
   btn.addEventListener('click', () => {
     _castPersoGenre = btn.dataset.perso;
@@ -4637,10 +4824,21 @@ function _voiceForSentence(idx) {
 // NOTE UTILE POUR PLUS TARD : si un debut de phrase semble « mange », le premier
 // reflexe est de regarder si cette phrase avait un contexte -- il n'y en a PAS
 // apres un saut de paragraphe ni quand le locuteur change (voir _buildPlaylist).
+// NOTE POUR UN ESSAI (24/09/2026, question de Laurent : « est-ce que ca peut
+// venir du contexte glissant ? ») : mettre 0 DESACTIVE le contexte.
+// ATTENTION au piege : il ne suffit pas de mettre 0 -- `mots.slice(-0)` vaut
+// `mots.slice(0)`, donc TOUS les mots, c'est-a-dire le contexte le PLUS LONG
+// possible. D'ou le garde-fou dans `_contexteDe` ci-dessous.
+// Ce reglage ne touche QUE le DEBUT des phrases (l'attaque) : le contexte n'est
+// jamais envoye apres un saut de paragraphe ni quand le locuteur change (voir
+// `_buildPlaylist`), et il n'a AUCUN effet sur le silence de FIN de phrase (la
+// pause apres un point). Le 21/09/2026, Laurent avait deja compare a l'oreille
+// « phrase seule / 3 mots / 8 mots » et ecarte la phrase seule.
 const CONTEXTE_MOTS = 3;
 
 // Le contexte envoye : les derniers mots de l'unite precedente.
 function _contexteDe(texte) {
+  if (CONTEXTE_MOTS <= 0) return '';        // 0 = contexte desactive
   const mots = (texte || '').trim().split(/\s+/).filter(m => m);
   if (mots.length <= CONTEXTE_MOTS) return mots.join(' ');
   return mots.slice(-CONTEXTE_MOTS).join(' ');
@@ -5469,6 +5667,12 @@ async function _playBlob(blob, signal) {
 // « tres rapides » : la pause entre paragraphes repasse donc a 300 ms (sa
 // valeur d'origine), et la respiration ajoutee en fin de phrase cote Kyutai est
 // retiree. Interrompue immediatement si le TTS est stoppe/aborte.
+// REVISION DU 23/09/2026 (ecoute de Kyutai) : Laurent trouve les pauses apres
+// les points « un peu longues » et les sauts de ligne « trop rapides ». Les deux
+// se CUMULENT (silence de queue du moteur + cette pause) : on regle donc les
+// deux ensemble -- la queue de Kyutai est desormais rognee a 0,20 s
+// (`modules/audio_queue.py`) et cette pause passe de 300 a 600 ms, pour que les
+// sauts de ligne gagnent de l'air au lieu d'en perdre.
 function _pause(ms, signal) {
   return new Promise(resolve => {
     const timer = setTimeout(resolve, ms);
@@ -5478,7 +5682,7 @@ function _pause(ms, signal) {
   });
 }
 
-const PARAGRAPH_PAUSE_MS = 300;
+const PARAGRAPH_PAUSE_MS = 600;
 
 // ============================================================
 // SELECTION DE TEXTE — "Lire à partir d'ici" (desktop uniquement)
