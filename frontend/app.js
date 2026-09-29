@@ -756,6 +756,36 @@ async function _chargerVoixProposees() {
   }
 }
 
+// ORDRE DU MENU DU NARRATEUR (demande de Laurent, 30/09/2026) : « il faudrait
+// trier les voix par 1 : moteur, 2 : genre, 3 : ordre alphabetique ».
+//
+// AVANT : le menu suivait l'ordre du serveur (`/api/voices`), donc groupe par
+// moteur, oui, mais dans l'ordre de declaration du catalogue a l'interieur --
+// ni genre, ni alphabet.
+//
+// 1. LE MOTEUR, dans l'ordre de FAMILLES_VOIX (celui de toute l'application :
+//    Edge, Kokoro, Piper, Kyutai, XTTS, NeuTTS, Pocket, Qwen) : Edge passe en
+//    tete. Une famille hors liste se range avec Edge, comme partout ailleurs
+//    (`_familleDeVoix`), et le rang 99 n'est qu'un filet de securite.
+// 2. LE GENRE, dans l'ordre des menus du casting : Femmes, Hommes, puis les
+//    voix dont le genre n'est pas connu.
+// 3. LE PRENOM, en alphabet FRANCAIS : `'fr'` fait ranger « Edouard » a E,
+//    donc AVANT « Emile » -- sans lui, les accents partent apres Z.
+//
+// Fonction PURE (aucun DOM) : eprouvee par test_voix/test_tri_narrateur.js.
+function _ordreMenuNarrateur(a, b) {
+  const rangFamille = v => {
+    const i = FAMILLES_VOIX.findIndex(f => f[0] === _familleDeVoix(v.id));
+    return i < 0 ? 99 : i;
+  };
+  const moteur = rangFamille(a) - rangFamille(b);
+  if (moteur !== 0) return moteur;
+  const rangGenre = v => (v.gender === 'F') ? 0 : (v.gender === 'M') ? 1 : 2;
+  const genre = rangGenre(a) - rangGenre(b);
+  if (genre !== 0) return genre;
+  return (a.name || '').localeCompare(b.name || '', 'fr');
+}
+
 async function loadVoices() {
   try {
     // Les voix proposees dependent des moteurs allumes : on connait leur etat
@@ -778,7 +808,10 @@ async function loadVoices() {
     // remettre Ariane d'office.
     const choisie = sel.value;
     sel.innerHTML = '';
-    _allVoices.forEach(v => {
+    // ORDRE DU MENU (30/09/2026) : moteur, puis genre, puis prenom -- voir
+    // `_ordreMenuNarrateur`. On trie une COPIE : `_allVoices` garde l'ordre du
+    // serveur, dont dependent les autres listes (« Ecouter les voix », casting).
+    _allVoices.slice().sort(_ordreMenuNarrateur).forEach(v => {
       const opt = document.createElement('option');
       opt.value       = v.id;
       opt.textContent = _libelleVoix(v);

@@ -15,7 +15,7 @@ les fichiers concernés.
     l'utilisateur (`%USERPROFILE%\.cache\huggingface\hub`, déjà téléchargés
     par l'atelier **NIMM Voix** — rien n'a été retéléchargé ici).
 
-## 2. Les voix (35 timbres français)
+## 2. Les voix Kyutai / CML-TTS (35 + 25 timbres français)
 
 Les extraits sont **les mêmes** que ceux du moteur Kyutai : c'est ce qui
 permet de changer de moteur sans changer de voix ni de prénom.
@@ -30,6 +30,15 @@ permet de changer de moteur sans changer de voix ni de prénom.
   - Ces fichiers ont été **copiés depuis l'atelier NIMM Voix le
     26/09/2026** (`G:\NIMM Voix\outils\qwen3_tts\reference\kyutai\`), pour
     que ce service ne dépende d'aucun autre dossier.
+- **les 25 voix CML-TTS « cml_restants »** (30/09/2026) : **même licence
+  CC BY 4.0** et **même attribution obligatoire** (« Kyutai + CML-TTS »).
+  - Fichiers concernés : `voix/cml*_reference.wav` (25 extraits de ~10 s) et
+    leurs 25 lignes dans `voix/references.csv`.
+  - Copiés depuis l'atelier NIMM Voix le 30/09/2026
+    (`G:\NIMM Voix\outils\qwentts_cpp\voix\cml_restants\`, accompagnés du mémo
+    `_MEMO_25_VOIX_CML_20260930/`) : ce sont **les mêmes enregistrements** que
+    les 25 voix `xtts:cmlXXXX` versées le 14/09/2026, désormais lues par ce
+    moteur (`qwen:cmlXXXX`).
 
 ## 3. Code du moteur
 
@@ -45,5 +54,8 @@ permet de changer de moteur sans changer de voix ni de prénom.
 - les **voix Edge** ne sont pas clonées : imiter une voix Microsoft relève
   du « custom neural voice » (accès restreint) et ne serait pas partageable ;
 - les autres familles de la garde-robe Qwen (voix NIMM, accent allemand,
-  domaine public, CML-TTS restantes) ne sont **pas** installées ici : seules
-  les 35 voix `qwen:` du catalogue le sont, pour la bascule depuis Kyutai.
+  domaine public) ne sont **pas** installées ici.
+- **Ce qui EST installé, au 30/09/2026** : les **183 références** de `voix/` —
+  les 35 extraits Kyutai / CML-TTS (§2), les 94 Kokoro et les 28
+  « Découpage OK » (copiées le 28/09/2026 depuis l'atelier NIMM Voix), les
+  25 CML-TTS « cml_restants » (§2) et la voix privée `Maya_normale`.

@@ -1536,6 +1536,108 @@ QWEN_VOICES = [
     for v in KYUTAI_VOICES + KOKORO_VOICES + POCKET_VOICES
 ]
 
+# ==============================================================
+# LA VOIX DE LA FAMILLE (29/09/2026) : elle n'entre par AUCUNE boucle
+# ==============================================================
+# `Maya_normale` a ete clonee par l'atelier NIMM Voix a partir d'un
+# enregistrement de Laurent avec sa fille : ce n'est la jumelle d'AUCUNE voix
+# existante, donc elle ne peut pas sortir de `KYUTAI_VOICES + KOKORO_VOICES +
+# POCKET_VOICES` -- on l'ecrit a la main, ici.
+#
+# Ce qu'il faut savoir :
+#   - la REFERENCE vit avec les autres, dans `qwen_tts_service/voix/` (le WAV
+#     est hors Git, comme les 157 autres) et le moteur la connait deja ;
+#   - son TEXTE de reference est PRIVE : il vit dans
+#     `qwen_tts_service/voix/references_privees.csv`, hors Git (Maya a lu le
+#     debut d'un roman du commerce), et le service lit ce fichier EN PLUS ;
+#   - `gender` "F" sert a l'AFFICHAGE (le symbole devant son prenom) et aux
+#     filtres de la fenetre de voix. Sa presence ne la fait PAS entrer dans le
+#     casting automatique : le pool (`DEDICATED_VOICES_F/M`,
+#     modules/voice_casting.py) ne puise que dans KYUTAI, EDGE et KOKORO, et
+#     aucune voix Qwen n'y figure ;
+#   - `stars` : **0 etoile, volontairement** (demande de Laurent, 29/09/2026 :
+#     « il faut la sortir d'un casting automatique »). C'est la convention ecrite
+#     du projet : une voix notee 0 reste **choisissable A LA MAIN** mais est
+#     ECARTEE du pool automatique, comme les voix Piper ecartees et la voix
+#     Kyutai n° 33. Double securite : elle est hors pool aujourd'hui (le pool
+#     n'ouvre pas sur Qwen) ET elle le resterait si le pool s'ouvrait un jour.
+#     Laurent : « Elle peut rester, mais je ne l'utiliserai pas tres souvent,
+#     sauf cas particulier » -- c'est exactement ce que 0 etoile exprime.
+#
+# VOIX D'UNE PERSONNE REELLE : usage PRIVE (accord de Maya pour l'atelier).
+QWEN_VOICES.append(
+    {"id": "qwen:Maya_normale", "name": "Maya",
+     "region": "\U0001F3E0 Famille (Qwen)", "gender": "F", "stars": 0},
+)
+
+# ==============================================================
+# LES 25 VOIX CML-TTS « cml_restants » (30/09/2026) : entrees par la passerelle
+# ==============================================================
+# Meme cas que Maya : elles n'entrent par AUCUNE boucle -- on les ecrit ici.
+# NIMM Voix a clone les 25 voix CML-TTS qui restaient (« vague 6 », dossier
+# `cml_restants`) et les a deposees le 30/09/2026 avec le memo
+# `_MEMO_25_VOIX_CML_20260930/` (leurs textes et leurs droits).
+#
+# CES 25 VOIX EXISTAIENT DEJA AU CATALOGUE, EN XTTS : ce sont exactement les 25
+# `xtts:cmlXXXX` versees le 14/09/2026 -- meme extrait, donc meme timbre et meme
+# prenom. On ajoute leur JUMELLE Qwen, comme pour les 35 Kyutai le 29/09/2026 :
+# `xtts:cml3344` -> `qwen:cml3344`. Aucun livre ne les lisait (verifie le
+# 30/09/2026 avec `test_voix/_etat_familles_voix.py`) : cet ajout est purement
+# ADDITIF.
+#
+# LES ETOILES SONT CELLES DU 30/09/2026, et ce n'est pas un detail : Laurent a
+# REECOUTE les 25 CLONES ce jour-la et en a renote 12 (memo, tableau du point 3).
+# SON OREILLE DU 30/09 FAIT FOI ; les fiches `xtts:` gardent, elles, leurs
+# etoiles du 14/09 (rien n'est efface). Quatre references ont ete reprises et
+# validees 5/5 (`cml2771`, `cml3182`, `cml5526`, `cml7239` : les premieres
+# commencaient au milieu d'un mot, defaut de bord connu) et `cml7614` est une
+# VOIX D'ENFANT (age et role « enfant » dans les annotations d'ecoute).
+#
+# La mention d'accent est un simple libelle d'affichage (comme pour les 157) :
+# Laurent l'a nommee « paysan », « anglais », « canadien » et « maghrebin ».
+#
+# DROITS : banque CML-TTS, licence CC BY 4.0 -- libre, y compris pour un
+# PARTAGE, a condition de citer « Kyutai + CML-TTS » (contrairement a
+# `Maya_normale`, qui est une voix privee).
+_VOIX_CML_30_09_2026 = (
+    # (identifiant, prenom, genre, etoiles, mention d'accent)
+    ("cml1840", "Achille", "M", 3, ""),
+    # `cml1649` : accent ALLEMAND (le memo du 30/09 annoncait « anglais » ; Laurent
+    # a corrige le soir meme, « au temps pour moi » -- sa fiche du 14/09 disait
+    # deja « allemand », et c'est elle qui avait raison).
+    ("cml1649", "Berthe", "F", 3, "allemand"),
+    ("cml1869", "Cécile", "F", 3, ""),
+    ("cml2033", "Lucie", "F", 3, "anglais"),
+    ("cml2316", "Joséphine", "F", 1, ""),
+    ("cml2771", "Lucien", "M", 3, ""),
+    ("cml3060", "Armand", "M", 2, ""),
+    ("cml3182", "Maurice", "M", 3, ""),
+    ("cml3344", "Honoré", "M", 3, ""),
+    ("cml3503", "Félix", "M", 3, ""),
+    ("cml5525", "Émile", "M", 3, ""),
+    ("cml5526", "Hippolyte", "M", 2, ""),
+    ("cml6070", "Estelle", "F", 2, ""),
+    ("cml6249", "Célestin", "M", 3, "paysan"),
+    ("cml6348", "Hortense", "F", 2, "espagnol/italien"),
+    ("cml6381", "Gabrielle", "F", 2, ""),
+    ("cml7239", "Hector", "M", 3, "maghrébin"),
+    ("cml7377", "Ernest", "M", 3, ""),
+    ("cml7423", "Basile", "M", 2, "canadien"),
+    ("cml7614", "Gustave", "M", 3, ""),
+    ("cml9804", "Alphonse", "M", 3, ""),
+    ("cml10065", "Auguste", "M", 2, ""),
+    ("cml12501", "Charles", "M", 3, ""),
+    ("cml12512", "Eugène", "M", 3, ""),
+    ("cml12823", "Agathe", "F", 3, ""),
+)
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": ("\U0001F1EB\U0001F1F7 France (Qwen)"
+                + (" - accent " + accent if accent else "")),
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles, accent in _VOIX_CML_30_09_2026
+]
+
 
 class XttsIndisponible(RuntimeError):
     """Le service XTTS v2 ne repond pas (moteur eteint ou en chargement)."""

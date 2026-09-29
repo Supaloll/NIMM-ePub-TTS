@@ -1,9 +1,10 @@
 # Le moteur de voix Qwen3-TTS — mode d'emploi
 
 Ce dossier contient **l'appareil de voix Qwen3-TTS** de NIMM ePub : un
-programme séparé du lecteur, qui fait parler **les 35 mêmes voix françaises
-libres que Kyutai** (les mêmes extraits, donc les mêmes timbres et les mêmes
-prénoms) avec le moteur **Qwen3-TTS** d'Alibaba.
+programme séparé du lecteur, qui fait parler **les voix françaises libres de la
+garde-robe** — **183 extraits au 30/09/2026**, dont les 35 mêmes que Kyutai
+(mêmes extraits, donc mêmes timbres et mêmes prénoms) — avec le moteur
+**Qwen3-TTS** d'Alibaba.
 
 Arrivé le **26/09/2026**, après l'essai mené dans l'atelier NIMM Voix : Laurent
 a trouvé la version Qwen **au-dessus de Kyutai**, déjà très bon. Son intérêt
@@ -29,7 +30,7 @@ ne tournent **jamais ensemble**. Le bouton « Voix de personnages » du lecteur
 | **DEMARRER_QWEN_TTS.bat** | pour allumer le moteur (seul, ou appelé par `START.bat`) | charge le modèle (≈ 5 s) puis reste ouvert |
 | **servir_qwen_tts.py** | — | le service lui-même (routes `/sante`, `/voix`, `/tts`) |
 | **tester_service.py** | après une installation, ou en cas de doute | vérifie que le service répond et fait dire une vraie phrase |
-| **voix/** | — | les 35 extraits (WAV) **et** leur texte exact (`references.csv`) |
+| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **183 au 30/09/2026** — **et** leur texte exact (`references.csv`) |
 
 **Pour éteindre le moteur, il suffit de fermer sa fenêtre** : un « gardien »
 intégré au service s'arrête dès que la fenêtre disparaît (même mécanisme que

@@ -2168,6 +2168,53 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
 
 
 ## 🟠 Priorité 2 — Voix & casting
+- [ ] **📋 LES 25 VOIX CML-TTS ET LA VOIX DE LA FAMILLE : LEURS NOTES D'ÉCOUTE NE
+  REJOIGNENT PAS LE CATALOGUE** — décision de Laurent, 30/09/2026 : « on partirait
+  sur B, on (tu) les réécrirais "à plat" comme pour toutes les autres ».
+  *Le constat* : l'écran « Écouter les voix » range tes notes dans
+  `data/annotations_voix.json` (fichier **local**, hors Git), tandis que ce que
+  l'application **obéit** — menus, filtres, et la règle « 0 étoile = voix écartée
+  du casting automatique » — est écrit dans les **catalogues**, c'est-à-dire dans
+  le code (`modules/tts.py`, `main.py`). Le pont entre les deux est explicite
+  (`test_voix/_appliquer_annotations_voix.py`, lancé par
+  `APPLIQUER_LES_NOTES_D_ECOUTE.bat`), et il ne sait reconnaître une voix que sur
+  les lignes dites « à plat » : celles qui portent `"id":`, `"gender":` et
+  `"stars":` **sur la même ligne** — il remplace alors un seul nombre et un seul
+  mot, sans jamais réécrire le reste de la ligne.
+  *Pourquoi ça marche pour 157 voix et pas pour 26* : les voix `qwen:` des 157 sont
+  **calculées** depuis `KYUTAI_VOICES + KOKORO_VOICES + POCKET_VOICES` — corriger
+  l'original corrige donc la jumelle Qwen par ricochet. Mais les **25 `cml…`**
+  sont écrites à la main dans `_VOIX_CML_30_09_2026` (forme compacte
+  `("cml1649", "Berthe", "F", 3, "allemand")` : ni `"id":`, ni `"stars":` → le pont
+  ne les voit pas) et la **voix de la famille** est un `QWEN_VOICES.append({...})`
+  étalé sur **deux lignes** (le `"id"` sur l'une, `gender`/`stars` sur l'autre → il
+  exige les trois sur la même ligne).
+  *Ce que ça change, à savoir AVANT la prochaine session d'écoute de Laurent* : à
+  l'écran, ses nouvelles étoiles **s'affichent** (l'écran privilégie toujours la
+  note), mais la fiche officielle garde l'ancienne valeur — une voix mise à
+  **0 étoile** resterait traitée comme 3 étoiles par le casting automatique.
+  *Ce qui est décidé (option B)* : réécrire ces 26 entrées dans la **forme « à
+  plat »** des autres, pour que le pont les voie **tout seul**, sans changer une
+  ligne de l'outil. *Options écartées, gardées pour mémoire* : (A) reporter les 26
+  **à la main** après chaque session d'écoute — simple mais à refaire à chaque
+  fois ; (C) apprendre à l'outil les deux nouvelles formes — le plus de travail et
+  le plus fragile (il devrait deviner quel nombre est l'étoile).
+
+- [ ] **⚖️ DEUX PETITES DÉCISIONS DE VOIX, laissées en attente le 30/09/2026** —
+  Laurent : « à voir plus tard », pour les deux.
+  1. **Perrine** (`xtts:5830_4703_000037-0001`) et **Suzanne**
+     (`xtts:7591_6742_000149-0002`) : leurs notes d'écoute XTTS n'ont **jamais**
+     été migrées vers leurs jumelles `qwen:`. L'outil d'héritage écrit le
+     30/09/2026 (`test_voix/_heriter_annotations_xtts_vers_qwen.py`) les écarte
+     **volontairement** (constante `HORS_LOT_30_09`) : elles ne font pas partie du
+     lot CML, et pour **Suzanne** les étoiles **divergent** (2 sur la fiche XTTS,
+     3 au catalogue Qwen) — donc pas de report automatique : c'est une décision de
+     Laurent. *Pour les migrer un jour* : retirer ces deux identifiants de la liste.
+  2. **Lucie** (`cml2033`) : son libellé dit « accent anglais » (étiquette du
+     14/09/2026) alors que sa fiche d'écoute dit `accent: neutre`. Incohérence
+     héritée, non touchée le 30/09/2026 — **à trancher à l'écoute**.
+
+
 - [ ] **🎯 « LE POURQUOI » DU CASTING : l'étiquetage, la source des défauts
   résiduels** — constat de Laurent, 23/09/2026 : « là on fait du cas par cas, ça
   contredit *l'esprit plutôt que la lettre* ; le LLM qui traite le casting

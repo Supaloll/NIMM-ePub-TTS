@@ -199,6 +199,17 @@ _Ces règles sont propres à NIMM ePub ; l'atelier NIMM Voix a les siennes._
   pour les cas douteux préférer une capture par Python
   (`subprocess.run(..., capture_output=True, text=True, encoding='utf-8')`).
 
+## Une écriture et sa vérification ne partent JAMAIS ensemble (leçon du 30/09/2026)
+- Deux commandes lancées dans le **même appel** peuvent partir **en parallèle** :
+  une vérification peut donc lire un fichier **avant** que l'écriture qui le
+  modifie soit terminée. C'est arrivé le 30/09/2026 sur
+  `qwen_tts_service/voix/references.csv` : la vérification a annoncé du CRLF
+  « restant » alors que l'écriture venait de le corriger — on a cru à un bug qui
+  n'existait pas.
+- **Règle** : après une écriture, la vérification part dans un **appel séparé**
+  — ou, à défaut, dans la **même commande** que l'écriture, enchaînée par `;`,
+  pour qu'elle s'exécute après elle.
+
 ## Encodage
 - Tous les scripts Python doivent commencer par : # -*- coding: utf-8 -*-
 - Toujours ajouter `encoding='utf-8'` dans open()
