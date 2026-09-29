@@ -185,6 +185,22 @@ qwen_tts_service/voix/*.wav
 qwen_tts_service/voix/*.bak_*
 qwen_tts_service/voix/_bords_avant_*/
 
+# EXCEPTION du 29/09/2026 : les textes des voix de la FAMILLE ne peuvent pas etre
+# versionnes. `Maya_normale` (la voix de la fille de Laurent, clonee par NIMM
+# Voix) a lu le DEBUT D'UN ROMAN DU COMMERCE : la regle du projet est claire
+# (« aucun extrait d'oeuvre sous droits dans les fichiers versionnes »). Son
+# texte vit donc dans un SECOND fichier, que le service lit EN PLUS de
+# `references.csv` -- et qui reste sur le PC. Les voix privees a venir (famille,
+# proches) iront la aussi.
+qwen_tts_service/voix/references_privees.csv
+
+# Les dossiers de voix RECUES d'un autre atelier (29/09/2026 : la voix de Maya,
+# deposee par NIMM Voix) restent sur le PC. Ils portent le TEXTE de reference
+# (ici, le debut d'un roman du commerce) et des notes PRIVEES (prenom, accord de
+# la personne) : rien de tout cela ne doit partir sur le depot. Le motif couvre
+# les prochaines voix de la famille, quel que soit leur nom.
+_VOIX_RECUE_*/
+
 # Captures de session : sorties de commandes redirigees pendant l'atelier
 # (journaux de test, essais, sorties de script). Jamais versionnees -- elles
 # etaient entrees par erreur dans un commit le 17/09/2026.
@@ -237,3 +253,8 @@ pocket_tts_service/arrete_volontaire.txt
 test_voix/banc_desaccords_*.txt
 test_voix/passage_piege*.txt
 test_voix/rapport_passage_piege_*.txt
+
+# Sortie du banc d'ecoute Q8_0 / Q4_K_M du moteur Qwen (29/09/2026) : les WAV y
+# sont deja couverts par *.wav, mais le dossier porte aussi son RECAP.txt, et un
+# banc d'ecoute ne laisse rien sur le depot (meme regle que les sorties ci-dessus).
+test_voix/sortie_banc_qwentts_q4/

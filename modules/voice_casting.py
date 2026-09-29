@@ -19,7 +19,8 @@ from modules.config import (
     get_gemini_api_key, get_mistral_api_key, get_deepseek_api_key,
     get_local_model, get_local_url,
 )
-from modules.tts import KOKORO_VOICES, KYUTAI_VOICES, XTTS_VOICES, NEUTTS_VOICES
+from modules.tts import (KOKORO_VOICES, KYUTAI_VOICES, QWEN_VOICES, XTTS_VOICES,
+                         NEUTTS_VOICES)
 
 MISTRAL_URL  = "https://api.mistral.ai/v1/chat/completions"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
@@ -1310,12 +1311,51 @@ def _edge_pool(genre: str) -> tuple:
     return retenues, _EDGE_STARS
 
 
+# ==============================================================
+# LES JUMELLES QWEN DES VOIX KYUTAI -- elles remplacent Kyutai (29/09/2026)
+# ==============================================================
+# POURQUOI ce changement : le pool automatique mettait **Kyutai EN PREMIER**
+# depuis le 17/09/2026, avec une raison ecrite noir sur blanc -- « c'est le
+# moteur que START.bat allume ». Depuis le **29/09/2026, c'est faux** :
+#   - START.bat allume **Qwen3-TTS** (qwentts.cpp, port 8086) ;
+#   - Kyutai n'est plus demarre (`data/moteur_voix.txt` = `aucun`) ;
+#   - ses **187 voix de 15 livres sont passees chez Qwen** (jumelles exactes).
+# Une voix `kyutai:` posee par un casting NE LIRAIT DONC RIEN (le lecteur repond
+# 503 : c'est deja ecrit dans le commentaire de `_index_voix`). Le pool
+# « ne connait pas l'etat des moteurs » : c'est a cette liste de dire la verite.
+#
+# LES JUMELLES : les 35 voix Kyutai ont une jumelle EXACTE chez Qwen -- MEME
+# extrait de reference, donc MEME timbre et MEME profil d'ecoute -- et son
+# identifiant est `qwen:` + le MEME identifiant. Les notes d'ecoute de Laurent
+# les ont suivies (33 des 35 en ont une recopiee sous `qwen:`).
+#
+# CE QUI N'EST PAS TOUCHE : Edge (en ligne) et Kokoro (charge a la demande)
+# restent dans le pool ; leurs jumelles Qwen n'y entrent PAS (les voix Kokoro y
+# sont deja sous leur propre identifiant, et Pocket est suspendu). Et les voix
+# `kyutai:` restent au CATALOGUE, donc **choisissables a la main**.
+JUMELLES_QWEN_KYUTAI = {"qwen:" + v["id"].split(":", 1)[1] for v in KYUTAI_VOICES}
+
+
+def _voix_qwen_kyutai() -> list:
+    """Les 35 jumelles Qwen des voix Kyutai, telles qu'elles sont au CATALOGUE."""
+    return [v for v in QWEN_VOICES if v["id"] in JUMELLES_QWEN_KYUTAI]
+
+
+def _qwen_pool(genre: str) -> list:
+    """Les jumelles Qwen d'un genre, dans l'ordre du catalogue Qwen."""
+    return [v["id"] for v in _voix_qwen_kyutai() if v.get("gender") == genre]
+
+
 def _pool_par_paliers(genre: str) -> list:
     """Pool automatique d'un genre, par paliers d'etoiles.
 
-    Paliers 3 -> 2 -> 1 etoile ; dans chaque palier, Edge, puis XTTS v2, puis
-    Kokoro (decision de Laurent du 15/09/2026), et EN DERNIER les voix NeuTTS
-    (ajout du 16/09/2026). A etoile egale et dans un meme moteur, l'ordre du
+    Paliers 3 -> 2 -> 1 etoile. **LA PREMIERE FAMILLE EST QWEN DEPUIS LE
+    29/09/2026** -- ce sont les jumelles des voix Kyutai, meme extrait donc meme
+    timbre (voir le bloc « LES JUMELLES QWEN » juste au-dessus, qui explique
+    pourquoi). Elle etait Kyutai avant, parce que « c'est le moteur que START.bat
+    allume » : ce n'est plus vrai depuis que le moteur valide est qwentts.cpp.
+    Viennent ensuite Edge, puis Kokoro. A etoile egale et dans un meme moteur,
+    l'ordre du
     catalogue est conserve : assign_voices traite les personnages du plus
     present au moins present, donc les meilleurs timbres partent aux roles
     principaux.
@@ -1341,7 +1381,7 @@ def _pool_par_paliers(genre: str) -> list:
     #     NeuTTS, toutes muettes, et laisse 84 personnages sans voix.
     #     Ils restent choisissables A LA MAIN dans la fenetre du casting.
     familles = (
-        (_kyutai_pool(genre), _notes(KYUTAI_VOICES)),
+        (_qwen_pool(genre), _notes(QWEN_VOICES)),
         (edge, notes_edge),
         ([v["id"] for v in KOKORO_VOICES if v.get("gender") == genre],
          _notes(KOKORO_VOICES)),
@@ -1378,12 +1418,19 @@ def _recalculer_pools() -> None:
 def _kyutai_pool(genre: str) -> list:
     """Voix Kyutai d'un genre, triees par note (stars) decroissante.
 
-    ATTENTION (14/09/2026) : cette fonction n'est PLUS utilisee pour
-    composer DEDICATED_VOICES_F/M -- Kyutai a ete retire du pool
-    automatique au profit de XTTS v2 (decision de Laurent du 14/09/2026,
-    voir plus bas). Elle est conservee telle quelle pour pouvoir revenir
-    en arriere facilement, et parce que les voix Kyutai restent
-    choisissables A LA MAIN (elles sont toujours dans le catalogue).
+    *** DEPUIS LE 29/09/2026, CETTE FONCTION N'EST PLUS APPELÉE DU TOUT *** : le
+    pool automatique et l'index des voix utilisent `_qwen_pool()` -- les JUMELLES
+    Qwen des memes voix, meme extrait donc meme timbre -- parce que le moteur
+    Kyutai n'est plus allume (START.bat demarre qwentts.cpp) et qu'une voix
+    `kyutai:` posee par un casting ne lirait rien. Elle est conservee telle
+    quelle : revenir a Kyutai dans le pool se fait en la remettant a la place de
+    `_qwen_pool()` (un mot), et les voix `kyutai:` restent au catalogue, donc
+    choisissables A LA MAIN.
+
+    Historique -- ATTENTION (14/09/2026) : cette fonction n'etait alors PLUS
+    utilisee pour composer DEDICATED_VOICES_F/M -- Kyutai avait ete retire du
+    pool automatique au profit de XTTS v2 (decision de Laurent du 14/09/2026,
+    voir plus bas).
 
     Historique -- choix de Laurent (12/09/2026) : les voix Kyutai
     passaient **en premier** dans le pool automatique, avant Edge et
@@ -1670,21 +1717,23 @@ DEBITS_ATTENDUS = {
 def _index_voix() -> dict:
     """{identifiant: {'genre', 'stars'}} pour les moteurs du pool automatique.
 
-    TROIS FAMILLES SEULEMENT (revu le 17/09/2026) : **Kyutai** (le moteur que
-    START.bat allume), **Edge** (en ligne, toujours disponible) et **Kokoro**
-    (local). XTTS et NeuTTS en sont RETIRES : leur moteur n'etant plus allume
-    automatiquement, une voix attribuee chez eux ne lit RIEN -- le lecteur
-    repond 503 sans rien afficher. C'est ce qui avait remis **79 voix muettes**
-    sur le livre 28 au re-cast du 17/09 a 19h, alors que le pool par paliers
-    etait deja corrige : ce chemin-ci (re-cast par criteres et re-cast IA) en
-    etait reste a l'ancienne liste.
+    TROIS FAMILLES SEULEMENT : **Qwen** (depuis le 29/09/2026 -- les jumelles des
+    voix Kyutai, meme extrait donc meme timbre ; c'est le moteur que START.bat
+    allume, voir « LES JUMELLES QWEN » plus bas), **Edge** (en ligne, toujours
+    disponible) et **Kokoro** (local, charge a la demande). Kyutai, XTTS et
+    NeuTTS en sont ABSENTS : une voix dont le moteur n'est pas allume ne lit RIEN
+    -- le lecteur repond 503 sans rien afficher, et c'est ce qui avait remis
+    **79 voix muettes** sur le livre 28 au re-cast du 17/09 a 19h (ce chemin-ci,
+    le re-cast par criteres et le re-cast IA, etait reste a l'ancienne liste).
+    Le remplacement Kyutai -> Qwen du 29/09/2026 ferme le meme piege : Kyutai
+    n'est plus demarre, donc ses voix ne doivent plus sortir d'un pool.
     """
     index = {}
     for ident in _EDGE_POOL_M:
         index[ident] = {"genre": "H", "stars": int(_EDGE_STARS.get(ident, 0))}
     for ident in _EDGE_POOL_F:
         index[ident] = {"genre": "F", "stars": int(_EDGE_STARS.get(ident, 0))}
-    for liste in (KOKORO_VOICES, KYUTAI_VOICES):
+    for liste in (KOKORO_VOICES, _voix_qwen_kyutai()):
         for voix in liste:
             index[voix["id"]] = {
                 "genre": "F" if voix.get("gender") == "F" else "H",
@@ -1694,14 +1743,18 @@ def _index_voix() -> dict:
 
 
 def _jumelle_neutts(ident: str) -> str:
-    """`kyutai:X` -> `neutts:X` : meme extrait, donc meme profil d'ecoute.
+    """`kyutai:X` (ou `qwen:X`) -> `neutts:X` : meme extrait, donc meme profil.
 
     Les voix Kyutai ne sont pas annotees a l'ecoute, mais leurs jumelles NeuTTS
     oui (ce sont les memes extraits de reference). C'est cette annotation qui
-    permet de choisir une voix Kyutai sur des criteres ENTENDUS.
+    permet de choisir une voix sur des criteres ENTENDUS. Le prefixe `qwen:` est
+    traite pareil depuis le 29/09/2026 : les jumelles Qwen des voix Kyutai sont
+    entrees dans le pool, 33 des 35 ont leur propre note d'ecoute, et les deux
+    autres trouvent ici celle de leur jumelle NeuTTS.
     """
-    if ident.startswith("kyutai:"):
-        return "neutts:" + ident.split(":", 1)[1]
+    for prefixe in ("kyutai:", "qwen:"):
+        if ident.startswith(prefixe):
+            return "neutts:" + ident.split(":", 1)[1]
     return ident
 
 

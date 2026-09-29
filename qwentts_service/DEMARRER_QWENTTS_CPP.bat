@@ -33,11 +33,18 @@ if not exist ".venv\Scripts\python.exe" (
   exit /b 1
 )
 
-if not exist "models\qwen-talker-0.6b-base-Q8_0.gguf" (
+rem  Les MODELES en service depuis le 29/09/2026 sont les Q4_K_M (choisis a
+rem  l'oreille par Laurent : « les plus jolies a l'oreille », prosodie et clarte
+rem  un demi-cran au-dessus). Les Q8_0 restent sur le disque comme REPLI : il
+rem  suffit qu'UNE des deux paires soit presente.
+if not exist "models\qwen-talker-0.6b-base-Q4_K_M.gguf" if not exist "models\qwen-talker-0.6b-base-Q8_0.gguf" (
   echo.
   echo   Les MODELES du moteur sont absents du dossier  models\
-  echo   attendu : qwen-talker-0.6b-base-Q8_0.gguf
-  echo             qwen-tokenizer-12hz-Q8_0.gguf
+  echo.
+  echo   En service : qwen-talker-0.6b-base-Q4_K_M.gguf
+  echo                qwen-tokenizer-12hz-Q4_K_M.gguf
+  echo   Le repli  : qwen-talker-0.6b-base-Q8_0.gguf
+  echo                qwen-tokenizer-12hz-Q8_0.gguf
   echo.
   pause
   exit /b 1

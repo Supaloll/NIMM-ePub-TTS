@@ -15,6 +15,51 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🚩 À FAIRE EN PRIORITÉ — décidé le 22/09/2026
 
+- [x] **🔁 Le pool du casting automatique passe de Kyutai à QWEN — ✅ FAIT le
+  29/09/2026** (décision de Laurent : « il faut mettre Qwen à la place de Kyutai dans
+  le pool »). *Le constat* (fait en branchant la voix de Maya) : le pool automatique
+  mettait **Kyutai EN PREMIER** depuis le 17/09/2026 — justifié alors par « c'est le
+  moteur que START.bat allume » — or depuis le 29/09 START.bat allume **qwentts.cpp**,
+  Kyutai n'est plus démarré et ses 187 voix de 15 livres sont passées chez Qwen : un
+  **nouveau casting aurait distribué 35 voix MUETTES**. *Ce qui a été fait* :
+  `modules/voice_casting.py` — la première famille du pool est désormais
+  **`_qwen_pool()`**, les **jumelles Qwen des voix Kyutai** (`JUMELLES_QWEN_KYUTAI` :
+  `qwen:` + le même identifiant = même extrait, donc **même timbre**), et cela dans
+  **les deux chemins** : le pool par paliers (`_pool_par_paliers`) **et** l'index du
+  re-cast par critères (`_index_voix`) — les notes d'écoute de Laurent ont suivi
+  (33 des 35 jumelles ont leur note ; les 2 autres trouvent celle de leur jumelle
+  NeuTTS, `_jumelle_neutts` étant étendue aux préfixes `qwen:`). Edge et Kokoro
+  restent dans le pool (leurs moteurs répondent) ; **aucune jumelle Qwen de Kokoro ni
+  de Pocket n'y entre**. *Revenir à Kyutai* : remettre `_kyutai_pool()` à la place de
+  `_qwen_pool()` (la fonction est conservée avec son historique) — copie datée
+  `modules/voice_casting.py.bak_avant_pool_qwen_20260929`. *Vérifié* : le pool ne
+  contient **plus une seule voix `kyutai:`** (18 Qwen + 4 Edge + 49 Kokoro en F,
+  17 + 3 + 36 en M), les 6 personnages importants d'un casting d'essai reçoivent tous
+  une voix `qwen:` du palier 3★, les petits rôles restent en Piper (Jessica/Pierre),
+  et `test_voix/test_pool_casting.py` a suivi (**Qwen en tête, Kyutai interdit dans le
+  pool**) — **TOUT EST OK**. *Reste ouvert et connu* : **Kokoro** est toujours dans le
+  pool alors que le moteur n'est plus préchargé (il se charge à la demande, donc il
+  lit) — voir l'item « Kokoro retiré des menus ».
+
+- [x] **👂 Le modèle allégé Q4_K_M — ✅ ADOPTÉ le 29/09/2026** (suite de la question de
+  Laurent : « Qwen, c'est optimisable ? »). **Son verdict, mot pour mot** : « les
+  versions Q4_K_M sont les plus jolies à l'oreille. La prosodie et la clarté sont un
+  demi-cran au-dessus. » *Le banc* (`test_voix/LANCER_BANC_ECOUTE_QWENTTS_Q4.bat`)
+  avait posé les WAV côte à côte (**A = Q8_0**, **B = Q4_K_M**, deux voix et deux
+  phrases réelles du livre 28, même phrase et mêmes réglages) ; la mesure disait la
+  même chose que l'oreille : **+20 % de débit en moyenne** (+7 % à +46 % selon la
+  phrase) pour des **durées d'audio équivalentes**. *La bascule* :
+  `qwentts_service/servir_qwentts_cpp.py` charge désormais les **GGUF Q4_K_M**
+  (629 + 255 Mo) — avec **repli AUTOMATIQUE** sur les Q8_0 s'ils disparaissent,
+  `NIMM_QWENTTS_MODELES=q8` pour forcer les anciens, et la copie datée
+  `servir_qwentts_cpp.py.bak_avant_bascule_q4_20260929`. *Vérifié* : moteur démarré
+  **pour de vrai** — `/sante` annonce `qwentts.cpp (0.6B base Q4_K_M)`, **157 voix**,
+  prêt en **1,2 s**, le talker passe de **774 à 487 Mo** en mémoire, et une phrase
+  réelle sort en **×1,02** à chaud. *Rien d'autre n'a bougé* : le lecteur, le contrat
+  (`/sante`, `/voix`, `/tts`) et les 157 voix sont intacts. *Ce qui ne change pas* :
+  la **première phrase d'une voix** reste lente (**9,2 à 9,5 s**) — le vrai levier
+  contre l'attente reste le **préchauffage des empreintes**, pas la vitesse.
+
 - [x] **🔌 Débrancher Kokoro et Kyutai du démarrage — ✅ FAIT le 29/09/2026** (demande de Laurent, 29/09/2026 :
   « on ne garde que les moteurs dont j'ai besoin […] on les garde de côté, rebranchables
   si besoin »). **Fait le 29/09/2026 au matin** :
@@ -6934,6 +6979,79 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 ---
 
 ## ✅ Déjà livré (pour mémoire)
+
+- **👧 La voix de la famille : `Maya_normale` — ✅ BRANCHÉE le 29/09/2026** (déposée
+  par l'atelier NIMM Voix, rangée dans `_VOIX_RECUE_MAYA_NORMALE_20260929/` à la
+  racine). Maya est la fille de Laurent : deux extraits enregistrés avec elle,
+  clonés avec qwentts.cpp — **100 % du texte de contrôle dit** (41 mots sur 41,
+  revérifié par Whisper) — et Laurent l'a **gardée** (le murmure du même lot a été
+  écarté). *Ce que NIMM Voix avait fait chez nous*, et que j'ai **vérifié ligne à
+  ligne** : la référence copiée dans `qwen_tts_service/voix/`, sa ligne ajoutée en
+  fin de `references.csv` (les **158 lignes précédentes identiques au caractère
+  près**), sauvegarde `references.csv.bak_avant_maya_20260929_1827`, format
+  respecté (UTF-8 sans BOM, fins de ligne LF). *Le piège qu'on a évité* : ce texte
+  est le **début d'un roman du commerce**, et `references.csv` **est versionné** —
+  or une règle écrite ici dit « aucun extrait d'œuvre sous droits dans les fichiers
+  versionnés ». **Rien n'était encore committé** : la ligne a été **retirée** du
+  fichier versionné (revenu **octet pour octet** à son état d'avant) et déplacée
+  dans **`qwen_tts_service/voix/references_privees.csv`**, un fichier **hors Git**
+  que le service lit **EN PLUS** (`_lire_un_fichier_de_textes`, le privé gagne sur
+  le public) — décision de Laurent, option A : « plus aucun texte privé ne partira
+  jamais ». *Le branchement dans l'app* : entrée écrite **à la main** dans
+  `QWEN_VOICES` (`modules/tts.py`) — `qwen:Maya_normale`, prénom **Maya**, région
+  **🏠 Famille (Qwen)**, genre **F**, **0 étoile — volontairement** : Laurent veut
+  la tenir **hors du casting automatique** (« elle peut rester, mais je ne
+  l'utiliserai pas très souvent, sauf cas particulier »), et c'est aussi parce
+  qu'une voix neuve n'entre par **aucune** boucle (elle n'est la jumelle de
+  personne). *Une erreur de ma part, écrite ici pour ne pas la refaire* : j'avais
+  d'abord mis **3 étoiles** en annonçant que le genre F la rendait « proposable
+  par le casting automatique ». **C'est faux** — le pool (`DEDICATED_VOICES_F/M`,
+  `modules/voice_casting.py`) ne puise que dans **Kyutai, Edge et Kokoro**, et
+  **aucune voix Qwen n'y figure** : Maya n'a jamais pu être distribuée toute
+  seule. Le **0 étoile** (convention écrite du projet : disponible à la main,
+  écarté du pool) est donc une **double sécurité**, pas un correctif. *Vérifié* : le
+  service annonce **158 voix exploitables**, **Maya présente avec son texte**,
+  **0 voix sans texte** ; le catalogue compte **158 entrées** ; et le contrôle
+  `_essais/_test_catalogue_qwen.py` a suivi (157 → 158). **VOIX D'UNE PERSONNE
+  RÉELLE : usage PRIVÉ** (accord de Maya pour l'atelier) — la partager demanderait
+  son accord **et** un texte libre de droits (réenregistrer 20 à 30 s suffirait :
+  la chaîne est automatique chez NIMM Voix). Copies datées :
+  `servir_qwentts_cpp.py.bak_avant_textes_prives_20260929`,
+  `modules/tts.py.bak_avant_voix_maya_20260929`,
+  `.gitignore.bak_avant_textes_prives_20260929`,
+  `LIRE_MOI.md.bak_avant_textes_prives_20260929`,
+  `ARCHITECTURE.md.bak_avant_voix_maya_20260929`. *Décision de Laurent, même
+  soirée* : **pas de préchargement de sa voix pour le moment** (« on ne précharge
+  pas sa voix pour le moment ») — le sujet reste ouvert si l'attente de sa première
+  phrase (~9 s d'empreinte, ~23 s mesurés au tout premier appel d'un moteur frais)
+  devient gênante à l'usage.
+
+- **⚙️ Le débit du moteur Qwen selon le processeur — piste FERMÉE, et le « 800× » n'existe
+  pas** (29/09/2026, question de Laurent : « Qwen fait tourner la quasi-totalité des voix
+  […] sur GitHub ils parlaient de 800 fois la vitesse : c'est optimisable ? »). *Mesuré,
+  pas discuté* : un banc d'atelier neuf (`test_voix/_mesurer_debit_qwentts.py`, lanceur
+  `test_voix/LANCER_MESURE_DEBIT_QWENTTS.bat`) fait dire **les mêmes phrases réelles de
+  livre** au moteur en **consommant le flux**, sur quatre réglages de cœurs, **2 phrases ×
+  3 prises**, avec la **première phrase en chauffe non comptée** (elle paye le démarrage à
+  froid : **5,0 à 5,6 s** avant le premier son, contre **0,4 à 0,6 s** ensuite — le `TTFA`
+  du moteur). *Résultat* : **6 cœurs (le réglage du service) = ×1,04** (1,02-1,06),
+  **4 cœurs = ×1,04** (fourchettes qui se recoupent : **non acquis**), **8 cœurs = ×0,92**,
+  **12 cœurs = ×0,25** — l'hyperthreading fait passer le Talker de **19 à 203 ms par
+  image** ; et côté « leviers du service » : **8 fils de codec = ×0,42** (contention : 6 + 8
+  threads sur 12) et **tranches de 4 images = +1 %** (non acquis). **Le réglage du service
+  est donc le bon** — on ne touche à rien. *Le chiffre qui intriguait Laurent* : **rien,
+  dans les sources officielles, ne dit « 800× »** (le dépôt du portage n'a **aucun tableau
+  de débit**, vérifié) ; les seuls repères réels sont la **latence de 97 ms** annoncée par
+  Qwen pour sa version *streaming* (sur leur infrastructure) et le **RTF 0,108 (≈ ×9)**
+  cité par NIMM Voix, mesuré sur une **RTX 4090**. *Le vrai enseignement, écrit ici pour ne
+  pas se reposer la question* : le moteur est **déjà à ×1,0 le temps réel** sur le
+  processeur, sans carte graphique, avec 1,2 Go de fichiers — **c'est son intérêt propre**,
+  et le seul gain de vitesse qui reste demanderait de **compiler** le portage pour la carte
+  (chantier, pas réglage). *Ce qui reste ouvert* : l'écoute du modèle allégé Q4_K_M (item en
+  tête du BACKLOG). Outils neufs : `_mesurer_debit_qwentts.py`,
+  `_banc_ecoute_qwentts_q4.py`, leurs deux lanceurs, référencés dans `test_voix/LIRE_MOI.md`
+  ; copies datées `ARCHITECTURE.md.bak_avant_debit_qwentts_20260929`,
+  `BACKLOG.md.bak_avant_debit_qwentts_20260929`.
 
 - **Les INCISES INVERSÉES : « m'a-t-il dit », « ai-je répondu », « demanda-t-elle. »**
   (24/09/2026, retour d'écoute de Laurent sur *22/11/63*). Le module ne voyait pas

@@ -8,13 +8,16 @@ A lancer avec le Python du lecteur :
 Ce que le script verifie (regle des paliers d'etoiles, decision de Laurent
 du 15/09/2026, completee le 16/09/2026) :
   1. le pool se parcourt par PALIERS D'ETOILES (3, puis 2, puis 1) et, dans
-     chaque palier, Edge, puis XTTS v2, puis Kokoro, puis NeuTTS ;
+     chaque palier, **Qwen**, puis Edge, puis Kokoro ;
   2. les etoiles des voix Edge sont bien celles du catalogue FRENCH_VOICES
      de main.py (c'est lui qui les transmet au module au demarrage) ;
   3. une voix notee 0 etoile est ECARTEE du pool automatique, sur tous les
-     moteurs (Edge, Kokoro, XTTS comme NeuTTS) -- c'est le moyen de retirer
-     une voix du casting automatique ;
-  4. Kyutai est ABSENT du pool automatique (reste choisissable a la main) ;
+     moteurs -- c'est le moyen de retirer une voix du casting automatique
+     (c'est ainsi que la voix de Maya, 0 etoile le 29/09/2026, reste A LA MAIN) ;
+  4. **Kyutai est ABSENT du pool** : depuis le 29/09/2026, c'est **Qwen** qui
+     occupe sa place -- les 35 JUMELLES des voix Kyutai (meme extrait, donc meme
+     timbre). Raison : START.bat allume qwentts.cpp, plus Kyutai ; une voix
+     `kyutai:` posee par un casting ne lirait rien ;
   5. un personnage important recoit une voix du palier 3 etoiles ;
   6. un petit role (moins de 8 repliques) recoit la voix Piper generique
      (Siwis pour une femme, Tom pour un homme) ;
@@ -22,10 +25,10 @@ du 15/09/2026, completee le 16/09/2026) :
      celui du serveur : sinon la fenetre du casting annoncerait « a caster »
      sur des personnages que le serveur traite comme normaux.
 
-POURQUOI NEUTTS EN DERNIER : le pool automatique ne connait pas l'etat des
-moteurs, et XTTS comme NeuTTS occupent la carte graphique (un seul a la fois).
-Mettre NeuTTS devant enverrait un nouveau casting vers des voix dont le moteur
-peut etre eteint. La raison complete est dans voice_casting._pool_par_paliers.
+POURQUOI KOKORO EN DERNIER : le pool automatique ne connait pas l'etat des
+moteurs. Qwen (qwentts.cpp, allume par START.bat) et Edge (en ligne) repondent
+sans rien faire ; Kokoro se charge a la demande, donc il vient apres. La raison
+complete est dans voice_casting._pool_par_paliers.
 """
 
 import os
@@ -37,8 +40,8 @@ sys.path.insert(0, RACINE)
 sys.stdout.reconfigure(encoding='utf-8')
 
 from modules import voice_casting as vc                    # noqa: E402
-from modules.tts import (KOKORO_VOICES, KYUTAI_VOICES, XTTS_VOICES,  # noqa: E402
-                         NEUTTS_VOICES)
+from modules.tts import (KOKORO_VOICES, KYUTAI_VOICES, QWEN_VOICES,  # noqa: E402
+                         XTTS_VOICES, NEUTTS_VOICES)
 
 # main.py porte le catalogue des voix Edge (FRENCH_VOICES) et appelle
 # vc.definir_voix_edge() au demarrage : c'est la chaine reelle du programme,
@@ -50,16 +53,24 @@ NOTES_XTTS   = {v["id"]: int(v.get("stars", 0)) for v in XTTS_VOICES}
 NOTES_KOKORO = {v["id"]: int(v.get("stars", 0)) for v in KOKORO_VOICES}
 NOTES_NEUTTS = {v["id"]: int(v.get("stars", 0)) for v in NEUTTS_VOICES}
 NOTES_KYUTAI = {v["id"]: int(v.get("stars", 0)) for v in KYUTAI_VOICES}
+# Depuis le 29/09/2026, ce sont les jumelles Qwen qui sont DANS le pool : leurs
+# etoiles sont celles du catalogue QWEN_VOICES (les notes de Laurent y ont suivi
+# les voix Kyutai).
+NOTES_QWEN   = {v["id"]: int(v.get("stars", 0)) for v in QWEN_VOICES}
 
-# Ordre des moteurs DANS un palier d'etoiles. REVU LE 17/09/2026 : Kyutai passe
-# EN TETE (c'est le moteur que START.bat allume), et XTTS et NeuTTS SORTENT du
-# pool -- leur moteur n'est plus allume automatiquement, et une voix dont le
-# moteur est eteint ne lit rien (leçon du re-cast rate du 17/09 a 18h00).
-RANG_FAMILLE = {"kyutai": 0, "edge": 1, "kokoro": 2}
-FAMILLES_ORDRE = ("kyutai", "edge", "kokoro")
+# Ordre des moteurs DANS un palier d'etoiles. REVU LE 29/09/2026 : **Qwen passe
+# EN TETE** -- c'est le moteur que START.bat allume depuis que Kyutai est eteint,
+# et ce sont les 35 JUMELLES des voix Kyutai (meme extrait, donc meme timbre).
+# Puis Edge (en ligne), puis Kokoro (charge a la demande). Kyutai, XTTS et NeuTTS
+# sont HORS du pool : une voix dont le moteur n'est pas allume ne lit rien (leçon
+# du re-cast rate du 17/09 a 18h00, et raison meme du remplacement du 29/09).
+RANG_FAMILLE = {"qwen": 0, "edge": 1, "kokoro": 2}
+FAMILLES_ORDRE = ("qwen", "edge", "kokoro")
 
 
 def famille(identifiant):
+    if identifiant.startswith("qwen:"):
+        return "qwen"
     if identifiant.startswith("kyutai:"):
         return "kyutai"
     if identifiant.startswith("xtts:"):
@@ -72,7 +83,7 @@ def famille(identifiant):
 
 
 def etoiles(identifiant):
-    return {"kyutai": NOTES_KYUTAI, "xtts": NOTES_XTTS,
+    return {"qwen": NOTES_QWEN, "kyutai": NOTES_KYUTAI, "xtts": NOTES_XTTS,
             "kokoro": NOTES_KOKORO,
             "neutts": NOTES_NEUTTS}.get(
         famille(identifiant), NOTES_EDGE).get(identifiant, 0)
@@ -83,7 +94,7 @@ def main_test():
     # complete, pas seulement le calcul interne du module.
     vc.definir_voix_edge(main.FRENCH_VOICES)
 
-    print("1) pool compose par paliers d'etoiles, Kyutai puis Edge puis Kokoro")
+    print("1) pool compose par paliers d'etoiles, Qwen (jumelles de Kyutai) puis Edge puis Kokoro")
     for genre, pool in (("F", vc.DEDICATED_VOICES_F), ("M", vc.DEDICATED_VOICES_M)):
         cles = [(-etoiles(v), RANG_FAMILLE[famille(v)]) for v in pool]
         assert cles == sorted(cles), "l'ordre des paliers est faux : %s" % cles
@@ -100,8 +111,8 @@ def main_test():
         attendu = NOTES_EDGE.get(identifiant)
         assert attendu is None or note == attendu, \
             "%s : %s dans le pool, %s dans le catalogue" % (identifiant, note, attendu)
-    assert vc.DEDICATED_VOICES_F[0].startswith("kyutai:"), vc.DEDICATED_VOICES_F[0]
-    assert vc.DEDICATED_VOICES_M[0].startswith("kyutai:"), vc.DEDICATED_VOICES_M[0]
+    assert vc.DEDICATED_VOICES_F[0].startswith("qwen:"), vc.DEDICATED_VOICES_F[0]
+    assert vc.DEDICATED_VOICES_M[0].startswith("qwen:"), vc.DEDICATED_VOICES_M[0]
     assert etoiles(vc.DEDICATED_VOICES_F[0]) == 3, vc.DEDICATED_VOICES_F[0]
     assert etoiles(vc.DEDICATED_VOICES_M[0]) == 3, vc.DEDICATED_VOICES_M[0]
 
@@ -113,6 +124,7 @@ def main_test():
                 "xtts": [i for i, n in NOTES_XTTS.items() if n == 0],
                 "kokoro": [i for i, n in NOTES_KOKORO.items() if n == 0],
                 "kyutai": [i for i, n in NOTES_KYUTAI.items() if n == 0],
+                "qwen": [i for i, n in NOTES_QWEN.items() if n == 0],
                 "neutts": [i for i, n in NOTES_NEUTTS.items() if n == 0]}
     for moteur, identifiants in ecartees.items():
         for identifiant in identifiants:
@@ -120,15 +132,15 @@ def main_test():
             assert identifiant not in vc.DEDICATED_VOICES_M
         print("   %-6s %s" % (moteur, ", ".join(identifiants) or "aucune"))
 
-    print("4) Kyutai EN TETE du pool ; XTTS et NeuTTS hors du pool (17/09/2026)")
+    print("4) Qwen EN TETE du pool ; Kyutai, XTTS et NeuTTS hors du pool (29/09/2026)")
     for genre, pool in (("F", vc.DEDICATED_VOICES_F), ("M", vc.DEDICATED_VOICES_M)):
-        assert pool and pool[0].startswith("kyutai:"), pool[:3]
-        for prefixe in ("xtts:", "neutts:"):
+        assert pool and pool[0].startswith("qwen:"), pool[:3]
+        for prefixe in ("kyutai:", "xtts:", "neutts:"):
             intrus = [v for v in pool if v.startswith(prefixe)]
             assert not intrus, \
                 "%s ne doit plus etre dans le pool : %s" % (prefixe, intrus[:5])
-        print("   %s : %d voix Kyutai en tete (aucune XTTS ni NeuTTS)"
-              % (genre, sum(1 for v in pool if v.startswith("kyutai:"))))
+        print("   %s : %d voix Qwen en tete (aucune Kyutai, XTTS ni NeuTTS)"
+              % (genre, sum(1 for v in pool if v.startswith("qwen:"))))
 
     print("5) attribution automatique (6 personnages importants)")
     fiche = [
@@ -150,11 +162,12 @@ def main_test():
     hors_palier = {n: v["voice_id"] for n, v in voix.items()
                    if v["voice_id"] not in palier3}
     assert not hors_palier, "role important hors du palier 3 etoiles : %s" % hors_palier
-    # Les deux roles les plus presents partent sur les MEILLEURES voix Kyutai :
+    # Les deux roles les plus presents partent sur les MEILLEURES voix Qwen :
     # meme exigence qu'avant (paliers d'etoiles), mais sur le moteur que
-    # START.bat allume depuis le 17/09/2026.
-    assert voix["Alice"]["voice_id"].startswith("kyutai:"), voix["Alice"]
-    assert voix["Daniel"]["voice_id"].startswith("kyutai:"), voix["Daniel"]
+    # START.bat allume depuis le 29/09/2026 -- les jumelles exactes des voix
+    # Kyutai, avec les memes timbres et les memes notes d'ecoute.
+    assert voix["Alice"]["voice_id"].startswith("qwen:"), voix["Alice"]
+    assert voix["Daniel"]["voice_id"].startswith("qwen:"), voix["Daniel"]
 
     print("6) petit role (2 repliques) -> voix GENERIQUE de son genre (Jessica/Pierre)")
     fiche2 = fiche + [{"nom": "Petit", "genre": "H", "age": "adulte"},

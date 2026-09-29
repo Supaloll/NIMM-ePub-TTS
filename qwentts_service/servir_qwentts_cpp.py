@@ -33,10 +33,15 @@ TEXTE exact dans `references.csv`), lues ici avec le meme identifiant que dans l
 lecteur : `10087_11650_000028-0002`, sans le suffixe du fichier. Le texte active
 le mode **ICL** (reference plus son texte), celui qui ameliore la ressemblance.
 
-CE QU'ON SAIT DU MOTEUR (i5-12400F, 6 coeurs, mesures du 28/09/2026) :
-  - chargement 1,4 a 2,2 s ; premier son 0,51 a 0,63 s ;
-  - debit x0,94 le temps reel (flux, trois reglages) ;
-  - 1,2 Go de fichiers sur le disque, AUCUNE carte graphique ;
+CE QU'ON SAIT DU MOTEUR (i5-12400F, 6 coeurs, mesures des 28 et 29/09/2026) :
+  - chargement 1,4 a 2,2 s ; premier son 0,51 a 0,63 s (a chaud : 5,0 a 5,6 s
+    sur la TOUTE premiere phrase d'un moteur fraichement charge) ;
+  - debit x0,94 le temps reel le 28/09 (Q8_0, flux, trois reglages) ; **x1,04 a
+    x1,20 le 29/09 avec les GGUF Q4_K_M** (banc de debit : 4, 6, 8 et 12 coeurs
+    mesures -- 6 coeurs, le reglage de ce service, est le MEILLEUR ; 12 coeurs
+    tombent a x0,25, l'hyperthreading cassant tout) ;
+  - 1,2 Go de fichiers sur le disque (Q4_K_M : 884 Mo au lieu de 1,2 Go),
+    AUCUNE carte graphique ;
   - le PREMIER appel d'une voix est plus lent (empreinte a preparer, une fois par
     voix : x0,53 puis x0,93). `NIMM_QWENTTS_PRECHAUFFE=1` les prepare en tache de
     fond au demarrage : desactive par defaut, a decider a l'usage -- Laurent a
@@ -44,7 +49,8 @@ CE QU'ON SAIT DU MOTEUR (i5-12400F, 6 coeurs, mesures du 28/09/2026) :
 
 Lancement : DEMARRER_QWENTTS_CPP.bat
 Variables : NIMM_QWENTTS_PORT (8086), _HOST, _VOIX, _LANGUE (french),
-            _CODEC_FILS (4), _FRAMES (2), _COEURS (6), _PRECHAUFFE (0)
+            _CODEC_FILS (4), _FRAMES (2), _COEURS (6), _PRECHAUFFE (0),
+            _MODELES (q4 ; « q8 » force les anciens GGUF)
 
 Licences : port et code **MIT**, modele et codec **Apache-2.0**, voix **CC BY
 4.0** (Kyutai + CML-TTS) : l'audio produit peut sortir de l'atelier, avec
@@ -65,14 +71,69 @@ sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 ICI = Path(__file__).resolve().parent
 MODELS = ICI / 'models'
-TALKER = MODELS / 'qwen-talker-0.6b-base-Q8_0.gguf'
-CODEC = MODELS / 'qwen-tokenizer-12hz-Q8_0.gguf'
+
+# ============================================================
+# LES MODELES EN SERVICE (29/09/2026) : les GGUF **Q4_K_M**
+# ============================================================
+# Laurent a ECOUTE les deux quantifications du meme moteur, cote a cote (banc
+# `test_voix/LANCER_BANC_ECOUTE_QWENTTS_Q4.bat` : 2 voix, 2 phrases par voix,
+# meme phrase et memes reglages). Verdict, mot pour mot : « les versions Q4_K_M
+# sont les plus jolies a l'oreille. La prosodie et la clarte sont un demi-cran
+# au-dessus. » La mesure dit la meme chose : **+20 % de debit** en moyenne (de
+# +7 a +46 % selon la phrase), pour des durees d'audio equivalentes -- donc le
+# candidat ne derape pas.
+#
+# Les Q8_0 (947 + 278 Mo, les anciens) RESTENT sur le disque : c'est eux, le
+# retour arriere. Trois facons de revenir, de la plus simple a la plus explicite :
+#   1. supprimer les deux fichiers Q4 -> repli AUTOMATIQUE sur les Q8_0 ;
+#   2. NIMM_QWENTTS_MODELES=q8 (variable d'environnement) ;
+#   3. reprendre `servir_qwentts_cpp.py.bak_avant_bascule_q4_20260929`.
+NOMS_Q4 = ('qwen-talker-0.6b-base-Q4_K_M.gguf',
+           'qwen-tokenizer-12hz-Q4_K_M.gguf')
+NOMS_Q8 = ('qwen-talker-0.6b-base-Q8_0.gguf',
+           'qwen-tokenizer-12hz-Q8_0.gguf')
+
+
+def _choisir_modeles():
+    """(talker, codec, nom lisible) -- les Q4_K_M par defaut, les Q8_0 en repli.
+
+    Le repli est SILENCIEUX cote lecteur (le contrat ne bouge pas), mais il est
+    DIT dans la fenetre du moteur : sans cela, un retour aux Q8_0 passerait
+    inapercu -- la lecon des trois fenetres du 28/09/2026.
+    """
+    choix = (os.environ.get('NIMM_QWENTTS_MODELES') or '').strip().lower()
+    if choix in ('q4', 'q4_k_m'):
+        return (MODELS / NOMS_Q4[0], MODELS / NOMS_Q4[1], '0.6B base Q4_K_M')
+    if choix in ('q8', 'q8_0'):
+        return (MODELS / NOMS_Q8[0], MODELS / NOMS_Q8[1], '0.6B base Q8_0')
+    if (MODELS / NOMS_Q4[0]).exists() and (MODELS / NOMS_Q4[1]).exists():
+        return (MODELS / NOMS_Q4[0], MODELS / NOMS_Q4[1], '0.6B base Q4_K_M')
+    print('NOTE : les GGUF Q4_K_M sont absents -- repli sur les Q8_0 '
+          '(NIMM_QWENTTS_MODELES=q4 pour forcer les Q4).', flush=True)
+    return (MODELS / NOMS_Q8[0], MODELS / NOMS_Q8[1], '0.6B base Q8_0')
+
+
+TALKER, CODEC, NOM_MODELE = _choisir_modeles()
 
 # Dossier des voix : par defaut celles de NOTRE atelier (les 35 extraits communs
 # avec Kyutai, et leur texte exact). Reglable si un jour on ecoute un autre jeu.
 DOSSIER_VOIX = Path(os.environ.get('NIMM_QWENTTS_VOIX')
                     or (ICI.parent / 'qwen_tts_service' / 'voix'))
 FICHIER_TEXTES = DOSSIER_VOIX / 'references.csv'
+# ============================================================
+# LES TEXTES PRIVES (29/09/2026) : les voix de la famille
+# ============================================================
+# Premier cas : `Maya_normale`, la voix de la fille de Laurent, clonee par
+# NIMM Voix. Son texte de reference ne peut PAS etre versionne : `references.csv`
+# est suivi par Git (il porte les corrections de texte relues a la main), et
+# Maya a lu le debut d'un roman du commerce. Une regle ecrite du BACKLOG est
+# claire -- « aucun extrait d'oeuvre sous droits dans les fichiers versionnes ».
+#
+# Le service lit donc les DEUX fichiers : le public (`references.csv`) puis
+# celui-ci, qui est **HORS Git** (`.gitignore`). Une voix presente dans les deux
+# prend le texte du PRIVE. Le fichier est optionnel : s'il n'existe pas, rien ne
+# change (c'est ce qui rend l'ajout sans risque).
+FICHIER_TEXTES_PRIVES = DOSSIER_VOIX / 'references_privees.csv'
 # Suffixes de fichiers de reference reconnus : les NOTRES (`..._enhanced_reference.wav`,
 # les 35 extraits Kyutai) et ceux des voix clonees par NIMM Voix
 # (`..._reference.wav` : 94 Kokoro + 28 « Decoupage OK », arrives le 28/09/2026).
@@ -136,7 +197,7 @@ _verrou = threading.Lock()       # une seule generation a la fois
 _contexte_signale = False        # le champ « contexte » a-t-il ete signale ?
 _infos = {
     "pret": False,
-    "moteur": "qwentts.cpp (0.6B base Q8_0)",
+    "moteur": "qwentts.cpp (%s)" % NOM_MODELE,
     "appareil": "processeur",
     "langue": LANGUE,
     "codec_fils": CODEC_FILS,
@@ -150,21 +211,15 @@ _infos = {
 # LES VOIX : un WAV de reference ET son texte exact
 # ============================================================
 
-def _lire_textes():
-    """{nom de fichier: texte} depuis `references.csv`.
+def _lire_un_fichier_de_textes(chemin):
+    """{nom de fichier: texte} d'UN fichier de textes (colonnes separees par ;).
 
-    Colonnes separees par des points-virgules : fichier;texte;duree;hauteur;source.
-    Le texte de reference est ce qui active le mode **ICL** (reference plus son
-    texte) : sans lui, le moteur clone le timbre seul, et la ressemblance est
-    moins bonne -- c'est la difference entre « ca ressemble a la voix » et « c'est
-    la voix ».
+    Le format est celui du projet : fichier;texte;duree;hauteur;source.
     """
     textes = {}
-    if not FICHIER_TEXTES.exists():
-        print("ATTENTION : %s est absent -- lecture en mode timbre seul."
-              % FICHIER_TEXTES.name, flush=True)
+    if not chemin.exists():
         return textes
-    with open(FICHIER_TEXTES, encoding='utf-8-sig') as fichier:
+    with open(chemin, encoding='utf-8-sig') as fichier:
         for ligne in fichier.read().splitlines():
             if not ligne.strip() or ligne.startswith('fichier;'):
                 continue
@@ -172,6 +227,29 @@ def _lire_textes():
             if len(morceaux) >= 2:
                 textes[morceaux[0].strip()] = morceaux[1].strip()
     return textes
+
+
+def _lire_textes():
+    """{nom de fichier: texte} : le fichier PUBLIC, puis le PRIVE par-dessus.
+
+    Colonnes separees par des points-virgules : fichier;texte;duree;hauteur;source.
+    Le texte de reference est ce qui active le mode **ICL** (reference plus son
+    texte) : sans lui, le moteur clone le timbre seul, et la ressemblance est
+    moins bonne -- c'est la difference entre « ca ressemble a la voix » et « c'est
+    la voix ». D'ou l'interet de garder le texte de chaque voix, y compris celui
+    de Maya, mais HORS du fichier versionne (voir `FICHIER_TEXTES_PRIVES`).
+    """
+    textes = _lire_un_fichier_de_textes(FICHIER_TEXTES)
+    if not textes:
+        print("ATTENTION : %s est absent ou vide -- lecture en mode timbre seul."
+              % FICHIER_TEXTES.name, flush=True)
+    textes.update(_lire_un_fichier_de_textes(FICHIER_TEXTES_PRIVES))
+    return textes
+
+
+def _compter_textes_prives():
+    """Combien de textes viennent du fichier PRIVE (pour le dire au demarrage)."""
+    return len(_lire_un_fichier_de_textes(FICHIER_TEXTES_PRIVES))
 
 
 def _repertorier_voix():
@@ -199,8 +277,10 @@ def _repertorier_voix():
     _voix_cache = trouvees
     _infos["voix"] = len(trouvees)
     if manquants:
-        print("ATTENTION : %d voix sans texte dans %s -- lues en mode timbre "
-              "seul." % (len(manquants), FICHIER_TEXTES.name), flush=True)
+        print("ATTENTION : %d voix sans texte dans les fichiers de textes (%s, "
+              "%s) -- lues en mode timbre seul."
+              % (len(manquants), FICHIER_TEXTES.name,
+                 FICHIER_TEXTES_PRIVES.name), flush=True)
 
 
 def _audio_24k(chemin):
@@ -589,6 +669,10 @@ def main():
     print("moteur   : %s" % TALKER.name)
     print("codec    : %s" % CODEC.name)
     print("voix     : %s" % DOSSIER_VOIX)
+    _prives = _compter_textes_prives()
+    if _prives:
+        print("textes   : %s + %d texte(s) PRIVE(S) dans %s (hors Git)"
+              % (FICHIER_TEXTES.name, _prives, FICHIER_TEXTES_PRIVES.name))
     print("adresse  : http://%s:%d   (fermer la fenetre ARRETE le moteur)"
           % (HOTE, PORT))
     print("reglages : %d coeurs | %d fils de codec | tranches de %d images | %s"
