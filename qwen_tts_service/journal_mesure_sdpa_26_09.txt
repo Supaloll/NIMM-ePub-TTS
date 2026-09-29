@@ -1,0 +1,20 @@
+
+===== NIMM ePub : appareil de voix Qwen3-TTS =====
+Modele : Qwen/Qwen3-TTS-12Hz-0.6B-Base
+
+Adresse : http://127.0.0.1:8086   (Ctrl+C pour arreter)
+
+
+********
+Warning: flash-attn is not installed. Will only run the manual PyTorch version. Please install flash-attn for faster inference.
+********
+ 
+Attention demandee : sdpa
+Chargement du moteur Qwen3-TTS (cuda : NVIDIA GeForce RTX 4060)...
+Moteur pret en 4.5 s -- 35 voix disponibles.
+Le moteur est pret : les phrases peuvent etre demandees.
+  empreinte de la voix 10087_11650_000028-0002 preparee en 0.9 s
+phrase generee  voix=10087_11650_000028-0002        19.9 s de calcul    9.8 s d'audio  x0.49 le temps reel
+phrase generee  voix=10087_11650_000028-0002        10.3 s de calcul    5.2 s d'audio  x0.51 le temps reel
+phrase generee  voix=10087_11650_000028-0002        11.0 s de calcul    5.2 s d'audio  x0.47 le temps reel
+phrase generee  voix=10087_11650_000028-0002         1.3 s de calcul    0.6 s d'audio  x0.44 le temps reel

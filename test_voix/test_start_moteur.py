@@ -1,13 +1,20 @@
 # -*- coding: utf-8 -*-
 """Script JETABLE -- verifie la logique de demarrage des moteurs de voix.
 
-REGLE EN VIGUEUR DEPUIS LE 21/09/2026 :
-  - POCKET TTS demarre TOUJOURS, et AVANT le choix du moteur lourd : il tourne
-    sur le processeur, il cohabite avec tout le monde, et ses 18 voix doivent
-    etre proposables dans le casting des l'ouverture ;
-  - le moteur LOURD est KYUTAI, quel que soit ce qu'ecrit data\\moteur_voix.txt
-    (« aucun » excepte : la, pas de moteur lourd du tout). XTTS v2 et NeuTTS
-    restent lancables a la main, par leur propre lanceur.
+REGLE EN VIGUEUR DEPUIS LE 29/09/2026 (demande de Laurent : « on ne garde que les
+moteurs dont j'ai besoin ») :
+  - POCKET TTS est SUSPENDU : il ne demarre PLUS (essais d'ecoute non conclusifs,
+    et sa seule voix encore attribuee, `pocket:Homme001`, est passee chez Qwen).
+    Son marqueur d'arret volontaire n'est donc PLUS efface au demarrage -- c'est
+    lui qui empeche le veilleur du lecteur de le rallumer ;
+  - le moteur LOURD lu dans data\\moteur_voix.txt vaut « aucun » depuis le
+    29/09/2026 : aucun moteur lourd ne demarre. KYUTAI (le seul moteur lourd du
+    projet) n'est donc plus allume automatiquement ; il reste INSTALLE et
+    rebranchable par le bouton « Voix de personnages » du lecteur, qui reecrit
+    ce fichier -- donc START.bat le rallumera ensuite. XTTS v2 et NeuTTS restent
+    lancables a la main, par leur propre lanceur ;
+  - QWEN3-TTS (qwentts.cpp, port 8086) est le moteur des voix de personnages : il
+    tourne sur le processeur, il COHABITE, et il demarre avec le lecteur.
 
 Ce que le script controle, sans RIEN lancer (ni moteur, ni lecteur) :
   1. les trois lanceurs ecrivent bien leur nom dans data\\moteur_voix.txt ;
@@ -66,14 +73,27 @@ def fabriquer_copie_neutre():
     """Copie de START.bat ou rien ne se lance vraiment."""
     source = (RACINE / "START.bat").read_text(encoding='utf-8', errors='replace')
     remplacements = [
-        ('start "NIMM ePub - appareil de voix Kyutai" /D "%~dp0kyutai_service" cmd /k DEMARRER_KYUTAI.bat',
+        ('start "NIMM ePub - appareil de voix Kyutai" /D "%~dp0kyutai_service" cmd /k "%~dp0kyutai_service\\DEMARRER_KYUTAI.bat"',
          'echo [NEUTRE] ici serait lance : Kyutai'),
-        # Pocket TTS a sa FENETRE depuis le 21/09/2026 (fermer la fenetre eteint
-        # le moteur, comme Kyutai) : la ligne se neutralise donc comme celle de
-        # Kyutai. Avant, elle passait par un PowerShell « Start-Process ...
-        # -WindowStyle Hidden » et un motif regulier.
-        ('start "NIMM ePub - appareil de voix Pocket TTS" /D "%~dp0pocket_tts_service" cmd /k DEMARRER_POCKET_TTS.bat',
-         'echo [NEUTRE] ici serait lance : Pocket TTS (dans sa fenetre)'),
+        # POCKET TTS : son remplacement a ete RETIRE le 29/09/2026 -- le moteur
+        # est suspendu, START.bat n'a donc plus AUCUNE ligne de lancement pour
+        # lui, et le compte des affichages neutres passe de six a cinq.
+        # RAPPEL TOUJOURS VALABLE pour les textes neutres : AUCUNE PARENTHESE
+        # (26/09/2026). Une parenthese dans un texte, DANS UN BLOC « ( ... ) »,
+        # ferme le bloc et fait derailler cmd -- la lecon du 14/09/2026,
+        # retrouvee ici par accident : le remplacement du « timeout » plus bas
+        # vit, lui, DANS le bloc du garde-fou.
+        # Qwen3-TTS : DEPUIS LE 28/09/2026 c'est qwentts.cpp, et il COHABITE --
+        # il est lance PLUS HAUT, avec Pocket, et non plus a la place de Kyutai.
+        # Oublier cette ligne ferait LANCER POUR DE VRAI le moteur pendant le
+        # test (1,2 Go de modeles charges en memoire) -- c'est exactement le
+        # piege du 21/09/2026 avec NeuTTS. Le controle « la copie neutre ne
+        # lance plus rien » (section 2 bis) est la pour l'attraper.
+        # CHEMIN COMPLET depuis le 29/09/2026 (voir START.bat) : sans lui, lancer
+        # START.bat depuis un programme (variable NoDefaultCurrentDirectoryInExePath)
+        # fait echouer le `cmd /k` sur un nom court, et AUCUN moteur ne demarre.
+        ('start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k "%~dp0qwentts_service\\DEMARRER_QWENTTS_CPP.bat"',
+         'echo [NEUTRE] ici serait lance : Qwen3-TTS, dans sa fenetre'),
         ('python main.py', 'echo [NEUTRE] ici le lecteur demarrerait'),
         ('pause', ''),
     ]
@@ -91,8 +111,10 @@ def fabriquer_copie_neutre():
                     source)
     # `timeout` refuse une entree redirigee (le test en redirige une) : sans
     # cette ligne, il ecrit une erreur sur stderr a chaque execution.
+    # MEME REGLE QUE PLUS HAUT : aucune parenthese dans le texte neutre, car
+    # cette ligne vit DANS le bloc du garde-fou.
     source = re.sub(r'(?m)^[ \t]*timeout /t 2.*$',
-                    'echo [NEUTRE] pause de 2 s (passee)',
+                    'echo [NEUTRE] pause de 2 s passee',
                     source)
     # `newline="\r\n"` : INDISPENSABLE. `read_text()` a converti les fins de ligne
     # en LF, et un .bat ecrit en LF fait DERAILLER cmd -- il execute alors le
@@ -151,7 +173,7 @@ def test_choix_du_moteur():
         ('neutts',       'Moteur retenu : NeuTTS'),       # plus allume tout seul
         ('xtts',         'Moteur retenu : XTTS v2'),      # plus allume tout seul
         ('kyutai',       'Moteur de voix Kyutai'),
-        ('aucun',        'AUCUN - choix enregistre'),
+        ('aucun',        'Moteur de voix LOURD : aucun'),
         ('bidule',       'Moteur de voix Kyutai'),        # inconnu -> Kyutai
         ('xtts\r\n',     'Moteur retenu : XTTS v2'),      # saut de ligne final
         ('  kyutai  \n', 'Moteur de voix Kyutai'),        # espaces parasites
@@ -182,7 +204,7 @@ def test_copie_neutre_sans_lancement():
              'python main.py' not in source)
     verifier('le lecteur en marche n est plus ARRETE (garde-fou du 18/09/2026)',
              'Stop-Process' not in source)
-    verifier('les cinq affichages neutres sont en place',
+    verifier('les cinq affichages neutres sont en place (Pocket n a plus de ligne)',
              source.count('[NEUTRE]') == 5, source.count('[NEUTRE]'))
     # Un .bat en LF seul fait LIRE DE TRAVERS par cmd : il execute le texte de
     # ses propres commentaires (le 21/09/2026, cela a lance le moteur Kyutai pour
@@ -207,31 +229,43 @@ def test_garde_fou_deja_en_marche():
              'deja en marche' in source)
     verifier("l'environnement est verifie avant de lancer",
              'kyutai_service\\.venv' in source)
-    verifier('le port 8085 (Pocket TTS) est teste AVANT celui de Kyutai',
-             '127.0.0.1:8085/sante' in source
-             and source.index('127.0.0.1:8085/sante')
-             < source.index('127.0.0.1:8082/sante'))
+    verifier('le port 8085 (Pocket TTS) n est plus teste ni lance',
+             '127.0.0.1:8085' not in source)
     # Ce controle porte sur le VRAI START.bat : dans la copie neutre, les lignes
     # de lancement sont justement remplacees par des affichages.
     original = (RACINE / "START.bat").read_text(encoding='utf-8', errors='replace')
-    verifier('Pocket TTS a sa FENETRE (fermer la fenetre eteint le moteur)',
-             'appareil de voix Pocket TTS' in original
-             and 'cmd /k DEMARRER_POCKET_TTS.bat' in original)
-    verifier('le marqueur d arret volontaire est efface au demarrage',
-             'arrete_volontaire.txt' in original)
+    verifier('Pocket TTS est SUSPENDU : plus aucun lancement dans START.bat',
+             'cmd /k DEMARRER_POCKET_TTS' not in original
+             and 'appareil de voix Pocket TTS' not in original
+             and 'POCKET TTS' in original)
+    verifier('le marqueur d arret de Pocket n est PLUS efface au demarrage',
+             'del "pocket_tts_service\\arrete_volontaire.txt"' not in original
+             and 'arrete_volontaire.txt' in original)
     verifier('le bloc Pocket TTS ne saute plus vers le lecteur',
              ':pocket_pret' in source)
     verifier('les anciens blocs :moteur_xtts / :moteur_kyutai ont disparu',
              ':moteur_xtts' not in source and ':moteur_kyutai' not in source)
-    # Depuis le 21/09/2026, les DEUX moteurs automatiques ont leur fenetre :
-    # Kyutai (comme avant) et Pocket TTS (pour pouvoir l'eteindre en la fermant).
-    verifier('les deux moteurs automatiques ont leur fenetre (Pocket et Kyutai)',
+    # Depuis le 21/09/2026, les moteurs automatiques ont leur fenetre : Kyutai
+    # (comme avant), Pocket TTS (pour pouvoir l'eteindre en la fermant), et
+    # Qwen3-TTS -- qui, depuis le 28/09/2026, est le portage qwentts.cpp : il
+    # tourne sur le processeur, donc il COHABITE avec Kyutai au lieu de le
+    # remplacer, et c'est START.bat qui l'allume en meme temps que Pocket.
+    verifier('les deux moteurs a fenetre sont Qwen et Kyutai, en CHEMIN COMPLET',
              original.count('start "') == 2
-             and 'cmd /k DEMARRER_POCKET_TTS' in original
-             and 'cmd /k DEMARRER_KYUTAI' in original
+             and 'cmd /k "%~dp0qwentts_service\\DEMARRER_QWENTTS_CPP.bat"' in original
+             and 'cmd /k "%~dp0kyutai_service\\DEMARRER_KYUTAI.bat"' in original
+             and 'cmd /k DEMARRER_POCKET_TTS' not in original
              and 'cmd /k DEMARRER_XTTS' not in original
              and 'cmd /k DEMARRER_NEUTTS' not in original,
              'lignes start : %d' % original.count('start "'))
+    # PANNE DU 29/09/2026 : lance par un PROGRAMME (bouton « Redemarrer NIMM ePub »
+    # du lecteur), START.bat voyait ses `start ... cmd /k <lanceur>` echouer sur un
+    # nom court, a cause de NoDefaultCurrentDirectoryInExePath : la fenetre
+    # s'ouvrait sur une erreur et AUCUN moteur ne demarrait. Le chemin complet est
+    # la correction, et ce controle l'empeche de revenir en arriere.
+    verifier('aucun lancement de moteur par NOM COURT (panne du 29/09/2026)',
+             'cmd /k DEMARRER_QWENTTS_CPP' not in original
+             and 'cmd /k DEMARRER_KYUTAI' not in original)
 
 
 

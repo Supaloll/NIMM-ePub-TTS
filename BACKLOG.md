@@ -15,6 +15,163 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🚩 À FAIRE EN PRIORITÉ — décidé le 22/09/2026
 
+- [x] **🔌 Débrancher Kokoro et Kyutai du démarrage — ✅ FAIT le 29/09/2026** (demande de Laurent, 29/09/2026 :
+  « on ne garde que les moteurs dont j'ai besoin […] on les garde de côté, rebranchables
+  si besoin »). **Fait le 29/09/2026 au matin** :
+  1. **Kokoro n'est plus préchargé** au démarrage du lecteur (`main.py`, la ligne
+     `ensure_kokoro_loaded()` est mise en commentaire ; `ensure_piper_loaded()` reste).
+     **Aucun effet visible** : `synthesize_kokoro` charge le modèle lui-même à la première
+     phrase Kokoro (`modules/tts.py`, « if not _kokoro_ready »). Gain : ~357 Mo de mémoire
+     (310 Mo de modèle ONNX + 47 Mo de timbres) et quelques secondes de processeur à chaque
+     lancement. Retour arrière : retirer le `#`, ou reprendre
+     `main.py.bak_avant_debrancher_kokoro_20260929`.
+  2. **Les voix Kyutai sont passées chez Qwen** (mêmes extraits, mêmes timbres, mêmes
+     prénoms) : **187 personnages sur 15 livres**, **les 2 narrateurs** (livres 27 et 35 —
+     champ `books.narrator_voice`) et **33 notes d'écoute** recopiées sur leur jumelle.
+     Copies datées : `nimm_epub.db.bak_avant_bascule_qwen_20260929_1005` et
+     `annotations_voix.json.bak_avant_bascule_qwen_20260929_1005` (seul retour arrière).
+  3. **Kyutai n'est plus allumé non plus** (même jour, après l'écoute de Laurent : « ça
+     rend bien ») : `data/moteur_voix.txt` porte **`aucun`** (copie datée
+     `data/moteur_voix.txt.bak_avant_debrancher_kyutai_20260929`), donc START.bat ne
+     démarre plus le moteur lourd. Son message d'écran a été réécrit — il annonçait encore
+     « Seules les voix Edge, Kokoro, Piper et Pocket TTS seront disponibles ». Retour
+     arrière : écrire `kyutai` dans ce fichier, ou passer par le bouton « Voix de
+     personnages » du lecteur, qui le rallume et le réécrit.
+  4. **Pocket TTS est SUSPENDU** (même jour, demande de Laurent : « il faut mettre en
+     suspend Pocket, essais non concluants ») : START.bat ne l'allume plus et **ne supprime
+     plus** son marqueur `arrete_volontaire.txt` — c'est ce marqueur qui empêche le veilleur
+     du lecteur de le rallumer 15 s après le démarrage. Le marqueur est en place et le
+     service a été arrêté. Sa **seule voix encore attribuée** (`pocket:Homme001` = **Deke
+     Simmons**, livre 28, 338 phrases) a été basculée vers sa jumelle `qwen:Homme001`
+     (**Marius** — mêmes extraits, donc même timbre) : copie datée
+     `nimm_epub.db.bak_avant_bascule_qwen_20260929_1052`. Rebrancher Pocket :
+     `pocket_tts_service\DEMARRER_POCKET_TTS.bat`, puis supprimer le marqueur.
+     *Le filet `test_start_moteur.py` a été mis à jour le même jour* : trois de ses contrôles
+     passaient « au vert » sur du code mort (l'ancien bloc Pocket laissé en commentaire), ce
+     qui aurait fait mentir le filet.
+  *Pourquoi dans cet ordre* : éteindre Kyutai **avant** de déplacer ses voix aurait rendu
+  muets 15 livres — une voix assignée chez un moteur éteint répond **503** et le lecteur
+  **arrête** la lecture (piège documenté du 17/09/2026 sur le livre 28). Rebrancher Kyutai
+  reste possible à tout moment par le bouton « Voix de personnages » du lecteur : il le
+  rallume **et** réécrit le fichier, donc START.bat le rallume ensuite.
+  *Mesures de contrôle (29/09)* : plus **aucun** champ de la base ne porte une voix
+  `kyutai:` (`_verifier_narrateurs_kyutai.py`) ; `qwen:` passe de 51 à **238 voix sur
+  17 livres** ; piper, edge, kokoro et pocket **inchangés** ; `PRAGMA integrity_check` = ok.
+  *Outils* : `_mesurer_voix_par_moteur.py` et `_verifier_narrateurs_kyutai.py` (racine,
+  lecture seule) ; `_basculer_voix_kyutai_vers_qwen.py` étendu au narrateur et aux notes.
+
+- [ ] **🧹 145 voix orphelines dans la base** (constat du 29/09/2026, en mesurant la bascule
+  Qwen). Les livres **9, 26, 30, 31 et 32** ont des lignes dans `voices` mais **plus aucune
+  ligne dans `books`** : 43, 87, 5, 5 et 5 voix, soit **145**. Le lecteur ne les voit nulle
+  part (il part de la bibliothèque), elles ne gênent donc personne : c'est du **ménage, rien
+  d'urgent**. À traiter le jour où l'on voudra : soit une suppression définitive
+  (`DELETE FROM voices WHERE book_id IN (…)`, copie datée avant — et seulement après avoir
+  vérifié qu'aucun livre n'est resté « caché » en base), soit un ménage automatique dans la
+  route qui supprime un livre (à vérifier : nettoie-t-elle `voices` ? ce n'était pas le cas
+  au 29/09). *Mesure* : `SELECT book_id, COUNT(1) FROM voices GROUP BY book_id` comparé aux
+  `id` de `books`.
+
+- [x] **🟠 FAIT le 29/09/2026 — `START.bat` : les moteurs ne démarrent pas quand on le lance depuis
+  L'APPLICATION** (découvert le 29/09/2026, en activant le garde-fou de dérive). *Le fait* :
+  en lançant `START.bat` depuis un contexte piloté par Python, **le lecteur redémarre bien,
+  mais AUCUN moteur ne s'allume** — et **sans un mot d'erreur**. *La cause, mesurée* : la
+  variable d'environnement **`NoDefaultCurrentDirectoryInExePath=1`** (posée par Python ≥ 3,11
+  dans ses processus enfants) fait que `cmd /k DEMARRER_QWENTTS_CPP.bat` — un **nom court**,
+  dans la ligne `start ... /D ... cmd /k ...` de `START.bat` — n'est **pas trouvé** : le `cmd`
+  enfant ne cherche plus dans son dossier courant.
+  *Ce n'est pas théorique* : c'est **exactement le cas du bouton « Redémarrer NIMM ePub » du
+  lecteur** (`main.py`, `_lancer_start_bat_apres_reponse`), qui a déjà dû être corrigé le
+  21/09/2026 pour `START.bat` **lui-même** (même variable, même panne) — mais la correction
+  **n'a pas été descendue d'un cran**, sur les moteurs lancés *par* `START.bat`.
+  *Conséquence pour Laurent* : après un redémarrage depuis le lecteur, il peut croire que
+  « les voix ne marchent plus » alors que le moteur n'a jamais été allumé. Chez lui, le
+  **double-clic** sur `START.bat` fonctionne (la variable n'existe pas dans l'Explorateur).
+  *Correction, une fois validée* : écrire le **chemin complet** dans les deux lignes `start`
+  (`cmd /k "%~dp0qwentts_service\DEMARRER_QWENTTS_CPP.bat"`, idem Kyutai), puis **adapter les
+  filets** qui cherchent ces textes — `test_voix/test_start_moteur.py` (motifs à neutraliser
+  de `fabriquer_copie_neutre`, contrôle « les deux moteurs à fenêtre »),
+  `test_voix/test_reparer_moteurs.py` („le port 8082 reste testé") et le contrôle « aucun
+  lancement de moteur ». Copie datée de `START.bat` obligatoire, et validation par un
+  redémarrage **depuis le bouton du lecteur** : c'est le seul chemin qui reproduit la panne.
+  *Preuve du diagnostic (29/09)* : `$env:NoDefaultCurrentDirectoryInExePath` valait `1` dans
+  le shell qui a lancé `START.bat`, et le lancement **direct** de
+  `qwentts_service\DEMARRER_QWENTTS_CPP.bat` (chemin complet) démarre le moteur en **1,5 s**.
+  *Ce qui a été fait* : le **chemin complet** est écrit dans les deux lignes `start`
+  (`cmd /k "%~dp0qwentts_service\DEMARRER_QWENTTS_CPP.bat"`, idem Kyutai), et les filets ont
+  suivi — `test_voix/test_start_moteur.py` (les deux motifs à neutraliser, plus un **nouveau
+  contrôle** « aucun lancement de moteur par NOM COURT » qui empêche la panne de revenir) ;
+  `test_voix/test_reparer_moteurs.py` reste vert, `TOUT EST OK` sur la suite complète.
+  **Test terrain du 29/09 à 12 h** : moteur arrêté, puis `START.bat` lancé **depuis un
+  contexte Python** (la condition qui échouait) → le lecteur **et** le moteur Qwen3-TTS sont
+  montés tous les deux, et Kyutai/Pocket sont restés éteints. C'est exactement ce que fait le
+  bouton « Redémarrer NIMM ePub » : il est donc réparé lui aussi.
+
+- [x] **🔇 Kokoro retiré des menus (94 doublons avec Qwen) — ✅ FAIT le 29/09/2026**
+  (demande de Laurent : « il faudrait débrancher Kokoro, sinon je vais me retrouver avec des
+  doublons. Les 94 voix Kokoro sont déjà clonées dans qwentts.cpp »). *Mesure* : les **94**
+  voix Kokoro portent **exactement le même identifiant** que 94 des 157 voix Qwen
+  (`kokoro:af_nicole` / `qwen:af_nicole` : même extrait, donc même timbre et même prénom) —
+  les menus proposaient donc **94 prénoms en double** (Nicole, Bella, Kore, Jessica…).
+  *Fait* : `main.py` (`/api/voices`) ne propose plus `KOKORO_VOICES` (copie datée
+  `main.py.bak_avant_retirer_kokoro_des_menus_20260929`). **Reste proposé : 173 voix**
+  (12 Edge, 4 Piper, 157 Qwen), vérifié par l'API. *Ce qui n'est PAS touché* : le **catalogue
+  complet** (518 voix, Kokoro inclus), qui sert à **nommer** les personnages déjà castés en
+  `kokoro:`, et le moteur Kokoro lui-même (chargement à la demande — il n'était déjà plus
+  préchargé) : **les 164 voix `kokoro:` de 11 livres continuent donc de lire**.
+  *La précaution qui évitait une perte* : les **94 notes d'écoute** de Laurent sont rangées
+  sous `kokoro:` ; elles ont été **recopiées sur leurs jumelles Qwen** par un nouvel outil
+  (`test_voix/_heriter_annotations_kokoro_vers_qwen.py`, copie datée
+  `annotations_voix.json.bak_avant_heritage_qwen_20260929_1203`) — sans quoi il aurait vu les
+  voix Qwen **sans ses étoiles ni ses critères**. Les clés `kokoro:` sont conservées.
+  *Reste ouvert* : le **casting automatique** (`_index_voix`, `modules/voice_casting.py`)
+  propose toujours Kokoro, et les voix assignées sont encore chez lui — à trancher si l'on
+  veut un jour **tout** passer chez Qwen (les jumelles existent). Retour arrière :
+  `+ KOKORO_VOICES` dans `main.py`.
+
+- [ ] **⚡ Rendre « Écouter les voix » instantané : préchauffer les extraits** (idée de Laurent,
+  29/09/2026 : « les voix mettent du temps à sortir, écouter les voix devient trop long […]
+  faire un extrait pour chaque et les garder en dur sur le disque pour qu'elles soient
+  instantanées »). *Le constat* : la fenêtre envoie **toujours la même phrase de référence**
+  aux mêmes réglages (`rate '+0%'`, `pitch '+0Hz'`) — donc le **cache audio** (`data/tts_cache`)
+  s'applique **déjà** et une voix déjà écoutée se rejoue instantanément. Ce qui manque, c'est
+  la **première** écoute : Qwen prépare l'empreinte de la voix (~10 s, une fois par voix —
+  `qwentts_service/LIRE_MOI.md`), donc essayer les 157 voix Qwen à la suite coûte **~26 min**
+  d'attente. *Ce qu'on ferait* : un outil `test_voix/_prechauffer_ecoute_voix.py` (+ lanceur
+  double-clic) qui appelle `POST /api/tts` pour **chaque voix du catalogue** avec la phrase de
+  référence ; le résultat atterrit dans le cache et l'écoute devient instantanée.
+  **La page change aussi** (voir la décision ci-dessous) : ce n'est donc pas seulement
+  « remplir le cache ». L'outil, lui, ne fera rien d'autre : il dira ce qui manque et
+  **ne regénérera pas** ce qui est déjà là.
+  **LA PHRASE — décision finale de Laurent, 29/09/2026** : on **GARDE** la phrase de
+  référence telle quelle, et on **AJOUTE un bouton « dire son nom »** sur chaque ligne de la
+  fenêtre « Écouter les voix » (après examen des autres pistes : Laurent ne veut perdre ni la
+  comparaison entre voix, ni le repère du prénom). La phrase de ce bouton est
+  **« Bonjour, je suis [prénom]. »** — *vérifié le 29/09* : les **518** noms du catalogue sont
+  de vrais prénoms (`_verifier_noms_voix.py`, racine, lecture seule), aucun identifiant
+  technique ; quelques noms Kokoro sont des rôles (« Narrateur », « Enfant », « Mamie »,
+  « Papi ») — la phrase reste correcte, à entendre. *Faisabilité vérifiée* : `.voice-row` est
+  en `flex-wrap` avec des boutons de 30 × 30 (`.voice-play-btn`), donc un **second bouton
+  tient sans casser la mise en page**, téléphone compris.
+  **À construire proprement** : la phrase doit venir du **serveur** (une fonction unique,
+  servie avec la voix) et non être recopiée dans la page **et** dans l'outil de préchauffage —
+  sinon les deux textes divergent et le cache ne sert plus à rien (c'est tout l'intérêt du
+  préchauffage). Le panneau « Changer la voix » (`_apercuVoixPhrase`) reste **inchangé** : il
+  lit un extrait de la phrase du livre (120 caractères) avec les réglages du personnage, et
+  c'est là qu'on entend la voix sur le texte réel.
+  *Chiffres du 29/09* : ~330 voix écoutables (12 Edge, 94 Kokoro, 4 Piper,
+  28 Pocket, 157 Qwen, 35 Kyutai). **Deux textes** par voix depuis la décision ci-dessus
+  (référence **et** nom) : ~660 extraits, **~70 min** la première fois (~35 min si l'on ne
+  préchauffe que le nom) — l'outil prendra donc une option pour choisir le texte à préparer.
+  Taille : ~140-180 Mo (cache actuel : 17,6 Mo / 101 fichiers ; quota 2 Go, aucun risque
+  d'éviction).
+  *À relancer* si le cache est vidé depuis le lecteur, si `VERSION_CACHE` monte, ou si un
+  catalogue s'agrandit. *Pourquoi PAS des extraits figés hors cache* (dossier dédié + route) :
+  plus de code à maintenir, et des extraits **figés** qui ne suivraient plus les corrections du
+  prétraitement (le fondu d'entrée et la respiration du 29/09, par exemple) — il leur faudrait
+  leur propre version. *Ordre conseillé* : **après** l'extinction de Kyutai, sinon on génère
+  35 extraits Kyutai pour rien.
+
+
 - [x] **🚑 Les 53 morceaux qui étaient DANS une réplique en tiret — ✅ FAIT le
   23/09/2026 à 15 h** (note urgente de Claude, confirmée par la mesure).
   *La cause* : `_beat()` refuse un morceau qui contient `«`, mais une **réplique
@@ -640,6 +797,130 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
 
+- [x] **⏸️ Respiration après un point : allongée de 100 ms (200 → 300 ms) — ✅ FAIT le
+  29/09/2026** — retour d'écoute de Laurent, **29/09/2026** (« peut-être encore allonger la
+  pause après un point de 100 ms. À tester sur plusieurs phrases dans un chapitre »).
+  *Où c'est* : `frontend/app.js`, `SENTENCE_PAUSE_MS` = **200** ; elle s'ajoute entre deux
+  PHRASES seulement (les 800 ms de `PARAGRAPH_PAUSE_MS` sont à part, et une phrase redécoupée
+  ne reçoit rien). Valeur choisie **à l'oreille** le 29/09 sur un banc de **trois** phrases
+  (`_essais/_banc_respiration.py`) — donc sur des phrases **isolées**, jamais dans le fil d'un
+  chapitre : c'est précisément ce que Laurent veut éprouver maintenant.
+  *Ce qu'il faut faire* : un banc d'écoute **dans un chapitre** (plusieurs phrases à la suite,
+  avec les sauts de paragraphe), 200 ms contre 300 ms (250 et 400 si le doute persiste), et son
+  oreille tranche. Attention : la pause ne doit pas **s'ajouter** à une respiration que le
+  moteur a déjà produite — c'est la cause des pauses irrégulières relevées le 24/09 (item
+  ouvert juste en dessous).
+  **🎧 BANC PRÉPARÉ le 29/09/2026** : `_essais/_banc_respiration_chapitre.py` (double-clic
+  **`_essais/ECOUTER_LE_BANC_RESPIRATION.bat`**), dossier daté
+  `_essais/_banc_respiration_chapitre_*`. Il prend un **vrai chapitre** (Monte-Cristo,
+  livre 15, chapitre 4 « Le télégraphe »), **12 phrases dans l'ordre**, génère chaque phrase
+  par le **lecteur** (donc nettoyage, normalisation et rognage compris, comme en lecture) et
+  assemble quatre versions : **A 200 ms** (aujourd'hui), **B 250**, **C 300** (la demande),
+  **D 400**. Les 800 ms entre paragraphes ne changent pas.
+  *Deux pièges rencontrés en le fabriquant, à retenir* : (1) le **chapitre 0** d'un EPUB est la
+  **page de titre** (« Alexandre Dumas », « 1845 ») — les vrais chapitres commencent au 4 ici ;
+  (2) dans ce roman, **beaucoup de paragraphes ne font qu'UNE phrase** (les répliques), donc la
+  respiration entre phrases ne s'applique presque nulle part : la première version du banc ne
+  testait que **2 respirations** au lieu de 7 (les quatre fichiers ne différaient que de 0,4 s
+  au lieu de 1,4 s — c'est ce qui l'a fait voir). Le banc ne garde donc que les paragraphes de
+  **plusieurs phrases**, et il affiche la durée de chaque version : **c'est le contrôle qui dit
+  si le banc teste vraiment quelque chose**.
+  **VERDICT DE LAURENT (29/09/2026)** : « **C_300ms.wav c'est bien** » → la valeur passe de
+  **200 à 300 ms** (`frontend/app.js` ligne de `SENTENCE_PAUSE_MS`, copie datée
+  `frontend/app.js.bak_avant_respiration_300ms_20260929`), commentaire du code et
+  `ARCHITECTURE.md` mis à jour. *La leçon gardée* : une respiration se juge **dans le fil
+  d'une lecture**, jamais sur des phrases isolées — la valeur de 200 ms, choisie le matin même
+  sur trois phrases, a tenu **une demi-journée**.
+
+- [x] **🔊 Le VOLUME des voix Qwen — ✅ CLOS le 29/09/2026 : il n'y a rien à régler.** Retour
+  d'écoute de Laurent, 29/09/2026 : « voir si on peut lisser le volume, qui a tendance à un
+  peu plus varier que les autres moteurs ». *Où c'est* : `modules/audio_gain.py` — la parole
+  est ramenée dans une **fourchette de ±3 dB autour de 8,5 %** (règle du 21/09/2026, qui
+  remplace l'ancien réglage « on ne fait que remonter »), **phrase par phrase**.
+  *Ce qu'il faut faire, dans cet ordre* : (1) **MESURER** la dispersion du niveau, phrase par
+  phrase, sur le **même passage** lu par Qwen et par un autre moteur — seule façon de savoir si
+  Qwen est vraiment plus dispersé, et de combien ; (2) décider ensuite : resserrer la
+  fourchette, ou changer de méthode (lissage dans le temps plutôt qu'un gain par phrase).
+  **Ne rien régler avant la mesure** : « ça varie plus » à l'oreille ne dit pas encore quel
+  réglage bouger.
+  **✅ MESURÉ le 29/09/2026 — et l'oreille de Laurent avait raison.** Outil
+  `test_voix/_comparer_volume_moteurs.py` (les phrases passent par le LECTEUR, donc avec la
+  normalisation, comme en lecture ; `qwen:af_nicole` et `kokoro:af_nicole` sont **le même
+  extrait**, donc le même timbre lu par deux moteurs) :
+  | moteur | niveau médian | écart mini-maxi | variation interne |
+  |---|---|---|---|
+  | **qwen** | **5,96 %** | 4,05 dB | 21,3 dB |
+  | kokoro | 6,08 % | 3,54 dB | 20,7 dB |
+  | edge | **9,29 %** | 2,97 dB | 17,1 dB |
+  **LA CAUSE EST TROUVÉE** (`test_voix/_diag_niveau_qwen.py`, brut du service contre lecteur) :
+  Qwen rend **~6 %** au lieu des **8,5 %** visés parce que ses phrases portent des **PICS**
+  (crête brute **~70 %** pour une parole de 5 à 6,5 %). Or `normaliser_wav_parole` borne le gain
+  pour que la crête ne dépasse pas `CRETE_MAX_POURCENT` (98 %) : **le plafond de crête mange la
+  correction**. Vérifiable au centième sur la 2ᵉ phrase — gain voulu **+4,77 dB** (pour 8,5 %),
+  gain réel **+2,86 dB**, soit **6,8 %** calculés contre **6,83 %** mesurés.
+  *Piste de correction (à valider, non appliquée)* : traiter les **pics AVANT de normaliser** —
+  un **limiteur doux** qui abaisse les transitoires sans toucher à la parole : la crête
+  redescend, le gain normal peut alors monter jusqu'à la cible, **et** la dispersion entre
+  phrases devrait se resserrer (aujourd'hui elle est bloquée par ces pics). *Effet de bord
+  probable à surveiller* : le « tic » d'attaque traité le 29/09 fait partie de ces transitoires
+  — le fondu d'entrée et le limiteur doivent s'accorder, sinon on écrase le début des mots.
+  *À SAVOIR (relevé en mesurant)* : seuls **Kyutai, Qwen et Pocket** passent par
+  `audio_gain` ; **Kokoro et Piper ne sont pas normalisés du tout** (d'où leur ~6 %, eux aussi
+  sous Edge).
+  **🎧 BANC D'ÉCOUTE PRÉPARÉ le 29/09/2026** (`_essais/_banc_volume_qwen.py` ; dossier daté
+  `_essais/_banc_volume_qwen_*`, double-clic **`_essais/ECOUTER_LE_BANC_VOLUME.bat`**) : cinq
+  phrases, chacune en **deux versions** — **A** = la normalisation d'aujourd'hui, **B** = la
+  même phrase avec un **limiteur doux** (tangente hyperbolique, seuil 60 %) appliqué AVANT la
+  normalisation. Les deux partent du **même audio brut** du moteur : seule la retouche change.
+  **Ce que le banc mesure, dit franchement** : B **rapproche du niveau cible**
+  (**médiane 7,09 % contre 5,57 %**, soit +2,1 dB) mais **ne resserre pas la dispersion**
+  (4,36 dB contre 4,42 dB), et les **crêtes remontent quand même à 98 %** : le limiteur
+  **libère du gain**, il ne supprime pas le plafond. Ce n'est donc **pas la solution
+  complète**, et le vrai risque est ailleurs — si ces pointes font partie de la **voix**
+  (consonnes, explosions), les écraser **déforme**. C'est l'oreille de Laurent qui tranche.
+  *Piste suivante si l'oreille ne conclut pas* : regarder **OÙ** sont ces pointes dans la
+  phrase (début ? fin ? partout ?) avant de choisir un remède — un pic isolé au tout début
+  n'appelle pas le même traitement qu'une parole inégale du début à la fin.
+  **✅ CONTRE-MESURE DEMANDÉE PAR LAURENT, ET ELLE CHANGE TOUT (29/09/2026)** — il a fait
+  remarquer, très justement, que la voix du premier test (`af_nicole`) est **MURMURÉE** :
+  « les pointes doivent ressortir plus sur ce genre de voix ». Mesure refaite
+  (`_comparer_volume_moteurs.py --voix …`, trois voix, les mêmes phrases) :
+  | série | médiane | écart mini-maxi |
+  |---|---|---|
+  | **qwen:fm_lucas** (3 étoiles, voix normale) | **8,32 %** | **0,74 dB** |
+  | **qwen:ff_siwis** (voix neutre) | **8,09 %** | **0,55 dB** |
+  | kokoro:fm_lucas | 9,47 % | 2,25 dB |
+  | kokoro:ff_siwis | 9,83 % | 3,50 dB |
+  | qwen:af_nicole (murmurée) | 5,96 % | 4,05 dB |
+  | kokoro:af_nicole (murmurée) | 6,08 % | 3,54 dB |
+  | edge (le repère) | 9,29 % | 2,97 dB |
+  **CONCLUSION : il n'y a RIEN à régler sur le volume de Qwen.** Sur les voix normales il est à
+  **8,1-8,3 %** (cible 8,5 %) et c'est **le plus RÉGULIER des trois moteurs** (0,55 à 0,74 dB,
+  contre 2,97 dB pour Edge). Le défaut entendu vient d'une **voix murmurée** : le moteur y
+  produit peu d'énergie, les pointes dominent, et la normalisation ne peut pas monter — et
+  **Kokoro se comporte pareil sur la même voix** (6,08 %), donc c'est **la voix**, pas le
+  moteur.
+  *Leçon de méthode (à ne pas oublier)* : le premier test ne portait que sur `af_nicole` —
+  **une seule voix, et un cas extrême** — d'où une conclusion fausse. Une mesure de moteur se
+  fait sur **plusieurs voix**, dont au moins une « normale ».
+  **La piste du limiteur doux est ABANDONNÉE** : elle n'aurait servi qu'à ces voix
+  particulières, et elle ne resserrait pas la dispersion. **Rien n'a été écrit dans le
+  module** (le banc est resté dans `_essais/`).
+  *Reste à savoir, si Laurent réentend le défaut* : **quelle voix** il écoutait — les voix
+  murmurées ou très âgées existent dans le catalogue et n'ont pas le même rendement sonore.
+
+- [ ] **🔤 Majuscules : les faire lire comme des mots CLASSIQUES** — retour d'écoute de
+  Laurent, **29/09/2026**. *Ce qui existe* : `modules/majuscules.py` (décision du 19/09/2026)
+  remet en casse normale les mots TOUT EN MAJUSCULES **qui apparaissent aussi en casse normale
+  ailleurs dans le livre** ; un mot qui n'apparaît **que** en capitales est considéré comme un
+  **SIGLE** et **laissé tel quel**, donc **épelé par le moteur** (« JFK », « FBI »). C'est
+  voulu… mais Laurent entend des mots **épelés** là où il attend une lecture normale.
+  *Ce qu'il faut trancher* : ne plus jamais épeler ? Et si non, comment reconnaître un vrai
+  sigle (longueur, absence de voyelles, sigles connus) ? *À lui demander au moment de le
+  faire* : **le mot exact** qu'il a entendu — c'est ce qui permettra de cibler la règle au lieu
+  de la deviner.
+
+
 - [ ] **🎚️ Les pauses restent IRRÉGULIÈRES : tous les moteurs ne rognent pas leur
   queue** — **diagnostiqué le 24/09/2026**, à partir du retour d'écoute de Laurent
   (« les pauses ont l'air un peu aléatoires avec Kyutai, parfois ça enchaîne vite,
@@ -709,6 +990,104 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
   contexte le **plus long** au lieu d'aucun). L'essai est **sans perte** : le
   contexte entre dans la clé du cache, donc l'aller (sans contexte) et le retour
   (avec les 3 mots) sont immédiats et se font dans les deux sens.
+
+  **MESURE DU 27/09/2026 — le compte est fait, et les références Pocket sont
+  réparées.** Deux choses, dans l'ordre :
+  1. **les mots mangés ne venaient pas de l'orchestration, mais des RÉFÉRENCES
+     Pocket** : sur les 28 extraits en service, **23 avaient au moins un bord
+     sale**, dont **21 avec une tête à 0 ms** — la voix était coupée en plein mot.
+     L'atelier NIMM Voix les a recoupés (bornes posées au milieu d'un vrai
+     silence) et ils sont **installés ici** : `pocket_tts_service/voix/`, copie
+     datée `voix.bak_avant_bords_propres_20260927/`, `VERSION_CACHE` 18 → **19**
+     (sans quoi le chapitre d'essai aurait été resservi à l'ancienne coupe).
+     Verdict de Laurent sur le test A/B du 27/09 : « **aucun mot n'est mangé en
+     début de phrase** ». Mesure : `_essais/_etat_pocket_27_09.py` (lecture seule).
+  2. **l'irrégularité des pauses, elle, est mesurée sur le cache réel** (89
+     fichiers, `_essais/_mesurer_bords_cache.py`) : la **queue** va de **0,00 à
+     0,63 s** (médiane **0,46 s**) et la **tête** de **0,00 à 1,62 s** (médiane
+     **0,44 s**), soit une **pause perçue entre 0,15 s et 1,70 s** d'une phrase à
+     l'autre — quand Kyutai est rogné à 0,20 s, Kokoro et Piper sortent ~0,10 s et
+     Edge ~0,35 s. **C'est la cause chiffrée du « parfois ça enchaîne vite, parfois
+     non »**, et elle est dans `synthesize_pocket` (qui ne rogne rien).
+     *Le remède, en deux gestes, **à décider*** : (a) rouler `rogner_queue_wav`
+     (`modules/audio_queue.py`, déjà écrit et éprouvé) dans `synthesize_pocket` ;
+     (b) ajouter une **marge de tête** fixe (la piste de Laurent : « laisser un peu
+     plus de blanc avant que Pocket ne lance une réplique ») — donc une fonction de
+     plus dans le même module, appliquée aux moteurs qui ne rognent pas (Pocket
+     d'abord, puis Piper et Kokoro). Les deux font bouger `VERSION_CACHE`, et **les
+     valeurs sont à faire écouter avant de les figer** (0,20 s de queue comme
+     Kyutai, ~0,10 s de tête comme Kokoro — ou plus, à l'oreille de Laurent).
+
+- [ ] **🎒 Pocket TTS : la FIN des phrases part par morceaux — le garde-fou
+  regarde le PIC, pas la PAROLE** (retour d'écoute de Laurent, 27/09/2026, après
+  l'installation des références recoupées). Ses mots : « *Oui. Je sais.* » entendu
+  « **Oui. Je.** », « *m'annonça-t-il.* » entendu « **mii** », « *Du moins ici.* »
+  entendu « **Du moins i.** », « *Ce serait un laser.* » entendu « **Ce serait
+  un** » — plus des « **tic** » légers.
+  *La cause est MESURÉE (`_essais/_mesurer_tirages_pocket.py`, 4 phrases × 8
+  tirages, deux références, le python du service)* : le moteur n'est
+  **pas déterministe**, et sur les phrases **courtes** il rend parfois un
+  **fragment** — pour « Oui. Je sais. », les tirages vont de **0,72 s à 3,44 s**
+  (parole utile **0,10 s à 0,80 s**), et **4 tirages sur 8 ont sauté du texte**.
+  Un fragment a un **pic élevé** (12 à 40 %) : le garde-fou du service
+  (`NIVEAU_MINI = 0,05`, qui ne regarde QUE le pic) le **laisse donc passer**,
+  alors qu'avant la recoupe ces mauvais tirages étaient des **quasi-silences à
+  0,7 %**, que le garde-fou **attrapait** et faisait régénérer. **La recoupe n'a
+  pas créé le défaut : elle a rendu ses mauvais tirages plus forts, donc
+  invisibles au contrôle** — c'est écrit ici pour qu'on ne cherche pas la faute
+  dans les références (mesure : parole moyenne **1,09 s** avec les recoupées
+  contre **1,08 s** avec les anciennes, aucune différence sur les phrases
+  longues, qui ne sautent jamais).
+  *Le « tic » est le même défaut* : un tirage fragmentaire commence par un
+  **transitoire de quelques millisecondes** (mesuré : une bouffée de **10 ms à la
+  position 0** dans la sortie du lecteur, absente de celle du moteur), que la
+  normalisation de niveau **amplifie**.
+  ➡️ **Le remède est mesuré, en trois morceaux** (à décider par Laurent) :
+  1. **température du moteur à 0,3** (la config française ne la règle pas : elle
+     prend le défaut du paquet, **0,7** — le double de ce que Kyutai recommande
+     pour l'anglais, 0,3). **APPLIQUÉE le 27/09/2026 au soir** (`TEMPERATURE`,
+     `NIMM_POCKET_TTS_TEMPERATURE`, exposée par `/sante`). *Mesuré au niveau du
+     MOTEUR* : à 0,3 les mauvaises prises redeviennent des quasi-silences
+     (**pic 0,7 %**) que le garde-fou attrape — **aucune** acceptée sur 32 prises.
+     ⚠️ **Mais au niveau du SERVICE, ce n'est pas suffisant** : mesure du même
+     soir, 8 appels par phrase (`_essais/_verifier_service_pocket.py`), le service
+     rend encore **4 fragments sur 24 appels (17 %)**, presque tous sur la phrase
+     la plus courte (« Oui. Je sais. » : 3 sur 8) — parce qu'il finit par garder
+     « le meilleur essai » quand ses 4 tentatives n'ont rien donné de propre. **Le
+     correctif utile reste donc le n° 2** ;
+  2. **un garde-fou qui regarde la PAROLE, pas le pic** : régénérer quand la
+     prise contient nettement moins de parole que la meilleure déjà tirée
+     (et garder la meilleure) — **À FAIRE, et c'est le vrai correctif** ; piste
+     complémentaire : `ESSAIS_MAX` de 4 à 6 (chaque essai supplémentaire divise
+     le risque résiduel) ;
+  3. **`VERSION_CACHE` 19 → 20** : **APPLIQUÉ le 27/09/2026 au soir** — sans lui,
+     les mauvaises prises déjà en cache auraient été resservies telles quelles et
+     Laurent aurait réentendu les mêmes phrases cassées (la leçon du 17/09/2026,
+     encore une fois).
+  *Piste gardée pour la suite* : `eos_threshold` (défaut **−4,0** : plus haut, le
+  modèle « continue plus volontiers ») — non testé ce soir, il vise directement
+  les fins prématurées. Outils : `_essais/_mesurer_tirages_pocket.py` (avec
+  `--temperature`, `--eos`, `--tokens`, `--reference`),
+  `_essais/_analyser_fin_phrase.py`, `_essais/_profil_wav.py`.
+
+  🔴 **VERDICT DE LAURENT, 27/09/2026 au soir — « J'ARRÊTE AVEC POCKET ».** Ses
+  mots, après une journée entière passée sur ce moteur : « *Ce moteur il est pas
+  bon pour l'utilisation que je veux en faire. Voix caverneuses, bruits
+  parasites, mots ou phrases absentes, rognage des mots… Trop de problèmes dans
+  tous les sens. J'arrête avec Pocket, on verra demain quelle décision je
+  prends.* » **Aucune décision n'est prise ce soir** : le moteur reste
+  **installé, branché et endormi** — même règle que Qwen le 26/09, on ne supprime
+  rien, et rien ne peut l'allumer par accident (la page n'offre aucun geste pour
+  changer de moteur). *Trois choses à trancher demain, à tête reposée* :
+  (1) le sort du moteur (laissé branché-endormi comme Qwen, ou retiré) ; (2) le
+  sort de ses **28 voix** au catalogue et des **12 voix Pocket du chapitre
+  d'essai** (livre 37) ; (3) l'item **n° 2** ci-dessus (juger la prise sur la
+  **parole**) — il reste la vraie serrure, mais il ne se fait plus ce soir.
+  *Ce que la journée a appris, en une ligne* : Pocket ne « rend » pas une phrase,
+  il en **tire** une (moteur génératif, aucune graine) — chaque défaut mesuré un
+  jour peut donc disparaître le lendemain et revenir le surlendemain. C'est la
+  même famille de problème qu'XTTS, et c'est **structurel** : ce n'est pas un
+  réglage qu'on a raté, c'est la nature du moteur.
 
 - [ ] **✂️ Découpage : séparer la NARRATION des RÉPLIQUES (mode dialogue, livre
   par livre)** — demandé et commencé le **21/09/2026**. Laurent : « j'aimerais
@@ -1418,6 +1797,16 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   **incrémenter `VERSION_CACHE`** (le texte parlé change), rejouer le test adverse
   et un banc d'écoute. **Sans re-cast** : l'incise est traitée à la lecture
   (retirée, ou confiée au narrateur — voir l'item 1bis juste après).
+  **✅ LIVRÉ le 24/09/2026 au soir, pour tout sauf une forme** : l'auxiliaire
+  (« m'a-t-elle répondu », « ai-je répondu »), le participe (« a-t-il confirmé »),
+  le **sujet « je »** et l'incise en tête à pronom (« demanda-t-elle. ») sont
+  désormais reconnus — voir « LE CORRECTIF D'INCISES, LIVRÉ » plus haut pour les
+  chiffres avant/après, le test et la mesure. **Ce qui reste ouvert ici** :
+  l'**objet + verbe + NOM** (« , me dit Annette Founijello. »), seul morceau de la
+  famille encore laissé de côté. *Bonne nouvelle sur le reste du constat* : les
+  « deux défauts PRÉEXISTANTS » annoncés plus haut (virgule de jonction, complément
+  long) sont bien ceux de la règle validée le 18/09 — **aucun nouveau** n'a été
+  introduit (mesure : ZÉRO effet de bord sur 30 343 phrases).
 
 - [ ] **1bis. OÙ SE PREND LA DÉCISION : incise MUETTE ou incise AU NARRATEUR ?
   (réflexion de Laurent, 22/09/2026 — la plus importante de la session)** —
@@ -1701,6 +2090,38 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   **À faire APRÈS l'étape 3** (les incises) : un chantier à la fois.
 
 
+- [ ] **🎬 Une annonce d'accueil quand le moteur se met en route** (idée de Laurent,
+  29/09/2026, à noter pour plus tard). Ses mots : « Faire une petite phrase
+  d'intro, quand le moteur doit charger, pour faire patienter — par exemple avec
+  Edge pour la réactivité — insérer le nom du roman ou le chapitre dans
+  l'annonce. Genre : *Les acteurs se mettent en place, [titre du livre,
+  chapitre] va bientôt commencer* — si c'est le début du livre — *reprendre* — si
+  c'est dans un chapitre — *bonne écoute.* »
+  **Ce qui existe déjà, et qui sert de base** : le **message parlé hors ligne**
+  (`MESSAGE_HORS_LIGNE`, 15/09/2026) — préparé **au lancement de la lecture**
+  avec la voix du narrateur, gardé en mémoire sous forme de blob, puis joué
+  pendant une coupure réseau. L'idée est une **variante d'accueil** : le même
+  mécanisme, un autre texte, un autre moment.
+  **Les questions à trancher, dans l'ordre** :
+  1. **Quand exactement ?** Trois attentes possibles au lancement : le
+     **chargement du moteur** (1,6 à 2,3 s pour qwentts.cpp), la **préparation du
+     message hors ligne** (une synthèse Edge au lancement), et surtout le
+     **premier appel d'une voix** (~10 s chez Qwen, le temps de préparer son
+     empreinte — c'est ce que Laurent a trouvé long le 28/09). C'est ce dernier
+     cas qui justifie le plus l'annonce ;
+  2. **Quelle voix ?** Laurent propose **Edge** (réactivité, en ligne, français).
+     À noter : si le réseau est coupé au lancement, Edge ne répond pas — il faut
+     donc préparer l'annonce **avant** d'en avoir besoin (comme le message hors
+     ligne) et savoir s'en passer sans erreur ;
+  3. **Commencer ou reprendre ?** L'information est en base (progression du
+     livre) : début du livre, début d'un chapitre, ou reprise en plein chapitre —
+     trois formulations, à écrire **avec Laurent** (c'est son texte qui compte) ;
+  4. **Ne pas retarder la lecture** : l'annonce ne doit se jouer que si l'attente
+     dépasse un seuil (un moteur rapide ne doit pas être « doublé » par un
+     message inutile), et la première phrase prête doit pouvoir **la couper**.
+  **Rien n'est décidé** : c'est une idée notée, pas un chantier ouvert.
+
+
 ## 🟠 Priorité 2 — Voix & casting
 - [ ] **🎯 « LE POURQUOI » DU CASTING : l'étiquetage, la source des défauts
   résiduels** — constat de Laurent, 23/09/2026 : « là on fait du cas par cas, ça
@@ -1957,6 +2378,29 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
 
 
 
+- [ ] **🎒 Pocket TTS n'est PAS dans le pool automatique du casting — ses voix
+  s'assignent à la main** (découvert le 27/09/2026, en préparant le re-cast du
+  chapitre d'essai). *Le constat, lu dans le code* : `_index_voix()`
+  (`modules/voice_casting.py`) ne contient que **trois familles** — **Kyutai**,
+  **Edge**, **Kokoro** (XTTS et NeuTTS en ont été retirés le 17/09/2026 pour
+  cause de voix muettes). **`POCKET_VOICES` n'y figure nulle part** : le mot
+  n'apparaît pas une seule fois dans le module. Conséquence vérifiée : un
+  **re-cast IA** (`main.py`, la Passe 2 de `_process_remaining_chapters`) fait
+  `DELETE FROM voices WHERE book_id = ?` puis réinsère les voix tirées de ce pool
+  — sur le chapitre d'essai (livre 37), les **12 voix Pocket posées à la main**
+  seraient donc **remplacées par du Kyutai/Kokoro/Edge**, et le chapitre ne
+  serait plus lu par Pocket du tout. **C'est pour cela que le re-cast a été
+  arrêté** avant tout paiement (le lecteur était allumé, l'estimation gratuite a
+  été demandée : `0 phrase` — normal, le livre est déjà entièrement attribué).
+  *Deux questions à trancher, quand on voudra le mélange automatique* :
+  (1) ouvrir le pool à **Pocket** (`_index_voix` + `assign_voices`) — attention,
+  cela touche **tous** les livres, donc mesure + copie datée + contrôle des faits ;
+  (2) que faire des voix **Kyutai** quand le moteur lourd est **éteint** : elles
+  sont en tête du pool, mais une voix assignée chez un moteur éteint **ne lit
+  rien** (503) — c'est le piège documenté du 17/09/2026 sur le livre 28.
+  *En attendant* : le chapitre d'essai garde ses voix, on l'écoute tel quel avec
+  les références recoupées.
+
 - [ ] **🗣️ Renommer « Le narrateur » en « Lin » (Shantaram, livre 33)** — retour
   d'écoute de Laurent, 23/09/2026 : « un personnage qui doit être Lin, j'imagine.
   Lin n'existe même pas dans le casting. » Mesure : le casting a bien un
@@ -2015,6 +2459,780 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   *Pourquoi ça compte* : DeepSeek était **moins bon que Gemini** avant ces
   travaux ; s'ils se valent maintenant, il devient une **alternative** (autre
   fournisseur, tarif différent).
+  **Premier pas fait le 24/09/2026 (essai court, sans re-caster le livre 37)** —
+  demande de Laurent : « un petit essai sur les différents providers qu'on a, sur
+  un passage court et *litigieux*, pour voir **depuis qu'on a fait quelques
+  modifications** quel provider s'en sort le mieux ». Ce qui existe maintenant :
+  - **le passage piège** : `test_voix/passage_piege.txt` — **28 phrases**,
+    1 170 caractères, écrit à la main pour contenir **exactement les cas réparés
+    depuis le 18/09** : une incise de parole isolée dans sa propre phrase
+    (« s'écria le vieil homme. » → narration, consigne 8), une question coupée
+    par son propre « ? », une citation coupée par un « ! » **intérieur** dont la
+    seconde phrase est **nue** (« si vous saviez ce qu'elle m'a coûté ! »), un
+    beat qui annonce une réplique (« puis, très bas : »), une citation **sans
+    guillemet fermant**, deux répliques **sans aucune incise** (déduites par
+    l'alternance), et **un père et un fils homonymes** (Étienne) que le prompt
+    doit séparer. La **vérité terrain** (`passage_piege_verite.txt`) dit, phrase
+    par phrase, **qui parle vraiment** (28 attendus, dont **5 cas litigieux**
+    comptés à part) : c'est ce qui permet de **noter** un moteur au lieu de
+    seulement regarder ses réponses ;
+  - **l'outil** : `test_voix/_PAYANT_comparer_providers_passage.py` (+ lanceur
+    `_PAYANT_COMPARER_PROVIDERS_PASSAGE.bat`, + deux modes **gratuits** :
+    `--decouper` montre les phrases telles que le modèle les reçoit, `--verifier`
+    contrôle les clés et annonce le coût). Il passe par le **vrai chemin du
+    projet** (`voice_casting.analyze_chapter`, donc le prompt compact
+    d'aujourd'hui — l'ancien `_PAYANT_test_attribution_api.py` portait le format
+    verbeux **d'avant** les réparations et ne répond donc pas à la question),
+    interroge **chaque moteur seul** (un refus est compté comme un refus, pas
+    rattrapé en douce par DeepSeek), et rend un **score** par moteur. OpenAI est
+    accessible **sans toucher à l'appli** (clé `OPENAI_API_KEY` dans
+    `test_voix/cles_api.txt` : l'outil aiguille l'appel vers le code
+    « compatible OpenAI » de l'appli). **Claude est disponible mais hors du lot
+    par défaut** (Laurent le juge trop cher pour cet essai, décision du
+    24/09/2026) ;
+  - **premier résultat, gratuit** (moteur local `qwen3:8b`, 67 s, un appel) :
+    **2/23 en score strict (9 %)** et **0/5 sur les cas litigieux**. Il n'a même
+    pas séparé les homonymes : il a **inventé un troisième personnage**
+    (« Étienne_vieil ») et a rendu 12 phrases de narration à un personnage.
+    Autrement dit, sur ce passage, le petit local **fabrique des voix** — ce qui
+    confirme, sur 1 170 caractères seulement, les mesures de septembre sur des
+    livres entiers (précision 34-46 %).
+  - **fait mesuré le même jour, et il explique une consigne du prompt** : le
+    **guillemet fermant « » » ne survit presque jamais à la découpe** (livre 37 :
+    **134** morceaux contenant «, **7** contenant » ; livre 35 : 366 contre 15).
+    La découpe coupe après le point ou le « ? », et le morceau « » » seul est
+    écarté (moins de 4 caractères). **Donc le modèle reçoit des citations
+    visiblement non refermées — c'est l'état normal, pas un accident** : les
+    consignes 8 et 9 du prompt ne parlent pas d'une hypothèse, elles traitent un
+    fait. Mesure : `_essais/essai_decoupe_livre_reel.py`.
+  - *Reste à faire* : lancer le même essai sur les moteurs distants (Gemini,
+    DeepSeek, Mistral, puis OpenAI quand la clé est posée) avant de toucher au
+    livre 37 — c'est le but du passage piège : **décider** avec des chiffres.
+
+  ### RESULTATS du 24/09/2026 au soir (essai lancé à la demande de Laurent)
+
+  Deux tours par moteur (un « tour » = une analyse complète du passage, 28
+  phrases, ~1 900 tokens d'entrée). Rapport complet :
+  `test_voix/rapport_passage_piege_20260924_1958.txt`.
+
+  | Moteur | Score strict | Cas délicats | Durée/appel | Coût mesuré |
+  |---|---|---|---|---|
+  | **Gemini** (`gemini-3.7-flash`) | **100 % (23/23)**, deux tours identiques | **5/5** | 2,4 s | ~0,0028 $ |
+  | **DeepSeek** (`deepseek-chat`) | **96 % (22/23)**, deux tours identiques | **5/5** | 1,4 s | ~0,0014 $ |
+  | Mistral (`mistral-large-latest`) | **ECHEC 403** « not available in your subscription tier » | — | 0,3 s | rien (refus) |
+  | Mistral (`mistral-small-latest`) | **ECHEC 429** « Rate limit exceeded » (après 5 essais espacés de 15 s) | — | 61 s | rien (refus) |
+  | OpenAI (`gpt-5.4-mini`) | **ECHEC 403** « does not have access to model » | — | 1,1 s | rien (refus) |
+  | Local `qwen3:8b` | **9 % (2/23)**, deux tours identiques | 0/5 | 5-15 s | gratuit |
+
+  **Ce que ça dit, et c'est net :**
+  - **Gemini fait un sans-faute sur le passage piège**, deux fois de suite : les
+    quatre réparations du prompt (incise isolée, beat, citation coupée par un
+    « ! », homonymes) sont **tenues**. Il a séparé le père et le fils **sans
+    qu'on le lui demande nommément**, avec ses propres noms
+    (« Étienne » / « fils d'Étienne ») — le score les compte justes, puisque
+    l'essentiel est la **voix sur la bonne phrase** ;
+  - **DeepSeek n'a qu'UNE faute, et c'est toujours la même** : la phrase #7
+    (« s'écria le vieil homme. ») est donnée au personnage **au lieu du
+    narrateur** — c'est-à-dire **exactement le défaut que Laurent entendait**
+    (l'incise de parole prononcée par le personnage). Fautif **aux deux tours** :
+    c'est un angle mort systématique, pas une erreur de hasard. Une phrase sur
+    23 = à l'oreille, sur un vrai chapitre, quelques défauts par chapitre ;
+  - le **modèle local** ne tient rien : il **fusionne trois personnages** sur une
+    seule voix (« Étienne_vieil » pour le père, le fils **et** Élise) et rend
+    12 phrases de narration à un personnage. Confirme les mesures de septembre ;
+  - **deux moteurs sont bloqués par les abonnements, pas par notre code** :
+    Mistral (**aucun accès** à `mistral-large-latest`, et `mistral-small-latest`
+    tombe en **429** — le compte est en palier restreint) et OpenAI (le projet de
+    la clé n'a **aucun modèle autorisé** : `GET /v1/models` renvoie une liste
+    vide, ce n'est pas un problème de clé — elle est bien formée et
+    authentifiée).
+
+  **⚠️ Conséquence à traiter un jour, côté application** : le bouton **Mistral**
+  de la fenêtre de choix du moteur utilise `mistral-large-latest`
+  (`modules/voice_casting.py`), auquel **l'abonnement de Laurent n'a pas accès**
+  → ce bouton **échouerait** s'il le choisissait. Soit on change le modèle par
+  défaut du bouton pour un modèle accessible à son palier, soit on affiche
+  clairement que Mistral n'est pas disponible sur son compte. À trancher avec
+  lui (rien n'a été touché).
+
+  **Découverte annexe, notée pour plus tard** : le même compte Mistral donne
+  accès à **`voxtral-mini-tts`** / `voxtral-small-latest` — les modèles de
+  **synthèse vocale** de Mistral (déjà évoqués au BACKLOG comme piste de voix
+  distante). Une clé déjà en place, donc : à essayer un jour à l'oreille.
+
+  ### Deuxième passe du 24/09/2026 (fin de soirée) — et le chapitre OpenAI
+
+  Le projet OpenAI de Laurent a été **ouvert** (« seulement Dall-E était
+  autorisé » → tous les modèles). Clé **neuve** posée dans
+  `test_voix/cles_api.txt` (une seule ligne, bien formée). Ce que ça a donné :
+
+  | Moteur | Score strict (2 tours) | Cas délicats | Durée/appel | Coût |
+  |---|---|---|---|---|
+  | **Gemini** `gemini-3.7-flash` | **100 % (23/23)**, deux tours identiques | **5/5** | 1,9 s | ~0,0028 $ |
+  | **DeepSeek** `deepseek-chat` | **91 % (21/23)**, deux tours identiques | **5/5** | 1,1 s | ~0,0014 $ |
+  | Modèle local `qwen3:8b` | 9 % (2/23), deux tours identiques | 0/5 | 10,8 s | gratuit |
+  | OpenAI `gpt-5.4-mini` / `gpt-5.4-nano` | 78 % / 52 % (1 tour) | 5/5 et 2/5 | 2,7 s / 2,3 s | non chiffrable |
+
+  **Les deux fautes de DeepSeek, et elles sont instructives** : aux **deux**
+  tours, il se trompe sur les **mêmes** phrases —
+  - **#7** « s'écria le vieil homme. » → donnée au personnage au lieu du
+    narrateur : **exactement le défaut que Laurent entend** ;
+  - **#14** « Ne me parle pas comme cela, je t'en prie ! » (réplique **sans
+    aucune incise**, à déduire de l'alternance) → donnée au mauvais personnage.
+  Un angle mort **reproductible** : ce n'est pas du hasard, c'est ce que DeepSeek
+  ne sait pas faire sur ce passage. Gemini, lui, ne bronche pas (0 erreur,
+  deux fois).
+
+  **Le chapitre OpenAI, tel qu'il s'est vraiment passé** (à garder, ça se
+  reproduira) :
+  1. les **noms de modèles** sont bons (`gpt-5.4-mini` et `gpt-5.4-nano`
+     existent et sont autorisés : 138 modèles listés par `GET /v1/models`) ;
+  2. **mais `_call_openai_compatible` (le code de l'appli) est incompatible avec
+     eux** : ces modèles refusent `max_tokens`
+     → `400 Unsupported parameter: 'max_tokens' ... Use 'max_completion_tokens'`.
+     L'outil d'atelier a donc un **repli** (`_call_openai_max_completion_tokens`),
+     vérifié en direct : c'est ce qui marche. **Le jour où on branchera OpenAI
+     dans l'appli, il faudra ce repli** — le code actuel échouerait ;
+  3. **la propagation des autorisations est instable pendant plusieurs minutes** :
+     le même appel répond (mesuré à 20 h 45, 20 h 52 et 20 h 57), puis est refusé
+     (`403 does not have access to model`), puis repasse. Mesures : deux essais
+     directs ont **réussi**, et plusieurs fenêtres de 90 s ont **entièrement
+     échoué**. L'outil insiste désormais (6 essais espacés de 15 s, puis
+     jusqu'à 3 essais du tour entier espacés de 30 s), et un **guetteur**
+     (`_essais/_PAYANT_attendre_openai_puis_lancer.py`) sonde les deux modèles
+     toutes les 30 s et lance la comparaison **dès que les deux répondent** ;
+  4. conclusion honnête : **le blocage n'est ni la clé, ni le projet, ni notre
+     code** — c'est le déploiement côté OpenAI, encore en cours au moment de
+     l'essai. À relancer plus tard (le guetteur ou la commande sont prêts).
+
+  **ET LA FENÊTRE S'EST OUVERTE À 21 h 14** — le tableau complet est obtenu
+  (rapport `test_voix/rapport_passage_piege_20260924_2114.txt`, un tour) :
+
+  | Moteur | Score strict | Cas délicats | Durée | Coût |
+  |---|---|---|---|---|
+  | **Gemini** | **100 % (23/23)** | **5/5** | 2,1 s | ~0,0014 $ |
+  | **DeepSeek** | 91 % (21/23) | 4/5 | 1,5 s | ~0,0007 $ |
+  | **OpenAI mini** | 78 % (18/23) | **5/5** | 2,7 s | non chiffrable* |
+  | **OpenAI nano** | 52 % (12/23) | 2/5 | 2,3 s | non chiffrable* |
+  | Modèle local | 9 % (2/23) | 0/5 | 13,5 s | gratuit |
+
+  *\* Le projet n'a aucun tarif enregistré pour ces modèles : les tokens sont
+  relevés (1 832 entrée / 181 sortie), le coût n'est pas inventé.*
+
+  **Ce que ça dit, et c'est le plus intéressant de la soirée :**
+  - **`OpenAI mini` réussit les 5 cas délicats** (mieux que DeepSeek !) **mais
+    rate 5 phrases « faciles »** — et ses cinq erreurs sont **toutes de la même
+    famille** : il donne au personnage des morceaux de **narration** (l'incise
+    isolée #7, les deux beats #17 et #26, l'incise #23, et la réplique #22 donnée
+    au mauvais personnage). Autrement dit : **il ne tient pas la frontière
+    « qui raconte / qui parle »** — exactement le défaut que Laurent entend le
+    plus mal à l'oreille ;
+  - **`OpenAI nano` est trop faible** : 52 %, et il **n'a même pas vu Élise**
+    (deux personnages reconnus au lieu de trois) ;
+  - **Gemini reste le seul sans-faute**, deux mesures de suite (2 tours à
+    100 % le 24/09 au soir, plus un tour à 100 % le 24/09 à 21 h 14) ;
+  - la propagation se comporte **par vagues d'environ 5 à 10 minutes** : la même
+    requête passe puis est refusée, plusieurs fois dans la soirée. Rien à faire
+    de son côté : le projet et la clé sont bons.
+
+
+  **Ce que l'outil sait faire de plus depuis ce soir** : comparer **plusieurs
+  modèles d'un même moteur dans le même rapport**
+  (`--modele-openai gpt-5.4-mini,gpt-5.4-nano` → une colonne par modèle), et un
+  `--modele-mistral` pour tester un modèle d'un autre palier.
+
+  **Coût de la soirée** : moins d'un centime d'euro au total (Gemini ~0,003 $,
+  DeepSeek ~0,001 $ par passe ; tous les refus sont gratuits) — y compris le
+  premier lancement perdu par la faute de Cline (voir le carnet).
+
+  ### Mesure GRATUITE de la fiche des personnages (24/09/2026, après la réflexion)
+
+  ChatGPT soulevait un vrai sujet : « le prochain problème n'est pas *qui parle ?*
+  mais **comment construire et maintenir une liste fiable des personnages au fur
+  et à mesure de la lecture** ». On l'a mesuré dans la base réelle, **en lecture
+  seule** (`_essais/_mesurer_derive_noms.py`, gratuit, aucun appel d'IA).
+
+  **État des lieux** : **15 livres castés, 768 personnages en fiche**, 25 sans
+  ligne dans `voices`.
+
+  **1. Les entrées « mortes » — mesure objective, et elle tient** :
+  **215 personnages sur 768 (28 %)** n'ont **aucune réplique**. Vérifié par
+  croisement des tables (`speaker_attribution` : **0 phrase** pour les cas
+  contrôlés) — ce n'est donc pas un artefact de comptage. C'est très concentré :
+  **Monte-Cristo tome 6 (100 sur 135)**, **tome 5 (95 sur 145)**, contre 2 sur 176
+  pour « 22/11/63 ». **Explication vérifiée en partie** : la **fiche se transmet
+  d'un tome à l'autre** dans une saga (19 des 22 entrées sans voix du tome 16
+  parlent dans un autre tome) — c'est **voulu** (c'est ce qui garde la même voix
+  d'un tome à l'autre), mais ça laisse dans chaque tome beaucoup de personnages
+  qui n'y parlent pas. *Aucun impact à l'oreille ; encombrement de la fiche et de
+  l'interface.*
+
+  **2. La détection automatique de dérive des noms ÉCHOUE — et c'est une leçon** :
+  462 paires de noms « suspectes », dont 348 à **deux voix différentes**… mais ce
+  sont des **faux positifs** : des homonymes de famille (Clayton, Oswald, Dunning,
+  Targaryen), des rôles anonymes ou des entrées fantômes à 0 ligne. Les deux cas
+  vérifiés **à la main** sont édifiants :
+  - « Al Stevens » (44 phrases, voix masculine française) vs « Al Templeton »
+    (1 169 phrases) → le texte dit **noir sur blanc** : « *Cet Al-là s'appelait Al
+    Stevens, c'était un type sec, la cinquantaine, **rien à voir avec Al
+    Templeton*** ». **Le casting avait raison de les séparer** — les homonymes de
+    notre passage piège **existent donc en vrai**, et il les gère ;
+  - « Bill Titus » vs « Bill Turcotte » → « Titus » apparaît aussi dans le texte :
+    autre personnage, autre voix, **correct**.
+  - **Méthode qui a tranché, à retenir** : chercher le NOM dans le **texte** du
+    livre (`python _zoom_passage.py <livre> "<nom>"`) — c'est le seul juge fiable ;
+    une heuristique sur les noms ne peut pas décider.
+
+  **3. Conclusion honnête** : sur ce point, **il n'y a pas de défaut mesurable**
+  (2 cas vérifiés sur 2 étaient des fausses alertes). Le sujet ouvert n'est donc
+  pas la dérive des noms, mais le **nettoyage de la fiche** (28 % d'entrées
+  mortes, héritage de saga compris) — à traiter un jour, sans urgence.
+
+  ### Piste apportée par ChatGPT (réflexion passée par Laurent, 24/09/2026)
+
+  Idée de ChatGPT : « votre problème récompense la **discipline** plus que
+  l'intelligence » ; la tâche est une **classification contextuelle contrainte**,
+  donc **un petit modèle pourrait être intrinsèquement mieux adapté** ; et il
+  propose de mesurer non pas « qui comprend le mieux le texte » mais **« qui
+  invente le moins quand on lui interdit de sortir du cadre »**, avec une colonne
+  par **famille d'erreur** plus la **stabilité**. (Il conseille aussi les
+  **Structured Outputs** pour obliger le modèle à rendre un identifiant autorisé.)
+
+  **Confrontation à nos mesures** (rapport
+  `test_voix/rapport_passage_piege_20260924_2114.txt`, 28 phrases) :
+
+  | Moteur | Juste | Invente (personnage lit la narration) | Confusion (narrateur lit une réplique) | Fusion (1 voix pour 2+) | Mauvais personnage | Cas délicats |
+  |---|---|---|---|---|---|---|
+  | Gemini `3.7-flash` | **23/23** | 0 | 0 | 0 | 0 | **5/5** |
+  | DeepSeek `chat` | 21/23 | 1 | 1 | 0 | 1 | 4/5 |
+  | OpenAI `mini` | 18/23 | **4** | 0 | 0 | 1 | **5/5** |
+  | OpenAI `nano` | 12/23 | 5 | **8** | 0 | 1 | 2/5 |
+  | local `qwen3:8b` | 2/23 | 11 | 0 | **13** | 2 | 0/5 |
+
+  - **sa façon de mesurer est la bonne, et elle classe toute seule** : la colonne
+    « inventer » (avec la fusion) suffit à reproduire l'ordre du classement. Le
+    « greffier extrêmement attentif » est bien le bon critère — nos verdicts le
+    font déjà (INVENTE / NARRATION / FUSION / FAUX) ;
+  - **sa conclusion sur la TAILLE n'est pas confirmée** : les deux plus petits
+    sont les plus mauvais (`nano` 52 %, local 9 %), et le champion (Gemini
+    `flash`) est un petit modèle rapide. Ce qui départage vraiment, c'est **la
+    discipline** — tenir la convention dictée même quand l'intuition dit autre
+    chose : ça, c'est confirmé, DeepSeek rate **toujours la même incise** (#7,
+    INVENTE) et la refait à chaque tour ;
+  - **deux profils opposés chez OpenAI, et c'est instructif** : le `mini` est un
+    **romancier** (il lit les amorces de narration comme du dialogue, 4 fois) ;
+    le `nano` est un **greffier timide** (8 répliques rendues au narrateur, et il
+    n'a même pas vu Élise). À l'oreille, « un personnage lit la narration » est
+    le défaut que Laurent entend le plus mal — donc `mini` > `nano` pour nous,
+    malgré un score qui pourrait faire croire l'inverse ;
+  - **réserve honnête** : notre passage est un **test de résistance** (22 % de cas
+    tordus) ; un vrai chapitre en contient quelques pour cent. Les **écarts**
+    entre moteurs sont donc justes, mais les **scores absolus** ne se transposent
+    pas à un livre ;
+  - **idées à garder, sans toucher au code** : (a) verrouiller les **numéros de
+    phrases** par un schéma (Structured Outputs) pour rendre un id inventé
+    impossible ; (b) afficher un **résumé par famille d'erreur** en tête de
+    rapport (quelques lignes d'affichage). Les **noms** de personnages, eux, ne
+    peuvent pas être verrouillés : c'est le modèle qui doit les inventer.
+
+  **✅ MIS EN PLACE le 24/09/2026 à 21 h 32** (Laurent : « tout ce qui peut nous
+  faire avancer, tu peux le mettre en place ») :
+  - **le résumé par famille d'erreur** est désormais dans le rapport (tableau
+    par moteur : juste / invente / confusion / fusion / mauvais personnage /
+    absent), compté sur les **28 phrases** (les 5 cas délicats compris, donc plus
+    lisible que l'ancien score strict) ;
+  - **les sorties de cadre sont MESURÉES** (et non plus seulement corrigées en
+    silence) : l'outil enveloppe `voice_casting._normaliser_reponse` et compte les
+    **numéros hors lot** et les **numéros donnés à deux personnages**. Le code de
+    l'appli n'est pas modifié ;
+  - **sur le verrouillage des numéros : il est DÉJÀ fait, et c'était le point à
+    vérifier avant de coder** — `modules/voice_casting.py`, `_normaliser_reponse`
+    porte depuis le début : « *un numéro inconnu (inventé par l'IA) est ignoré —
+    il ne doit jamais atteindre la base* ». Rien à durcir de ce côté.
+
+  **Ce que la mesure a trouvé dès la première passe** (rapport
+  `rapport_passage_piege_20260924_2132.txt`) :
+  - **aucun moteur n'invente de numéro hors lot** (0 partout) : les numéros sont
+    respectés, l'idée de ChatGPT était donc préventive, pas corrective ;
+  - **le modèle local a donné UN numéro à DEUX personnages** (1 cas) : l'appli
+    garde le premier et jette le second en silence — c'est exactement le genre de
+    chose qu'on ne voyait pas avant ce soir ;
+  - **`OpenAI nano` est instable, et ça change son diagnostic** : 52 % la
+    première fois, **9 % la seconde** (il a fusionné les trois personnages sous
+    un seul nom). Un moteur qui varie de 52 à 9 % n'est pas « faible », il est
+    **imprévisible** — c'est plus grave, et ça ne se voyait pas avec un seul
+    essai ;
+  - `OpenAI mini` reste stable dans son profil (78 % puis 83 %, toujours 5/5 sur
+    les cas délicats, toujours des **inventions** de narration).
+
+  ### LE BANC DES DÉSACCORDS — premier vrai chapitre (24/09/2026, 22 h 00)
+
+  Outil : `test_voix/_PAYANT_banc_desaccords.py` (+ lanceur `_PAYANT_BANC_DESACCORDS.bat`,
+  + modes **gratuits** `--liste-chapitres` et `--verifier`). Chapitre choisi par
+  Laurent : **livre 28 (22/11/63), chapitre 14** (l'index en base ; le lecteur
+  l'affiche « Chapitre 15 ») — celui des deux Al. **990 phrases**. Coût : quelques
+  centimes (l'estimation prudente de l'appli disait 0,05 $ + 0,03 $). Rapport :
+  `test_voix/banc_desaccords_livre28_ch14_20260924_2200.txt`.
+
+  **Gemini et DeepSeek sont d'accord sur 860 phrases sur 990 — 87 %.** Il reste
+  **130 désaccords**, et le classement **par motif** (fait par
+  `_essais/_classer_banc.py`, hors ligne, gratuit) dit exactement où ça casse :
+
+  | Nombre | Qui dit « narration » | Ce que la phrase a de particulier | Qui a raison |
+  |---|---|---|---|
+  | **13** | DeepSeek | elle **commence par un tiret** (« – Qu'est-ce que vous racontez, Hattie ? ») | **Gemini** (un tiret = une réplique, aucun doute) |
+  | **7** | DeepSeek | elle **commence par «** (« « Non mais, c'est pas vrai, vous déconnez ! ») | **Gemini** |
+  | 1 | DeepSeek | elle commence par « ») » | **Gemini** |
+  | 13 | DeepSeek | phrase **nue** capitalisée (« C'est vous que j'aime le plus. », « Pan ! ») | **Gemini** (répliques dont le guillemet a disparu) |
+  | **76** | Gemini | phrase **nue** capitalisée (« Je lui dis que je m'en dispenserais… », « Quelle autre en vérité ? ») | **partagé** : discours rapporté (Gemini a raison) OU suite d'une citation ouverte (DeepSeek a raison) |
+  | 16 | — | deux **personnages** différents (dont de simples variantes de nom) | au cas par cas |
+  | 2 | Gemini | texte nu en minuscule (« tenez… ») | à voir |
+  | 1 | DeepSeek | « gueula-t-il. » | **Gemini** (c'est une incise) |
+
+  **Les deux enseignements, et ils sont concrets :**
+  1. **Le plus gros défaut de DeepSeek est mécanique, pas « intelligent »** : il
+     envoie au narrateur des phrases qui **commencent par un signe de dialogue**
+     (tiret ou guillemet) — **21 cas dans ce seul chapitre**. Cause trouvée et
+     VÉRIFIÉE dans le prompt : **le mot « tiret » n'y apparaît nulle part**
+     (contrôle fait sur `_build_prompt` : « guillemet » oui, « tiret » non). Une
+     seule phrase de consigne devrait corriger ces 21 cas par chapitre.
+     **MESURÉ le 25/09/2026 à 00 h 02 — et le résultat est NUANCÉ.** La consigne
+     a été ajoutée au prompt (consigne 10, « un dialogue peut aussi être marqué
+     par un tiret cadratin », copie datée
+     `modules/voice_casting.py.bak_avant_regle_tiret_20260924`) puis le banc a été
+     rejoué **sur le même chapitre**, avec les mêmes deux moteurs (coût ~0,09 $) :
+     - **la famille visée est bien cassée : « réplique à tiret → narration » chez
+       DeepSeek passe de 13 à 3** (et « ouvre une citation » de 7 à 5) ;
+     - **les désaccords NETS (narration d'un côté, personnage de l'autre)
+       tombent de 114 à 55** : sur les phrases « nues », Gemini donnait
+       « narration » 76 fois, il ne le fait plus que 31 fois ;
+     - **mais le total monte : 130 → 153 désaccords**, et l'accord baisse
+       (87 % → 85 %). Ce qui monte, ce sont les désaccords **de PERSONNE**
+       (16 → 97) : les deux moteurs sont maintenant d'accord pour dire qu'« un
+       personnage parle », mais pas d'accord sur LEQUEL.
+     ⚠️ **Ce que ce chiffre ne dit pas, et il faut le dire** : **un seul essai ne
+     permet pas d'attribuer la hausse à la consigne**. Les deux moteurs sont
+     **génératifs** (mesure du 24/09 : le petit local a donné 52 % puis 9 % sur le
+     même lot) : la variance d'un essai à l'autre n'a **jamais** été mesurée sur
+     ce banc. Pour trancher, il faut un **contrôle** : rejouer une fois de plus
+     avec le même prompt (≈ 0,09 $), ou faire l'A/B complet (revenir en arrière,
+     rejouer, remettre la consigne) — **décision de Laurent**. Ce qui est acquis :
+     **le défaut mécanique visé est réparé**, et la moitié des désaccords les plus
+     audibles a disparu.
+     **A/B COMPLET, la même nuit (25/09/2026, ~0,18 $)** — Laurent : « Faire l'A/B
+     complet (remettre l'ancien prompt, rejouer, remettre la consigne) ». L'ancien
+     prompt est rechargé **sans toucher au fichier** (outil
+     `_essais/_PAYANT_ab_consigne_tiret.py`, qui lit la copie datée et vérifie le
+     patch AVANT de payer), puis trois passes sont comparées
+     (`_essais/_comparer_trois_bancs.py`, gratuit) :
+
+     | Passe | Prompt | Accord | Désaccords | **NETS** | PERSONNE | NOM | base du côté de Gemini |
+     |---|---|---|---|---|---|---|---|
+     | 1 (24/09, 22 h) | ancien | 87 % | 130 | **114** | 6 | 10 | 74 |
+     | 2 (25/09, 00 h) | **nouveau** | 85 % | 153 | **56** | 87 | 10 | **29** |
+     | 3 (25/09, A/B) | ancien | 83 % | 165 | **119** | 42 | 4 | 102 |
+
+     **Ce que ça apprend, et c'est plus fin que le premier coup d'œil** :
+     - **le NOMBRE TOTAL est bruité** : les deux passes à l'ANCIEN prompt donnent
+       130 puis 165 désaccords (mêmes moteurs, même chapitre) — soit ±35. Un seul
+       essai ne prouve donc rien sur le total ;
+     - **les NETS, eux, sont un signal net** : 114 et 119 à l'ancien prompt, **56**
+       au nouveau. La consigne **divise par deux les désaccords les plus audibles**,
+       et c'est bien l'effet visé (une réplique laissée au narrateur, c'est une voix
+       qui manque) ;
+     - **mais elle fabrique des désaccords de PERSONNE** (6-42 → **87**) : moins de
+       « qui parle ? », plus de « c'est qui, ce personnage ? » ;
+     - **et la base décroche** : à l'ancien prompt, la base (l'attribution actuelle,
+       faite par Gemini) est du côté de Gemini **74** et **102** fois ; au nouveau
+       prompt, plus que **29** fois, et **0** côté DeepSeek — autrement dit, sur
+       **124 des 153** phrases contestées, **aucun des deux moteurs** ne rejoint ce
+       qui existe dans le livre.
+     🔎 **Un risque repéré dans les motifs, et il compte** : les « phrases nues
+     capitalisées » où Gemini donnait « narration » tombent de **76-96 à 31**. Or
+     cette famille mélange deux choses indiscernables (mesure du 24/09) : du
+     **discours rapporté** (« Je lui dis que je m'en dispenserais… »), que Gemini
+     avait raison de laisser au narrateur, et des **suites de citation**, que
+     DeepSeek avait raison de donner au personnage. En insistant sur « une phrase
+     qui commence par « n'est jamais de la narration », la consigne a
+     vraisemblablement été **généralisée** par le modèle. **La consigne n'est donc
+     pas gratuite : elle échange un défaut audible contre un autre.**
+     ⚠️ Rappel du piège mesuré le 23/09 sur le MÊME sujet : une règle
+     déterministe « un tiret vaut une réplique » **ne marche pas** ici — sur les
+     147 morceaux concernés de *Notre-Dame*, l'essentiel sont des **digressions de
+     l'auteur** qui commencent aussi par un tiret. La piste déterministe n'est
+     donc pas un raccourci évident : elle demande sa propre mesure.
+     **Décision laissée à Laurent** : garder la consigne (moins de répliques au
+     narrateur, plus d'incertitude sur LE personnage), la **restreindre au seul
+     cas du tiret** (retirer la phrase sur le guillemet), ou revenir en arrière —
+     la copie datée `voice_casting.py.bak_avant_regle_tiret_20260924` rend le
+     retour immédiat.
+
+  ### Question de Laurent (25/09/2026) : « Notre-Dame, avec un guillemet fermant à la fin d'un dialogue, parfois après pas mal d'échanges »
+
+  **La crainte, mot pour mot** : « Ce qui m'inquiète avec le guillemet, c'est que
+  *Notre-Dame de Paris* est écrit avec un guillemet fermant à la fin d'un dialogue,
+  parfois après pas mal d'échanges entre les personnages. » Autrement dit : si une
+  citation s'ouvre sur « et ne se referme » que plusieurs répliques plus loin, deux
+  mécanismes du projet deviennent dangereux — la **consigne 9** du prompt (« tant
+  que la citation n'est pas refermée, TOUTES les phrases gardent le même locuteur »)
+  et le filet **`_harmonize_open_quotes`**, qui force ce même locuteur.
+
+  **MESURÉ le 25/09/2026** (`_essais/_mesurer_citations_longues.py`, gratuit, qui
+  reproduit **exactement** la logique du filet, borne comprise) :
+
+  | Livre | Groupes de 2 phrases et plus | Le plus long | Groupes avec ≥ 2 répliques au tiret | Échanges **préservés** | **Aplatis** |
+  |---|---|---|---|---|---|
+  | 34 — Notre-Dame | 605 | 18 phrases | 9 | **8** | **1** (4 phrases, voix `foule`) |
+  | 28 — 22/11/63 | 767 | 10 phrases | 20 | **20** | 0 |
+  | 33 — Shantaram | 560 | 7 phrases | 21 | **21** | 0 |
+  | 16 — Monte-Cristo t.5 | 247 | 10 phrases | 3 | **3** | 0 |
+
+  **La réponse, et elle est rassurante** : les échanges à l'intérieur d'une
+  citation **sont préservés** (52 cas sur 53 tous livres confondus), parce que le
+  filet se **referme dès qu'une phrase ne reprend pas en minuscule** — or un nouvel
+  échange commence par une majuscule ou un tiret suivi d'une majuscule. Les groupes
+  restent donc **courts** (1 à 18 phrases, jamais les 1 200 phrases qu'une lecture
+  naïve du compteur laissait croire).
+  ⚠️ **Piège d'outil, gardé ici** : ma **première** version de cette mesure
+  ignorait cette borne et annonçait des groupes de **1 222 phrases** — un chiffre
+  alarmant et **faux**. C'est la relecture du code, pas la confiance dans l'outil,
+  qui l'a corrigé.
+  🔎 **Et la vraie conséquence de ton intuition est ailleurs, déjà mesurée** : sur
+  Notre-Dame, **1 066 des 1 198 guillemets fermants sont jetés** par la découpe.
+  Le compteur de citation du filet ne voit donc presque jamais la citation se
+  refermer — il travaille sur l'heuristique de la majuscule. C'est **le même
+  défaut** que les 76 désaccords du banc et que le « » manquant à l'écran : trois
+  symptômes, une cause (l'item n°3).
+  2. **La plus grosse source d'ambiguïté est NOTRE découpe** : les **76**
+     désaccords « phrase nue » existent parce que **le guillemet fermant » ne
+     survit pas** à la découpe (mesure de la même soirée : 134 morceaux avec «
+     contre **7** avec » dans le livre 37). Le modèle ne sait donc plus **où
+     s'arrête une citation** — et les deux moteurs tranchent différemment. Piste
+     forte : **rattacher le » au morceau précédent** (même nombre de phrases,
+     donc **aucune migration d'index** nécessaire), puis remesurer ce banc.
+     **MESURÉ le 24/09/2026 au soir** (`_essais/_mesurer_guillemets_decoupe.py`,
+     gratuit) : le « » est plus qu'orphelin, il est **JETÉ**. La coupe se fait
+     après le point qui précède le guillemet (« … les deux.\xa0» »), le morceau
+     devient « » » tout seul, et le filtre de longueur minimale (3 caractères,
+     présent **des deux côtés**, Python *et* `frontend/app.js`) le **supprime**.
+     Sur les 20 livres castés : **7 997 guillemets fermants perdus** — 1 066 pour
+     Notre-Dame de Paris, 2 306 pour 22/11/63, 1 320 pour Shantaram — et **20**
+     morceaux qui commencent par un « » » (le cas orphelin, quand le texte
+     continue après : « ») Et je l'ai renvoyé à Enid… »).
+     *Conséquence qu'on n'avait pas vue* : la page ne rend **que** les phrases
+     (`renderChapterContent`), donc le guillemet fermant manque aussi **à
+     l'écran**. Preuve sur un vrai paragraphe de Notre-Dame :
+     « *Abomination ! des écoliers qui parlent de la sorte à un bourgeois ! …* »
+     donne trois phrases, et la dernière arrive **sans son « » ».
+     *Deux pièges de mesure, à garder* : la typographie réelle est `\xa0»`
+     (espace **insécable**), donc chercher « . » » avec une espace normale ne
+     trouve rien — et l'essai d'hier disait « 0 morceau avec « » sur
+     Notre-Dame parce qu'il ne regardait que les **3 premiers chapitres** (les
+     préfaces, sans dialogue) : le livre en compte **1 209 « pour 1 198 »**.
+  3. Le reste est marginal : 16 cas de personnage, dont de simples variantes de
+     nom (« bibliothecaire_de_nokomis » / « bibliothecaire »).
+
+  **Aucun code n'a été touché pour ces deux pistes :** ce sont des décisions à
+  prendre (le prompt est calibré, et la découpe a fait l'objet d'une migration
+  d'index) — notées ici pour une prochaine session, avec la mesure qui les
+  justifie.
+
+  ### Question de Laurent (24/09/2026) : les deux moteurs sont-ils au même niveau de réflexion ?
+
+  **Réponse courte : non par le même mécanisme, mais oui en pratique — et surtout,
+  on ne l'a JAMAIS mesuré.**
+
+  - **Gemini est bridé, explicitement** : `_call_gemini` envoie
+    `generationConfig.thinkingConfig.thinkingLevel = "LOW"` (avec repli sur le
+    réglage par défaut si l'API répond 400). C'est documenté dans
+    `ARCHITECTURE.md` (« Modèle utilisé : `gemini-3.7-flash`, appelé avec
+    `thinkingLevel: "LOW"` »). **Ce n'est pas une hypothèse, c'est dans le code.**
+  - **DeepSeek n'a pas de réflexion du tout** : `_call_openai_compatible` n'envoie
+    aucun paramètre de raisonnement, et le modèle utilisé est `deepseek-chat`, qui
+    **n'est pas** un modèle de raisonnement (DeepSeek en propose un autre,
+    `deepseek-reasoner`, que nous n'utilisons pas). Donc il n'est pas « bridé » :
+    il **ne pense pas**.
+  - **En pratique, les deux sont donc proches** : nos rapports affichent
+    **0 token de réflexion** pour Gemini à chaque passe (mesuré dans
+    `data/journal_tokens.csv`/les rapports). Le réglage `LOW` revient donc à
+    « presque pas de réflexion », soit le même ordre de grandeur que DeepSeek.
+  - **Ce qui reste inconnu, et c'est le vrai sujet** : **on n'a jamais regardé si
+    ce bridage coûte en qualité**. Le BACKLOG garde la trace d'une hypothèse
+    démentie (« la réflexion explique la facture » → 0 token mesuré), mais pas
+    d'une mesure « LOW contre MEDIUM ». **Ça se mesure** : le même chapitre, le
+    même prompt, seulement le niveau de réflexion change — puis on regarde où
+    Gemini change d'avis (Gemini contre Gemini) et si les 76 cas ambigus du banc
+    se stabilisent. **Attention au coût** : les tokens de réflexion sont facturés
+    au tarif de SORTIE (3,50 $/M) ; à ~3 000 tokens de réflexion par appel et
+    ~170 appels pour un livre, on parle de **1 à 3 $ de plus par livre** — d'où
+    l'intérêt de mesurer avant de débrider.
+
+  **Et le prompt est le même pour les deux** (à la virgule près) : seul
+  l'**emballage d'API** diffère (`contents/parts` + `responseMimeType` + le
+  filtre de sécurité de Google d'un côté ; `messages` + `response_format
+  json_object` de l'autre). La comparaison entre moteurs porte donc bien sur le
+  **moteur**, pas sur la consigne. *Position du projet* : garder **un prompt
+  unique** (c'est ce qui rend la comparaison honnête, et c'est la leçon de la
+  règle de découpe écrite quatre fois) — et quand une règle manque (le **tiret**),
+  l'ajouter pour **tout le monde** puis remesurer les deux.
+
+  ### MESURE du 24/09/2026 (22 h 33) : que coûte le bridage de Gemini ?
+
+  Laurent : « oui on peut essayer le Gemini débridé et comparer ». Nouvelle
+  option du banc : `--reflexion MEDIUM` ajoute une colonne **Gemini MEDIUM** à
+  côté de **Gemini LOW** (le réglage de l'appli), même prompt, même chapitre.
+  Rapport : `test_voix/banc_desaccords_livre28_ch14_20260924_2233.txt`.
+
+  | Mesure | Gemini LOW (l'appli) | Gemini MEDIUM |
+  |---|---|---|
+  | Accord entre les deux | **974 / 990 phrases — 98 %** | (idem) |
+  | Désaccords | **16** (3 nets, 12 de personne, 1 de nom) | (idem) |
+  | Durée | 15,3 s | **40,9 s** (×2,7) |
+  | Tokens de réflexion | **0** | **11 529** (≈ 1 650 par appel) |
+  | Coût de ce chapitre | ~0,037 $ | **~0,077 $ (×2,1)** |
+
+  **Verdict : le bridage ne coûte presque rien — on garde `LOW`.** Débrider
+  change **16 phrases sur 990 (1,6 %)** et **double le prix** (les tokens de
+  réflexion sont facturés au tarif de sortie : ils pèsent **la moitié** de la
+  note d'une passe MEDIUM). Sur un livre de ~35 chapitres, cela ferait **+1,3 à
+  1,5 $** pour 1,6 % de phrases différentes. **Le choix de l'appli est donc
+  justifié — et maintenant il est mesuré, plus supposé.**
+
+  **Deux détails qui comptent** :
+  - parmi les 3 désaccords « nets », **au moins un est MEILLEUR avec MEDIUM**
+    (#893 : « ») et quand j'ai répondu par la négative, il m'a demandé mon nom… »
+    — MEDIUM reconnaît de la **narration** là où LOW avait attribué un
+    personnage) : la réflexion rattrape donc parfois une vraie faute, mais
+    rarement ;
+  - et les 3 « nets » sont **encore des fragments de citation** (« ») … ») :
+    c'est la **même famille** que les 76 cas du banc — donc **le vrai levier
+    reste la découpe (le guillemet fermant »), pas le niveau de réflexion**.
+
+  ### Les 12 désaccords « de personne » : le TEXTE tranche (24/09/2026)
+
+  Laurent : « on finit là-dessus, les 2 scènes ». Les 12 désaccords étaient
+  concentrés sur **deux scènes** — et le texte du livre les départage tout seul.
+
+  **Scène 1 — l'élève (phrases #150-151, chapitre 14).** Le texte : « *Si seulement
+  vous étiez là tout le temps, monsieur Amberson, m'a-t-il dit avec son plaisant
+  accent du Sud* » puis « *C'est vous que j'aime le plus* » et « *un gamin de
+  dix-sept ans* ». LOW dit `eleve`, MEDIUM dit `mike_coslaw`, la base dit
+  **`Eleve football`**. Ce que dit la **fiche** :
+  - `Eleve football` → **2 phrases**, voix **`piper:upmc:1`** (une voix générique) ;
+  - `Mike Coslaw` → **138 phrases**, voix `kyutai:5790_4893_000052-0001`.
+  Or Mike Coslaw est bien un lycéen du livre (chapitre 15 : « *Michael Coslaw
+  était là. En larmes* »). **Si c'est le même garçon, 2 répliques sont lues par
+  une voix générique au lieu de la sienne** — micro-défaut, mais audible.
+  *Question posée à Laurent : cet élève, est-ce Mike Coslaw ?*
+
+  **Scène 2 — la bibliothèque (phrases #300-308, chapitre 14).** Le texte **nomme
+  la personne noir sur blanc** : « *C'était la voix de **Hattie Wilkerson**, mais
+  on aurait dit que la charmante vieille dame était coincée dans un tonneau en
+  acier géant* ». Donc :
+  - **la BASE a raison** (`Hattie Wilkerson`, 33 phrases, voix `kokoro:am_michael`) ;
+  - `bibliothecaire_de_nokomis` / `bibliothecaire_nokomis` (ce que dit LOW) sont
+    des **entrées fantômes de la fiche** : **0 phrase, aucune voix** → sans effet
+    à l'oreille (c'est le « 28 % d'entrées mortes » vu en direct) ;
+  - **MEDIUM se trompe franchement** : il donne la scène à `Sadie Clayton`, un
+    personnage principal avec **1 599 phrases** — l'aurait-on suivi que la
+    bibliothécaire aurait parlé avec la voix de Sadie.
+
+  **Bilan de l'expérience « débridé », sans ambiguïté** : sur ces 12 phrases,
+  **la base (Gemini LOW) avait le bon locuteur**, MEDIUM fait **une vraie erreur**
+  (Sadie) là où LOW restait seulement **vague** (nom générique), et le niveau de
+  réflexion n'a donc rien apporté. **On garde `LOW`**, définitivement — et les
+  désaccords « de personne » étaient surtout des **écarts de NOM** (nom générique
+  contre nom propre), pas des erreurs d'attribution.
+
+  ### DÉFAUT TROUVÉ À L'OREILLE par Laurent (24/09/2026) : les incises « m'a-t-il dit »
+
+  Retour de Laurent, mot pour mot : « *l'incise « m'a-t-il dit avec son plaisant
+  accent du Sud. » est dite par Eleve football. Elle est passée au travers du
+  découpage certainement.* » **Il a raison, et c'est mesuré.**
+
+  **Le contrôle** (`_essais/_controler_incise_eleve.py`) : sur la phrase #150 du
+  livre 28, `incises.incises(phrase)` renvoie **une liste vide** → le module ne
+  reconnaît pas l'incise → **c'est bien le personnage qui la lit**. Or le livre 28
+  est réglé sur `incises_narrateur = 1` : cette incise **devrait** être dite par
+  le narrateur.
+
+  **Pourquoi, exactement** (lu dans le code, pas supposé) : les motifs du module
+  exigent une **virgule ou un tiret devant le verbe**
+  (`MOTIF_PRONOM`/`MOTIF_NOM` : `[,—]\s*(verbe)...`), et le motif d'incise **en
+  tête de phrase** (`MOTIF_DEBUT`) n'accepte qu'un **NOM** après le verbe
+  (« *Fit celui-ci avec sa voix demi-railleuse…* »). Deux formes très courantes du
+  français lui échappent donc :
+  1. **l'incise en tête avec un PRONOM** : « *Demanda-t-elle.* », « *murmura-t-il.* »,
+     « *dit-il.* » ;
+  2. **le pronom objet AVANT le verbe** : « *m'a-t-il dit* », « *m'annonça-t-il* »,
+     « *lui demanda-t-elle* » — et le roman est écrit **à la première personne**,
+     donc cette forme y est partout.
+  Un contrôle sur 12 formes exactes (`_essais/_tester_incises_formes.py`) le
+  montre noir sur blanc : « *« Entre, dit-il.* » est reconnue, mais « *dit-il.* »,
+  « *demanda-t-elle.* » et « *m'a-t-il dit* » ne le sont **pas**.
+
+  **Combien ça pèse** (`_essais/_mesurer_incises_inversees.py`, gratuit, sur les
+  vrais textes) :
+
+  | Livre | Phrases | Incises de cette famille | Reconnues | **Laissées au personnage** |
+  |---|---|---|---|---|
+  | **28 — 22/11/63** | 25 216 | 139 | **7** | **132 (95 %)** |
+  | **16 — Monte-Cristo t.5** | 5 127 | 68 | 16 | **52 (76 %)** |
+
+  Exemples laissés au personnage : « *« Entre, m'a-t-il dit.* », « *« Je suis
+  désolé mais c'était sans espoir, m'a-t-il dit.* », « *demanda-t-elle.* »,
+  « *murmura-t-il.* » — c'est-à-dire les incises les plus ordinaires.
+
+  **La piste de correction (à faire une prochaine session, rien n'a été touché)** :
+  ajouter au module les deux formes manquantes — `[objet] + verbe + -t-il/-elle`
+  (« m'annonça-t-il ») et `[objet] + auxiliaire + -t-il/-elle + participe`
+  (« m'a-t-il dit ») — plus la forme en tête avec pronom, et quelques verbes
+  absents de la liste (« gueula », « susurra »…). **Le gain se mesurera** avec les
+  deux outils ci-dessus (avant/après sur les mêmes livres), et se **validera à
+  l'oreille** par Laurent sur le chapitre 14 — dont on connaît maintenant les cas
+  exacts. C'est une modification qui change ce qu'il ENTEND : donc niveau 3, et
+  une écoute de contrôle obligatoire.
+
+  **SIMULATION mesurée le 24/09/2026 au soir, outil
+  `_essais/_simuler_incises_inversees.py`** (gratuit, lecture seule : les nouveaux
+  motifs vivent dans le script, le module de l'application n'a pas été touché).
+  Trois corrections simulées : objet + verbe + inversion (« , m'annonça-t-il »,
+  « , me dit-il »), objet + auxiliaire + inversion + participe (« , m'a-t-il dit »),
+  et incise en tête à pronom (« demanda-t-elle. »). Résultats :
+  - **11 des 13 formes exactes passent** (avant : **3 sur 13**) : « demanda-t-elle. »,
+    « murmura-t-il. », « dit-il. », « gueula-t-il. », « m'a-t-il dit »… Les deux
+    qui restent dehors : « Fit celui-ci avec sa voix demi-railleuse… » (incise de
+    NOM en tête MAJUSCULE — la variante qui la récupérait est écartée ci-dessous)
+    et « m'a-t-elle dit de ce ton cassant » (il faudrait l'extension de
+    `DEBUT_COMPLEMENT` à « de ce ton… », non retenue — voir la variante) ;
+  - **la variante « majuscules » est ÉCARTÉE, et mesurée** : rendre `MOTIF_DEBUT`
+    insensible à la casse récupère bien « Fit celui-ci… » / « Repondit Morrel. »,
+    mais elle **abîme une réplique réelle** — « *Dis voir, Mike, vous nous
+    préparez quoi…* » perd son « Dis voir, » (le verbe « dis » + le mot
+    majuscule « Mike » sont pris pour une incise). **1 faux positif sur les
+    30 343 phrases** : peu, mais sur une vraie parole, et sans contrepartie
+    (1 seule incise de plus dans le tome 5). La bonne réponse est déjà dans le
+    correctif : le motif d'incise EN TÊTE **à pronom** est, lui, insensible à la
+    casse (c'est lui qui reconnaît « Demanda-t-elle. ») ; la forme à NOM
+    (« Repondit Morrel. », « Fit celui-ci… ») **reste dehors et on l'assume** —
+    c'est elle qui portait le faux positif ;
+  - **la variante « suites de » (`DEBUT_COMPLEMENT`) n'est PAS retenue** : elle
+    rattrape 2 phrases de plus dans le livre 28 (« , poursuivit-elle sur un ton de
+    neutralité objective. »), toutes justes, mais c'est un autre sujet que
+    l'inversion — et elle n'a pas été validée à l'oreille ;
+  - **`VERSION_CACHE` n'a PAS besoin d'être incrémenté, et c'est vérifié dans le
+    code** (l'item « Incises de participe et d'auxiliaire », plus bas, le
+    demandait) : la clé du cache porte le texte **déjà nettoyé** — `modules/tts.py`
+    appelle `_clean_text` **avant** `_tts_cache.get_audio`, et la clé est le
+    hachage de ce texte (le commentaire du module le dit lui-même :
+    « changer la table ne peut PAS resservir un ancien audio »). Une incise
+    retirée, c'est un texte différent, donc une clé différente. Les entrées
+    devenues inutiles restent dans le cache : du poids mort, pas un défaut.
+
+  ### LE CORRECTIF D'INCISES, LIVRÉ le 24/09/2026 au soir
+
+  *Fichiers* : `modules/incises.py` (nouveau bloc « LES INCISES INVERSÉES » +
+  `_matches` qui l'inclut), **copie datée**
+  `modules/incises.py.bak_avant_inversions_20260924` (le retour arrière tient en
+  une commande) ; test neuf `test_voix/test_incises_inversees.py` (**37 contrôles**,
+  enregistré dans `lancer_tous_les_tests.py` — sans quoi il ne tournerait jamais,
+  piège du 21/09) ; section 5 de `test_voix/test_incise_seule.py` mise à jour
+  (l'auxiliaire à la 3e personne est désormais reconnu : la phrase se TAIT sans le
+  drapeau et SE DIT avec — c'est la preuve que le correctif est branché jusque
+  dans le serveur).
+
+  *Ce qui est reconnu* : objet + verbe + inversion (« , m'annonça-t-il », « , me
+  dit-il »), objet + auxiliaire + inversion + participe (« , m'a-t-il dit avec son
+  plaisant accent du Sud. » — **le cas que Laurent a entendu**), **sujet « je »**
+  (« , ai-je répondu »), **auxiliaire sans objet** (« , a-t-il confirmé »), et
+  l'incise en tête à pronom (« demanda-t-elle. »).
+
+  *Ce qui reste dehors, et pourquoi* : « Fit celui-ci… » / « Repondit Morrel. »
+  (incise de nom en tête à majuscule — la variante qui la récupérait abîmait
+  « Dis voir, Mike… ») et **l'objet + verbe + nom** (« , me dit Annette
+  Founijello. ») : cette dernière forme reste **le seul morceau de la famille
+  laissé de côté**, avec son chiffre à prendre (`_moisson_incise_proto.py`).
+
+  *Vérifié* : suite complète **TOUT EST OK** (tous les tests Python et JS, dont le
+  nouveau), `py_compile` du module, et la mesure avant/après rejouée sur les deux
+  livres **avec le module livré** (et non plus avec une simulation) : les chiffres
+  ci-dessus sont ceux du code en place. **Restent à faire deux choses, à la main
+  de Laurent** : l'**écoute du chapitre 14** de 22/11/63 (les cas exacts sont
+  connus : phrases #31, #171, #339, #539, #588, #150) — et, si elle est bonne,
+  la même écoute sur un passage de Shantaram (697 incises de la famille, le plus
+  gros livre).
+  - **livre 28 : laissées au personnage 157 → 77** (reconnues 7 → 87) ;
+    **livre 16 : 56 → 22** (reconnues 16 → 50) — ce sont les chiffres du
+    correctif **livré** (voir le paragraphe « LE CORRECTIF » plus bas) ;
+  - **le sujet « JE » change tout, et il a été ajouté** : le premier correctif
+    (objet + 3e personne) corrigeait **66 phrases** dans le livre 28 ; avec « je »
+    et l'auxiliaire sans objet, il en corrige **203** (livre 16 : 48 → 51). C'est
+    la forme du récit à la première personne — « ai-je dit », « ai-je pensé »,
+    « ai-je répondu », « a-t-il confirmé », « a-t-il enchaîné » — et c'est la plus
+    fréquente de ce livre. Mesure : **203 changements, 203 de la famille, ZÉRO
+    effet de bord** (livre 16 : 51/51) ;
+  - **effets de bord : ZÉRO** sur les 30 343 phrases des deux livres. Les 66
+    (livre 28) et 48 (livre 16) phrases dont la **version parlée** change sont
+    **toutes** de la famille visée ; **aucune** phrase vidée (garde-fou vital),
+    **aucune** nouvelle « incise seule » ;
+  - **le piège de la liste de verbes, à retenir** : `incises.VERBES` contient des
+    **formes conjuguées** (« demanda », « soupira »), pas des radicaux — une liste
+    tirée de `decoupage.VERBES_DE_PAROLE` (qui, lui, donne des radicaux) **ne
+    trouve rien** : « gueul » ne matche pas, « gueula » matche. Première version
+    de la simulation fausse pour cette raison.
+  *Deux variantes mesurées* : la variante stricte (les trois motifs) et une
+  variante qui élargit en plus `DEBUT_COMPLEMENT` à « de ce ton cassant » /
+  « du même ton » (2 phrases de plus sur le livre 28, dont « , poursuivit-elle
+  sur un ton de neutralité objective. » — juste, mais c'est un autre sujet).
+
+
+
+
+
+
+
+  **Décisions de Laurent, le 24/09/2026 au soir** :
+  - **Mistral : on laisse tomber** (mot pour mot). Conséquence assumée : le
+    **bouton Mistral** de la fenêtre de choix du moteur reste en place et
+    **échouerait** sur son compte (403 sur `mistral-large-latest`). Rien n'a été
+    modifié dans l'appli ; si un jour ça devient gênant, les deux sorties sont
+    connues : griser le bouton avec une explication (comme le bouton local quand
+    Ollama est éteint), ou le pointer sur un modèle de son palier — en sachant
+    que `mistral-small-latest` a mis **61 s** là où Gemini met **2,4 s** ;
+  - **OpenAI : il refait une clé** (il n'a que ces réglages à sa disposition dans
+    le tableau de bord). Ce qu'il faut choisir, et **pourquoi** : **Owned by
+    You** (pas « Service account », qui demanderait des droits en plus) ;
+    **Project** = un projet **autre que celui de la clé actuelle** (le projet
+    actuel n'autorise aucun modèle : `GET /v1/models` renvoie une liste vide) ;
+    **Permissions = All** (et surtout pas « Read only », qui interdit les appels
+    de génération, ni « Restricted », qui demanderait de cocher à la main les
+    autorisations de modèle) ; **Expiration** = la plus lointaine possible
+    (« Never »), sinon la clé s'éteindra un jour sans prévenir. Nom suggéré :
+    `nimm-epub`.
+  - *Si la liste reste vide après ça* : le blocage n'est plus la clé mais
+    **l'organisation / la facturation** côté OpenAI — on le saura en relançant le
+    contrôle (`GET /v1/models`, gratuit, puis un essai sur un nom de modèle très
+    courant comme `gpt-4o-mini` pour distinguer « mauvais nom » de « pas de
+    droits »).
+  - **Contrôle du 24/09/2026 à 20 h 35, après la nouvelle clé** : la clé est
+    bien **neuve** (le fichier a changé à 20 h 33, une seule ligne
+    `OPENAI_API_KEY`) et elle **s'authentifie** — mais elle a été créée dans
+    **le même projet** que la précédente (même identifiant de projet dans chaque
+    refus), et ce projet **refuse TOUS les modèles** : `gpt-4o-mini`, `gpt-4o`,
+    `gpt-4.1-mini` et `gpt-5.4-mini` renvoient tous le même 403
+    `does not have access to model` / `model_not_found`. **Ce n'est donc ni la
+    clé, ni le nom du modèle : c'est le projet qui n'a aucun modèle ouvert.**
+    Tous ces essais sont des **refus** : ils n'ont rien coûté.
+    *La sortie* : prendre un **autre projet** dans la liste déroulante « Project »
+    de l'écran de création (ou créer un projet neuf, qui vient avec les modèles
+    ouverts), clé en **Permissions = All** — puis relancer le contrôle, qui est
+    gratuit. Si la liste reste vide avec un projet neuf, le suspect suivant est
+    l'**accès API de l'organisation** (facturation / vérification), et le message
+    d'erreur changera de forme : c'est ce qui le dira.
+
+
+
+
 
 - [ ] **🎭 Casting : tri par âge, libellé plus court dans les fenêtres étroites,
   et une voix qui ne doit pas être remplacée en silence** — trois demandes de
@@ -2710,6 +3928,32 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   générative** : c'est pourquoi « clonage » et « stabilité » sont aujourd'hui en
   **tension**. La sortie de cette tension passe par le **fine-tuning** d'un
   moteur déterministe (Piper, par exemple) sur une voix donnée.
+  🔎 **À ROUVRIR — 27/09/2026 au soir.** Après avoir écarté Pocket (« j'arrête
+  avec Pocket, on verra demain »), Laurent regarde vers XTTS : « *il reste XTTS,
+  je crois que je l'ai pas optimisé celui-là, et c'est le seul qui reste qui
+  clone et qui est assez rapide* ». **Ce que le projet sait déjà, et qu'il ne faut
+  pas repayer** : (1) la variabilité d'XTTS est **mesurée et structurelle**
+  (échantillonnage, 16/09) ; (2) **baisser la température a déjà été essayé à
+  l'oreille** (0,60 puis 0,45) — verdict : « *c'est presque pire* », et rien de
+  lisible à l'écoute ; (3) ses **79 voix** ont été **retirées du pool automatique
+  du casting le 17/09** (le moteur n'est jamais allumé par `START.bat` : une voix
+  attribuée chez lui **ne lit rien**, 503) ; (4) il ne **cohabite pas** avec
+  Kyutai (3,8 Go chacun sur 8) ; (5) son service expose déjà des **réglages
+  optionnels** jamais utilisés par le lecteur (`temperature`, `top_k`, `top_p`,
+  `repetition_penalty`, `length_penalty`).
+  **Ce qui est NEUF depuis le 27/09, et n'a jamais été essayé sur XTTS** : ce
+  n'est pas *le tirage* qu'il faut régler, c'est **le jugement de la prise**.
+  Toute la soirée Pocket s'est jouée sur un garde-fou qui ne mesurait pas ce qui
+  compte (le **pic** au lieu de la **parole**) ; le même raisonnement s'applique
+  ici : tirer la phrase plusieurs fois, **garder la meilleure** (durée cohérente
+  avec le texte, pas de hachurage, niveau normal) et **la mettre en cache** — dès
+  lors, c'est la bonne prise qui est resservie à chaque relecture, et la
+  variabilité ne s'entend plus que sur les phrases jamais lues. C'est la seule
+  piste XTTS **qui n'a pas encore été payée**, et elle se mesure **à froid**, sur
+  des WAV (aucun moteur à allumer, aucun appel facturé).
+  *Question de Laurent, en attente* : « est-ce que je l'ai optimisé, celui-là ? »
+  — la réponse est **à mesurer** (débit réel, bords, réglages réellement utilisés
+  par le lecteur), pas à supposer.
 
 - [ ] **Pistes de sortie : des voix personnalisées QUI NE VARIENT PAS**
   (ouvert le 16/09/2026, après le verdict XTTS). Trois pistes, dans l'ordre de
@@ -3738,6 +4982,732 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   personnage à partir d'échantillons de 6-10 s. Lourd (1-8 Go, GPU conseillé)
   → utilisable en **pré-génération offline** grâce au cache audio. Nécessite
   une carte graphique ou de la patience CPU.
+  *Relevé du 25/09/2026 (fiche Hugging Face vérifiée, pas une rumeur)* :
+  **Qwen3-TTS-12Hz** (`Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`, écrivain Qwen)
+  est en **Apache-2.0** — donc **libre**, à la différence d'**XTTS v2**
+  (CPML, usage **non commercial**) : ses voix seraient **partageables**, ce qui
+  règle d'un coup le frein de licence relevé plus haut pour XTTS. Caractéristiques
+  relevées : **10 langues dont le français**, **1,92 Md de paramètres** (poids
+  BF16 de **3,83 Go**, soit la **même contrainte que Kyutai** — un seul moteur
+  lourd à la fois sur la carte), **contrôle du ton, du débit et de l'émotion**
+  par le sens du texte, **streaming** basse latence, **clonage** de voix.
+  *Essai fait dans l'atelier **NIMM Voix** (25-26/09/2026)* — verdict de
+  Laurent : **la version Qwen est au-dessus de Kyutai**, qui était déjà très
+  bon. Moteur retenu : **Qwen3-TTS-12Hz-0.6B-Base** (déjà en cache). Mesures
+  sur sa RTX 4060 : **×1,2 à ×1,6 le temps réel** en lots de 4 phrases,
+  **1,3 à 2,7 s** de calcul par phrase seule, phrases courtes parfois **×0,9**,
+  **2,6 à 3,8 Go** de mémoire vidéo, modèle chargé en 4,3 à 5,8 s. Deux défauts
+  à prévoir : une **phrase vide** de temps en temps (2 à 5 % selon la voix — il
+  faut relancer la phrase) et un **son parasite d'entame** quand l'extrait de
+  référence est coupé en plein mot (cause trouvée et corrigée le 26/09/2026 :
+  les références livrées ont leurs bords propres). **Pas de streaming** dans la
+  version installée (`qwen-tts` 0.1.1 : la classe Qwen3TTSModel n'expose
+  aucune méthode de flux, generate_voice_clone() rend l'audio entier) →
+  premier son **2 à 4 s** après la demande. La **garde-robe** compte **119
+  voix** déjà clonées (30 NIMM, 10 à accent allemand, 35 Kyutai/CML, 19 domaine
+  public, 25 CML-TTS), chacune avec son extrait de 10-12 s **et le texte exact**
+  dit dans l'extrait (`references.csv`) : Qwen a besoin **des deux**, là où
+  Kyutai, Pocket TTS et XTTS se contentent de l'extrait. Licence **Apache-2.0**
+  (code et poids, donc audio partageable) ; l'attribution « **Kyutai +
+  CML-TTS** » reste obligatoire sur les 35 voix CC BY 4.0.
+
+  > **Mise à jour du 28/09/2026 (fin de soirée)** — ce relevé est
+  > **l'historique**. Deux **vagues de clonage** ont été faites chez NIMM Voix
+  > (chantier demandé par Laurent : « cloner les voix disponibles pour ce moteur,
+  > par vagues ») : leur service expose désormais **157 voix** — les **35
+  > Kyutai** (inchangées), **94 Kokoro** et **28 « Découpage OK »** (les 28
+  > références Pocket). Le document de **référence** est
+  > `MEMO_SERVICE_PRET_28-09-2026_pour_la_session_NIMM_ePub.md` (mis à jour à
+  > 23h03, autoportant) ; le mémo du 26/09 et celui des leviers sont
+  > l'historique — pas faux, mais dépassés sur le nombre de voix. **Chez nous**,
+  > le moteur installé le 28/09/2026 a **ses 35 voix** (les 122 autres sont à
+  > rapatrier : item dédié).
+  *Relevé chez nous le 26/09/2026* (`_essais/_etat_voix_moteurs.py`, lecture
+  seule, rapport `_essais/_essai_voix_moteurs_26_09.txt`) : **les 35 voix
+  `kyutai:` du catalogue sont exactement les 35 références de la garde-robe
+  Qwen** (aucun identifiant absent, dans un sens comme dans l'autre) — et ce
+  sont **les mêmes enregistrements** que ceux du service Kyutai
+  (`kyutai_service/voix_fr/cml-tts/fr/` porte la source WAV **et** son
+  empreinte de 256 Ko, 35 paires ; la colonne `source` du CSV Qwen les nomme à
+  l'identique). **Conséquence : les voix, les prénoms et les annotations
+  d'écoute ne bougent pas** — seul le moteur qui les fait parler change. Ce qui
+  dépend de Kyutai aujourd'hui : **224 personnages** sur **15 livres**
+  (Shantaram 40, 22/11/63 35, Notre-Dame-de-Paris 31...) et **3 narrateurs**,
+  plus **35 entrées** dans `data/annotations_voix.json`.
+  *Les cinq modifications que l'intégration demanderait* (relevées dans le
+  code, **aucune n'est faite**) : (1) une **branche `qwen:`** dans
+  `modules/tts.py` (un catalogue des 35 voix sur le modèle de `KYUTAI_VOICES`,
+  et une fonction de synthèse sur le modèle de `synthesize_kyutai`) **et** dans
+  la table de `/api/tts` de `main.py` — le point d'insertion déjà nommé plus
+  haut ;
+  (2) un **service à part** (`qwen_tts_service/`, Python 3.12 + PyTorch, port
+  **8086**, libre ; lanceur, entrée dans `MOTEURS_VOIX` et dans `START.bat`,
+  soumis à la règle « un seul moteur lourd à la fois » — 3,8 Go contre 3,8 Go
+  pour Kyutai) ; (3) le **texte de référence** à faire suivre avec la voix
+  (voir ci-dessus) ; (4) la **`VERSION_CACHE`** (à **20** aujourd'hui) à
+  incrémenter si le préfixe restait `kyutai:` — sinon le cache resservirait de
+  l'audio **Kyutai** sous une voix Qwen, la leçon du 17/09/2026 ; (5) le
+  **contexte glissant** (fin de la phrase précédente, apporté au service Kyutai
+  le 17/09/2026) n'a **pas d'équivalent connu** chez Qwen : à écouter avant de
+  le promettre.
+  *Restent à trancher* (les trois questions de NIMM Voix, mémo
+  `G:\NIMM Voix\passerelle_NIMM_ePub\ENVOYES_par_NIMM_Voix\MEMO_QWEN3_TTS_pour_la_session_NIMM_ePub.md`) :
+  mode **A** (préchargé + génération en avance, le plus sûr), **B** (à la volée
+  avec tampon de 2-3 phrases) ou **C** (rien en temps réel pour l'instant, Qwen
+  servant à préparer l'audio) ; **copie des références** chez nous (~60 Mo) ou
+  lecture directe chez NIMM Voix ; **5ᵉ moteur** ou seulement la préparation.
+  La marge est **mince** (×1,2-1,6) : si un autre service occupe la carte en
+  même temps, elle disparaît. Un point **en faveur du temps réel** : le lecteur
+  **précharge déjà** (fenêtre de 5 000 caractères et 2 phrases d'avance,
+  `frontend/app.js`) — l'absence de flux est donc absorbée par le tampon
+  existant. L'essai « **Qwen sur un chapitre** » reste à faire avant de
+  décider.
+  *FAIT le 26/09/2026 (soir) — le 5ᵉ moteur est BRANCHÉ, et MESURÉ.* Ce qui
+  existe maintenant : `qwen_tts_service/` (service HTTP sur le port **8086**,
+  calqué sur le service Kyutai : mêmes routes, même veilleur de fenêtre, plus
+  deux choses propres à Qwen — le **texte de référence** lu dans un
+  `references.csv` copié chez nous, et une **empreinte calculée une fois par
+  voix** puisque Qwen n'en fournit aucune), `DEMARRER_QWEN_TTS.bat`,
+  `TESTER_QWEN_TTS.bat` (lot d'écoute + rapport au temps réel),
+  `tester_service.py`, `LIRE_MOI.md`, `ATTRIBUTION.md`, et les **35 extraits
+  avec leur texte** (10,7 Mo, copiés de la garde-robe NIMM Voix le 26/09 —
+  c'est la réponse à la question 2 du mémo : **copie chez nous**, le service ne
+  dépend d'aucun autre dossier). Côté lecteur : `QWEN_VOICES` (les 35 voix,
+  construites à partir de `KYUTAI_VOICES` pour ne jamais diverger),
+  `synthesize_qwen()` et sa branche `qwen:` dans `/api/tts`, l'entrée `qwen`
+  dans `MOTEURS_VOIX` (moteur **lourd**, un seul à la fois), `START.bat` (qui
+  démarre Qwen quand `data\moteur_voix.txt` le dit) et l'icône **👥** dans
+  `FAMILLES_VOIX` — la page, ce BACKLOG, `ARCHITECTURE.md` et le contrôle des
+  faits sont passés de **sept** à **huit** moteurs dans le même mouvement.
+  Vérifié de bout en bout le 26/09 : `/api/moteurs` voit `qwen` prêt,
+  `/api/voices` propose bien **35 voix `qwen:`**, `/api/voix_catalogue` les
+  nomme « Adèle — 🇫🇷 France (Qwen) », et une phrase réelle revient du service
+  en WAV.
+  **La mesure qui compte, et elle est mauvaise** : en demandant **une phrase à
+  la fois** (notre façon de faire, la surbrillance est par phrase), Qwen tourne
+  à **×0,45 à ×0,51 le temps réel** sur la RTX 4060 — soit **deux fois trop
+  lent** pour suivre la lecture. Détail des mesures (journaux gardés dans
+  `qwen_tts_service/` : `journal_mesures_26_09.txt`,
+  `journal_mesures_parallele_26_09.txt`, `journal_mesure_sdpa_26_09.txt`) :
+  cinq phrases entre ×0,43 et ×0,51 ; l'attention **`sdpa`** ne change rien
+  (×0,49) ; **deux générations de front** ne changent rien non plus (×0,50
+  global, chaque phrase deux fois plus longue) alors que la carte n'est qu'à
+  **27 %** pendant la génération — l'attente est donc dans la boucle
+  autorégressive du modèle, pas dans la carte. L'écart avec le **×1,2-1,6** de
+  NIMM Voix s'explique par les **lots de 4 phrases** (leur mesure) contre une
+  phrase par appel (la nôtre).
+  *VERDICT DE LAURENT, le 26/09/2026 au soir, après écoute* — mot pour mot :
+  « Nan c'est pas bon. Trop de blanc… On retourne sur Kyutai… On referme le
+  dossier Qwen… » → **le dossier Qwen est CLOS pour la lecture en temps réel**.
+  Le livre 28 a été rebasculé vers Kyutai le soir même
+  (`test_voix/_basculer_voix_qwen_vers_kyutai.py`, copie datée
+  `nimm_epub.db.bak_avant_retour_kyutai_20260926_2015`, **35 personnages**) :
+  **aucune voix `qwen:` ne reste dans la base**, le moteur en service est
+  redevenu **Kyutai**, et côté lecteur rien n'a bougé. Le constat de l'oreille
+  confirme la mesure, sans la contredire : **×0,45 le temps réel**, ça ne se
+  voit pas dans un lot de quatre phrases, ça s'entend tout de suite sur un
+  chapitre — la réserve du lecteur se vide et la lecture s'arrête à chaque
+  phrase. *Leçon, du même genre que « déterministe contre génératif » : une
+  vitesse annoncée « en lots » ne dit rien de la vitesse **phrase par phrase**,
+  et c'est la nôtre.*
+  *Les deux pistes, désormais **sans suite*** : (1) **envoyer quatre phrases par
+  appel** — le gain mesuré chez NIMM Voix est de **×2,2**, ce qui remettrait
+  Qwen juste au-dessus du temps réel, mais le lecteur devrait demander des
+  groupes et récupérer quatre audios (la surbrillance par phrase existe déjà,
+  c'est l'échange avec le service qui changerait) ; (2) **pré-générer** un
+  chapitre dans le cache audio avant de l'écouter (mode A du mémo) — rien à
+  changer au lecteur, mais ~2,2 h de calcul pour 1 h de lecture.
+  *À savoir aussi* : le moteur a été essayé avec **l'environnement Python de
+  l'atelier NIMM Voix** (`G:\NIMM Voix\outils\qwen3_tts\.venv`), que le lanceur
+  **emprunte** — installé chez nous, il prendrait la main tout seul
+  (`qwen_tts_service\.venv`). L'outil de bascule d'un livre existe dans les deux
+  sens (`test_voix/_basculer_voix_kyutai_vers_qwen.py` et
+  `test_voix/_basculer_voix_qwen_vers_kyutai.py`, tous deux **rapport seul par
+  défaut**, copie datée de la base avant d'écrire : ils ont servi le 26/09 dans
+  les deux sens) et ils couvrent **224 personnages de 17 livres**, sans une
+  seule voix sans jumelle.
+
+- [ ] **⏱️ Le chronomètre de 20 s abandonnait les phrases longues des moteurs
+  lents — APPLIQUÉ le 28/09/2026, reste à écouter.** C'est la cause probable des
+  « trop de blancs » de l'essai Qwen du 26/09, trouvée le 28/09 en relisant les
+  mesures de `qwentts.cpp` (et non à l'oreille) : dans `frontend/app.js`,
+  **seules les voix `kyutai:`** avaient droit au délai large (90 s, sous un nom
+  qui ne parlait que de Kyutai) ; **toutes les autres**, dont `qwen:`,
+  héritaient de `FETCH_TIMEOUT_MS = 20000`. Or un morceau de phrase peut
+  atteindre `SPLIT_SEGMENT_CHARS = 450`, soit **~30 s de parole** : à ×0,45-0,51
+  (mesure du 26/09, chaque phrase demandée deux fois sa durée de lecture) comme
+  à ×0,8 (mesure du 28/09), la requête était **abandonnée EN PLEIN CALCUL puis
+  relancée** — à l'oreille : un blanc, puis la phrase qui reprend, exactement
+  ce que Laurent a entendu. *Appliqué le 28/09/2026* : `VOIX_MOTEUR_LENT =
+  ['kyutai:', 'qwen:']` et `MOTEUR_LENT_TIMEOUT_MS = 90000` (l'ancien nom, qui
+  ne parlait que de Kyutai, disparaît ; **aucun test ne le citait**, vérifié) —
+  `node --check frontend/app.js` au vert, et **`?v=` monté à `20260928-1`** dans
+  `frontend/index.html` (copie datée `index.html.bak_avant_version_cache_20260928`) :
+  sans cette montée, le téléphone aurait gardé **l'ancien chronomètre de 20 s** en
+  cache, et le correctif serait resté invisible — la leçon du 17/09 appliquée.
+  Copies datées du 28/09 :
+  `frontend/app.js.bak_avant_delai_moteur_lent_20260928`,
+  `BACKLOG.md.bak_avant_delai_moteur_lent_20260928`,
+  `ARCHITECTURE.md.bak_avant_delai_moteur_lent_20260928`. **À confirmer à
+  l'oreille** : blancs du chronomètre et lenteur du moteur sont **deux choses
+  différentes**, et c'est la première fois qu'on pourra les séparer.
+
+- [ ] **🧬 `qwentts.cpp` (28/09/2026) : le chemin optimisé est mesuré — et la
+  carte graphique n'a JAMAIS travaillé.** Le mémo de NIMM Voix
+  (`MEMO_QWENTTS_CPP_28-09-2026_pour_la_session_NIMM_ePub.md`, déposé à la
+  racine de l'atelier le 28/09) annonce le portage **C++/GGML** de Qwen3-TTS
+  (dépôt qwentts.cpp de ServeurpersoCom, MIT ; modèle et codec Apache-2.0) : chargement
+  **1,4-1,5 s**, premier son **0,51-0,53 s**, **1,2 Go de fichiers**, et il
+  tourne **sur le processeur** — donc **la carte reste libre**, plus de règle
+  « un seul moteur lourd à la fois » pour lui. Chiffres relus dans le journal de
+  mesure (le journal de mesure de NIMM Voix du 28/09) : phrase de 125
+  caractères = **10,0 s d'audio en 12,5 s → ×0,80** ; détail inédit, Talker
+  2,1 s + prédicteur 4,5 s + **décodage du codec 5,5 à 9,0 s (≈45 % du temps)**.
+  **La découverte** : le bloc « sur la CARTE GRAPHIQUE (CUDA) » du même journal
+  affiche `[Load] Talker backend: CPU (CPU threads: 6)` — **la RTX 4060 n'a
+  jamais servi** : le paquet CUDA (0.2.0, natif du 31/08) retombe **en silence**
+  sur le processeur, alors que le paquet processeur (0.4.2, natif du 27/09) est
+  **plus récent** que lui, et le « docteur » du paquet ne signale **aucune
+  erreur**. Le mémo concluait « le GPU n'aide pas » : ce n'est pas ce que dit le
+  journal, il n'a pas été **utilisé**. Les chiffres cités par Laurent (TTFT
+  ~35 ms, onset ~80,9 ms, **RTF 0,108**) n'ont **pas été retrouvés** dans le
+  dépôt principal (son README et sa documentation technique n'ont **aucun tableau
+  de débit**) : à re-vérifier, et de toute façon ils sont mesurés sur une
+  **4090**. Trois leviers, du moins cher au plus cher : (1) l'outil
+  d'introspection des paramètres d'initialisation — **écrit le 28/09 par NIMM
+  Voix, jamais lancé** (aucun journal ne le montre) : il indique si le moteur a
+  le **droit** d'aller
+  sur la carte (une valeur de « couches GPU » à 0 = tout sur le processeur,
+  comme dans llama.cpp) ; (2) **sans carte** : le décodage du codec peut
+  **chevaucher** la génération (des fils dédiés au décodage, une livraison par
+  tranches de 2 images, et un réglage de priorité d'entame pour 18-23 ms : le
+  fabricant annonce une baisse du temps de calcul de 23 à 26 %) — de quoi
+  passer de ×0,80 à ≈×1,0 ; (3) **compiler nous-mêmes** (les deux scripts de
+  compilation du dépôt : version CUDA, ou version Vulkan qui n'exige **pas** le
+  CUDA Toolkit) — **aucun binaire
+  précompilé n'existe** : le dépôt principal n'a **aucune release**, et le
+  dépôt de builds tiers est **vide**. **Les trois réponses à renvoyer à NIMM
+  Voix** : (a) **notre lecteur ne parle pas OpenAI** — il lit **une phrase par
+  requête** (`/api/tts`), et `modules/tts.py` appelle les services en français
+  (`POST /tts` avec `{"texte","voix"}` → **un WAV complet**, plus `GET /sante`
+  et `/voix`) : le « streaming qui perd ~2 s en fin de génération » **ne nous
+  concerne donc pas**, et ce qu'il faut est un **adaptateur** exposant ces trois
+  routes par-dessus le serveur HTTP du paquet — `NIMM_QWEN_URL` (**déjà prévue**)
+  permet de le brancher **sans une ligne de code** (seul détail : le bouton
+  « Réparer les moteurs » viserait alors notre lanceur) ; (b) le service vit
+  **chez NIMM Voix**, même machine, sur un port libre (8087 proposé) ; (c)
+  **le chapitre de test, c'est le livre 28** (35 personnages `kyutai:`, jumelles
+  `qwen:` prêtes, outils de bascule dans les deux sens) — **pas le livre 37**,
+  dont les voix sont **12 Pocket + 1 Kyutai + 1 Kokoro + 1 Piper**, donc **sans
+  aucune jumelle Qwen à basculer**. À savoir aussi : le **mode A** du mémo
+  (quelques WAV) se serait écouté **hors de l'app** — le lecteur ne propose les
+  voix `qwen:` que si le service répond. **Cache** (leçon du 17/09 vérifiée le
+  28/09, pas supposée) : **aucun rendu Qwen du 26/09 ne peut être resservi** —
+  les **31 fichiers** du cache audio datent tous du **28/09 après minuit**, donc
+  d'après `VERSION_CACHE` 20. **Notre réponse écrite à NIMM Voix** vit **chez
+  nous** — `test_voix/MEMO_REPONSE_qwentts_cpp_28-09-2026_pour_NIMM_Voix.md`
+  (règle 3 de la passerelle : un mémo reste chez son auteur, NIMM Voix vient le
+  lire ; `passerelle_NIMM_ePub\RECUS_de_NIMM_ePub\` reste vide, et **rien n'a été
+  écrit chez l'autre atelier**).
+
+  **Réponse de NIMM Voix le 28/09/2026 au soir (14h41)** — nos deux demandes
+  traitées dans l'heure : (1) **la carte n'a pas le droit.** Leur outil
+  d'introspection a cette fois été **lancé** (et il **écrit désormais son
+  journal** — notre remarque « un outil lancé sans trace ne prouve rien » est
+  reprise telle quelle) : les paramètres d'initialisation des **deux** paquets
+  comptent **sept champs, les mêmes**, et **aucun** ne concerne les couches GPU.
+  La bibliothèque CUDA est bien présente et chargée, le « docteur » est vert,
+  mais **le repli sur le processeur est décidé par le natif, sans être exposé** :
+  il n'existe donc **aucun levier Python** pour envoyer les poids sur la carte.
+  Conséquence nette : la carte demanderait de **compiler** (CUDA, ou **Vulkan**
+  qui n'exige pas le CUDA Toolkit) — **chantier reporté, pas décidé**, chez eux
+  comme chez nous. (2) **Le levier processeur paye, mais en streaming
+  seulement** : ×0,79 → **×0,99** (+25 %, soit le temps réel) avec 4 fils de codec
+  + tranches de 2 images + priorité d'entame — cohérent avec les −23/−26 %
+  annoncés par le paquet. **Réserve dite telle quelle** : en génération
+  **complète**, aucune prise n'a battu la référence (×0,67 et ×0,50 contre
+  ×0,85, avec une variance reconnue entre deux réglages voisins) → **prises
+  répétées, machine au repos**, avant tout chiffre définitif. **Contrainte
+  découverte** : la priorité d'entame **exige** des fils de codec **et** un flux
+  de 2 ou 4 images — le moteur **refuse** au lieu de dégrader en silence.
+  **La piste qui découle de nos deux lectures** : consommer le **flux** dans
+  l'adaptateur et rendre un **WAV complet** — notre contrat ne bouge pas, leur
+  mode le plus rapide sert, et le défaut des « 2 s perdues » disparaît. **Le
+  contrat pratique leur a été renvoyé, relevé dans `main.py` et `modules/tts.py`**
+  (sections 6 et 7 de notre mémo de réponse) : `/voix` n'est **jamais** appelé par
+  le lecteur (diagnostic seul) ; c'est **`/sante` qui décide de tout** (`pret` à
+  vrai, sinon la page considère le moteur éteint et **ne propose aucune de ses
+  voix**) ; `/tts` reçoit **deux champs seulement** (`texte`, `voix`), **sans**
+  contexte ni identifiant de livre — le contexte glissant est propre à Kyutai ; et
+  l'adaptateur doit enregistrer les **35 identifiants** (nom du fichier de
+  référence **sans** son suffixe technique), **pas 3 ou 4**, sinon l'essai sur le
+  livre 28 serait tronqué. Le **mode A est définitivement écarté** (il ne
+  s'écouterait pas dans l'app) : il faut bien l'adaptateur. Suite, dans l'ordre :
+  **leurs prises répétées**, puis l'**adaptateur port 8087**, puis l'essai
+  **dans l'app sur le livre 28**. Copies : le mémo de réponse est déposé chez
+  nous sous `MEMO_REPONSE_LEVIERS_ET_GPU_28-09-2026_pour_la_session_NIMM_ePub.md`
+  (instantané ; le maître reste chez NIMM Voix).
+
+  **Le service est PRÊT (28/09/2026, 15h00) — essai 4 préparé des deux côtés.**
+  Chiffre **définitif** des leviers, 3 prises par configuration, machine au
+  repos : en **streaming**, ×0,66 → **×0,94** (**+42 %**, et les deux fourchettes
+  **ne se chevauchent pas** : ce n'est pas du bruit) ; en **génération complète**,
+  le levier **coûte ~7 %** (×0,74 → ×0,69, fourchettes séparées). Conséquence
+  écrite par NIMM Voix et **validée par la mesure** : ce levier ne se justifie
+  **que si l'on consomme le flux** — donc notre idée « consommer le flux dans
+  l'adaptateur et rendre un WAV complet » n'est plus une intuition, c'est la
+  bonne architecture. Le premier son est un peu meilleur avec le levier
+  (0,588 s contre 0,634 s), mais les valeurs se recoupent : **non acquis**, dit
+  tel quel. L'**adaptateur** est écrit, testé et conforme au contrat relevé chez
+  nous : `/sante` renvoie `pret: true` avec **35 voix** et l'appareil
+  « processeur » (chargement **2,2 s**), `/voix` les **35 identifiants** de notre
+  catalogue Kyutai, `/tts` des **octets WAV** en 24 kHz mono, `/recharger` pour
+  ajouter une voix sans redémarrer. **Port 8087** ; côté Laurent, un seul geste :
+  `G:\NIMM Voix\DEMARRER_QWENTTS_CPP.cmd`. **Une réserve à connaître** : le
+  **premier appel d'une voix** est plus lent (×0,53 puis ×0,93 — préparation de
+  l'empreinte, une fois par voix) ; notre précharge l'absorbe, et le préchauffage
+  des 35 empreintes au démarrage est **proposé, pas fait**.
+
+  **Ce que nous avons fait de notre côté le 28/09 pour que l'essai tienne debout**
+  (sans quoi il aurait échoué pour une raison invisible) : `main.py` lisait
+  l'adresse de Qwen **en dur** (8086) — la variable `NIMM_QWEN_URL` n'était lue
+  que par `modules/tts.py`, si bien que `/sante` aurait été interrogé sur 8086,
+  le moteur aurait semblé **éteint** et **aucune voix `qwen:` n'aurait été
+  proposée** : c'est maintenant lue **dans les deux fichiers** (+ `import os`).
+  Nouveau lanceur double-clic **`test_voix/LANCER_ESSAI_QWENTTS_CPP.bat`** : il
+  pose la variable sur 8087, **vérifie que le moteur de NIMM Voix répond** et
+  dit quoi faire sinon, puis lance `START.bat`. **Livre 28 basculé** : 35
+  personnages en `qwen:` (copie datée
+  `nimm_epub.db.bak_avant_bascule_qwen_20260928_1513`), plus aucune voix Kyutai
+  dans ce livre (48 Kokoro, 86 Piper, 5 Edge, 2 Pocket et le narrateur
+  `kokoro:bf_alice` inchangés). **Retour arrière** : `REVENIR_A_KYUTAI.bat`, ou
+  la copie datée. **Pendant l'essai** : ne pas toucher au bouton « Réparer les
+  moteurs » (il viserait **notre** lanceur, pas celui de NIMM Voix). **Deux
+  pièges notés par NIMM Voix** : une parenthèse dans un message `echo` d'une
+  boucle `for` **casse la boucle** en batch (payé le 28/09), et la première
+  phrase d'une voix est plus lente. **Licences, pour rassurer** : voix
+  **CC BY 4.0** (Kyutai + CML-TTS), port **MIT**, modèle et codec **Apache-2.0**
+  → l'audio produit **peut sortir** des ateliers avec attribution, contrairement
+  à XTTS v2. **À savoir sur le cache** : les rendus de l'essai seront écrits sous
+  le préfixe `qwen:` ; le jour où l'on remettrait l'**ancien** service
+  (Transformers) derrière ce même préfixe, il faudra **monter `VERSION_CACHE`**
+  — sinon l'oreille réentendrait l'essai d'aujourd'hui (leçon du 17/09).
+
+  **Le banc d'écoute « Sadie 100 % Qwen » (28/09/2026, 15h55).** Constat de
+  Laurent : « je ne vois pas les voix qui sont utilisées lors de l'écoute. Il y a
+  du kokoro, du Kyutai, edge… » — **deux causes distinctes**, à ne pas confondre :
+  (1) le lecteur **cache les voix d'un moteur éteint** (choix du 14/09 : on ne
+  propose que des voix écoutables tout de suite), donc les 35 voix Qwen
+  n'apparaissent **que moteur allumé** ; (2) un grand livre comme le 28 garde
+  **48 Kokoro, 86 Piper, 5 Edge et 2 Pocket** — un livre entier ne sera jamais
+  100 % Qwen sans casser un casting fait à la main. **Solution retenue** : le
+  chapitre d'essai **Sadie** (livre 37) mis **entièrement en Qwen** — 15
+  personnages **et** le narrateur. Outil neuf :
+  **`test_voix/_basculer_tout_en_qwen.py`** (rapport seul par défaut, **livre
+  obligatoire**, `--narrateur` pour forcer, `--ecrire` avec copie datée) : les
+  voix Kyutai prennent leur **jumelle exacte** (Sadie garde donc **Blanche**),
+  toutes les autres reçoivent une voix Qwen du **même genre**, prise parmi les
+  mieux notées et **tournante** ; le genre de la base est `F`/`H`, là où les
+  catalogues écrivent `F`/`M` — conversion explicite, vérifiée sur 1 271
+  personnages. **Résultat vérifié en base** : **15/15 en `qwen:`**, narrateur
+  `qwen:1406_1028_000009-0003` (Augustin), **14 voix distinctes**, aucun autre
+  moteur. Copie datée : `nimm_epub.db.bak_avant_tout_qwen_20260928_1555` — c'est
+  **le** retour arrière, puisqu'il n'existe pas d'outil « Qwen → Pocket ».
+  Contrôle par `_essais/_verif_sadie_qwen.py` (lecture seule). **Leçon du jour,
+  écrite pour de bon** : le **rapport seul** a attrapé un **bug de l'outil** avant
+  toute écriture (une édition avait supprimé l'attribution des voix génériques :
+  le rapport n'annonçait plus qu'**un** personnage sur 15) — sans le rapport, la
+  bascule aurait été **partielle et muette sur 14 personnages**, et Laurent
+  l'aurait découvert à l'oreille.
+
+  **Le piège du chemin, payé le soir même (28/09/2026, ~18h45).** Laurent a lancé
+  le **lecteur par `START.bat`** — son geste habituel, et c'est le bon — et a
+  obtenu, phrase après phrase : « Le moteur de voix Qwen3-TTS ne repond pas
+  (ConnectError) », avec le **narrateur lu par Edge (Ariane)** — c'est le repli
+  automatique du front quand la voix écrite est indisponible. Diagnostic (lecture
+  seule, ports + processus) : le **moteur de NIMM Voix répondait parfaitement**
+  (`pret: true`, 35 voix, appareil « processeur », chargé en 1,4 s), le lecteur
+  tournait sur 8081 et Kyutai sur 8082 — mais **8086 était éteint**, et le
+  branchement sur 8087 n'existait **que dans le lanceur séparé**. **Un
+  branchement rangé dans un deuxième fichier ne sert à rien** : le geste de
+  Laurent, c'est `START.bat`. **Corrigé** : `START.bat` teste maintenant
+  `http://127.0.0.1:8087/sante` **avant de lancer le lecteur** et pose
+  `NIMM_QWEN_URL` dessus si le moteur répond — sinon 8086, comme avant. Le jour
+  où le vrai moteur sera installé chez nous, ce bloc deviendra inutile. Copie
+  datée : `START.bat.bak_avant_branchement_8087_20260928`. **Deuxième constat, à
+  retenir pour le mode d'emploi** : Laurent avait lancé le moteur **trois fois**
+  (15h54, 18h39, 18h40) — trois moteurs chargés, **3,2 Go chacun** (≈9,8 Go de
+  RAM), dont **un seul** tient le port 8087 ; les deux autres ne servent à rien
+  et peuvent ralentir la machine **pendant** l'écoute. Règle simple : **une seule
+  fenêtre de moteur**.
+
+  **Nettoyage et test de bout en bout (28/09/2026, ~19h).** Les **deux moteurs en
+  trop ont été arrêtés** (≈6,5 Go de RAM rendus ; il ne reste qu'**une** instance),
+  et le service a été éprouvé **pour de vrai** avec
+  `_essais/_verifier_service_qwentts.py` (lecture seule côté projet) : `/sante` →
+  HTTP 200, `pret` vrai, moteur « qwentts.cpp 0.6B base Q8_0 », **appareil
+  « processeur », 35 voix** ; `/voix` → les **35 identifiants** ; `/tts` →
+  **HTTP 200 en 9,8 s**, **153 644 octets**, **en-tête WAV valide** (premier appel
+  de cette voix : l'empreinte se prépare, une fois par voix). La chaîne complète
+  est donc bonne **avant** l'oreille de Laurent. **Piège découvert en nettoyant** :
+  plusieurs fenêtres de moteur peuvent écouter **sur le même port** — pendant
+  l'essai, le port 8087 était tenu tantôt par l'instance de 15h54, tantôt par
+  celle de 18h40 : les requêtes se répartissaient donc entre des moteurs
+  **frais**, chacun devant **repréparer les empreintes** des voix. Une seule
+  fenêtre = un seul moteur = des empreintes préparées une seule fois.
+
+  **L'OREILLE A PARLÉ (28/09/2026, soir) — MOTEUR VALIDÉ.** Verdict de Laurent,
+  mot pour mot : « **c'est vraiment bon. Un peu long à produire la première
+  phrase, mais tout s'enchaine bien ensuite, et pas d'accrocs, prosodie impec,
+  on a notre moteur !** » Le dossier Qwen, refermé le 26/09 sur un « non »
+  (« trop de blanc, on retourne sur Kyutai »), est donc **rouvert et validé trois
+  jours plus tard**, sur le **même livre** (22/11/63) et la **même voix de
+  Sadie**. Ce qui a changé en trois jours, dans l'ordre des faits : le bon chemin
+  technique (portage C++/GGML, ×0,94 au lieu de ×0,45), le **chronomètre de 20 s
+  corrigé**, un **banc d'écoute 100 % Qwen** (Sadie : 15 personnages + le
+  narrateur), et **une seule fenêtre de moteur**. Reste **un bémol, dit par
+  Laurent lui-même** : la **première phrase d'une voix est plus longue**
+  (préparation de l'empreinte, une fois par voix — 9,8 s mesurés sur la phrase
+  d'essai). NIMM Voix a **proposé** de préchauffer les 35 empreintes au démarrage
+  (« une ligne à ajouter ») : **à décider**, avec une variante plus fine —
+  préchauffer seulement les voix du **livre en cours** d'écoute. **Suite décidée
+  par Laurent** : on **rapatrie le moteur chez nous** (installation + notre
+  service + démarrage automatique comme Kyutai), pour que le branchement sur le
+  port 8087 et le lanceur d'essai deviennent inutiles.
+
+  **Le moteur est RAPATRIÉ chez nous (28/09/2026, le soir).** Décision de Laurent,
+  dans la foulée de la validation : le moteur vit désormais **chez nous**, comme
+  les autres. Ce qui a été fait, dans l'ordre : `qwentts_service/` avec son
+  environnement (**Python 3.14**, paquet `realtimetts-qwen-native-cpu` 0.4.2 —
+  wheel de 1 Mo, **aucune compilation, pas de PyTorch**) ; les **deux GGUF copiés
+  depuis NIMM Voix** (**1 224 Mo**, donc pas de téléchargement) ; **notre
+  service** `servir_qwentts_cpp.py` (environ 550 lignes, écrit d'après notre
+  `servir_qwen_tts.py`, avec les trois réglages mesurés par NIMM Voix — 4 fils de
+  codec, tranches de 2 images, priorité d'entame — et la **consommation du flux**
+  qui rend un WAV complet) ; puis `DEMARRER_QWENTTS_CPP.bat`, `LIRE_MOI.md` et
+  `ATTRIBUTION.md` (MIT + Apache-2.0 + voix CC BY 4.0). **Éprouvé tout de suite**
+  (`_essais/_verifier_service_qwentts.py`) : `/sante` prêt en **2,3 s**, 35 voix,
+  appareil « processeur », `/tts` → **WAV valide en 10,0 s** (première
+  empreinte). **Branchement** : `MOTEURS_VOIX["qwen"]` pointe sur le nouveau
+  dossier et le nouveau lanceur, avec le drapeau **`cohabite: True`** — il ne
+  prend pas la carte, donc il ne remplace plus personne : le veilleur le rallume
+  comme Pocket, et « libérer la carte pour l'analyse locale » n'a plus à
+  l'éteindre. C'est la **suite n° 1 des six laissées par l'essai du 26/09**,
+  réglée par construction. `START.bat` l'allume en même temps que Pocket, et le
+  branchement provisoire sur le port 8087 a été **retiré**. **Deux tests adaptés**
+  (ils décrivaient l'ancien montage) : `test_start_moteur.py` (le lanceur attendu)
+  et `test_reparer_moteurs.py` (Qwen est désormais attendu en permanence, comme
+  Pocket) — et le **contrôle des faits a attrapé un oubli** : le plan du dossier
+  ne citait pas `qwentts_service/` (1 écart, corrigé dans la foulée). L'ancien
+  service PyTorch (`qwen_tts_service/`) reste dans son dossier, marqué
+  **historique**, et n'est plus branché. Copies datées :
+  `START.bat.bak_avant_branchement_8087_20260928`,
+  `main.py.bak_avant_url_qwen_reglable_20260928`.
+
+- [ ] **Retour d'écoute du 28/09/2026 (soir) — moteur qwentts.cpp : le clonage
+  est validé, mais la respiration après un point est trop courte.** Verdict de
+  Laurent, mot pour mot : « **Les voix Kokoro ressemblent à Kokoro, pas de souci
+  avec ça.** » (le clonage des 94 Kokoro est donc **acquis**) — et, pour le
+  moteur : « **Pour Qwen, il a une petite retouche à faire sur les points, il
+  faudrait peut-être laisser respirer après un point.** »
+  **Ce n'est PAS le moteur : c'est un chiffre chez nous**, et il est trouvé le
+  soir même, en lisant le code (pas à l'oreille) : entre deux phrases, le lecteur
+  ajoute **0 ms** — `pauseAvant()` dans `frontend/app.js` ne met un silence que
+  **quand le paragraphe change** (`PARAGRAPH_PAUSE_MS = 800`), et sinon il
+  renvoie zéro. La **seule** respiration après un point est donc la marge de
+  queue du rognage : `QUEUE_GARDEE_S = 0,20 s` (`modules/audio_queue.py`). Un
+  point = **0,20 s** de silence, tout le temps, quel que soit le moteur.
+  **Le levier est déjà là** : `pauseAvantMs` existe (`_collerWav` s'en sert pour
+  les paragraphes) → il suffit de faire respirer **après une phrase qui finit par
+  un point**, avec un chiffre à choisir **à l'oreille** (banc d'écoute préparé :
+  `_essais/_banc_respiration.py`, 0 / 200 / 300 / 450 ms, sur trois phrases
+  réelles du chapitre d'essai). **À faire dans l'ordre** : écouter le banc,
+  choisir le chiffre, puis l'appliquer (et le mesurer : 0,45 s sur 1 000 phrases
+  allonge une écoute de plusieurs minutes). **Ne pas toucher à
+  `QUEUE_GARDEE_S`** avant d'avoir choisi : il s'applique à **toutes** les
+  phrases, y compris celles qui ne finissent pas par un point.
+  **Banc GÉNÉRÉ le 29/09/2026 vers 00h05** : dossier
+  `_essais/_banc_respiration_20260929/` — trois phrases réelles enchaînées
+  (« Oui. Je sais. » / « Du moins ici. » / « Ce serait un laser. »), **quatre
+  respirations** (0 / 200 / 300 / 450 ms), sur la voix du narrateur d'essai
+  (Augustin). À écouter **A → B → C → D**, puis la lettre choisie devient le
+  chiffre à appliquer. *Piège payé au passage* : le service attend l'identifiant
+  de voix **sans** le préfixe (`1406_1028_000009-0003`, pas
+  `qwen:1406_…`) — avec le préfixe il répond **400 « voix inconnue »**, et le
+  banc **semblait bloqué** alors qu'il avait simplement été refusé.
+
+  **APPLIQUÉ le 29/09/2026 (~00h40), sur son écoute** : Laurent a choisi **200 ms**
+  pour la respiration (banc 0 / 200 / 300 / 450) et **100 ms** pour le fondu
+  d'entrée (banc 0 / 25 / 50 / 100 — « H_200ms_fondu100 est top ! »). Ce qui a
+  changé : (1) `frontend/app.js` — nouvelle constante `SENTENCE_PAUSE_MS = 200`,
+  et `pauseAvant()` qui respire au **changement de phrase** (`sentIdx`), la pause
+  de paragraphe restant prioritaire : les sous-segments d'une phrase longue
+  s'enchaînent comme avant ; `?v=` monté à **20260929-1** (`index.html`, sinon le
+  téléphone garde l'ancien script) ; (2) `modules/audio_gain.py` —
+  `FONDU_ENTREE_MS = 100` et `fondu_entree_wav()` (rampe **linéaire** de 0 à 1),
+  appliquée **en dernier** dans `synthesize_qwen`, après la normalisation ;
+  (3) `VERSION_CACHE` **20 → 21** : sans cette montée, les phrases déjà en cache
+  auraient été resservies **sans** le fondu — la leçon du 17/09, **huitième**
+  application. **Éprouvé** : `_essais/_test_fondu.py` mesure la crête avant/après
+  sur une vraie phrase — les 10 premières ms passent de 0,13 % à **0,01 %**, et
+  la suite est **rigoureusement identique** (40,43 % → 40,43 %) : le fondu éteint
+  le tic **sans toucher à la voix**. Copies datées :
+  `app.js.bak_avant_respiration_fondu_20260929`,
+  `index.html.bak_avant_respiration_20260929`,
+  `tts.py.bak_avant_fondu_qwen_20260929`,
+  `audio_gain.py.bak_avant_fondu_20260929`,
+  `tts_cache.py.bak_avant_fondu_qwen_20260929`. **Suite possible, à décider** :
+  le même transitoire existe sur les **autres moteurs** (Kyutai, Pocket,
+  Kokoro) — le fondu est écrit pour être réutilisé, il suffira de l'appeler dans
+  leurs fonctions de synthèse, **un moteur à la fois** et après écoute.
+
+- [ ] **Retour d'écoute du 28/09/2026 (soir) — les voix clonées.** Deux constats
+  de Laurent, sur le lot d'écoute des voix Kokoro et « Découpage OK » : le
+  **clonage Kokoro est bon** (« les voix Kokoro ressemblent à Kokoro ») ; et une
+  **anomalie mesurée** sur `Homme002` (voir l'item des 122 voix : 8,9 s pour
+  « Oui. Je sais. », 28,9 s de calcul, et le lot d'écoute qui **se bloque**
+  dessus). La parole est faible (3,1 % contre 7,8 %) mais présente : c'est le
+  premier suspect du côté des **textes de référence Whisper** de cette famille,
+  comme NIMM Voix l'avait annoncé.
+  **Précision mesurée le 29/09/2026** : la **même phrase courte** (« Oui. Je
+  sais. ») dure **1,04 s** avec la voix du narrateur (Augustin, famille Kyutai)
+  → **la phrase courte n'est donc PAS en cause : c'est bien la voix `Homme002`
+  qui dérive.** Deux voix de la même famille, deux comportements opposés : voilà
+  un cas net à remonter à NIMM Voix.
+
+- [ ] **Rapatrier les 122 voix clonées par NIMM Voix — 94 Kokoro + 28
+  « Découpage OK »** (28/09/2026, fin de soirée). Leur service expose désormais
+  **157 voix** en trois familles ; **les 35 Kyutai sont identiques aux nôtres**
+  (rien à faire), mais les **94 Kokoro** et les **28 « Découpage OK »** (nos 28
+  références Pocket) vivent **chez eux**. Vérifié le 28/09 au soir : leur dossier
+  de voix contient **28 WAV** dans la famille « Découpage OK » et **94 WAV** dans
+  la famille Kokoro. **Ce qu'il y a à faire, dans l'ordre** :
+  (1) **copier leurs extraits chez nous** — notre service lit
+  `qwen_tts_service\voix\` (dossier **partagé** avec l'ancien service) : soit on
+  y ajoute les 122 fichiers, soit on donne à `qwentts_service` **son propre
+  dossier** et on y déplace les 35 — **à trancher**, et **sans rien supprimer**
+  avant d'avoir vérifié ; (2) **découpler `QWEN_VOICES`** : il est aujourd'hui
+  **construit depuis `KYUTAI_VOICES`**, ce qui était juste tant que le catalogue
+  Qwen était fait des 35 mêmes extraits ; il devra devenir une **liste à lui**
+  ou être **généré depuis le dossier des voix** — le modèle existe déjà pour
+  NeuTTS (`_generer_catalogue_neutts.py`) ; (3) **annoter** les nouvelles voix
+  (**genre + étoiles**), sans quoi elles restent **hors du casting automatique**
+  (comme toute voix sans note) — et pour les Kokoro, **nos notes d'écoute
+  existent déjà** (`data/annotations_voix.json`, mêmes identifiants `ff_romane`,
+  `af_heart`…) : c'est un **report** à faire, pas une écoute à refaire ; (4) à
+  savoir pour l'oreille : les textes de la famille « Découpage OK » viennent de
+  **Whisper** et portent des fautes (« trois males pharaon » au lieu de
+  « trois-mâts le Pharaon ») — NIMM Voix dit que c'est **la première chose à
+  regarder** si une voix de cette famille sonne moins bien (c'est le mode ICL qui
+  lit ce texte). **Attention aux doublons** : la famille « Découpage OK » = les 28
+  **références Pocket**, donc les **mêmes voix que `pocket:` sur un autre moteur**
+  (mêmes noms : `Femme001`, `Homme004`…) — un doublon de catalogue assumé, pas un
+  doublon de fichier. **Rien de tout cela n'est urgent** : le moteur tourne avec
+  ses 35 voix, et c'est Laurent qui décide quand on élargit.
+
+  **FAIT LE 28/09/2026 AU SOIR (23h30) — et plus simple que prévu.** Ce qui a été
+  fait : (1) les **122 extraits copiés** dans `qwen_tts_service\voix\` (le dossier
+  que le moteur scanne) — **157 WAV, 83 Mo** au total, rien de renommé ;
+  (2) les **textes fusionnés** dans `references.csv` (**122 lignes ajoutées** :
+  94 + 28, aucun doublon, aucune ligne écrasée ; copie datée
+  `references.csv.bak_avant_157_voix_20260928_2323`) — leurs deux CSV ont
+  **exactement** notre format (`fichier;texte;duree;hauteur;source`) ;
+  (3) **notre service accepte désormais les DEUX conventions de nom** de fichier
+  (`..._enhanced_reference.wav`, les nôtres, et `..._reference.wav`, ceux de NIMM
+  Voix) : sans cela les identifiants auraient porté le suffixe, et le catalogue
+  n'aurait reconnu aucune des 122 voix ;
+  (4) **`QWEN_VOICES` découplé** : construit maintenant depuis les **trois**
+  catalogues (Kyutai + Kokoro + Pocket) → **157 voix**, mêmes prénoms, mêmes
+  genres, mêmes étoiles, région « (Qwen) ». **Conséquence heureuse : l'étape
+  « reporter les annotations » devient INUTILE** — le catalogue reprend
+  directement les fiches sources, donc « on ne nomme jamais une voix au hasard »
+  est respecté **par construction** ;
+  (5) **piège attrapé** : le catalogue ne peut pas vivre dans la section Qwen du
+  fichier — il reprend `POCKET_VOICES`, défini **plus bas** → `NameError`
+  immédiat. Il est construit **après** les trois catalogues, avec un renvoi à sa
+  place « logique » pour que personne ne le redéplace ;
+  (6) **protection git** : `qwen_tts_service/voix/` n'était **pas** ignoré
+  (83 Mo auraient pu partir dans un commit) — règle ajoutée et vérifiée.
+  **Vérifié** : moteur « prêt en 6,7 s, **157 voix** », catalogue à **157** avec
+  **0 extrait absent** (`_essais/_test_catalogue_qwen.py`), suite complète
+  **TOUT EST OK**, faits **0 écart**, audit **84**. Outils neufs (lecture seule) :
+  `_essais/_etat_157_voix.py`, `_essais/_test_catalogue_qwen.py`,
+  `_essais/_fusionner_textes_qwen.py`, `_essais/_ecoute_qwen_157.py`.
+
+  **PREMIÈRE ANOMALIE D'OREILLE, trouvée par le lot d'écoute du soir** : la voix
+  **`Homme002`** (famille « Découpage OK » = nos références Pocket) rend la phrase
+  courte « Oui. Je sais. » en **8,9 s**, là où `Femme001` la rend en **1,5 s** et
+  Kokoro en **2,1 s** — avec **28,9 s de calcul** (×0,31) au lieu de ×0,89. Le
+  niveau de parole est faible (3,1 % contre 7,8 %) mais **ce n'est pas du
+  silence** : le moteur **dérive** sur cette voix. C'est exactement
+  l'avertissement de NIMM Voix (les textes de cette famille viennent de
+  **Whisper** et portent des fautes) : **la première chose à regarder est le
+  texte de référence** de `Homme002_reference.wav`. À confirmer à l'oreille, puis
+  à remonter à NIMM Voix (ils ont proposé de relire ces textes).
+
+  **CONFIRMÉ le 29/09/2026, cette fois AVEC LA PREUVE** (gargouillis entendu par
+  Laurent en changeant la voix de **Lord_ivrogne**, livre 35, voix
+  `homme_aigu_6877654` — prénom au catalogue **Aubin**, 3 étoiles) : le journal du
+  moteur affiche **163,84 s d'audio pour une réplique de 8 jetons**. Or 163,84 s
+  = **2048 frames ÷ 12,5 Hz**, soit **exactement le plafond de frames** du moteur :
+  il ne s'est jamais arrêté (aucun EOS). **La preuve écrite est dans
+  `qwen_tts_service/voix/references.csv`** : le texte de `homme_aigu_6877654`
+  porte « …signala le **trois mâles pharaon**… » pour « le **trois-mâts** le
+  Pharaon ». Deux voix touchées le même jour : **Arthur** (`Homme87976454321`,
+  qu'**aucun personnage** n'utilise) et **Aubin** (8 phrases). **Le défaut est
+  INTERMITTENT** — Aubin a rendu 1,68 s sur « Oui, je suis là. » au banc : c'est
+  un tirage aléatoire du moteur, donc deux phrases ne prouvent pas qu'une voix est
+  saine.
+  **Deux remèdes, dans cet ordre** : (1) un **garde-fou de dérive** dans
+  `qwentts_service/servir_qwentts_cpp.py`, sur le modèle de NeuTTS
+  (`duree_max_derivee` : 3× la durée plausible + 1 s, plancher 3 s) — le service
+  ne connaissait que le garde-fou « phrase VIDE », **pas la dérive**.
+  **✅ FAIT le 29/09/2026** : le service **relance** une phrase dérivée (c'est un
+  tirage aléatoire, la génération suivante est souvent juste) et ne la **rogne**
+  qu'après les deux reprises. Copie datée
+  `qwentts_service/servir_qwentts_cpp.py.bak_avant_garde_fou_derive_20260929` ;
+  test **à froid** `test_voix/test_garde_fou_derive_qwentts.py` (faux moteur,
+  aucun modèle chargé) ; documenté dans `ARCHITECTURE.md` et dans le mode
+  d'emploi du moteur. **Il s'active au RÉDEMARRAGE du service** : le processus en
+  mémoire garde l'ancien code ;
+  **CE QUE LE BANC A TROUVÉ (même jour, 78 voix sur 157)** : **deux** voix
+  dérapent franchement — **`Homme002`** (l'anomalie ci-dessus, texte
+  **transcrit** : « Le château des seigneurs d'Albray… ») et **`af_nicole`**,
+  dont le texte est pourtant celui de **l'atelier** (« Le soleil se couchait… »).
+  C'est l'information la plus utile de la journée : **le texte fautif n'est pas
+  la seule cause** — le moteur dérape aussi avec un texte juste — donc le
+  garde-fou est **indispensable même pour les voix saines**. WAV à écouter :
+  `test_voix/sortie_banc_voix_qwen/` (ignorés par Git, vérifié) ;
+  (2) **corriger le texte de référence** (🅰️ gratuit, sans perte de timbre) ou, à
+  défaut, **régénérer la référence sur un texte idéal écrit par nous** (🅱️ idée de
+  Laurent : « comme pour les polices de caractères » — mais c'est une copie de
+  copie, le timbre est à re-mesurer).
+  *Outil du constat* : `test_voix/_banc_qualite_voix_qwen.py` +
+  `LANCER_BANC_VOIX_QWEN.bat` (157 voix, 20-40 min, WAV fautifs dans
+  `test_voix/sortie_banc_voix_qwen/`).
+
+  **L'IDÉE DE LAURENT (29/09/2026) — une phrase de référence « pangramme de
+  phonèmes »** : « comme pour les polices de caractères, où l'on a tous les
+  caractères pour voir toutes les lettres » → une phrase d'extrait qui contient
+  **tous les phonèmes du français**, pour enrichir ce que le clonage apprend de la
+  voix. *Précision honnête* : le clonage ICL **n'entraîne pas** le modèle (il ne
+  s'en souvient pas après la génération) — une phrase plus riche enrichit donc
+  **l'exemple** donné à cette génération, pas le modèle. L'effet est
+  **plausible mais NON mesuré** : à tester par **écoute comparative** (2-3 voix,
+  deux extraits : phrase actuelle contre phrase riche), et seulement si le besoin
+  se confirme — Laurent dit lui-même que **rien ne le choque** dans les clones
+  Kokoro aujourd'hui.
+  *Mesure du 29/09* (outil `_analyser_references_qwen.py`, racine, lecture seule) :
+  - **94 voix** ont un texte **écrit par l'atelier** (84 « Kokoro niMM » + 10
+    « accent allemand » — **une seule phrase pour toutes**) ; **63 voix** ont un
+    texte **transcrit** (63 textes distincts) : c'est là que sont les fautes ;
+  - la phrase de contrôle actuelle : « Le soleil se couchait derrière les collines
+    et la vieille cloche de l'église sonnait doucement… » — aucun nom propre,
+    aucun chiffre, donc aucun piège de phonémisation connu ;
+  - **20 extraits sur 157 ont un bord sale** (> 0,2 s de silence) : `af_kore`
+    **1,04 s en queue**, `am_puck` 0,98 s, puis `am_onyx`, `af_nova`, `af_alloy`,
+    `jf_gongitsune`, `im_nicola`… Un bord se **rogne sans re-cloner**, donc **sans
+    perdre le timbre** : c'est le geste le moins cher des trois.
+  **✅ BORDS ROGNÉS le 29/09/2026 au soir** (choix de Laurent : « les 20 extraits aux bords
+  sales »). Outil `test_voix/_rogner_bords_extraits.py` (rapport seul par défaut, `--ecrire`) ;
+  règle : **silence de bord > 0,20 s → on n'en garde que 0,05 s** (marge pour ne pas mordre sur
+  l'attaque du premier mot). **20 extraits rognés ET recontrôlés** (il ne reste **0 bord sale**
+  sur 157), copies d'origine dans `qwen_tts_service/voix/_bords_avant_20260929_1511/`.
+  *Ce que ça change, et c'est important* : **7 des 20 extraits sont très utilisés** — même
+  extrait, même texte — donc le rendu change pour plusieurs milliers de phrases (Albert de
+  Morcerf ≈ 2 500, Ada Veen ≈ 2 000, Villefort ≈ 750, Mercédès ≈ 500). `VERSION_CACHE`
+  **21 → 22** (copie datée `modules/tts_cache.py.bak_avant_version_22_20260929`), puis **moteur
+  et lecteur redémarrés** : sans cela le cache aurait resservi l'ancien rendu (neuvième
+  application de la leçon du 17/09/2026).
+  *Pourquoi ça devrait être mieux* : le clonage ICL **aligne l'audio de référence sur son
+  texte** ; un extrait qui commence par 0,3 s de silence et finit par 1,04 s est **désaligné**
+  par rapport à ce que son texte dit — exactement le genre d'incohérence qui fait baver un
+  clonage. *Contrôle après coup* : la voix d'**Edmond** (Albert de Morcerf) rend une **médiane
+  de 8,50 %** (la cible exacte) avec **0,49 dB** d'écart entre ses phrases — le plus régulier
+  mesuré jusqu'ici. **Arbitrage final : l'oreille de Laurent** sur un chapitre du livre 15.
+  *Sont concernés UNIQUEMENT les extraits de référence des voix Qwen* (`qwen_tts_service/voix/`) :
+  les bords des autres moteurs, eux, sont rognés à la lecture (Edge, XTTS, NeuTTS, Kyutai).
+  **✅ TEXTES CORRIGÉS le 29/09/2026 (soirée)** (choix de Laurent, juste après les bords). Sur
+  les 157 textes de `references.csv`, **63** sont des transcriptions automatiques (35 extraits
+  historiques + 28 « Découpage OK ») ; les 94 autres ont été **écrits par l'atelier**, donc
+  justes. Outil `test_voix/_corriger_textes_references.py` : le **modèle LOCAL (Ollama,
+  gratuit)** retrouve le texte exact des classiques. *La mesure qui a décidé de la méthode*
+  (`_test_consignes.py`, trois variantes sur le texte d'Aubin) : une consigne **sans exemple**
+  ne corrige **rien** (le modèle laisse passer « trois males pharaon » — il n'a changé que
+  « le » en « les ») ; la même consigne **avec un exemple** trouve la bonne correction en
+  **2 s**, et le raisonnement (`think`) corrige aussi mais coûte **19 s**. La consigne donne
+  donc l'exemple, et la correction est immédiate.
+  **Résultat** : **17 des 63** textes avaient besoin d'une correction (1,9 % à 12,5 % des mots),
+  dont « le **trois mâles** pharaon » → « le **trois-mats le Pharaon** » (la voix d'**Aubin**,
+  celle du gargouillis !), « Lautréamand » → « **Lautréamont** », « vertébreux » →
+  « **vertébrés** », « cacter » → « **parler** », « Trois-Mas » → « Trois-Mats ».
+  **Aucun garde-fou déclenché** (aucune réécriture), et **6 corrections douteuses ÉCARTÉES**
+  (liste `EXCLUS` dans l'outil : « clôt » → « clôte », « champs » → « chars », « des » → « de »,
+  et des corrections de guillemets sans effet sur l'audio) — **mieux vaut un texte imparfait
+  qu'un texte faux**, puisque le modèle aligne l'audio sur ce qu'il lit.
+  Copie : `qwen_tts_service/voix/references.bak_avant_textes_corriges_20260929_1553.csv` ;
+  écriture **relue après coup** (57 sur 57 identiques). `VERSION_CACHE` **22 → 23**, moteur et
+  lecteur redémarrés.
+  *Un bug attrapé en le faisant* : la copie de sauvegarde échouait en **`PermissionError`**
+  (« utilisé par un autre processus ») — ce n'était **pas** un verrou externe, c'était **le
+  script lui-même** : `Path.with_suffix('.csv')` remplace tout ce qui suit le **premier point**
+  du nom, donc la destination redevenait `references.csv` et la copie se faisait **sur
+  elle-même**. Le fichier n'a jamais été touché (l'erreur tombait avant l'écriture), mais la
+  leçon reste : quand un message d'erreur accuse « un autre processus », il faut aussi se
+  demander si ce n'est pas **soi-même**.
+  *Ordre retenu* : d'abord le **garde-fou de dérive** (il protège à chaque
+  phrase), puis **rogner les bords** des 20 extraits, puis **corriger les 63
+  textes transcrits** ; refaire des voix dans NIMM Voix **seulement** si un
+  timbre est sale, ou si l'essai de phrase riche se révèle concluant à l'oreille.
+
+- [ ] **Les six suites laissées par l'essai Qwen** (26/09/2026, toutes
+  relevées en chemin — aucun n'est urgent, mais aucun ne doit être oublié).
+  1. **« Libérer la carte pour l'analyse locale » ne connaît que Kyutai** :
+     `_liberer_la_carte_pour_analyse_locale()` (`main.py`) éteint **Kyutai**
+     nommément avant un re-cast IA en local, et le rallume après. Avec Qwen
+     comme moteur retenu, elle ne trouve rien à éteindre et l'analyse locale
+     se lance avec ses ~3,8 Go encore occupés (effet mesuré ailleurs : Ollama
+     bascule sur le processeur, 11,8 min au lieu de secondes). À généraliser au
+     **moteur lourd retenu** (`_moteur_lourd_retenu()`), en mettant à jour
+     `test_voix/test_gestion_kyutai.py`, qui appelle ces deux fonctions.
+     **Pas urgent depuis le 26/09** : Qwen est endormi et **Kyutai est le seul
+     moteur lourd en service**, donc le comportement actuel est juste — c'est le
+     jour où le dossier rouvrira qu'il faudra le faire ;
+  2. **l'environnement Python du moteur est emprunté** à l'atelier NIMM Voix
+     (`G:\NIMM Voix\outils\qwen3_tts\.venv`, décidé le 26/09 pour pouvoir
+     essayer sans installer 2,5 Go) : le lanceur cherche **d'abord**
+     `qwen_tts_service\.venv`, donc l'installation propre prendra la main sans
+     rien changer au code — mais elle reste à faire, sinon le moteur tombe si
+     NIMM Voix déplace son dossier ;
+  3. **l'icône 👥 du moteur** (choisie seule le 26/09 : « les jumeaux ») et le
+     bouton « Voix de personnages » sont à **voir de ses yeux** dans la page :
+     `test_bascule_moteur.py` et le contrôle des faits sont au vert, mais
+     Laurent n'a pas encore vu le bouton avec **huit** moteurs ;
+  4. **l'essai « un chapitre entier dans le lecteur » : FAIT, PUIS DÉFAIT** (26/09
+     au soir). Le livre **28 (22/11/63)** a été basculé (35 personnages sur 176 :
+     les 86 Piper, 48 Kokoro, 5 Edge et 2 Pocket gardaient leur moteur, et le
+     narrateur restait `kokoro:bf_alice`), écouté par Laurent, puis **rebasculé
+     vers Kyutai** le soir même — verdict : trop de blancs (voir plus haut) ;
+  5. **l'échange par lots de quatre phrases** n'est qu'une piste chiffrée
+     (×2,2 chez NIMM Voix) : il demanderait une route qui rend **quatre**
+     audios pour quatre phrases — à mesurer avant de s'engager, comme
+     toujours. **Non poursuivi** après le verdict du 26/09 : le gain restait à
+     prouver, pour un moteur dont la lecture en direct ne tient déjà pas ;
+  6. **que faire des restes de Qwen ? — TRANCHÉ le 26/09/2026 au soir : on le
+     laisse tel quel, endormi.** Décision de Laurent : « ça ne gêne rien, et la
+     piste des lots de 4 phrases pourrait le réveiller un jour ». État exact, à
+     savoir (vérifié dans le code et la page) : **aucun livre ne l'utilise**,
+     `START.bat` ne l'allume que si `data\moteur_voix.txt` dit `qwen` (il dit
+     `kyutai`), ses voix ne sont proposées que si son service tourne, et **la
+     page n'offre aucun geste pour changer de moteur** (le bouton « Relancer les
+     moteurs » ne rallume que les moteurs **attendus** : Pocket et le moteur
+     retenu). Seule trace visible : la petite fenêtre « Réparer les moteurs »
+     liste `Qwen3-TTS` comme éteint — c'est exact, et c'est tout. Ce qui reste en
+     place, si le dossier rouvre un jour : le service (`qwen_tts_service/`), ses
+     35 extraits (10,7 Mo), son entrée dans `MOTEURS_VOIX` et `FAMILLES_VOIX`
+     (icône 👥), sa branche `qwen:` dans `tts.py` et `main.py`, et les deux outils
+     de bascule de voix. Les documents disent donc **huit moteurs** ; sept sont en
+     service.
 
 - [ ] **Kyutai : les 228 voix CC0 et les accents par voix étrangère** (pistes
   ouvertes le 12/09/2026, **écoutées le même jour** par Laurent).
@@ -4051,6 +6021,32 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   (35 voix). Point d'attention : `cml-tts` ne couvre pas que le français — il
   contient aussi néerlandais, allemand, italien, polonais, portugais, espagnol
   (utile un jour pour des **personnages étrangers**, à assigner à la main).
+  *Complément du 25/09/2026 — veille « moteurs et outils audio », vérifiée en
+  ligne dépôt par dépôt* (une liste de découvertes avait été apportée par
+  Laurent ; on consigne les verdicts **pour ne pas refaire le tour**) :
+  **écartés** — `readbeyond/aeneas` (alignement forcé texte/audio : **AGPL-3.0**,
+  incompatible avec les ambitions d'un dépôt public, et **figé depuis 2017**,
+  dernière version 1.7.3) ; `daisy/ace` (vérificateur d'accessibilité EPUB,
+  MIT) et `edrlab/thorium-reader` (BSD-3, lecteur Readium) — utiles **seulement
+  si un jour NIMM ePub produit un EPUB**, ce qu'il ne fait pas : il **lit** des
+  EPUB et produit de l'audio (le DAISY, c'est le projet **NIMM** de Nando, voir
+  ci-dessus) ; `Supertonic 3` (dépôt **archivé** depuis 09/2026).
+  **Reportés, sans être fermés** — `0xShug0/audio.cpp` (Apache-2.0, 3 k étoiles,
+  runtime C++/GGUF qui regroupe TTS, ASR, diarisation et alignement ; licence
+  compatible avec la nôtre) et `k2-fsa/sherpa-onnx` (Apache-2.0, 15 k étoiles,
+  hors ligne, Android/iOS/Raspberry) : les deux ne règlent **aucun défaut
+  d'écoute mesuré** (l'accent des voix, la variabilité d'XTTS), et remplacer
+  les services Python demanderait de **reporter à l'identique** tout ce qui a
+  été réglé à l'oreille ; de plus la page des modèles de sherpa-onnx ne propose
+  **aucune voix française** (donc rien pour la banque de voix). Le second reste
+  la piste de référence le jour où l'on veut **écouter sans le PC**.
+  **Retenus pour plus tard** — le **minuteur de sommeil** vu chez
+  `advplyr/audiobookshelf` (GPL-3.0, 14,4 k étoiles, donc **même licence** que
+  NIMM ePub : seule l'**idée** est reprise, on a déjà profils et reprise de
+  lecture) ; et `guidepup/guidepup` (MIT, 564 étoiles, automatise **NVDA** sous
+  Windows et s'intègre à **Playwright**, déjà utilisé par nos tests) — à garder
+  pour le **chantier accessibilité**, **après** ses six correctifs, **Nando
+  restant le juge** du résultat.
 
 - [ ] **Ce que fait NIMM (le projet de Nando) sur l'audio — relevé du
   14/09/2026**, à la demande de Laurent (« voir comment il s'y est pris »).
@@ -4591,6 +6587,46 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   aucune dépendance ajoutée ici tant que la qualité n'est pas jugée à
   l'oreille.
 
+- [ ] **🎭 Le casting automatique doit MIEUX CONNAÎTRE les personnages pour
+  placer les voix** (idée de Laurent, 29/09/2026, à noter pour plus tard). Ses
+  mots : « Continuer sur l'idée du casting auto avec détection des rôles par IA.
+  Il faudrait qu'elle collecte les infos sur les protagonistes — je ne sais pas à
+  quel moment — pour placer les voix au mieux. »
+  **Ce qui existe déjà** : la **Passe 1** attribue un locuteur à chaque phrase
+  (chapitre par chapitre, fiche en main), la **Passe 2** consolide les
+  personnages **et attribue les voix** — elle **réécrit toute la table `voices`**
+  du livre, les voix **verrouillées** étant préservées. La table **`cast_fiche`**
+  ne porte aujourd'hui que **deux indices par personnage : `genre` (F/H) et
+  `age`** — c'est tout ce dont la Passe 2 dispose pour choisir une voix.
+  **Ce que l'idée ajoute** : aller chercher **d'autres informations dans le
+  texte** — importance du rôle (protagoniste / secondaire / figurant), époque,
+  milieu, tempérament, origine — et s'en servir pour choisir **le timbre, l'âge
+  et l'accent** de la voix, au lieu du seul couple genre + âge.
+  **Les questions à trancher** :
+  1. **À quel moment ?** Le moins cher est de le demander **dans le même appel
+     que la Passe 1** (le modèle a déjà le chapitre en main) ou dans la
+     **Passe 2** (qui voit le livre entier et tient déjà la fiche) ; une
+     **troisième passe** serait la plus propre mais coûte un appel de plus
+     **par livre** — donc à mesurer avant, comme toujours ;
+  2. **Où stocker ?** `cast_fiche` est le bon endroit (deux colonnes de plus, ou
+     une colonne de notes en texte libre) — mais attention : le contrôle des
+     faits **vérifie les colonnes de cette table**, et il est écrit que « aucun
+     point d'entrée ne touche `cast_fiche` » aujourd'hui (constat du 22/09 : la
+     fiche n'est **pas** modifiable à la main depuis l'application → à décider si
+     on ouvre cette porte) ;
+  3. **La brique qui manque avant tout le reste** : le **pool automatique ne
+     connaît que Kyutai, Edge et Kokoro** (constat du 27/09/2026 : `POCKET_VOICES`
+     n'apparaît pas dans `voice_casting.py`) — **ouvrir le pool aux 157 voix du
+     moteur qwentts** est donc la **première** étape utile, avant d'affiner les
+     critères. Deux chantiers distincts : **ouvrir le pool**, puis **enrichir la
+     fiche** ;
+  4. **Ne pas casser les verrous** : la Passe 2 **réécrit** la table `voices` ;
+     enrichir la fiche ne doit pas devenir un prétexte à écraser des voix
+     choisies à la main (les **6 verrouillés** de 22/11/63, par exemple).
+  **Rien n'est décidé** : idée notée, et sa première brique (le pool ouvert à
+  Qwen) est déjà une suite connue du 27/09.
+
+
 ## 🟡 Priorité 3 — Robustesse & architecture
 
 - [ ] **Centraliser le découpage en phrases**
@@ -4667,6 +6703,17 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   « Dépendances Python » liste kokoro-onnx (+ onnxruntime), piper-tts,
   soundfile, pedalboard, imageio-ffmpeg, httpx et pydantic, plus
   l'environnement séparé du moteur Kyutai. Reste à vérifier au fil de l'eau.
+
+- [ ] **ARCHITECTURE.md — découper le chapitre « Logique TTS — app.js », devenu
+  trop gros pour l'audit** (constaté le 24/09/2026 : **524 lignes**, contre un
+  seuil de **500** ; l'audit documentaire écrit « un sujet de trop, ou des titres
+  manquants »). C'est une alerte de **structure**, pas une erreur : le contenu est
+  juste, il est simplement trop long pour un seul `###` — la mise à jour du soir
+  (pause des sauts de ligne) l'a fait passer de 485 à 524. Remède probable :
+  promouvoir une de ses sous-parties en `###`, en mettant le **sommaire** à jour
+  en même temps (`_verifier_faits_architecture.py` compte les sujets,
+  `_auditer_documentation.py` contrôle le plan du dossier). **Aucun effet à
+  l'usage** : chantier de documentation, à faire un jour de calme.
 
 ## ♿ Accessibilité — chantier ouvert le 15/09/2026 (avec Nando)
 
@@ -4759,6 +6806,18 @@ désert) :
   avant la touche finale d'export en MP3. » L'item reste **ouvert, sans date** :
   c'est la qualité des voix qui décidera du moment. Rien d'autre à faire ici
   d'ici là — le découpage proposé ci-dessus reste valable.
+  *Format retenu par Laurent, 25/09/2026 : le **m4b**, pas « un MP3 par
+  chapitre + `playlist.m3u` ».* Un **m4b** est **un seul fichier** portant ses
+  **chapitres**, sa pochette et ses métadonnées : on le copie sur le téléphone
+  ou le baladeur et le chapitrage comme la reprise sont gérés par le lecteur,
+  au lieu d'une playlist à comprendre. `ffmpeg` (déjà embarqué) sait le
+  produire — seul le **conteneur de sortie** change, le découpage proposé
+  ci-dessus reste valable. *Source de l'idée* : `DrewThomasson/ebook2audiobook`
+  (Apache-2.0, 20,2 k étoiles), dépôt de référence « EPUB → livre audio avec
+  chapitres et métadonnées » — il sert de **modèle à regarder**, rien à
+  installer, aucun code repris. *La décision « ON ATTEND » ci-dessus ne change
+  pas* : c'est la qualité des voix qui fixera la date, le format est simplement
+  tranché d'avance.
 
 
 
@@ -4876,6 +6935,22 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 
 ## ✅ Déjà livré (pour mémoire)
 
+- **Les INCISES INVERSÉES : « m'a-t-il dit », « ai-je répondu », « demanda-t-elle. »**
+  (24/09/2026, retour d'écoute de Laurent sur *22/11/63*). Le module ne voyait pas
+  la forme la plus courante du français — mesure : **157 sur 164** incises de la
+  famille lui échappaient dans le livre 28, **56 sur 72** dans le tome 5, et
+  Laurent les ENTENDAIT dites par le personnage. Corrigé dans `modules/incises.py`
+  (trois motifs neufs : objet + verbe + inversion, objet + auxiliaire + inversion +
+  participe, incise en tête à pronom, plus les verbes de parole manquants en formes
+  conjuguées et le sujet « je »), avec **ZÉRO effet de bord** mesuré sur les
+  **30 343 phrases** des deux livres. Après : **77 et 22** incises laissées au
+  personnage, **203 et 51** phrases dont la version parlée change (elles passent au
+  narrateur, ou se taisent, selon le réglage du livre — aucun re-cast, aucun index
+  touché). Test neuf `test_voix/test_incises_inversees.py` (**37 contrôles**,
+  enregistré au lanceur), copie datée
+  `modules/incises.py.bak_avant_inversions_20260924`. Reste ouvert : l'objet +
+  verbe + nom (« , me dit Annette Founijello. »).
+
 - **Dans le casting on filtre les PERSONNAGES, dans la modale des voix on cherche
   la VOIX** (24/09/2026, demande de Laurent). Deux changements d'un même geste,
   parce qu'ils se répondent :
@@ -4934,8 +7009,35 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
   formalité. *Détail* : ARCHITECTURE.md, sujet « Distribution de voix par
   personnage (IA) ».
 
+- **Les sauts de ligne de Kyutai gagnent 200 ms, et la pause n'est plus perdue**
+  (24/09/2026 au soir, retour d'oreille de Laurent : les sauts de ligne sont
+  « encore trop rapides », et une précision qui a mis sur la piste — « **parfois
+  ça mange la phrase qui commence** »). Le réglage passe de **600 à 800 ms**
+  (`PARAGRAPH_PAUSE_MS`, `frontend/app.js`) ; rien à redémarrer ni à purger, cette
+  pause vit dans la page et non dans le cache audio — un simple rechargement de la
+  page suffit. La vérification qui accompagnait ce réglage a trouvé **mieux qu'un
+  réglage** : un **défaut mécanique** dans `_collerWav()` — la pause n'était posée
+  que si la phrase du paragraphe n'était **pas la première du morceau** collé
+  (`if (i > 0 && …)`). Comme un morceau commence là où le préchargement s'est
+  arrêté, et que cet endroit tombe souvent **sur un saut de ligne** (changement de
+  moteur en pleine conversation : narrateur Kyutai puis réplique Piper, deux
+  formats qui ne se collent pas, une réplique étant un paragraphe), ces sauts de
+  ligne n'avaient **aucun silence** — alors que la surbrillance, elle, le comptait
+  déjà dans ses bornes (le curseur partait ~0,6 s **en avance sur la voix**).
+  *Preuve avant/après* : le contrôle a été écrit **avant** la réparation, et il
+  **criait** — `test_voix/test_collage_wav.js` section 6 annonçait **48 044
+  octets** (en-tête + son, soit 1,0 s) au lieu de **76 844** (soit 1,6 s), c'est-à-
+  dire **0,8 s de silence absentes** ; après la réparation, il **se tait**.
+  *Vérification* : section 6 du même test (dont « une phrase ordinaire en tête de
+  morceau reste intacte ») + la suite complète. *Leçon* : un retour d'oreille qui
+  dit « parfois » vaut une mesure — c'est la **deuxième fois en une journée** que
+  ce mot cachait un cas mécanique précis (le matin : les moteurs mélangés dans un
+  chapitre ; le soir : la pause perdue en tête de morceau). *Détail* :
+  ARCHITECTURE.md, « Pause entre paragraphes ».
+
 - **Les pauses de Kyutai : queue rognée à 0,20 s, sauts de ligne à 600 ms**
-  (23/09/2026, demande de Laurent : « les pauses après les points un peu
+  (23/09/2026 ; **800 ms** depuis le 24/09 au soir, voir l'item ci-dessus ;
+  demande de Laurent : « les pauses après les points un peu
   longues, les sauts de ligne trop rapides »). Les deux réglages se **cumulent**
   — le silence après un saut de ligne, c'est la queue du moteur **plus** la pause
   du lecteur — donc ils ont été changés **ensemble**, sinon les sauts de ligne

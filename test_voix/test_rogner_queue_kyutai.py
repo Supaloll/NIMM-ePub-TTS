@@ -9,8 +9,10 @@ qu'il vient de produire (0,30 a 0,43 s mesurees les 17 et 21/09/2026, queue
 MEDIANE de 0,37 s sur les 300 WAV du cache le 23/09/2026). A l'ecoute de ce
 jour-la, Laurent a trouve les pauses APRES LES POINTS trop longues et les SAUTS
 DE LIGNE trop rapides : la queue est ramenee a 0,20 s par
-`modules/audio_queue.py`, et la pause entre paragraphes remonte a 600 ms
-(`frontend/app.js`).
+`modules/audio_queue.py`, et la pause entre paragraphes est portee a 600 ms
+(`frontend/app.js`) -- puis a **800 ms** le 24/09/2026 au soir, meme motif, et
+avec la reparation du collage qui la faisait disparaitre en tete de morceau
+(voir `test_collage_wav.js`, section 6).
 
 Ce test verifie quatre choses :
   - le silence de queue est bien ramene a 0,20 s, quel que soit le silence

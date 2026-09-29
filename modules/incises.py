@@ -24,6 +24,14 @@ Le code proposé à Laurent par un autre outil, essayé le même soir, abîmait
 **78 % des phrases qu'il touchait** (588 sur 756) faute de ces garde-fous.
 
 Le texte AFFICHÉ n'est jamais modifié : seule la version parlée change.
+
+Depuis le 24/09/2026, le module reconnaît AUSSI les incises INVERSÉES, qui sont la
+forme la plus courante d'un roman à la première personne : « , m'a-t-il dit », « ,
+m'annonça-t-il », « , ai-je répondu », « , a-t-il confirmé », « demanda-t-elle. »
+(voir le bloc « INCISES INVERSÉES » plus bas). Mesure avant/après sur les livres
+28 et 16 (30 343 phrases, aucune autre touchée) : les incises reconnues passent
+de **7 à 87** et de **16 à 50**, et les phrases dont la version parlée change de
+**66 à 203** et de **48 à 51** — **aucun effet de bord**, aucune phrase vidée.
 """
 
 import re
@@ -123,6 +131,99 @@ MOTIF_NOM = re.compile(
 # au « ! » : l'incise ouvre le morceau (exemple de Laurent, 18/09/2026).
 MOTIF_DEBUT = re.compile(
     r'^(?:%s)\s+%s%s' % ('|'.join(VERBES), CIVILITE, NOM_APRES_VERBE))
+
+
+# ============================================================
+# LES INCISES INVERSÉES (24/09/2026) — la forme la plus courante du français
+# ============================================================
+# Retour d'écoute de Laurent (24/09/2026) : l'incise « m'a-t-il dit avec son
+# plaisant accent du Sud. » est dite par le PERSONNAGE. Mesure du même soir
+# (`_essais/_mesurer_incises_inversees.py`) : **132 sur 139** incises de cette
+# famille lui échappent dans le livre 28, **52 sur 68** dans le tome 5.
+#
+# Pourquoi, exactement : les motifs ci-dessus exigent le VERBE juste après la
+# virgule (« , dit-il »), ou un NOM juste après le verbe dans `MOTIF_DEBUT`. Or
+# le français met très souvent le sujet inversé AVANT le verbe (« m'a-t-il dit »,
+# « m'annonça-t-il »), et une incise coupée dans sa propre phrase commence par une
+# MAJUSCULE avec un PRONOM (« Demanda-t-elle. ») : deux formes que rien ne couvrait.
+#
+# SIMULATION avant d'écrire quoi que ce soit dans ce module (les nouveaux motifs
+# ont vécu dans `_essais/_simuler_incises_inversees.py`) : sur les 30 343 phrases
+# des deux livres, les phrases dont la version PARLÉE change sont **toutes** de
+# cette famille ; ZÉRO phrase vidée (garde-fou vital) ; ZÉRO nouvelle « incise
+# seule ». Livre 28 : 66 -> 203 phrases corrigées, 7 -> 87 incises reconnues ;
+# tome 5 : 48 -> 51.
+#
+# Les motifs restent PRUDENTS, comme le reste du module : ils exigent l'INVERSION
+# (« -t-il / -t-elle », « dit-il »), et c'est `_ferme_ou_terminal` qui valide
+# ensuite la fermeture. Une VRAIE question (« A-t-il mangé ? ») n'est donc jamais
+# touchée : elle n'est pas fermée. Cas gelés : `test_voix/test_incises_inversees.py`.
+
+# Verbes de parole qui MANQUAIENT à VERBES, en formes CONJUGUÉES (c'est la
+# convention de ce module : « demanda », pas « demand »). Ils viennent de
+# `decoupage.VERBES_DE_PAROLE`, la liste de référence du projet — laquelle donne
+# des RADICAUX : une erreur de convention qui a faussé une première mesure.
+# Ils ne servent QUE dans les motifs d'inversion ci-dessous. Les ajouter aux
+# motifs historiques changerait leur comportement, et cela n'a pas été mesuré.
+VERBES_INVERSION = VERBES + (
+    'annonça', 'annonca', 'glissa', 'lâcha', 'lacha', 'rétorqua', 'retorqua',
+    'approuva', 'précisa', 'precisa', 'expliqua', 'marmonna', 'bougonna',
+    'ricana', 'lança', 'lanca', 'bredouilla', 'chuchota', 'articula',
+    'susurra', 'gueula', 'enchaîna', 'enchaina', 'renchérit', 'rencha',
+    'souffla', 'intervint', 'protesta', 'exclama', 'jeta', 'trancha',
+    'poursuivit', 'récrimina', 'recrimina', 'parla', 'raconta', 'grommela',
+    'questionna', 'pleurnicha')
+
+# On essaie d'abord les verbes les PLUS LONGS (« dirent » avant « dit ») : en
+# Python, une alternative plus courte placée devant masque la plus longue.
+MOTIFS_VERBES = '|'.join(sorted(VERBES_INVERSION, key=len, reverse=True))
+
+# L'OBJET (pronom complément) devant le verbe : « m' », « lui », « nous »,
+# « leur », « s' ». Les DEUX apostrophes sont acceptées (droite et
+# typographique) : les textes bien composés utilisent la seconde.
+OBJET = (r"(?:m[\u2019']|t[\u2019']|s[\u2019']|me\s+|te\s+|se\s+|lui\s+"
+         r"|nous\s+|vous\s+|leur\s+|moi\s+|toi\s+)")
+
+# Les AUXILIAIRES de « m'a-t-il dit » (passé composé) et « m'est-il dit ».
+AUXILIAIRES = ('a', 'as', 'ai', 'avait', 'avaient', 'avons', 'avez', 'ont',
+               'est', 'es', 'sommes', 'sont', 'etait', 'etaient', 'était',
+               'étaient', 'fut', 'furent', 'sera', 'seront', 'avais')
+
+# Le SUJET inversé. « je » compte autant que « il » : le récit à la première
+# personne (« ai-je dit », « ai-je répondu », « ai-je observé ») est la forme la
+# plus fréquente de 22/11/63 — mesure du 24/09/2026 : l'ajouter fait passer le
+# livre 28 de **57 à 87** incises reconnues, et de **66 à 203** phrases dont la
+# version parlée change, SANS un seul effet de bord (30 343 phrases mesurées).
+SUJETS_INVERSES = '|'.join(('il', 'elle', 'on', 'je', 'nous', 'vous'))
+
+# 1. OBJET + VERBE + inversion : « , m'annonça-t-il », « , lui demanda-t-elle »,
+#    « , me dit-il » (sans « t » euphonique, celui de « dit-il »).
+MOTIF_INVERSION = re.compile(
+    r'[,—]\s*%s\b(?:%s)%s[%s\s]?(?:il|elle|on|nous|vous)\b'
+    % (OBJET, MOTIFS_VERBES, EUPHONIQUE, TIRETS))
+
+# 2. OBJET (facultatif) + AUXILIAIRE + inversion + PARTICIPE : « , m'a-t-il dit »,
+#    « , m'a-t-elle demandé », « , ai-je dit », « , a-t-il confirmé ». L'objet est
+#    FACULTATIF : l'auxiliaire seul suffit (« a-t-il confirmé. »), et le récit à
+#    la première personne se passe d'objet. Le participe est facultatif dans le
+#    motif : ce sont `_etendre` et `_ferme_ou_terminal` qui bornent et valident.
+MOTIF_INVERSION_AUX = re.compile(
+    r'[,—]\s*%s?\b(?:%s)\s*%s[%s\s]?(?:%s)\b(?:\s+[\w\u00c0-\u00ff\'-]+)?'
+    % (OBJET, '|'.join(AUXILIAIRES), EUPHONIQUE, TIRETS, SUJETS_INVERSES))
+
+# 3. Incise EN TÊTE de phrase à PRONOM : « Demanda-t-elle. », « murmura-t-il. »,
+#    « s'écria-t-il en s'élançant vers la porte, venez ! ». Insensible à la casse,
+#    parce qu'une phrase commence NORMALEMENT par une majuscule.
+#    ATTENTION : c'est le SEUL motif insensible à la casse, et c'est voulu.
+#    Rendre `MOTIF_DEBUT` insensible à la casse a été MESURÉ puis ÉCARTÉ :
+#    « Dis voir, Mike, … » perdait son « Dis voir, » (le verbe « dis » et la
+#    majuscule « Mike » pris pour un NOM). Cas gelé dans le test.
+MOTIF_DEBUT_PRONOM = re.compile(
+    r'^(?:%s)?\s*(?:(?:%s)\s*)?(?:%s)%s[%s\s]?(?:%s)\b'
+    r'(?:\s+[\w\u00c0-\u00ff\'-]+)?'
+    % (OBJET, '|'.join(AUXILIAIRES), MOTIFS_VERBES, EUPHONIQUE, TIRETS,
+       SUJETS_INVERSES),
+    re.IGNORECASE)
 
 
 # Un PRONOM RELATIF juste après l'incise : la description continue.
@@ -262,7 +363,11 @@ def _etendre_participle(phrase, fin):
 def _matches(phrase):
     """[(debut, fin)] de tout ce qui RESSEMBLE a une incise (sans filtre)."""
     trouves = []
-    for motif in (MOTIF_DEBUT, MOTIF_PRONOM, MOTIF_NOM):
+    # Les trois motifs d'INVERSION (24/09/2026) : ce sont eux qui rattrapent
+    # « m'a-t-il dit », « m'annonca-t-il », « Demanda-t-elle. » -- l'essentiel des
+    # incises d'un roman a la premiere personne. Voir le bloc « INCISES INVERSÉES ».
+    for motif in (MOTIF_DEBUT, MOTIF_PRONOM, MOTIF_NOM,
+                  MOTIF_INVERSION, MOTIF_INVERSION_AUX, MOTIF_DEBUT_PRONOM):
         for m in motif.finditer(phrase):
             trouves.append((m.start(), m.end()))
     return sorted(trouves)

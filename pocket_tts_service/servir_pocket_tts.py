@@ -22,6 +22,9 @@ Reglages (variables d'environnement, valeurs par defaut entre parentheses) :
                                       (mesure du 20/09/2026 : brider a 4 ne
                                       coute RIEN en vitesse)
     NIMM_POCKET_TTS_TOKENS  (200)     taille des morceaux (recette de l'atelier)
+    NIMM_POCKET_TTS_TEMPERATURE (0.3) temperature d'echantillonnage (voir la
+                                      constante TEMPERATURE plus bas : le paquet
+                                      utilise 0,7 par defaut, et c'est TROP)
 
 UNE SEULE GENERATION A LA FOIS : le modele n'est pas thread-safe (c'est ecrit
 dans son propre code) et il occupe deja plusieurs coeurs. Les requetes font la
@@ -55,6 +58,21 @@ HOTE = os.environ.get("NIMM_POCKET_TTS_HOST", "127.0.0.1") or "127.0.0.1"
 COEURS = int(os.environ.get("NIMM_POCKET_TTS_COEURS", "4") or "4")
 TOKENS = int(os.environ.get("NIMM_POCKET_TTS_TOKENS", "200") or "200")
 LANGUE = "french_24l"
+
+# TEMPERATURE D'ECHANTILLONNAGE (27/09/2026) -- LE REGLAGE QUI COMPTE.
+# La configuration francaise du modele (`french_24l.yaml`) ne fixe PAS de
+# temperature : le paquet prend donc son defaut, **0,7** -- le double de ce que
+# Kyutai recommande pour l'anglais (0,3, cite dans la documentation de
+# `load_model`). Mesure du 27/09/2026, huit tirages par phrase
+# (`_essais/_mesurer_tirages_pocket.py`) : a 0,7 le moteur rend des prises tres
+# inegales -- 0,72 s a 3,44 s pour la MEME phrase, parole utile de 0,10 s a
+# 0,80 s -- et les mauvaises prises portent un PIC ELEVE (12 a 40 %). Le
+# garde-fou de `generer_wav`, qui ne regarde QUE le pic, les laisse donc passer :
+# c'est la fin de phrase coupee et le « tic » entendus par Laurent. A 0,3, les
+# memes mauvaises prises redeviennent des quasi-silences (pic 0,7 %) que le
+# garde-fou ATTRAPE et fait regenerer (mesure : aucun mauvais tirage accepte sur
+# 32 prises).
+TEMPERATURE = float(os.environ.get("NIMM_POCKET_TTS_TEMPERATURE", "0.3") or "0.3")
 
 # Le lecteur n'envoie plus de tres longues phrases (il decoupe a ~500
 # caracteres), mais on garde un plafond : au-dela, le moteur saute du texte.
@@ -143,9 +161,9 @@ def charger_modele():
     from pocket_tts import TTSModel
 
     debut = time.time()
-    _modele = TTSModel.load_model(language=LANGUE)
-    print("modele %s charge en %.1f s (%d coeurs)"
-          % (LANGUE, time.time() - debut, COEURS))
+    _modele = TTSModel.load_model(language=LANGUE, temp=TEMPERATURE)
+    print("modele %s charge en %.1f s (%d coeurs, temperature %.2f)"
+          % (LANGUE, time.time() - debut, COEURS, TEMPERATURE))
     repertorier_voix()
     _infos["pret"] = True
 
@@ -299,7 +317,10 @@ class Repondeur(BaseHTTPRequestHandler):
     def do_GET(self):
         chemin = self.path.split("?")[0]
         if chemin == "/sante":
-            self._envoyer_json(200, dict(_infos))
+            # `temperature` est exposee ici EXPRES (27/09/2026) : c'est le
+            # reglage qui decide de la stabilite des prises, et il doit etre
+            # verifiable d'un simple appel, sans ouvrir la fenetre du moteur.
+            self._envoyer_json(200, dict(_infos, temperature=TEMPERATURE))
         elif chemin == "/voix":
             self._envoyer_json(200, {"voix": sorted(_voix_cache.keys()),
                                      "nombre": len(_voix_cache)})

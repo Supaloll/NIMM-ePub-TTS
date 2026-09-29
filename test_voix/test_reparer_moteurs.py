@@ -37,6 +37,13 @@ import main
 
 ECHECS = 0
 TEMOIN = RACINE / "test_voix" / "_test_moteur_retenu_reparer.txt"
+# Le marqueur d'ARRET VOLONTAIRE de Pocket TTS est un FICHIER D'ETAT REEL :
+# `_assurer_pocket_vivant(force=True)` le SUPPRIME (ligne « if force: unlink »),
+# c'est son travail. Ce test l'appelle donc pour de vrai, et sans la
+# sauvegarde/restauration ci-dessous, LANCER LES TESTS RALLUMAIT POCKET au
+# prochain demarrage du lecteur -- defaut constate le 29/09/2026, le jour meme
+# ou Pocket a ete suspendu.
+MARQUEUR = RACINE / "pocket_tts_service" / "arrete_volontaire.txt"
 
 
 def verifier(nom, condition, detail=''):
@@ -48,38 +55,37 @@ def verifier(nom, condition, detail=''):
         ECHECS += 1
 
 
-def main_test():
-    # --- 1. START.bat : la non-regression de la panne du jour -------------
+def _main_test():
+    # --- 1. START.bat : Pocket TTS SUSPENDU (29/09/2026) ------------------
     print('')
-    print('1) START.bat allume Pocket TTS AVANT le choix du moteur lourd')
+    print('1) START.bat : Pocket TTS est SUSPENDU (plus lance du tout)')
     bat = (RACINE / "START.bat").read_text(encoding="utf-8", errors="replace")
-    i_pocket = bat.find("http://127.0.0.1:8085/sante")
-    i_kyutai = bat.find("http://127.0.0.1:8082/sante")
-    verifier('le port 8085 (Pocket TTS) est teste AVANT le port 8082 (Kyutai)',
-             i_pocket > 0 and i_kyutai > 0 and i_pocket < i_kyutai,
-             'pocket=%s kyutai=%s' % (i_pocket, i_kyutai))
+    verifier('Pocket TTS n est plus lance du tout par START.bat',
+             'cmd /k DEMARRER_POCKET_TTS' not in bat)
+    verifier('le port 8085 (Pocket TTS) n est plus teste',
+             '127.0.0.1:8085' not in bat)
+    verifier('START.bat dit a l ecran que Pocket TTS est SUSPENDU',
+             'Pocket TTS : SUSPENDU' in bat)
     verifier('le bloc Pocket TTS ne renvoie plus au lecteur (:pocket_pret)',
              bat.count(':pocket_pret') == 1, bat.count(':pocket_pret'))
-    if i_pocket > 0 and ':pocket_pret' in bat:
-        bloc = bat[i_pocket:bat.find(':pocket_pret')]
-        verifier('aucun « goto lecteur » ne saute plus ce bloc',
-                 'goto lecteur' not in bloc, bloc[:120])
-        verifier('le bloc lance bien le service Pocket TTS',
-                 'DEMARRER_POCKET_TTS.bat' in bloc)
-    verifier('le service a sa FENETRE (fermer la fenetre eteint le moteur)',
-             'cmd /k DEMARRER_POCKET_TTS.bat' in bat)
-    verifier('START.bat efface le marqueur d arret volontaire',
-             'arrete_volontaire.txt' in bat)
+    verifier('START.bat n EFFACE PLUS le marqueur d arret volontaire',
+             'del "pocket_tts_service\\arrete_volontaire.txt"' not in bat
+             and 'arrete_volontaire.txt' in bat)
+    verifier('le port 8082 (Kyutai) reste teste avant tout lancement',
+             '127.0.0.1:8082/sante' in bat)
 
     # --- 2. Quels moteurs sont ATTENDUS ? --------------------------------
     print('')
     print('2) quels moteurs sont attendus (le voyant ne parle que de ceux-la)')
     vrai_chemin = main.MOTEUR_VOIX_PATH
+    vrai_marqueur = main._pocket_arrete_volontairement
     try:
+        # Pocket NON suspendu (cas general) : il cohabite, donc il est attendu.
+        main._pocket_arrete_volontairement = lambda: False
         TEMOIN.write_text("kyutai\n", encoding="utf-8")
         main.MOTEUR_VOIX_PATH = TEMOIN
         attendus = main.moteurs_attendus()
-        verifier('Pocket TTS est TOUJOURS attendu (il cohabite)',
+        verifier('Pocket TTS est attendu quand il n est PAS suspendu (il cohabite)',
                  'pocket' in attendus, attendus)
         verifier('le moteur lourd retenu est attendu', 'kyutai' in attendus, attendus)
         verifier('les moteurs lourds non retenus ne sont pas attendus',
@@ -87,15 +93,31 @@ def main_test():
 
         TEMOIN.write_text("aucun\n", encoding="utf-8")
         aucun = main.moteurs_attendus()
-        verifier('avec « aucun » enregistre, seul Pocket TTS est attendu',
-                 aucun == ['pocket'], aucun)
+        # Depuis le 28/09/2026, Qwen3-TTS (le portage qwentts.cpp) est un moteur
+        # COHABITANT : il tourne sur le processeur, il ne remplace personne, et
+        # il est donc attendu COMME Pocket -- meme quand le pense-bete dit
+        # « aucun ». Avant, il etait un moteur lourd, choisi a la place de Kyutai.
+        verifier('avec « aucun » enregistre, Pocket ET Qwen sont attendus',
+                 aucun == ['pocket', 'qwen'], aucun)
 
         TEMOIN.write_text("pocket\n", encoding="utf-8")
         avec_pocket = main.moteurs_attendus()
         verifier('« pocket » dans le pense-bete ne le compte pas deux fois',
-                 avec_pocket == ['pocket'], avec_pocket)
+                 avec_pocket == ['pocket', 'qwen'], avec_pocket)
+
+        # POCKET SUSPENDU (29/09/2026) : le marqueur d'arret volontaire existe.
+        # C'est le CHOIX de Laurent, donc le moteur ne doit plus etre ATTENDU --
+        # sinon le voyant crierait en permanence, et un voyant qui crie tout le
+        # temps ne dit plus rien (regle du projet).
+        main._pocket_arrete_volontairement = lambda: True
+        suspendu = main.moteurs_attendus()
+        verifier('Pocket SUSPENDU n est plus attendu (le voyant ne crie plus)',
+                 'pocket' not in suspendu, suspendu)
+        verifier('avec Pocket suspendu, Qwen reste attendu',
+                 'qwen' in suspendu, suspendu)
     finally:
         main.MOTEUR_VOIX_PATH = vrai_chemin
+        main._pocket_arrete_volontairement = vrai_marqueur
         if TEMOIN.exists():
             TEMOIN.unlink()
 
@@ -103,8 +125,12 @@ def main_test():
     print('')
     print('3) l etat des moteurs porte « cohabite » et « attendu »')
     vraie_sante = main._sante_moteur
+    vrai_marqueur3 = main._pocket_arrete_volontairement
     try:
         main._sante_moteur = lambda url: {"actif": False, "pret": False}
+        # Pocket NON suspendu : c'est le cas general que ce controle decrit. Le
+        # marqueur reel, lui, EXISTE depuis le 29/09/2026 (Pocket suspendu).
+        main._pocket_arrete_volontairement = lambda: False
         etat = main.etat_moteurs_voix(force=True)
         verifier('chaque moteur dit s il cohabite',
                  etat['pocket']['cohabite'] is True
@@ -113,6 +139,7 @@ def main_test():
                  etat['pocket']['attendu'] is True)
     finally:
         main._sante_moteur = vraie_sante
+        main._pocket_arrete_volontairement = vrai_marqueur3
         main._ETAT_MOTEURS["etat"] = None
 
     # --- 4. Le veilleur rallume Pocket TTS -------------------------------
@@ -121,8 +148,15 @@ def main_test():
     vrai_demarrer = main._demarrer_pocket_avec_fenetre
     vrai_etat = main.etat_moteurs_voix
     vrai_installe = main._moteur_voix_installe
+    vrai_marqueur4 = main._pocket_arrete_volontairement
     try:
         rallumes = []
+        # Cas general decrit dans cette section : Pocket n'a PAS ete eteint
+        # volontairement. (Le marqueur reel existe depuis le 29/09/2026 : sans
+        # cette simulation, le veilleur refuse de rallumer pour une BONNE raison,
+        # et ce sont les controles de l'arret volontaire -- plus bas -- qui
+        # passeraient par accident.)
+        main._pocket_arrete_volontairement = lambda: False
 
         def faux_demarrer():
             rallumes.append(1)
@@ -196,6 +230,7 @@ def main_test():
         main._demarrer_pocket_avec_fenetre = vrai_demarrer
         main.etat_moteurs_voix = vrai_etat
         main._moteur_voix_installe = vrai_installe
+        main._pocket_arrete_volontairement = vrai_marqueur4
         main._veilleur_pocket.update(
             {"dernier_essai": 0.0, "echecs": 0, "lancements": 0})
 
@@ -265,6 +300,29 @@ def main_test():
           else '%d VERIFICATION(S) EN ECHEC' % ECHECS)
     print('=' * 66)
     return ECHECS
+
+
+def main_test():
+    """Enveloppe : sauvegarde et restaure le marqueur d'arret de Pocket TTS.
+
+    Le corps du test (`_main_test`) appelle `_assurer_pocket_vivant(force=True)`,
+    qui SUPPRIME le marqueur reel -- c'est exactement ce que fait un clic sur
+    « Relancer les moteurs ». On rend donc au fichier son etat d'origine, quoi
+    qu'il arrive pendant le test.
+    """
+    marqueur_avant = MARQUEUR.read_bytes() if MARQUEUR.exists() else None
+    try:
+        return _main_test()
+    finally:
+        try:
+            if marqueur_avant is None:
+                if MARQUEUR.exists():
+                    MARQUEUR.unlink()
+            else:
+                MARQUEUR.parent.mkdir(parents=True, exist_ok=True)
+                MARQUEUR.write_bytes(marqueur_avant)
+        except OSError as erreur:
+            print('   (marqueur de Pocket non restaure : %s)' % erreur)
 
 
 if __name__ == '__main__':

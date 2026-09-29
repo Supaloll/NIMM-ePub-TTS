@@ -91,6 +91,7 @@ MOTIFS_CODE = ['main.py', 'modules/*.py', 'core/*.py', 'test_voix/*.py',
 DOSSIERS_CONNUS = ('', 'test_voix', 'modules', 'core', 'frontend', 'data',
                    '_essais',
                    'kyutai_service', 'neutts_service', 'pocket_tts_service',
+                   'qwentts_service', 'qwen_tts_service',
                    'xtts_service')
 
 

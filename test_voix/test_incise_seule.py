@@ -111,17 +111,25 @@ def main():
                  _doit_taire_l_incise(piece, False))
         verifier('forme connue %r : DIT avec drapeau' % piece[:26],
                  not _doit_taire_l_incise(piece, True))
-    # Formes PAS ENCORE reconnues par la regle (participes et auxiliaire : item
-    # ouvert du BACKLOG, « les incises a la 1re personne »). Aujourd'hui elles
-    # passent meme SANS le drapeau -- mais c'est un hasard heureux. Le jour ou la
-    # regle les connaitra (chantier prevu), le drapeau sera la seule chose qui
-    # empeche l'incise de disparaitre de l'ecoute : le comportement attendu est
-    # donc fixe des maintenant.
+    # Objet + verbe + NOM (« me dit Annette Founijello ») et objet + AUXILIAIRE a
+    # la 1re personne (« lui ai-je recommande ») : PAS ENCORE reconnues par la
+    # regle (pistes mesurees, non retenues le 24/09/2026). En revanche
+    # « m'a-t-elle repondu. » EST reconnue depuis le correctif du 24/09/2026
+    # (test `test_incises_inversees.py`) : elle est donc TUE sans drapeau, et
+    # DITE avec -- c'est le comportement attendu des maintenant.
     a_venir = (', m\u2019a-t-elle r\u00e9pondu.', ', lui ai-je recommand\u00e9.',
                ', me dit Annette Founijello.')
     for piece in a_venir:
         verifier('forme a venir %r : DIT avec drapeau' % piece[:26],
                  not _doit_taire_l_incise(piece, True))
+    # Depuis le correctif du 24/09/2026 (incises inversees), l'auxiliaire a la 3e
+    # personne EST reconnue : la phrase se tait donc sans le drapeau, exactement
+    # comme « dit Monte-Cristo. ». C'est ce qui prouve que le correctif est bien
+    # branche jusque dans le serveur, et pas seulement dans le module.
+    verifier('forme inversee reconnue (24/09/2026) : TUE sans drapeau',
+             _doit_taire_l_incise(', m\u2019a-t-elle répondu.', False))
+    verifier('forme inversee reconnue (24/09/2026) : DIT avec drapeau',
+             not _doit_taire_l_incise(', m\u2019a-t-elle répondu.', True))
     # Un texte normal ne doit JAMAIS etre touche, drapeau ou pas.
     for piece in ('\u2014 Annette Founijello.', 'Le comte regarda Morrel.'):
         verifier('texte normal jamais tue : %r' % piece[:30],

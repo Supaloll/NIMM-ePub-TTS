@@ -15,6 +15,9 @@
 //   - l'en-tete du morceau colle annonce la BONNE taille totale ;
 //   - le morceau colle se RELIT comme un WAV valide, de la bonne duree ;
 //   - la pause entre paragraphes est bien inseree dans le morceau (silence) ;
+//   - la pause est posee MEME quand la phrase qui commence le paragraphe est la
+//     PREMIERE du morceau (defaut trouve et corrige le 24/09/2026 : la pause
+//     disparaissait a chaque morceau qui commencait sur un saut de ligne) ;
 //   - deux formats differents (24000 Hz et 22050 Hz) refusent de se coller :
 //     c'est le filet qui protege les voix Piper.
 //
@@ -38,6 +41,17 @@ function verifier(nom, condition, detail) {
 function egal(nom, obtenu, attendu) {
   verifier(nom, obtenu === attendu, JSON.stringify(obtenu)
                                     + ' au lieu de ' + JSON.stringify(attendu));
+}
+
+// Une constante LUE dans app.js : le test suit le fichier reel au lieu de
+// recopier un chiffre (le jour ou la valeur change, le controle reste juste).
+function constante(nom) {
+  const m = source.match(new RegExp(nom + '\\s*=\\s*(\\d+)'));
+  if (!m) {
+    console.error('ECHEC : constante ' + nom + ' introuvable dans app.js');
+    process.exit(1);
+  }
+  return parseInt(m[1], 10);
 }
 
 // Tranche du fichier reel : de _enteteWav a _jouerMorceauColle (tout le collage).
@@ -114,7 +128,7 @@ verifier('l en-tete collee annonce la taille totale',
          })());
 
 console.log('');
-console.log('3) le silence des pauses (300 ms entre paragraphes)');
+console.log('3) le silence des pauses (exemple : 300 ms entre deux paragraphes)');
 egal('silence de 300 ms = 14400 octets a 24000 Hz',
      api._blobSilence(tete, 300).size, 14400);
 
@@ -145,6 +159,40 @@ egal('silence de 300 ms = 14400 octets a 24000 Hz',
   verifier('collage refuse (l appelant repartira phrase par phrase)',
            api._collerWav(melange) === null);
   verifier('et une liste vide ne fabrique rien', api._collerWav([]) === null);
+
+  // 6) LA PAUSE D UN MORCEAU QUI COMMENCE SUR UN SAUT DE LIGNE (24/09/2026).
+  // Un morceau colle commence la ou le prechargement s'est arrete -- et cet
+  // endroit tombe parfois SUR un saut de ligne : soit la fenetre de
+  // prechargement s'y termine, soit le moteur (donc le format du WAV) change au
+  // milieu d'un dialogue, une replique etant un paragraphe. La pause est portee
+  // par la phrase qui COMMENCE le paragraphe : elle doit donc etre posee meme
+  // quand cette phrase est la PREMIERE du morceau. C'etait le defaut : la
+  // condition `i > 0` la laissait tomber, et le saut de ligne n'avait alors
+  // AUCUN silence -- alors que `_jouerMorceauColle` le comptait deja dans ses
+  // bornes (la surbrillance partait donc en avance sur la voix).
+  console.log('');
+  console.log('6) un morceau qui COMMENCE sur un saut de ligne');
+  const pausePara = constante('PARAGRAPH_PAUSE_MS');
+  console.log('  (pause lue dans app.js : ' + pausePara + ' ms)');
+  const silencePause = Math.round(24000 * 2 * (pausePara / 1000));
+  const debutParagraphe = [
+    { blob: p1, entete: await api._enteteDeBlob(p1), pauseAvantMs: pausePara },
+  ];
+  const colleDebut = api._collerWav(debutParagraphe);
+  verifier('un morceau a bien ete fabrique', colleDebut !== null);
+  egal('la pause est posee meme en tete de morceau',
+       colleDebut.size, 44 + 48000 + silencePause);
+  const reluDebut = api._enteteWav(new Uint8Array(await colleDebut.arrayBuffer()));
+  egal('et la duree du morceau le dit aussi',
+       Math.round(api._dureeWav(reluDebut) * 1000),
+       Math.round((1 + pausePara / 1000) * 1000));
+  // Sans saut de ligne, rien ne change : la premiere phrase d un morceau qui
+  // n ouvre pas de paragraphe ne gagne AUCUN silence.
+  const sansParagraphe = [
+    { blob: p1, entete: await api._enteteDeBlob(p1), pauseAvantMs: 0 },
+  ];
+  egal('une phrase ordinaire en tete de morceau reste intacte',
+       api._collerWav(sansParagraphe).size, 44 + 48000);
 
   console.log('');
   console.log(echecs === 0 ? 'TOUT EST OK' : echecs + ' VERIFICATION(S) EN ECHEC');

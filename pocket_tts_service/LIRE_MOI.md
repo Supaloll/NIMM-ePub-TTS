@@ -48,13 +48,27 @@ machine** (l'atelier NIMM Voix l'a récupéré le 17/09/2026, conditions accept�
 
 ```
 voix\
-    Femme001_reference.wav    ... 28 fichiers au 23/09/2026 : les VOIX de Laurent
+    Femme001_reference.wav    ... 28 fichiers : les VOIX de Laurent
     Homme002_reference.wav        - 18 copiées le 20/09/2026 (17 retenues du lot
     homme_grave_5649798_...         du 20/09 + JEAN_EDGAR) ;
                                   - 10 copiées le 23/09/2026 (le lot des
-                                    « nouveaux découpages », toutes retenues).
+                                    « nouveaux découpages », toutes retenues) ;
+                                  - les 28 recoupées le 27/09/2026 (bords
+                                    propres : la voix commence et finit dans un
+                                    vrai silence, au lieu d'être coupée au ras
+                                    du son).
 ```
 
+- **Les bords d'une référence comptent autant que le timbre** (mesure du
+  27/09/2026, atelier NIMM Voix, confirmée ici) : une référence **coupée au ras
+  du premier son** donne des **mots mangés en début de phrase**, sur les
+  répliques courtes surtout. C'était le cas de **23 références sur 28** (dont 21
+  avec une tête à 0 ms) avant la recoupe. Un rognage ne répare pas ça — un
+  rognage **ne crée pas** de silence : il faut repartir de l'extrait d'origine.
+  Les fichiers actuels ont été fabriqués avec
+  `G:\NIMM Voix\outils\neutts_tts\_preparer_references.py` (`--bords-propres`) :
+  bornes posées au **milieu d'un vrai silence**. L'ancien jeu est gardé ici :
+  `voix.bak_avant_bords_propres_20260927\`.
 - **Un fichier de voix = un extrait audio** : c'est ce que le moteur utilise
   pour parler avec ce timbre. Il n'y a **rien à fusionner** dans
   `voices-v1.0.bin` (ce fichier-là, ce sont les voix Kokoro).
@@ -151,7 +165,22 @@ Ce qui le distingue des autres services :
 - **la première phrase d'une voix paie son encodage** : 3,8 s (mesuré — la
   totalité du « Non. » à 4,4 s de calcul, c'est ça). Ensuite, c'est ~0,85 ;
 - **le contexte glissant est ignoré** : l'API de Pocket TTS ne le propose pas
-  (contrairement à Kyutai). Le lecteur peut l'envoyer, on ne s'en sert pas.
+  (contrairement à Kyutai). Le lecteur peut l'envoyer, on ne s'en sert pas ;
+- **la TEMPÉRATURE est fixée à 0,3** (`TEMPERATURE`, `NIMM_POCKET_TTS_TEMPERATURE`),
+  et c'est **le réglage qui compte le plus** (27/09/2026) : la configuration
+  française du modèle **ne la règle pas**, donc le paquet prenait son défaut,
+  **0,7** — le double de ce que Kyutai recommande pour l'anglais (0,3). À 0,7, le
+  moteur rend des prises très inégales sur les phrases **courtes** (pour « Oui. Je
+  sais. », **0,72 s à 3,44 s**, et des prises qui ne contiennent qu'un **fragment**
+  de la phrase) : c'est la « fin de phrase mangée » et le « tic » entendus par
+  Laurent. La valeur est **exposée par `/sante`** (`"temperature"`), donc
+  vérifiable d'un simple appel.
+- **le garde-fou anti-« tic » ne juge que le PIC** (`NIVEAU_MINI` = 0,05, jusqu'à
+  `ESSAIS_MAX` = 4 essais, le meilleur gardé) : une prise qui a **sauté du texte**
+  mais dont le pic est élevé (12 à 40 %) passe quand même. Mesure du 27/09/2026
+  après la correction de température : **4 fragments sur 24 appels (17 %)**, sur
+  la phrase la plus courte. **Le correctif complet reste à faire** (juger sur la
+  **parole**, pas sur le pic) — au BACKLOG.
 
 **Sans fenêtre** : `START.bat` lancera le service en arrière-plan, avec sa sortie
 dans un journal. Pour l'éteindre sans fenêtre, le lecteur le fait par le port.

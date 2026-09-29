@@ -2937,6 +2937,10 @@ const PHRASE_ECOUTE = 'Le 24 février 1815, la vigie de Notre-Dame de la Garde '
 //   - XTTS v2 est le moteur de CLONAGE  -> la molecule ;
 //   - NeuTTS est le plus RECENT         -> la fiole.
 //   - Pocket TTS tient dans la poche    -> le sac a dos (21/09/2026).
+//   - Qwen3-TTS lit LES MEMES voix que Kyutai -> les JUMEAUX (26/09/2026) :
+//     memes 35 extraits, memes prenoms, seul le moteur change. C'est le seul
+//     dont le code ET les poids soient Apache-2.0, donc le seul dont l'audio
+//     soit partageable.
 const FAMILLES_VOIX = [
   ['edge',   'Edge (en ligne)', '\u2601\uFE0F'],
   ['kokoro', 'Kokoro',          '\uD83C\uDF8E'],
@@ -2945,6 +2949,7 @@ const FAMILLES_VOIX = [
   ['xtts',   'XTTS v2',         '\uD83E\uDDEC'],
   ['neutts', 'NeuTTS',          '\uD83E\uDDEA'],
   ['pocket', 'Pocket TTS',      '\uD83C\uDF92'],
+  ['qwen',   'Qwen3-TTS',       '\uD83D\uDC65'],
 ];
 
 let _annotationsVoix = {};                       // { voiceId: {genre, stars, note} }
@@ -4665,10 +4670,19 @@ document.addEventListener('visibilitychange', () => {
   if (_pumpCourant) _pumpCourant();
 });
 const FETCH_TIMEOUT_MS         = 20000;  // abandon d'une requete qui ne repond pas
-// Les voix Kyutai sont calculees par un moteur externe (carte graphique) :
-// une phrase se calcule en gros en deux fois sa duree de lecture. Sans ce
-// delai plus large, une longue phrase serait abandonnee en plein calcul.
-const KYUTAI_TIMEOUT_MS        = 90000;
+// Moteurs qui CALCULENT plus lentement que le temps de lecture. Les voix
+// Kyutai sont calculees par un moteur externe (carte graphique) : une phrase
+// se calcule en gros en deux fois sa duree de lecture. Le cloneur Qwen3-TTS
+// (voix `qwen:`) est dans le meme cas : x0,45 a x0,51 mesure le 26/09/2026
+// avec l'ancien service, x0,8 annonce par qwentts.cpp sur le processeur.
+// Sans ce delai plus large, une longue phrase est abandonnee EN PLEIN CALCUL,
+// puis relancee : a l'oreille, un blanc, puis la phrase qui reprend. C'est
+// l'explication des « trop de blancs » du 26/09/2026, trouvee le 28/09/2026 en
+// relisant les mesures de qwentts.cpp -- un morceau de phrase peut atteindre
+// 450 caracteres (SPLIT_SEGMENT_CHARS), soit environ 30 s de parole, et 20 s
+// de calcul ne suffisent pas a cette vitesse.
+const VOIX_MOTEUR_LENT         = ['kyutai:', 'qwen:'];
+const MOTEUR_LENT_TIMEOUT_MS   = 90000;
 const RETRY_NETWORK_WAIT_MS    = 4000;   // pause avant de retenter apres un echec reseau
 
 // --- MESSAGE AUDIO « PAS DE RESEAU » (idee de Laurent, 15/09/2026) ---
@@ -5146,8 +5160,22 @@ async function _runTTS(startIdx, endIdx) {
   // supprime les micro-blancs entre les phrases.
   // Filet : si le collage est impossible (format inattendu), la phrase est jouee
   // seule, exactement comme avant.
-  const pauseAvant = (k) => (k > 0 && units[k].paraIdx !== units[k - 1].paraIdx)
-    ? PARAGRAPH_PAUSE_MS : 0;
+  // Respiration APRES UN POINT (29/09/2026, retour d'ecoute de Laurent) : « il
+  // faudrait peut-etre laisser respirer apres un point ». Constat mesure le
+  // 28/09 au soir : entre deux phrases, ce lecteur n'ajoutait RIEN (0 ms) -- la
+  // seule respiration etait la marge de queue du rognage (0,20 s), quel que soit
+  // le moteur. Laurent a choisi 200 ms a l'oreille, sur un banc d'ecoute de
+  // trois phrases reelles (`_essais/_banc_respiration.py`).
+  //
+  // OU ELLE TOMBE : uniquement quand on CHANGE DE PHRASE (`sentIdx`), donc
+  // jamais entre les sous-segments d'une phrase longue -- ceux-la doivent
+  // s'enchainent comme aujourd'hui. La pause de paragraphe reste prioritaire.
+  const pauseAvant = (k) => {
+    if (k <= 0) return 0;
+    if (units[k].paraIdx !== units[k - 1].paraIdx) return PARAGRAPH_PAUSE_MS;
+    if (units[k].sentIdx !== units[k - 1].sentIdx) return SENTENCE_PAUSE_MS;
+    return 0;
+  };
 
   for (let i = 0; i < units.length; ) {
     if (_ttsSession !== mySession || signal.aborted) break;
@@ -5363,7 +5391,11 @@ async function _fetchAudio(text, voice, rate, pitch, signal, context, inciseALir
     const timeoutCtrl = new AbortController();
     const onAbort     = () => timeoutCtrl.abort();
     signal.addEventListener('abort', onAbort);
-    const delai = voice.startsWith('kyutai:') ? KYUTAI_TIMEOUT_MS : FETCH_TIMEOUT_MS;
+    // Moteurs lents (Kyutai, cloneur Qwen) : delai large, sinon la requete est
+    // abandonnee en plein calcul et l'oreille entend un blanc (voir
+    // VOIX_MOTEUR_LENT plus haut).
+    const delai = VOIX_MOTEUR_LENT.some(p => voice.startsWith(p))
+                  ? MOTEUR_LENT_TIMEOUT_MS : FETCH_TIMEOUT_MS;
     const timer = setTimeout(() => timeoutCtrl.abort(), delai);
     try {
       const res = await fetch('/api/tts', {
@@ -5528,8 +5560,16 @@ function _collerWav(parties) {
 
   const morceaux = [];
   let total = 0;
-  parties.forEach((p, i) => {
-    if (i > 0 && p.pauseAvantMs > 0) {
+  parties.forEach((p) => {
+    // La pause appartient a la phrase qui COMMENCE le paragraphe, et elle se pose
+    // AVANT elle -- donc meme quand cette phrase est la PREMIERE du morceau.
+    // Defaut corrige le 24/09/2026 : la condition `i > 0` laissait tomber la
+    // pause a chaque morceau qui commencait sur un saut de ligne (fin de la
+    // fenetre de prechargement, ou changement de moteur au milieu d'un dialogue),
+    // alors que `_jouerMorceauColle` la comptait deja dans ses bornes : le saut de
+    // ligne n'avait plus aucun silence ET la surbrillance partait en avance.
+    // Controle : test_voix/test_collage_wav.js, section 6.
+    if (p.pauseAvantMs > 0) {
       const silence = _blobSilence(entete, p.pauseAvantMs);
       morceaux.push(silence);
       total += silence.size;
@@ -5673,6 +5713,18 @@ async function _playBlob(blob, signal) {
 // deux ensemble -- la queue de Kyutai est desormais rognee a 0,20 s
 // (`modules/audio_queue.py`) et cette pause passe de 300 a 600 ms, pour que les
 // sauts de ligne gagnent de l'air au lieu d'en perdre.
+// REVISION DU 24/09/2026 AU SOIR (ecoute de Kyutai) : Laurent trouve les sauts
+// de ligne « encore trop rapides », avec une precision qui a mis la puce a
+// l'oreille : « parfois ca mange la phrase qui commence ». Le reglage passe donc
+// de 600 a 800 ms -- et la MEME soiree, un defaut mecanique a ete trouve dans le
+// collage des phrases : la pause n'etait posee que si la phrase du paragraphe
+// n'etait PAS la premiere du morceau (`_collerWav`). Or un morceau commence la
+// ou le prechargement s'est arrete, et cet endroit tombe souvent sur un saut de
+// ligne -- surtout quand le moteur change en pleine conversation (le narrateur
+// en Kyutai, la replique en Piper : chaque replique est un paragraphe). La, le
+// saut de ligne n'avait donc AUCUN silence, alors que la surbrillance, elle, le
+// comptait deja (`_jouerMorceauColle`) : le curseur partait en avance sur la
+// voix. Repare le meme soir (voir `_collerWav`).
 function _pause(ms, signal) {
   return new Promise(resolve => {
     const timer = setTimeout(resolve, ms);
@@ -5682,7 +5734,17 @@ function _pause(ms, signal) {
   });
 }
 
-const PARAGRAPH_PAUSE_MS = 600;
+const PARAGRAPH_PAUSE_MS = 800;
+// Respiration entre DEUX PHRASES (300 ms depuis le 29/09/2026, choix de Laurent
+// a l'oreille) : avant, il n'y avait RIEN -- un point laissait seulement les
+// 0,20 s du rognage. La valeur avait d'abord ete fixee a 200 ms le meme jour, sur
+// un banc de TROIS PHRASES ISOLEES ; Laurent a demande a l'eprouver « sur
+// plusieurs phrases dans un chapitre », et le banc en situation reelle
+// (`_essais/_banc_respiration_chapitre.py` : 12 phrases de Monte-Cristo, dans
+// l'ordre, avec leurs paragraphes ; 200 / 250 / 300 / 400 ms) a fait choisir
+// **300 ms**. Elle ne s'applique qu'au CHANGEMENT DE PHRASE (voir `pauseAvant`) :
+// les sous-segments d'une phrase longue continuent de s'enchainer.
+const SENTENCE_PAUSE_MS = 300;
 
 // ============================================================
 // SELECTION DE TEXTE — "Lire à partir d'ici" (desktop uniquement)

@@ -9,6 +9,29 @@ echo.
 cd /d "%~dp0"
 
 rem ============================================================
+rem  CE QUI S'ALLUME, DEPUIS LE 29/09/2026 (demande de Laurent :
+rem  « on ne garde que les moteurs dont j'ai besoin »)
+rem
+rem  - QWEN3-TTS (qwentts_service, port 8086) : LE moteur des voix de
+rem    personnages. Il tourne sur le processeur, donc il cohabite avec
+rem    tous les autres, et c'est lui que le lecteur appelle par defaut.
+rem  - POCKET TTS : SUSPENDU (essais d'ecoute non conclusifs, et sa seule
+rem    voix encore attribuee est passee chez Qwen). Il ne s'allume plus.
+rem  - KYUTAI : PLUS ALLUME (data\moteur_voix.txt porte « aucun » depuis
+rem    le 29/09/2026). Il reste INSTALLE et intact.
+rem
+rem  POUR REBRANCHER KYUTAI : bouton « Voix de personnages » du lecteur
+rem  (il le rallume ET reecrit moteur_voix.txt, donc START.bat le
+rem  rallumera tout seul ensuite), ou kyutai_service\DEMARRER_KYUTAI.bat.
+rem  Pour POCKET : voir le bloc « POCKET TTS », plus bas.
+rem
+rem  Ce qui suit decrit l'ancien fonctionnement (Kyutai automatique) : il
+rem  est CONSERVE tel quel, parce qu'il sert le jour ou l'on rebranche.
+rem  Les commentaires plus bas ne sont donc pas a jour sur ce point, et
+rem  c'est voulu.
+rem ============================================================
+
+rem ============================================================
 rem  MOTEUR DE VOIX (Kyutai TTS) : allume en meme temps que le
 rem  lecteur, dans sa propre fenetre, parce qu'il exige Python 3.12
 rem  + PyTorch alors que le lecteur tourne en Python 3.14.
@@ -77,34 +100,86 @@ rem   - s'il tourne deja, on ne le relance pas ;
 rem   - s'il n'est pas installe, le lecteur demarre quand meme
 rem     (ses voix seront simplement indisponibles).
 rem ============================================================
-rem -- Un demarrage de START.bat remet les pendules a l'heure : le moteur avait
-rem    peut-etre ete eteint VOLONTAIREMENT (fenetre fermee), et le marqueur
-rem    empecherait alors le veilleur du lecteur de le rallumer.
-if exist "pocket_tts_service\arrete_volontaire.txt" del "pocket_tts_service\arrete_volontaire.txt"
+rem -- POCKET TTS EST SUSPENDU depuis le 29/09/2026 (demande de Laurent : ses
+rem    essais d'ecoute n'etaient pas conclusifs, et presque toutes les voix sont
+rem    passees chez Qwen3-TTS). AVANT, deux lignes EFFACAIENT le marqueur d'arret
+rem    volontaire a chaque demarrage : c'etait voulu alors (« un demarrage remet
+rem    les pendules a l'heure »). Maintenant on le LAISSE, parce que c'est LUI qui
+rem    dit au veilleur du lecteur « ne le rallume pas » (main.py,
+rem    _pocket_arrete_volontairement). Sans lui, le lecteur rallumerait Pocket
+rem    15 secondes apres son demarrage, et la suspension ne servirait a rien.
+rem    (La ligne d'effacement elle-meme est dans l'historique Git et dans
+rem    START.bat.bak_avant_suspendre_pocket_20260929.)
 
-curl -s -o NUL --max-time 2 http://127.0.0.1:8085/sante >nul 2>&1
-if not errorlevel 1 (
-    echo  Moteur de voix Pocket TTS : deja en marche.
-    goto pocket_pret
+rem ============================================================
+rem  POCKET TTS : PLUS ALLUME AU DEMARRAGE (29/09/2026)
+rem
+rem  Le moteur reste INSTALLE et intact. Ses 28 voix disparaissent seulement des
+rem  menus (le lecteur ne propose que les voix ECOUTABLES TOUT DE SUITE), et
+rem  aucun livre ne les utilise plus : la seule voix encore attribuee
+rem  (`pocket:Homme001`, Deke Simmons du livre 28) a ete basculee vers sa
+rem  jumelle Qwen le meme jour -- memes extraits, donc meme timbre.
+rem
+rem  POUR LE REBRANCHER (deux gestes, dans cet ordre) :
+rem    1. pocket_tts_service\DEMARRER_POCKET_TTS.bat   (sa fenetre s'ouvre)
+rem    2. supprimer pocket_tts_service\arrete_volontaire.txt, sinon le veilleur
+rem       du lecteur considere l'arret comme VOLONTAIRE et ne le rallume pas.
+rem  Et remettre ce bloc en service (il est conserve juste en dessous, en
+rem  commentaire, pour ne rien reinventer).
+rem ============================================================
+if exist "pocket_tts_service\arrete_volontaire.txt" (
+    echo  Moteur de voix Pocket TTS : SUSPENDU - ses voix ne sont plus proposees.
+) else (
+    echo  Pocket TTS est SUSPENDU mais son marqueur d'arret manque : le lecteur
+    echo  risque de le rallumer. Voir START.bat, bloc POCKET TTS.
 )
-if not exist "pocket_tts_service\.venv\Scripts\python.exe" (
-    echo  Moteur de voix Pocket TTS : NON INSTALLE - ses voix seront indisponibles.
-    echo  Pour l'installer une fois pour toutes : pocket_tts_service\INSTALLER_POCKET_TTS.bat
-    goto pocket_pret
-)
-rem -- Fenetre VISIBLE, comme Kyutai (21/09/2026, demande de Laurent) : fermer
-rem    cette fenetre ETEINT le moteur. Cache (avant), il n'existait AUCUN geste
-rem    pour l'eteindre : il restait allume indefiniment.
-echo  Moteur de voix Pocket TTS : demarrage - sa fenetre s'ouvre...
-start "NIMM ePub - appareil de voix Pocket TTS" /D "%~dp0pocket_tts_service" cmd /k DEMARRER_POCKET_TTS.bat
+goto pocket_pret
+
+rem -- L'ANCIEN BLOC de lancement de Pocket TTS (test du port 8085, message
+rem    « deja en marche », verification de l'environnement, ouverture de sa
+rem    fenetre) est CONSERVE DANS L'HISTORIQUE GIT (revision du 29/09/2026,
+rem    commit precedent) et dans START.bat.bak_avant_suspendre_pocket_20260929.
+rem    Il n'est PAS laisse ici en commentaire : des lignes de code mortes
+rem    trompent les filets du projet (test_start_moteur.py cherche le TEXTE
+rem    commandes de lancement, commentaires compris).
 
 :pocket_pret
 
+rem -- QWEN3-TTS / qwentts.cpp (28/09/2026) : le moteur de voix Qwen tourne sur
+rem    le PROCESSEUR (portage C++/GGML, VALIDE A L'OREILLE par Laurent le
+rem    28/09/2026 : « c'est vraiment bon, pas d'accrocs, prosodie impec »). Il
+rem    n'occupe donc PAS la carte graphique : il COHABITE avec Kyutai et Pocket,
+rem    et il ne remplace personne. Comme Pocket, c'est START.bat qui l'allume --
+rem    Laurent n'a rien a ouvrir. Son port est le 8086, celui que le lecteur
+rem    appelle PAR DEFAUT (aucune variable a poser).
+if not exist "qwentts_service\DEMARRER_QWENTTS_CPP.bat" (
+    echo  Moteur de voix Qwen3-TTS : NON INSTALLE - ses voix seront indisponibles.
+    goto qwentts_pret
+)
+curl -s -o NUL --max-time 2 http://127.0.0.1:8086/sante >nul 2>&1
+if not errorlevel 1 (
+    echo  Moteur de voix Qwen3-TTS : deja en marche.
+    goto qwentts_pret
+)
+rem -- CHEMIN COMPLET dans le `start` (29/09/2026) : quand START.bat est lance par
+rem    un PROGRAMME (le bouton « Redemarrer NIMM ePub » du lecteur), Windows pose
+rem    la variable NoDefaultCurrentDirectoryInExePath=1 : cmd ne cherche plus dans
+rem    son dossier courant, et un nom court (le lanceur ecrit seul) n'est PAS
+rem    trouve -- la fenetre s'ouvre sur une erreur, et AUCUN moteur ne demarre.
+rem    Avec le chemin complet, ca marche dans les deux cas. Constat du 29/09/2026.
+echo  Moteur de voix Qwen3-TTS : demarrage - sa fenetre s'ouvre...
+start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k "%~dp0qwentts_service\DEMARRER_QWENTTS_CPP.bat"
+
+:qwentts_pret
+
 
 if /i "%MOTEUR_VOIX%"=="aucun" (
-    echo  Moteur de voix : AUCUN - choix enregistre.
-    echo  Seules les voix Edge, Kokoro, Piper et Pocket TTS seront disponibles.
-    echo  Pour en changer : lanceur du moteur, sur le PC.
+    echo  Moteur de voix LOURD : aucun - choix enregistre le 29/09/2026.
+    echo  Voix disponibles : Edge, Kokoro, Piper, plus QWEN3-TTS, allume
+    echo  plus haut - il tourne sur le processeur et cohabite avec tous.
+    echo  Kyutai, XTTS et NeuTTS ne demarrent pas. Pour l'un d'eux : son
+    echo  lanceur, ex. kyutai_service\DEMARRER_KYUTAI.bat, ou le bouton
+    echo  "Voix de personnages" dans le lecteur.
     goto lecteur
 )
 if /i "%MOTEUR_VOIX%"=="xtts" (
@@ -118,6 +193,20 @@ if /i "%MOTEUR_VOIX%"=="neutts" (
     echo  Pour utiliser NeuTTS : neutts_service\DEMARRER_NEUTTS.bat
 )
 
+rem -- QWEN3-TTS : DEPUIS LE 28/09/2026, IL COHABITE -- il n'est plus un moteur
+rem    lourd qui remplace Kyutai. Le portage qwentts.cpp tourne sur le
+rem    processeur et il est allume PLUS HAUT, avec Pocket : comme il ne prend pas
+rem    la carte, il n'y a plus de choix a faire entre lui et Kyutai.
+rem    Si data\moteur_voix.txt porte encore « qwen » (choix du 26/09/2026), on le
+rem    DIT et on continue : Kyutai demarre normalement, et les deux vivent
+rem    ensemble -- c'est le sens du drapeau « cohabite » de main.py.
+if /i not "%MOTEUR_VOIX%"=="qwen" goto pas_qwen
+echo.
+echo  Moteur retenu : Qwen3-TTS. Il tourne sur le processeur, donc il
+echo  COHABITE avec Kyutai : les deux demarrent, et rien ne les oppose.
+echo.
+
+:pas_qwen
 rem -- Kyutai est-il deja allume ? Le port s'ouvre des les premieres secondes
 rem    du chargement : ce seul test suffit a ne pas lancer un second moteur.
 curl -s -o NUL --max-time 2 http://127.0.0.1:8082/sante >nul 2>&1
@@ -131,7 +220,7 @@ if not exist "kyutai_service\.venv\Scripts\python.exe" (
     goto lecteur
 )
 echo  Moteur de voix Kyutai : demarrage - pret dans une dizaine de secondes...
-start "NIMM ePub - appareil de voix Kyutai" /D "%~dp0kyutai_service" cmd /k DEMARRER_KYUTAI.bat
+start "NIMM ePub - appareil de voix Kyutai" /D "%~dp0kyutai_service" cmd /k "%~dp0kyutai_service\DEMARRER_KYUTAI.bat"
 goto lecteur
 
 rem -- (Le 17/09/2026, Kyutai a remplace NeuTTS comme moteur automatique : il
@@ -179,6 +268,20 @@ if not errorlevel 1 (
     echo  Ancien serveur arrete.
     echo.
 )
+
+rem ============================================================
+rem  LE MOTEUR QWEN EST MAINTENANT CHEZ NOUS (28/09/2026, le soir)
+rem
+rem  Le portage qwentts.cpp est installe dans  qwentts_service\  et il
+rem  ecoute sur le port 8086 -- celui que le lecteur appelle PAR DEFAUT.
+rem  Il est allume PLUS HAUT, avec Pocket (il cohabite : il ne prend pas
+rem  la carte graphique).
+rem
+rem  Le branchement provisoire sur le port 8087, qui pointait sur le
+rem  service de NIMM Voix, n'a donc plus lieu d'etre : notre moteur prend
+rem  sa place, et NIMM_QWEN_URL redevient inutile. Son historique est au
+rem  BACKLOG : il a servi une seule soiree, celle du 28/09/2026.
+rem ============================================================
 
 echo.
 python main.py

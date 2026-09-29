@@ -3,6 +3,7 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
 import json
+import os
 import re
 import shutil
 import sqlite3
@@ -251,8 +252,21 @@ def init_db():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # KOKORO N'EST PLUS PRECHARGE AU DEMARRAGE (29/09/2026, demande de Laurent :
+    # « debrancher Kokoro et Kyutai du demarrage, on ne garde que les moteurs
+    # dont j'ai besoin »). Kokoro est un moteur INTERNE (aucune fenetre, aucun
+    # service a part) : le precharger ne faisait qu'occuper ~357 Mo de memoire
+    # (kokoro-v1.0.onnx 310 Mo + voices-v1.0.bin 47 Mo) et quelques secondes de
+    # processeur a chaque lancement du lecteur.
+    # RIEN N'EST PERDU : `synthesize_kokoro` charge lui-meme le modele a la
+    # PREMIERE phrase Kokoro (modules/tts.py, « if not _kokoro_ready :
+    # _load_kokoro() »), une seule fois. Le premier personnage Kokoro d'un
+    # chapitre met donc quelques secondes de plus -- puis plus jamais.
+    # POUR REVENIR EN ARRIERE : retirer le « # » de ensure_kokoro_loaded()
+    # ci-dessous (la fonction est restee dans modules/tts.py), ou reprendre le
+    # fichier main.py.bak_avant_debrancher_kokoro_20260929.
     from modules.tts import ensure_kokoro_loaded, ensure_piper_loaded
-    ensure_kokoro_loaded()
+    # ensure_kokoro_loaded()
     ensure_piper_loaded()
     # Le lecteur VEILLE SUR POCKET TTS (21/09/2026, panne constatee par
     # Laurent) : ce moteur s'endort tout seul apres 3 h sans phrase, et comme le
@@ -392,14 +406,26 @@ async def service_worker():
 @app.get("/api/voices")
 async def get_voices():
     from modules.tts import (KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES,
-                             XTTS_VOICES, NEUTTS_VOICES, POCKET_VOICES)
+                             XTTS_VOICES, NEUTTS_VOICES, POCKET_VOICES,
+                             QWEN_VOICES)
     # Seules les voix ECOUTABLES TOUT DE SUITE sont proposees (14/09/2026,
     # demande de Laurent). Edge, Kokoro et Piper le sont toujours ; les voix
     # Kyutai, XTTS v2, NeuTTS et Pocket TTS seulement si LEUR moteur est
     # ALLUME ET PRET. Sinon on pouvait en choisir une moteur eteint et ne le
     # decouvrir qu'en plein chapitre. Voir /api/moteurs pour l'etat affiche.
     etat = etat_moteurs_voix()
-    voix = FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES
+    # KOKORO N'EST PLUS PROPOSE (29/09/2026, demande de Laurent : « il faudrait
+    # debrancher Kokoro, sinon je vais me retrouver avec des doublons »).
+    # POURQUOI : les 94 voix Kokoro portent EXACTEMENT le meme identifiant que 94
+    # des 157 voix Qwen (`kokoro:af_nicole` et `qwen:af_nicole` : meme extrait,
+    # donc meme timbre et meme prenom). Les menus proposaient donc les memes
+    # prenoms DEUX FOIS, et il fallait se souvenir lequel etait le bon.
+    # CE QUI N'EST PAS TOUCHE : le CATALOGUE complet (`/api/voix_catalogue`), qui
+    # sert a NOMMER un personnage deja caste en `kokoro:`, et le moteur Kokoro
+    # lui-meme (chargement a la demande, plus de prechargement depuis le meme
+    # jour) : aucun livre deja caste ne perd sa voix.
+    # POUR LES REMETTRE : ecrire `+ KOKORO_VOICES` ci-dessous, comme avant.
+    voix = FRENCH_VOICES + PIPER_VOICES
     if _moteur_voix_pret(etat, "kyutai"):
         voix = voix + KYUTAI_VOICES
     if _moteur_voix_pret(etat, "xtts"):
@@ -411,6 +437,10 @@ async def get_voices():
     # charge (et il cohabite avec tous les autres).
     if _moteur_voix_pret(etat, "pocket"):
         voix = voix + POCKET_VOICES
+    # Qwen3-TTS (26/09/2026) : moteur LOURD, comme Kyutai : ses voix ne sont
+    # proposees que si son service est allume ET pret.
+    if _moteur_voix_pret(etat, "qwen"):
+        voix = voix + QWEN_VOICES
     return voix
 
 @app.get("/api/voix_catalogue")
@@ -432,18 +462,20 @@ async def get_voix_catalogue():
     (lisible tout de suite, ou non).
     """
     from modules.tts import (KOKORO_VOICES, PIPER_VOICES, KYUTAI_VOICES,
-                             XTTS_VOICES, NEUTTS_VOICES, POCKET_VOICES)
+                             XTTS_VOICES, NEUTTS_VOICES, POCKET_VOICES,
+                             QWEN_VOICES)
     etat = etat_moteurs_voix()
     dispo = {"kyutai": _moteur_voix_pret(etat, "kyutai"),
              "xtts": _moteur_voix_pret(etat, "xtts"),
              "neutts": _moteur_voix_pret(etat, "neutts"),
+             "qwen": _moteur_voix_pret(etat, "qwen"),
              "pocket": _moteur_voix_pret(etat, "pocket")}
 
     def _famille(identifiant: str) -> str:
         return identifiant.split(":")[0] if ":" in identifiant else "edge"
 
     voix = (FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES + KYUTAI_VOICES
-            + XTTS_VOICES + NEUTTS_VOICES + POCKET_VOICES)
+            + XTTS_VOICES + NEUTTS_VOICES + POCKET_VOICES + QWEN_VOICES)
     return [{**v, "famille": _famille(v["id"]),
              "dispo": dispo.get(_famille(v["id"]), True)} for v in voix]
 
@@ -1013,6 +1045,16 @@ XTTS_URL = "http://127.0.0.1:8083/sante"
 NEUTTS_URL = "http://127.0.0.1:8084/sante"
 # Pocket TTS (21/09/2026) : service sur le port 8085, PROCESSEUR seulement.
 POCKET_URL = "http://127.0.0.1:8085/sante"
+# Qwen3-TTS (26/09/2026) : service sur le port 8086, MEME contrainte que
+# Kyutai (3,8 Go de carte graphique) -- un seul moteur lourd a la fois.
+# ESSAI qwentts.cpp (28/09/2026) : le service de NIMM Voix expose le MEME
+# contrat -- /sante, /voix, /tts -- mais sur le port 8087 et sur le PROCESSEUR.
+# L'adresse est donc reglable par `NIMM_QWEN_URL`, la MEME variable que lit
+# `modules/tts.py` : sans cela, le lecteur interrogerait /sante sur 8086, ne
+# verrait aucun moteur pret et ne proposerait AUCUNE voix `qwen:` (donc celles
+# du livre 28, basculees pour l'essai, disparaitraient des menus). Verifie le
+# 28/09/2026 en preparant l'essai, avant meme de lancer la page.
+QWEN_URL = os.environ.get("NIMM_QWEN_URL", "http://127.0.0.1:8086").rstrip("/") + "/sante"
 _kyutai_coupe_pour_casting = False
 
 
@@ -1064,6 +1106,22 @@ MOTEURS_VOIX = {
     "pocket": {"nom": "Pocket TTS", "sante": POCKET_URL,
                "dossier": "pocket_tts_service", "lanceur": "DEMARRER_POCKET_TTS.bat",
                "motifs": ("servir_pocket_tts", "DEMARRER_POCKET_TTS"),
+               "cohabite": True},
+    # Qwen3-TTS : DEPUIS LE 28/09/2026, c'est le portage **qwentts.cpp** qui sert
+    # (moteur valide a l'oreille par Laurent : « c'est vraiment bon, pas
+    # d'accrocs, prosodie impec »). Il tourne sur le PROCESSEUR, donc il
+    # N'OCCUPE PAS la carte graphique : comme Pocket, il COHABITE -- le drapeau
+    # `cohabite` le tient a l'ecart de la regle « un seul moteur lourd a la
+    # fois », et c'est le veilleur qui le rallume au besoin.
+    # Ses 35 voix sont les MEMES extraits que celles de Kyutai : basculer un
+    # livre d'un moteur a l'autre ne change ni les voix, ni les prenoms, ni les
+    # annotations d'ecoute.
+    # L'ancien service (`qwen_tts_service/`, Python 3.12 + PyTorch + 3,8 Go de
+    # carte graphique, x0,45 le temps reel) reste dans son dossier, mais il n'est
+    # PLUS branche ici : c'est l'historique du 26/09/2026.
+    "qwen":   {"nom": "Qwen3-TTS", "sante": QWEN_URL,
+               "dossier": "qwentts_service", "lanceur": "DEMARRER_QWENTTS_CPP.bat",
+               "motifs": ("servir_qwentts_cpp", "DEMARRER_QWENTTS_CPP"),
                "cohabite": True},
 }
 
@@ -1127,8 +1185,16 @@ def moteurs_attendus() -> list:
     Sans cette liste, le voyant crierait pour XTTS eteint VOLONTAIREMENT (Kyutai
     est le moteur en service), et un voyant qui crie tout le temps ne dit plus
     rien.
+
+    DEPUIS LE 29/09/2026 : un moteur COHABITANT eteint VOLONTAIREMENT n'est plus
+    attendu. Pocket TTS est SUSPENDU (marqueur `arrete_volontaire.txt`, demande
+    de Laurent) : sans cette regle, le voyant aurait crie « il manque Pocket »
+    en permanence, alors que c'est un CHOIX -- et le bouton « Relancer les
+    moteurs » (force) reste le geste pour le rallumer.
     """
     attendus = [p for p, infos in MOTEURS_VOIX.items() if infos.get("cohabite")]
+    if "pocket" in attendus and _pocket_arrete_volontairement():
+        attendus.remove("pocket")
     retenu = _moteur_lourd_retenu()
     if retenu and retenu not in attendus:
         attendus.append(retenu)
@@ -3021,6 +3087,26 @@ async def tts(request: TTSRequest):
         async def generate_kyutai():
             yield audio
         return StreamingResponse(generate_kyutai(), media_type="audio/wav")
+
+    if request.voice.startswith("qwen:"):
+        # Qwen3-TTS (26/09/2026) tourne dans SON PROPRE service (Python 3.12 +
+        # PyTorch, lance par qwentts_service/DEMARRER_QWENTTS_CPP.bat, port 8086),
+        # exactement comme Kyutai -- dont il reprend LES MEMES 35 voix.
+        # `request.context` n'est PAS transmis : ce moteur n'a pas de contexte
+        # glissant (le service le signalerait s'il le recevait).
+        from modules.tts import synthesize_qwen, QwenIndisponible
+        try:
+            audio = await synthesize_qwen(request.text, request.voice,
+                                          request.rate, request.pitch,
+                                          vocabulaire=vocabulaire)
+        except QwenIndisponible as erreur:
+            # 503 : erreur "definitive" (moteur eteint), pas une coupure
+            # reseau. Le client affiche le message et arrete la lecture au
+            # lieu de reessayer sans fin.
+            raise HTTPException(status_code=503, detail=str(erreur))
+        async def generate_qwen():
+            yield audio
+        return StreamingResponse(generate_qwen(), media_type="audio/wav")
 
     if request.voice.startswith("xtts:"):
         # Le moteur XTTS v2 tourne dans SON PROPRE service (Python 3.12 +

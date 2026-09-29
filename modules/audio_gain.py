@@ -195,3 +195,45 @@ def normaliser_wav_parole(wav_bytes, cible=CIBLE_POURCENT, gain_max=GAIN_MAX):
     except Exception:
         # Jamais d'echec de lecture a cause d'un reglage de volume.
         return wav_bytes
+# ==============================================================
+# FONDU D'ENTREE -- enlever le « tic » d'attaque (29/09/2026)
+# ==============================================================
+# Demande de Laurent, retour d'ecoute du 29/09/2026 : « il y a une entame un peu
+# butee au moment de la respiration [...]. C'est possible de faire un fondu
+# entrant sur les 50 premieres ms, juste pour attenuier le leger tic ? » -- son
+# oreille a choisi 100 ms a l'essai (banc : 0 / 25 / 50 / 100 ms sur trois
+# phrases reelles, `_essais/_banc_fondu.py`).
+#
+# POURQUOI CE TIC EXISTE : c'est un TRANSITOIRE de quelques millisecondes au tout
+# debut du fichier du moteur, que la normalisation rend plus audible (constat du
+# 27/09/2026, deja note au BACKLOG). Une rampe de 0 a 1 sur les premieres
+# millisecondes l'eteint SANS toucher a la voix -- a condition de ne pas prendre
+# trop long : au-dela, le debut du mot parait mou. C'est ce que l'oreille a
+# tranche entre 50 et 100 ms.
+
+FONDU_ENTREE_MS = 100.0
+
+
+def fondu_entree_wav(wav_bytes, duree_ms=FONDU_ENTREE_MS):
+    """Adoucit le tout debut du fichier : rampe LINEAIRE de 0 a 1.
+
+    Renvoie les octets INCHANGES si le fichier est trop court, si la duree est
+    nulle, s'il n'est pas mono, ou si le traitement echoue : un fondu ne doit
+    jamais empecher une phrase d'etre lue.
+    """
+    if not wav_bytes or duree_ms <= 0:
+        return wav_bytes
+    try:
+        canaux, _largeur, frequence, ech = _lire_wav(wav_bytes)
+        if canaux != 1:
+            return wav_bytes          # le fondu est prevu pour nos WAV mono
+        duree = int(frequence * duree_ms / 1000.0)
+        if duree <= 0 or len(ech) <= duree:
+            return wav_bytes
+        for indice in range(duree):
+            facteur = indice / float(duree)
+            ech[indice] = int(ech[indice] * facteur)
+        return _ecrire_wav(ech, frequence)
+    except Exception:
+        return wav_bytes
+

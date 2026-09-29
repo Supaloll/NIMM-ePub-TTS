@@ -168,6 +168,23 @@ pocket_tts_service/sortie_lecteur/
 pocket_tts_service/journal_*.txt
 pocket_tts_service/__pycache__/
 
+# Moteur Qwen3-TTS / qwentts.cpp (28/09/2026) : environnement Python 3.14 et les
+# DEUX modeles GGUF (1,2 Go au total), non versionnes -- voir
+# qwentts_service/LIRE_MOI.md pour les recreer, paquet PyPI compris.
+qwentts_service/.venv/
+qwentts_service/models/
+qwentts_service/__pycache__/
+
+# Les extraits de voix du moteur Qwen : les 35 Kyutai ET les 122 voix clonees
+# par NIMM Voix le 28/09/2026 (94 Kokoro + 28 « Decoupage OK »), avec leur texte
+# exact. Les WAV sont LOURDS (83 Mo) : ils restent hors Git. Le FICHIER DES TEXTES,
+# lui, est VERSIONNE depuis le 29/09/2026 : il est petit (46 Ko) et c'est lui qui
+# porte les corrections de texte (relues a la main) -- le moteur ICL aligne
+# l'audio de reference sur ces textes.
+qwen_tts_service/voix/*.wav
+qwen_tts_service/voix/*.bak_*
+qwen_tts_service/voix/_bords_avant_*/
+
 # Captures de session : sorties de commandes redirigees pendant l'atelier
 # (journaux de test, essais, sorties de script). Jamais versionnees -- elles
 # etaient entrees par erreur dans un commit le 17/09/2026.
@@ -207,3 +224,16 @@ _test_piece_incise.py
 Rapport de Claude
 Rapport de Claude *.md
 Reponse Claude *.txt
+
+# Pocket TTS eteint VOLONTAIREMENT (29/09/2026) : marqueur ecrit par le service
+# quand sa fenetre se ferme, et par START.bat quand le moteur est SUSPENDU. C'est
+# un ETAT LOCAL, comme le choix de moteur (data/moteur_voix.txt) : il n'a rien a
+# faire sur le depot.
+pocket_tts_service/arrete_volontaire.txt
+
+# Sorties d'essais de l'atelier (24-25/09/2026) : journaux des bancs d'ecoute et
+# des passages pieges, ecrits a cote de leurs outils. Meme regle que les autres
+# captures de session : jamais versionnees.
+test_voix/banc_desaccords_*.txt
+test_voix/passage_piege*.txt
+test_voix/rapport_passage_piege_*.txt

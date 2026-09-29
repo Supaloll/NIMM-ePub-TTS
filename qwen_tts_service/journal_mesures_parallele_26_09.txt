@@ -1,0 +1,26 @@
+
+===== NIMM ePub : appareil de voix Qwen3-TTS =====
+Modele : Qwen/Qwen3-TTS-12Hz-0.6B-Base
+
+Adresse : http://127.0.0.1:8086   (Ctrl+C pour arreter)
+
+
+********
+Warning: flash-attn is not installed. Will only run the manual PyTorch version. Please install flash-attn for faster inference.
+********
+ 
+Chargement du moteur Qwen3-TTS (cuda : NVIDIA GeForce RTX 4060)...
+Moteur pret en 4.4 s -- 35 voix disponibles.
+Le moteur est pret : les phrases peuvent etre demandees.
+  empreinte de la voix 10087_11650_000028-0002 preparee en 0.8 s
+phrase generee  voix=10087_11650_000028-0002        17.9 s de calcul    8.7 s d'audio  x0.49 le temps reel
+phrase generee  voix=10087_11650_000028-0002         9.4 s de calcul    4.7 s d'audio  x0.50 le temps reel
+phrase generee  voix=10087_11650_000028-0002        12.4 s de calcul    5.7 s d'audio  x0.46 le temps reel
+phrase generee  voix=10087_11650_000028-0002         1.8 s de calcul    0.8 s d'audio  x0.44 le temps reel
+phrase generee  voix=10087_11650_000028-0002        18.7 s de calcul    4.3 s d'audio  x0.23 le temps reel
+phrase generee  voix=10087_11650_000028-0002        26.4 s de calcul    8.8 s d'audio  x0.33 le temps reel
+phrase generee  voix=10087_11650_000028-0002         2.3 s de calcul    0.6 s d'audio  x0.24 le temps reel
+phrase generee  voix=10087_11650_000028-0002        11.4 s de calcul    5.2 s d'audio  x0.46 le temps reel
+phrase generee  voix=10087_11650_000028-0002        16.4 s de calcul    8.2 s d'audio  x0.50 le temps reel
+phrase generee  voix=10087_11650_000028-0002         2.1 s de calcul    0.9 s d'audio  x0.42 le temps reel
+phrase generee  voix=10087_11650_000028-0002        17.1 s de calcul    8.6 s d'audio  x0.51 le temps reel

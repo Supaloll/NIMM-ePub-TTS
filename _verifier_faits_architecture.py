@@ -1033,11 +1033,11 @@ def check_sujet_symboles():
          'NIMM Voix' not in page,
          'la page ecrit de nouveau « NIMM Voix » quelque part')
 
-    # -- 4. Les sept moteurs, et leurs icones ECRITES dans cette page. -------
+    # -- 4. Les huit moteurs, et leurs icones ECRITES dans cette page. -------
     table = re.search(r'const FAMILLES_VOIX = \[(.*?)\n\];', page, re.S)
     entrees = re.findall(r"\['([a-z]+)',\s*'([^']*)',\s*'([^']*)'\]",
                          table.group(1) if table else '')
-    fait('FAMILLES_VOIX porte sept moteurs', len(entrees) == 7,
+    fait('FAMILLES_VOIX porte huit moteurs', len(entrees) == 8,
          'la table des familles porte %d moteur(s)' % len(entrees))
     fait('Pocket TTS est dans la table',
          any(cle == 'pocket' for cle, _, _ in entrees),

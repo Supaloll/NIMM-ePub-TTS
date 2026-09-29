@@ -143,6 +143,17 @@ nimm-epub/
 │   ├── INSTALLER_POCKET_TTS.bat — Installation unique (environnement, modèle, voix)
 │   ├── DEMARRER_POCKET_TTS.bat  — Allume le moteur, dans SA fenêtre (l'arrêt se fait là)
 │   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
+├── qwentts_service/       — Moteur Qwen3-TTS **qwentts.cpp** (C++/GGML, sur le PROCESSEUR, il cohabite), port 8086
+│   ├── servir_qwentts_cpp.py — Service HTTP local (127.0.0.1:8086), même contrat que les autres moteurs
+│   ├── DEMARRER_QWENTTS_CPP.bat — Allume le moteur, dans SA fenêtre (START.bat le fait tout seul)
+│   ├── models/            — Les deux GGUF du moteur (1,2 Go, hors Git)
+│   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
+├── qwen_tts_service/      — ANCIEN service Qwen3-TTS (Transformers, Python 3.12 + PyTorch, 3,8 Go de carte) : **plus branché** depuis le 28/09/2026, gardé pour l'historique
+│   ├── servir_qwen_tts.py — Service HTTP local (ancien port 8086, tenu aujourd'hui par qwentts)
+│   ├── DEMARRER_QWEN_TTS.bat  — Allume le moteur, dans SA fenêtre (l'arrêt se fait là)
+│   ├── tester_service.py  — Écoute de contrôle (le rapport au temps réel compris)
+│   ├── voix/              — Les 35 extraits + leur texte exact (`references.csv`, hors Git)
+│   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
 ├── test_voix/             — L'atelier : les tests, les mesures, les bancs d'écoute (voir son LIRE_MOI.md)
 ├── Extraits de voix/      — Les extraits de voix libres de droits, sources des clonages (hors Git)
 ├── frontend/
@@ -447,7 +458,7 @@ structure.
 - **trois fichiers, aucun framework** : `index.html`, `app.js` (HTML/CSS/JS
   vanilla) et `styles.css`, servis par `main.py`
   (`app.mount("/static", StaticFiles(directory=FRONTEND_DIR))`) ; la feuille porte
-  la version de cache `?v=20260922-7`, **une seule valeur** pour toute la page ;
+  la version de cache `?v=20260929-1`, **une seule valeur** pour toute la page ;
 - **service worker** : `frontend/sw.js` — sans lui, rien ne s'installe ;
 - **PWA** : `frontend/manifest.json` (`id` et `start_url` `/`,
   `display: standalone`, `orientation: portrait`, thème `#0d0d0d`) et **un fichier
@@ -757,14 +768,39 @@ console Tailscale (Machines → … → *Disable key expiry*).
 - **phrases-fleuves** : au-delà de `SPLIT_SENTENCE_CHARS = 500`,
   `_splitLongSentence()` coupe aux virgules en sous-segments de
   `SPLIT_SEGMENT_CHARS = 450`, tous porteurs du même `sentIdx` ;
-- **pause entre paragraphes** : `PARAGRAPH_PAUSE_MS = 600` (montée de 300 à 600 ms
-  le 23/09/2026, voir la chronique ; elle était revenue à 300 le 17/09/2026),
-  insérée par `_pause(ms, signal)` quand le `paraIdx` change — interrompue par le
-  signal d'abandon. Le silence de queue du moteur Kyutai est, lui, **rogné à
+- **pause entre paragraphes** : `PARAGRAPH_PAUSE_MS = 800` (montée de 300 à
+  600 ms le 23/09/2026, puis à **800** le 24/09/2026 au soir — voir la chronique ;
+  elle était revenue à 300 le 17/09/2026), portée par la phrase qui **commence**
+  le paragraphe (quand le `paraIdx` change) et matérialisée par un bloc de silence
+  `_blobSilence()` inséré **à l'intérieur** du morceau collé (`_collerWav`) —
+  y compris quand cette phrase ouvre le morceau (défaut corrigé le 24/09/2026).
+  Le silence de queue du moteur Kyutai est, lui, **rogné à
   0,20 s** (`modules/audio_queue.py`, appelé par `synthesize_kyutai`) : les deux
   réglages se cumulent, ils ont été décidés ensemble ;
-- **réseau** : `FETCH_TIMEOUT_MS = 20000` (`KYUTAI_TIMEOUT_MS = 90000` pour
-  Kyutai) ; `waitUnitNetworkRetry()` retente et repart seule ; le message parlé
+- **respiration entre deux phrases** : `SENTENCE_PAUSE_MS = 300` (29/09/2026,
+  choix de Laurent à l'oreille, **dans un chapitre**). L'histoire de cette valeur
+  compte, parce qu'elle a changé deux fois le même jour : d'abord **200 ms**, sur
+  un banc de **trois phrases isolées** (`_essais/_banc_respiration.py`, 0 / 200 /
+  300 / 450 ms) ; puis Laurent a demandé à l'éprouver « sur plusieurs phrases
+  dans un chapitre », ce que le banc `_essais/_banc_respiration_chapitre.py` a
+  fait sur **12 phrases réelles de Monte-Cristo**, dans l'ordre et avec leurs
+  paragraphes (200 / 250 / 300 / 400 ms) — verdict : **300 ms**. *La leçon* : une
+  respiration se juge dans le fil d'une lecture, pas sur des phrases isolées.
+  Avant le 29/09/2026 il n'y avait **rien** entre deux phrases : la seule
+  respiration après un point était la marge de queue du rognage (**0,20 s**), quel
+  que soit le moteur. Elle ne tombe qu'au **changement de phrase** (`sentIdx`),
+  donc jamais entre les sous-segments d'une phrase longue, et la pause de
+  paragraphe reste prioritaire ;
+- **fondu d'entrée du moteur Qwen** : `FONDU_ENTREE_MS = 100` ms
+  (`modules/audio_gain.py`, appliqué **en dernier** par `synthesize_qwen`, après
+  la normalisation) — il éteint le **transitoire d'attaque** que la
+  normalisation rendait audible (le « tic », déjà noté le 27/09/2026). Choix de
+  Laurent à l'oreille (0 / 25 / 50 / 100 ms, `_essais/_banc_fondu.py`) :
+  100 ms enlève le tic **sans** rendre le début des mots mou ;
+- **réseau** : `FETCH_TIMEOUT_MS = 20000`, porté à `MOTEUR_LENT_TIMEOUT_MS =
+  90000` pour les **moteurs lents** (`VOIX_MOTEUR_LENT = ['kyutai:', 'qwen:']` —
+  corrigé le 28/09/2026, voir la chronique) ; `waitUnitNetworkRetry()` retente
+  et repart seule ; le message parlé
   `MESSAGE_HORS_LIGNE` part après `MESSAGE_ATTENTES_AVANT = 2` attentes, puis au
   plus une fois par `MESSAGE_RAPPEL_MS = 45000` ;
 - **états** : `_ttsState` — `idle` → `loading` → `playing` ⇄ `paused` → `idle`
@@ -1129,9 +1165,22 @@ lecture s'en passe simplement (aucune erreur) — vérifié par
 `test_voix/test_message_reseau.js`.
 
 
-Pour les voix **Kyutai**, ce délai est porté à `KYUTAI_TIMEOUT_MS` (90 s) :
-le moteur calcule une phrase en gros en deux fois sa durée de lecture, un
-délai de 20 s abandonnerait une longue phrase en plein calcul. Et quand le
+Pour les voix des **moteurs lents**, ce délai est porté à `MOTEUR_LENT_TIMEOUT_MS`
+(90 s) : Kyutai calcule une phrase en gros en deux fois sa durée de lecture, et
+le cloneur Qwen (`qwen:`) est dans le même cas (×0,45-0,51 mesuré le 26/09/2026,
+×0,8 annoncé par `qwentts.cpp` le 28/09) — un délai de 20 s abandonnerait une
+longue phrase en plein calcul.
+
+**Corrigé le 28/09/2026** (`VOIX_MOTEUR_LENT` dans `app.js`) : avant, **seules**
+les voix `kyutai:` avaient ce délai, toutes les autres héritaient des 20 s. Or
+un morceau de phrase peut atteindre `SPLIT_SEGMENT_CHARS = 450`, soit **~30 s de
+parole** : la requête était abandonnée **en plein calcul** puis relancée, ce qui
+s'entend comme un blanc suivi de la phrase reprise. C'est l'explication retenue
+des « trop de blancs » de l'essai Qwen du 26/09/2026 — un blanc de **chronomètre**
+et un moteur **lent** sont deux choses différentes, et c'est la première fois
+qu'on pourra les séparer à l'oreille (à confirmer).
+
+Et quand le
 serveur répond **503** (moteur Kyutai éteint — erreur définitive, pas une
 coupure réseau), la lecture s'arrête en affichant le message du serveur
 (`_ttsFatalError`) au lieu d'attendre indéfiniment.
@@ -1181,6 +1230,15 @@ de texte), une pause silencieuse de `PARAGRAPH_PAUSE_MS` est insérée via
 `_pause()` avant de poursuivre. La pause est interrompable immédiatement si le
 TTS est stoppé pendant son écoulement (respect du signal d'abort).
 
+> **Ce paragraphe décrit le mécanisme d'origine (avant le 20/09/2026).** Depuis
+> le collage des phrases en un seul morceau, la pause n'est plus un `_pause()`
+> entre deux fichiers : la phrase qui **ouvre** un paragraphe porte
+> `pauseAvantMs`, et `_collerWav()` intercale un bloc de silence `_blobSilence()`
+> **avant** elle, à l'intérieur du morceau collé. C'est aussi ce qui permet à
+> `_jouerMorceauColle()` de compter ces pauses dans ses bornes (le curseur reste
+> donc au bon endroit) — et c'est exactement là qu'un défaut se cachait, réparé le
+> 24/09/2026 : voir la mise à jour en fin de sous-section.
+
 **Mise à jour du 15/09/2026 — la pause passe à 0 (idée de Laurent, à
 l'écoute d'une heure du Comte de Monte-Cristo).** La valeur avait déjà été
 réduite de 500 ms à 300 ms le 23/08/2026 ; à l'usage, Laurent a constaté que
@@ -1214,6 +1272,33 @@ fichiers du cache) à **0,20 s** (`modules/audio_queue.py`, `QUEUE_GARDEE_S`).
 Sans le second, augmenter la pause n'aurait servi à rien : les sauts de ligne
 auraient **perdu** de l'air au lieu d'en gagner. Détail et mesure : le sujet
 « ✂️ Rognage des silences de bord ».
+
+**Mise à jour du 24/09/2026 au soir — la pause monte à 800 ms, et un défaut du
+collage est réparé.** Nouveau retour d'oreille de Laurent, toujours sur Kyutai :
+les sauts de ligne sont « encore trop rapides », et il ajoute une observation qui
+met sur la piste — « **parfois ça mange la phrase qui commence** ». Le réglage
+passe donc de 600 à **800 ms**, et la vérification qui l'accompagne a trouvé
+**mieux qu'un réglage** : un **défaut mécanique**. `_collerWav()` ne posait la
+pause que si la phrase du paragraphe n'était **pas la première du morceau** collé
+(`if (i > 0 && …)`). Or un morceau commence là où le préchargement s'est arrêté,
+et cet endroit tombe souvent **sur un saut de ligne** — en particulier quand le
+**moteur change** en pleine conversation (le narrateur en Kyutai, la réplique en
+Piper : chaque réplique est un paragraphe, et deux formats ne se collent pas).
+Là, le saut de ligne n'avait **aucun silence**, alors que la surbrillance, elle,
+le comptait déjà dans ses bornes : le curseur partait ~0,6 s **en avance sur la
+voix**. La pause est désormais posée pour la phrase qui **ouvre** le morceau
+comme pour les autres.
+
+*Mesure avant/après* — le contrôle (`test_voix/test_collage_wav.js`, section 6) a
+été écrit **avant** la réparation, et il **criait** : un morceau commençant sur un
+saut de ligne faisait **48 044 octets** (en-tête + son, soit **1,0 s**) au lieu de
+**76 844** (en-tête + son + **0,8 s** de silence, soit **1,6 s**). Après la
+réparation, il **se tait**. Effet à l'oreille : environ **1,0 s après un saut de
+ligne** (0,20 s de queue Kyutai, le silence de tête du moteur, puis ces 0,80 s),
+au lieu de 0,88 s — et **1,0 s** là où il n'y avait rien du tout.
+*À savoir* : rien à redémarrer et rien à purger — cette pause vit dans la page
+(`frontend/app.js`), elle ne passe pas par le cache audio ; il suffit de
+**recharger la page** (fermer puis rouvrir l'application sur le téléphone).
 
 Sans cette pause, deux phrases de paragraphes différents s'enchaînaient
 sans aucun silence — un titre de chapitre type "La tempête" (souvent
@@ -1594,25 +1679,46 @@ correction.
 ### modules/tts.py — Synthèse vocale
 
 **Aujourd'hui — l'état actuel en clair** (vérifié contre le code le 23/09/2026) :
-- **un module, sept moteurs** : `synthesize_stream()` (Edge TTS, en ligne, MP3)
-  et six moteurs en WAV — `synthesize_kokoro()`, `synthesize_piper()`,
+- **un module, huit moteurs** : `synthesize_stream()` (Edge TTS, en ligne, MP3)
+  et sept moteurs en WAV — `synthesize_kokoro()`, `synthesize_piper()`,
   `synthesize_kyutai()`, `synthesize_xtts()`, `synthesize_neutts()`,
-  `synthesize_pocket()`. L'aiguillage est le **préfixe du nom de voix**, dans la
-  route `/api/tts` (`main.py`) : `kokoro:`, `piper:`, `kyutai:`, `xtts:`,
-  `neutts:`, `pocket:` — et Edge quand il n'y a **aucun** préfixe ;
-- **quatre moteurs vivent dans leur propre service**, appelé en HTTP local :
+  `synthesize_pocket()`, `synthesize_qwen()`. L'aiguillage est le **préfixe du
+  nom de voix**, dans la route `/api/tts` (`main.py`) : `kokoro:`, `piper:`,
+  `kyutai:`, `xtts:`, `neutts:`, `pocket:`, `qwen:` — et Edge quand il n'y a
+  **aucun** préfixe ;
+- **cinq moteurs vivent dans leur propre service**, appelé en HTTP local :
   Kyutai (`NIMM_KYUTAI_URL`, défaut `127.0.0.1:8082`), XTTS (`NIMM_XTTS_URL`,
-  8083) et NeuTTS (8084) tournent en **Python 3.12 + PyTorch**, incompatible avec
-  le Python 3.14 du lecteur ; Pocket (8085) est lui aussi un service séparé, mais
-  en Python 3.14 — pour ne pas charger PyTorch dans le lecteur. Les délais
+  8083), NeuTTS (8084) et Qwen3-TTS (`NIMM_QWEN_URL`, 8086 — arrivé le
+  26/09/2026) tournent en **Python 3.12 + PyTorch**, incompatible avec le
+  Python 3.14 du lecteur ; Pocket (8085) est lui aussi un service séparé, mais
+  en Python 3.14 — pour ne pas charger PyTorch dans le lecteur. **`NIMM_QWEN_URL`
+  est lue dans les DEUX fichiers** (`modules/tts.py` pour la synthèse, `main.py`
+  pour `/sante`) depuis le 28/09/2026 : c'est ce qui permet de faire écouter le
+  livre 28 par le moteur **qwentts.cpp** de NIMM Voix, qui expose le même contrat
+  sur le **port 8087** et **sur le processeur** (donc sans occuper la carte) —
+  lanceur `test_voix/LANCER_ESSAI_QWENTTS_CPP.bat` ; sans cette variable, le
+  lecteur interrogerait `/sante` sur 8086 et **ne proposerait aucune voix
+  `qwen:`**. **Depuis le 28/09/2026, c'est `START.bat` qui pose ce branchement
+  tout seul** : il teste `http://127.0.0.1:8087/sante` et, si le moteur de NIMM
+  Voix répond, il met `NIMM_QWEN_URL` dessus avant de lancer le lecteur ; sinon
+  il garde 8086, comme avant. **Le moteur Qwen validé à l'oreille le 28/09/2026
+  au soir est `qwentts.cpp`** (portage C++/GGML, **sur le processeur**, ×0,94 le
+  temps réel mesuré) : il est **installé chez nous** dans `qwentts_service/`, il
+  écoute sur le **port 8086** (celui que le lecteur appelle par défaut), et il est
+  **cohabitant** — le veilleur le rallume comme Pocket, et START.bat l'allume en
+  même temps que lui. Le branchement provisoire sur le port 8087 et le lanceur
+  d'essai ont servi une seule soirée, le 28/09/2026. Les délais
   d'attente sont larges : `KYUTAI_DELAI_S` / `XTTS_DELAI_S` / `POCKET_DELAI_S`
-  = 240 s, `NEUTTS_DELAI_S` = 300 s ;
+  = 240 s, `NEUTTS_DELAI_S` = 300 s et `QWEN_DELAI_S` = 600 s (une phrase Qwen
+  se calcule en gros en **deux fois** sa durée de lecture : mesuré le
+  26/09/2026) ;
 - **un moteur éteint ne fait pas boucler la lecture** : chaque service a son
   exception — `KyutaiIndisponible`, `XttsIndisponible`, `NeuttsIndisponible`,
-  `PocketIndisponible` — que `/api/tts` transforme en **HTTP 503** avec un
+  `PocketIndisponible`, `QwenIndisponible` — que `/api/tts` transforme en
+  **HTTP 503** avec un
   message qui dit quoi allumer ;
 - **le texte est préparé avant le moteur** (`_clean_text()`, traversé par les
-  sept branches) : vocabulaire du livre remis en casse normale
+  huit branches) : vocabulaire du livre remis en casse normale
   (`modules/majuscules.py` — sinon « LUI » ou « DE » sont lus comme des sigles),
   incises de parole retirées **tout au début** (`modules/incises.py`), `;` et `:`
   changés en virgules, suites de points ramenées à `…`, abréviations développées
@@ -1655,15 +1761,16 @@ correction.
   « moteur éteint → message clair »).
 
 #### Rôle
-Un seul module pour les **sept moteurs de voix**, aiguillés par le préfixe
+Un seul module pour les **huit moteurs de voix**, aiguillés par le préfixe
 du nom de voix (branches dans `/api/tts`, `main.py`). Les comptes de voix sont
-ceux des catalogues du code, mesurés le 23/09/2026 :
+ceux des catalogues du code, mesurés les 23 et 26/09/2026 :
 
 | Préfixe | Moteur | Où tourne-t-il | Sortie |
 |---|---|---|---|
 | `kokoro:` | Kokoro (94 voix, dont 30 « NIMM Voix ») | local, ONNX, CPU | WAV |
 | `piper:` | Piper (3 modèles, 4 voix) | local, ONNX, CPU | WAV |
 | `kyutai:` | Kyutai TTS 1.6B (35 voix françaises libres) | **service séparé** (Python 3.12), GPU | WAV |
+| `qwen:` | Qwen3-TTS 0.6B (35 voix — **les mêmes extraits** que Kyutai, arrivé le 26/09/2026) | **service séparé** (Python 3.12), GPU | WAV |
 | `xtts:` | XTTS v2 (79 voix clonées : les 35 extraits libres de droits de Kyutai, puis les lots versés ensuite) | **service séparé** (Python 3.12), GPU | WAV |
 | `neutts:` | NeuTTS (109 voix clonées ; à graine fixe, deux synthèses du même texte donnent le même fichier à l'octet près) | **service séparé** (Python 3.12), GPU | WAV |
 | `pocket:` | Pocket TTS (28 voix clonées ; 336 M de paramètres pour le modèle français `french_24l`, il tourne sur le **processeur**) | **service séparé** (Python 3.14), CPU | WAV |
@@ -2045,6 +2152,14 @@ ne peut pas être tranché automatiquement — donc on laisse tel quel, et c'est
   un livre entièrement analysé ne relance que la Passe 2 ;
 - **un livre neuf est découpé AVANT l'envoi à l'IA** : `_regle_pour_casting`
   rend la règle du **mode dialogue** pour un livre jamais attribué (22/09/2026) ;
+- **le pool automatique ne contient que TROIS familles** : `_index_voix()`
+  (`modules/voice_casting.py`) ne connaît que **Kyutai**, **Edge** et **Kokoro**
+  (XTTS et NeuTTS en ont été retirés le 17/09/2026 : une voix assignée chez un
+  moteur éteint **ne lit rien**). **Pocket TTS n'y figure pas** (`POCKET_VOICES`
+  n'apparaît nulle part dans le module) : ses voix s'assignent **à la main**.
+  Conséquence à connaître : la Passe 2 **réécrit toute la table `voices`** du
+  livre (`DELETE FROM voices` puis réinsertion) — un re-cast IA **remplace donc
+  les voix posées à la main** du livre concerné ;
 - **la table `voices` porte huit colonnes** — `book_id`, `character_name`,
   `voice_id`, `pitch`, `genre`, `line_count`, `rate`, `locked` ; les six
   premières sont d'origine, `rate` (vitesse) et `locked` (verrou manuel) ont été
@@ -2082,7 +2197,7 @@ garde toujours la voix par défaut. Les dialogues changent de voix à la
 volée pendant la lecture TTS.
 
 *(Correction du 23/09/2026, audit de la documentation.)* Deux mots de cette idée
-ont vieilli. Les voix ne sont plus « **Edge TTS** » mais **sept moteurs** (voir
+ont vieilli. Les voix ne sont plus « **Edge TTS** » mais **huit moteurs** (voir
 le sujet « modules/tts.py »), et le narrateur ne garde pas « **la voix par
 défaut** » : sa voix est **choisie par livre** depuis le 17/09/2026
 (`books.narrator_voice`), et c'est elle qui lit aussi les petits rôles.
@@ -3524,10 +3639,11 @@ qu'aux appels qui ne passent pas par `main.py` (tests).
   y ajoute l'**icône du moteur SEULE** (« — 🎎 »). Ni le pays en toutes lettres,
   ni la provenance « (NIMM Voix) », ni le **nom** du moteur n'apparaissent dans
   un libellé : l'icône les a remplacés le 20/09/2026 ;
-- **sept moteurs, sept icônes** : `FAMILLES_VOIX` (`frontend/app.js`) est la
+- **huit moteurs, huit icônes** : `FAMILLES_VOIX` (`frontend/app.js`) est la
   **seule** table qui porte l'information — Edge (☁️), Kokoro (🎎), Piper (🎶),
-  Kyutai (⚡️), XTTS v2 (🧬), NeuTTS (🧪) et **Pocket TTS (🎒)**, arrivé le
-  21/09/2026 ; `_iconeFamille(cle)` rend l'icône seule et
+  Kyutai (⚡️), XTTS v2 (🧬), NeuTTS (🧪), **Pocket TTS (🎒)**, arrivé le
+  21/09/2026, et **Qwen3-TTS (👥)**, arrivé le 26/09/2026 — les **jumeaux** : il
+  lit **les mêmes 35 extraits** que Kyutai ; `_iconeFamille(cle)` rend l'icône seule et
   `_libelleFamilleIcone(cle)` l'icône **et** le nom — une famille inconnue ne
   laisse jamais un tiret orphelin ;
 - **la barre « Voix proposées » a changé de place, pas de visage** : depuis le
@@ -3620,6 +3736,7 @@ fonctions **pures** en dérivent : `_iconeFamille(cle)` et
 | XTTS v2 | 🧬 | moteur de **clonage** |
 | NeuTTS | 🧪 | le plus **récent** |
 | Pocket TTS | 🎒 | tient dans la **poche** (livré le 21/09/2026) |
+| Qwen3-TTS | 👥 | les **jumeaux** : les **mêmes voix** que Kyutai, un autre moteur (livré le 26/09/2026) |
 
 *(Correction du 23/09/2026, audit de la documentation.)* Ce tableau ne listait
 que **six** moteurs : `FAMILLES_VOIX` en porte **sept** depuis l'arrivée de
@@ -3627,6 +3744,11 @@ que **six** moteurs : `FAMILLES_VOIX` en porte **sept** depuis l'arrivée de
 `test_ids_ecran.py`, qui vérifie les six autres une par une. Le fait est
 désormais tenu par le contrôle des faits (section 14), qui lit la table et
 réclame chaque icône dans cette page.
+
+*(Complément du 26/09/2026.)* **Qwen3-TTS (👥)** porte la table à **huit** le
+jour même de son arrivée : la page, ce tableau et le contrôle des faits ont été
+mis à jour **ensemble** (le contrôle demande maintenant **huit** entrées), pour
+ne pas laisser la page et sa documentation se contredire d'un moteur.
 
 Où chaque forme sert :
 
@@ -3951,19 +4073,36 @@ Liste des 54 identifiants vérifiée empiriquement via
 — aucun id inventé.
 
 **Routage par préfixe, transparent pour le frontend** :
-- `GET /api/voices` renvoie `FRENCH_VOICES + KOKORO_VOICES` (66 entrées
-  au total) — narrateur et fenêtre du casting affichent les deux
-  catalogues sans aucun changement de code frontend, juste plus
-  d'options dans les mêmes menus déroulants existants.
+- `GET /api/voices` renvoyait `FRENCH_VOICES + KOKORO_VOICES` — **Kokoro en a
+  été RETIRÉ le 29/09/2026** (demande de Laurent : « il faudrait débrancher
+  Kokoro, sinon je vais me retrouver avec des doublons »). POURQUOI : les **94**
+  voix Kokoro portent **exactement le même identifiant** que 94 des 157 voix
+  Qwen (`kokoro:af_nicole` / `qwen:af_nicole` : même extrait, donc même timbre et
+  même prénom) — les menus proposaient donc les mêmes prénoms **deux fois**. Ce
+  qui n'est PAS touché : le **catalogue complet** (`/api/voix_catalogue`), qui
+  sert à **nommer** un personnage déjà casté en `kokoro:`, et le moteur Kokoro
+  (chargement à la demande) — aucun livre déjà casté ne perd sa voix. Les notes
+  d'écoute des 94 Kokoro ont été **recopiées** sur leurs jumelles Qwen le même
+  jour (`test_voix/_heriter_annotations_kokoro_vers_qwen.py`), sinon Laurent
+  aurait vu les voix Qwen **sans ses étoiles ni ses critères**. Pour revenir en
+  arrière : `+ KOKORO_VOICES` dans `main.py`.
 - `POST /api/tts` : si `voice` commence par `kokoro:` → `synthesize_kokoro`
   (sortie WAV) ; sinon comportement Edge TTS inchangé (sortie MP3).
 
 **Chargement** : modèles (`kokoro-v1.0.onnx` ~325 Mo,
 `voices-v1.0.bin` ~28 Mo) copiés à la racine du projet depuis
 l'installation NIMM existante de Laurent (pas de re-téléchargement).
-Chargement paresseux dans un thread daemon au démarrage du serveur
-(`ensure_kokoro_loaded()`, appelé dans `lifespan()`) — ne bloque jamais
-Edge TTS pendant le chargement (quelques secondes). **Exclus de Git**
+**Depuis le 29/09/2026, Kokoro n'est plus préchargé au démarrage**
+(demande de Laurent : « débrancher Kokoro et Kyutai du démarrage, on ne
+garde que les moteurs dont j'ai besoin ») : la ligne
+`ensure_kokoro_loaded()` est mise en commentaire dans `lifespan()`
+(`main.py`), ce qui libère ~357 Mo de mémoire et quelques secondes de
+processeur à chaque lancement du lecteur. Le chargement est désormais
+**paresseux à la première phrase Kokoro** : `synthesize_kokoro` appelle
+lui-même `_load_kokoro()` quand `_kokoro_ready` est faux — quelques
+secondes, une seule fois, et jamais pendant Edge TTS ni le reste de
+l'appli. Retour arrière : retirer le `#` de la ligne, ou reprendre
+`main.py.bak_avant_debrancher_kokoro_20260929`. **Exclus de Git**
 (`.gitignore`) : ~350 Mo à eux deux, à recopier manuellement d'une
 machine à l'autre si besoin.
 
@@ -4051,10 +4190,10 @@ c'est seulement une fois prêt que le moteur sait vraiment parler.
 - `etat_moteurs_voix(force=False)` : état des deux moteurs, **gardé 5 s en
   mémoire** — les menus ne doivent pas interroger les services à chaque
   affichage, et un moteur éteint fait attendre 1 s avant d'abandonner ;
-- `GET /api/voices` : renvoie `FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES`
-  toujours, et `+ KYUTAI_VOICES` **seulement** si
-  `_moteur_voix_pret(etat, "kyutai")` — les voix XTTS suivront le même modèle
-  quand le service existera ;
+- `GET /api/voices` : renvoie `FRENCH_VOICES + PIPER_VOICES` toujours (Kokoro en
+  a été **retiré le 29/09/2026** : mêmes identifiants que 94 voix Qwen, donc
+  doublons dans les menus — voir le sujet Kokoro), et `+ KYUTAI_VOICES`
+  **seulement** si `_moteur_voix_pret(etat, "kyutai")` ;
 - `GET /api/moteurs` (nouvelle route) : renvoie l'état des moteurs, pour le
   voyant affiché à l'écran.
 
@@ -4555,14 +4694,26 @@ moteur allumé : stabilité bit à bit, phrases courtes, phrase longue).
   `pocket:<fichier>`), **9 F / 19 M**, **toutes à 3 étoiles** — donc toutes
   éligibles au casting automatique. Mesuré le 23/09/2026 : **28 fichiers
   `*_reference.wav`** dans `pocket_tts_service/voix/`, **aucun manquant, aucun
-  orphelin** — une voix du catalogue qui n'a pas son WAV serait injouable ;
+  orphelin** — une voix du catalogue qui n'a pas son WAV serait injouable.
+  Ces 28 références ont été **recoupées le 27/09/2026** (voir la chronique en fin
+  de sujet) : elles commencent et finissent désormais dans un **vrai silence**,
+  au lieu d'être coupées « au ras du son » ;
 - **les critères d'écoute** vivent dans les annotations (27 voix Pocket
   annotées) ; **`pocket:JEAN_EDGAR`** — **Edgar** — reste **volontairement non
   annoté** : `LAISSEES_A_L_OREILLE` (`test_voix/_importer_voix_pocket.py`) existe
   pour ne pas boucher ce trou avec des valeurs inventées ;
-- **le tic des phrases courtes est corrigé à la source** : le service
-  **régénère** tant que la crête de la phrase reste sous `NIVEAU_MINI` = **0,05**,
-  **`ESSAIS_MAX` = 4** essais, et il garde le meilleur ;
+- **la TEMPÉRATURE du moteur est fixée à `TEMPERATURE` = 0,3** (27/09/2026,
+  `NIMM_POCKET_TTS_TEMPERATURE`) : la configuration française **ne la règle pas**,
+  le paquet prenait donc son défaut, **0,7** — le double de ce que Kyutai
+  recommande pour l'anglais. C'est **le** réglage qui décide de la stabilité des
+  prises (voir la chronique en fin de sujet) ; elle est **exposée par `/sante`**
+  (`"temperature"`), donc vérifiable sans ouvrir la fenêtre du moteur ;
+- **le tic des phrases courtes** : le service **régénère** tant que la crête de la
+  phrase reste sous `NIVEAU_MINI` = **0,05**, **`ESSAIS_MAX` = 4** essais, et il
+  garde le meilleur. ⚠️ **Ce garde-fou ne juge que le PIC** : une prise qui a
+  **sauté du texte** mais dont le pic est élevé (12 à 40 %) passe quand même —
+  c'est le défaut mesuré le 27/09/2026, que la température de 0,3 remet dans la
+  famille des quasi-silences qu'il sait attraper ;
 - **le niveau est ramené à celui des autres moteurs** dans le lecteur
   (`modules/audio_gain.py`, `normaliser_wav_parole()`) — après la vitesse et la
   hauteur, **avant** le cache ; ni la vitesse ni la hauteur n'existent dans le
@@ -4592,6 +4743,83 @@ moteur allumé : stabilité bit à bit, phrases courtes, phrase longue).
   `test_voix/test_bascule_moteur.py`, `test_voix/test_bouton_moteur.js`,
   `test_voix/test_pool_casting.py`, `test_voix/test_import_main.py`,
   `test_voix/test_lire_moi.py` et `test_js_syntax.py` (racine du projet).
+
+
+**La recoupe des 28 références de voix (27/09/2026) — les mots mangés venaient
+de là.** Laurent entendait Pocket TTS « manger les débuts de phrases » sur les
+**petites répliques**. Le défaut n'était **pas dans le moteur** : les **extraits
+de référence** — le timbre que Pocket recharge pour parler — étaient **coupés au
+ras du premier et du dernier son**. Mesure faite ici, sur les 28 fichiers en
+service (`_essais/_etat_pocket_27_09.py`, **lecture seule**) : **23 sur 28**
+avaient au moins un bord sale, dont **21 avec une tête à 0 ms**, et **11 fichiers
+du cache avec une queue à 0,00 s**. L'atelier **NIMM Voix** a recoupé les 28
+fichiers (bornes posées **au milieu d'un vrai silence**, marge conservée à chaque
+bord) et livré le lot
+`G:\NIMM Voix\sorties\pocket_tts_bords_propres_20260927\C_references_finales\` :
+**24 fichiers changent**, **4** étaient déjà propres (on ne change pas une voix
+qui va bien). Copie datée prise ici avant remplacement
+(`pocket_tts_service/voix.bak_avant_bords_propres_20260927/`), puis installation
+**sous les mêmes noms** — rien à renommer, `POCKET_VOICES` ni `modules/tts.py` ne
+bougent. Après recoupe, mesuré sur les 28 fichiers : **têtes de 40 à 700 ms**,
+**queues de 10 à 500 ms** (une seule queue sous 20 ms, `Homme1122544987`), et les
+durées se décalent (le plus court passe à **10,2 s**, le plus long à **21,2 s**).
+Verdict de Laurent sur le test A/B de l'atelier :
+« **Aucun mot n'est mangé en début de phrase** ». Côté lecteur, `VERSION_CACHE`
+passe à **19** : sans cet incrément, les phrases déjà synthétisées du chapitre
+d'essai auraient été **resservies à l'ancienne coupe** (leçon du 17/09/2026 —
+la clé de cache ne porte ni le contenu ni la date des fichiers de voix).
+
+*Observation du 27/09/2026, **non expliquée*** : quand le lecteur est démarré
+**sans fenêtre** par un outil (sorties redirigées vers un journal), le lancement
+de Pocket TTS par le **veilleur** (`_demarrer_pocket_avec_fenetre` : `cmd /c
+DEMARRER_POCKET_TTS.bat` et `CREATE_NEW_CONSOLE`) n'a **rien produit** — aucun
+processus, aucune fenêtre, aucune ligne au journal — alors que le lancement
+**manuel** de `DEMARRER_POCKET_TTS.bat` a allumé le moteur en quelques secondes
+(`/sante` : **28 voix**, `french_24l`, 4 cœurs). À **confirmer dans le flux
+normal** (`START.bat`, la façon habituelle de Laurent) avant d'en faire un
+défaut : ici le lecteur avait été lancé de manière inhabituelle.
+
+*Ce que la recoupe ne règle pas, et qui reste ouvert* : **les pauses entre
+moteurs**. Pocket ne rogne **rien** (`synthesize_pocket` : vitesse, hauteur,
+niveau — c'est tout), donc ses queues **varient d'une prise à l'autre** : sur les
+89 fichiers du cache mesurés le 27/09/2026, la queue va de **0,00 à 0,63 s**
+(médiane **0,46 s**) et la tête de **0,00 à 1,62 s** (médiane **0,44 s**), soit
+une pause perçue entre deux phrases de **0,15 s à 1,70 s** selon le fichier.
+Kyutai, lui, est rogné à **0,20 s** depuis le 23/09 ; Kokoro et Piper sortent leur
+silence natif (~0,10 s) ; Edge est rogné à ~0,35 s. **Mélanger les moteurs dans un
+même chapitre, c'est donc mettre côte à côte quatre règles de respiration
+différentes** — c'est très probablement le « parfois ça enchaîne vite, parfois
+non » du 24/09. Le remède est écrit, pas encore décidé : rouler `rogner_queue_wav`
+(qui existe déjà, `modules/audio_queue.py`) dans `synthesize_pocket`, et poser une
+**marge de tête** fixe — ce que Laurent appelle « laisser un peu plus de blanc
+avant que Pocket ne lance une réplique ». Voir le BACKLOG, item
+« 🎚️ Les pauses restent IRRÉGULIÈRES ».
+
+**Retour d'écoute du même soir — la FIN des phrases part : un seul défaut, trois
+symptômes.** Après l'installation des références recoupées, Laurent entend
+« **Oui. Je.** » pour « Oui. Je sais. », « **mii** » pour « m'annonça-t-il. »,
+« **Du moins i.** » pour « Du moins ici. », « **Ce serait un** » pour « Ce serait
+un laser. », plus des « **tic** » légers. La cause est **mesurée** (huit tirages
+par phrase, `_essais/_mesurer_tirages_pocket.py`) : le moteur, sur les phrases
+**courtes**, rend parfois un **fragment** — pour « Oui. Je sais. », les prises vont
+de **0,72 s à 3,44 s** (parole utile **0,10 s à 0,80 s**) et **4 sur 8** ont sauté
+du texte. Un fragment a un **pic élevé** (12 à 40 %) : le garde-fou du service,
+qui ne juge que le **pic**, le laisse donc passer — alors qu'**avant la recoupe**
+ces mauvaises prises étaient des **quasi-silences à 0,7 %**, que le garde-fou
+attrapait et faisait régénérer. **La recoupe n'a pas créé le défaut : elle a rendu
+ses mauvaises prises plus fortes, donc invisibles au contrôle** (parole moyenne
+**1,09 s** avec les recoupées contre **1,08 s** avec les anciennes ; les phrases
+longues, elles, ne sautent jamais). Le « tic » est le **même défaut** : une prise
+fragmentaire commence par un **transitoire de quelques millisecondes** (mesuré :
+une bouffée de **10 ms à la position 0** dans la sortie du lecteur, absente de
+celle du moteur), que la normalisation de niveau **amplifie**.
+*Correction appliquée le soir même* : **température du moteur ramenée à 0,3**
+(mesure : les mauvaises prises redeviennent des quasi-silences que le garde-fou
+attrape — **aucune** acceptée sur 32 prises), exposée par `/sante`, et
+**`VERSION_CACHE` 19 → 20** (les mauvaises prises déjà en cache auraient été
+resservies telles quelles), puis **20 → 21** le 29/09/2026 (le fondu d'entrée de
+100 ms du moteur Qwen, ci-dessous). *Restent ouverts, au BACKLOG* : juger le garde-fou sur
+la **parole** et non sur le pic, et `eos_threshold` (défaut **−4,0**).
 
 
 **Quatrième moteur « lourd »** (le septième que compte le lecteur, Edge compris),
@@ -4897,6 +5125,24 @@ lui, un morceau qui n'est qu'une incise serait remplacé par un **court silence*
 caractère pour caractère, **parité Python / JavaScript** sur la vraie fonction
 `_morceauxDeLaPhrase`) et `test_voix/test_incise_seule.py` (le drapeau).
 
+**Depuis le 24/09/2026, la règle connaît AUSSI les incises INVERSÉES** — la forme la
+plus courante d'un roman à la première personne : « , m'a-t-il dit », « , m'annonça-t-il »,
+« , ai-je répondu », « , a-t-il confirmé », et l'incise seule en tête de phrase
+(« demanda-t-elle. »). Trois motifs neufs dans `modules/incises.py` (bloc « LES INCISES
+INVERSÉES ») : *objet + verbe + inversion*, *objet + auxiliaire + inversion + participe*
+(l'objet est facultatif, le sujet peut être « je »), et *incise en tête à pronom* — le
+seul motif insensible à la casse, parce qu'une phrase commence par une majuscule.
+Mesure avant/après sur les livres 28 et 16 : les incises reconnues passent de **7 à 87**
+et de **16 à 50**, les phrases dont la **version parlée** change de **66 à 203** et de
+**48 à 51**, avec **ZÉRO effet de bord** sur les 30 343 phrases (aucune phrase vidée,
+aucune nouvelle « incise seule »). Aucun `VERSION_CACHE` à incrémenter : la clé du cache
+porte le texte après `_clean_text`, donc une incise retirée est une clé différente.
+*Vérifications* : `test_voix/test_incises_inversees.py` — **37 contrôles** : les formes
+reconnues et leur version parlée, le **cas de Laurent** (phrase #150 du livre 28), les
+formes volontairement laissées dehors, le faux positif mesuré puis écarté
+(« Dis voir, Mike… » ne perd jamais son « Dis voir, »), et les **vraies questions**
+(« A-t-il mangé ? ») qui ne doivent jamais être touchées.
+
 *Prix* : un appel IA coûte **0,0047 €** (journal des appels) ; un livre entier
 va de **0,06 €** (Lazarille, 912 phrases) à **1,41 €** (Shantaram, 30 285) —
 estimation de l'application, **calibrée sur une facture Google réelle** : le
@@ -5096,7 +5342,8 @@ lecture écran éteint tienne :
   avant de chercher dans le code, vérifier la **batterie** (encadré plus bas) ;
 - *vérifications* : `test_voix/test_lecteur_media.js` (**42 contrôles**),
   `test_voix/test_pause_casque.js` (**8**), `test_voix/test_collage_wav.js`
-  (**20**), `test_voix/test_ids_ecran.py` (**25** contrôles dans sa section
+  (**24**, dont 4 ajoutés le 24/09/2026 pour la pause des sauts de ligne),
+  `test_voix/test_ids_ecran.py` (**25** contrôles dans sa section
   « 3 sexies », **187** pour le fichier entier).
 
 **Le problème, tel que Laurent l'a décrit** : « la lecture s'arrête si je
@@ -5280,6 +5527,19 @@ pour les passages déjà générés (écran verrouillé inclus).
   de 0,25 s et le même seuil que XTTS, plus un **filet anti-dérive très large**
   (`duree_max_derivee()` : 3 × la durée plausible + 1 s, plancher de 3 s) que la
   mesure du 16/09/2026 (huit phrases de 4 à 117 caractères) n'a jamais déclenché ;
+- **Qwen3-TTS a reçu le même filet anti-dérive le 29/09/2026**
+  (`qwentts_service/servir_qwentts_cpp.py`, mêmes constantes :
+  `CARACTERES_PAR_SECONDE` = 14, `MARGE_DERIVE` = 3, `MARGE_DERIVE_S` = 1,
+  `DERIVE_MINIMUM_S` = 3) — mais il en fait **plus** que NeuTTS : une phrase qui
+  dépasse le plafond est **relancée** (c'est un tirage aléatoire, la génération
+  suivante est souvent juste), et **rognée** seulement si les deux reprises
+  dérapent encore. *Pourquoi ce jour-là* : Laurent a entendu un **gargouillis**
+  en changeant la voix de Lord_ivrogne (livre 35) ; le journal du moteur montrait
+  **163,84 s d'audio pour une réplique de 8 jetons**, soit **exactement son
+  plafond de 2 048 frames** sans aucun EOS — le texte de référence de cette voix
+  est **transcrit** (« le trois **mâles** pharaon » pour « le trois-**mâts** le
+  Pharaon »). Vérifié **à froid** par `test_voix/test_garde_fou_derive_qwentts.py`
+  (faux moteur, aucun modèle chargé) ;
 - **le service de Kyutai ne rogne pas ses bords, il règle sa respiration**
   (`kyutai_service/servir_kyutai.py`, `SILENCE_QUEUE_S`) : ajoutée le
   17/09/2026 au soir, **retirée le même soir**, elle vaut donc **0** par défaut
@@ -5288,13 +5548,15 @@ pour les passages déjà générés (écran verrouillé inclus).
   qui rogne cette queue depuis le 23/09/2026** : `modules/audio_queue.py`
   (`QUEUE_GARDEE_S = 0,20`, appelé par `synthesize_kyutai` **avant** la vitesse,
   la hauteur et le niveau — donc avant la mise en cache), et
-  `PARAGRAPH_PAUSE_MS` remonte à **600 ms** dans le même mouvement (voir la
-  chronique en fin de sujet) ;
+  `PARAGRAPH_PAUSE_MS` remonte à 600 ms dans le même mouvement — puis à **800 ms**
+  le 24/09/2026 au soir, avec la réparation du collage qui la faisait disparaître
+  quand un morceau commençait sur un saut de ligne (voir la chronique en fin de
+  sujet) ;
 - **Kokoro, Piper et Pocket ne rognent rien** : Pocket pare au « quasi-silence »
   des phrases de un ou deux mots en **régénérant** la prise
   (`NIVEAU_MINI = 0,05`, `ESSAIS_MAX = 4`, le meilleur essai gardé) ;
 - **la clé du cache audio ne porte pas le rognage** : elle vaut `VERSION_CACHE`
-  (`modules/tts_cache.py`, **18** aujourd'hui) + le texte + la voix + la vitesse
+  (`modules/tts_cache.py`, **23** aujourd'hui) + le texte + la voix + la vitesse
   + la hauteur. C'est donc **la version**, incrémentée à la main, qui force un
   nouveau rendu : changer une marge de rognage sans y toucher laisse les phrases
   déjà générées sur l'ancien rendu jusqu'à purge de `data/tts_cache/` ;
@@ -5473,6 +5735,14 @@ Piper, dans le même chapitre). Deuxième source, plus discrète : le silence de
 `queue + tête`. **Décision de Laurent, même jour : on ne touche à rien pour le
 moment** — l'item est ouvert au BACKLOG (priorité 1), avec le remède possible
 (brancher `rogner_queue_wav` sur Piper, Kokoro et Pocket), à trancher plus tard.
+
+> **Suite, le soir du 24/09/2026** : ce n'est pas le rognage qui a changé, mais la
+> **pause entre paragraphes** — Laurent trouvait les sauts de ligne « encore trop
+> rapides » : `PARAGRAPH_PAUSE_MS` passe de 600 à **800 ms**, et un **défaut du
+> collage** (`_collerWav`) qui faisait **disparaître** cette pause quand un morceau
+> commençait sur un saut de ligne est réparé (voir « Pause entre paragraphes »).
+> Le remède ci-dessus (rognage de Piper, Kokoro et Pocket) reste, lui, **à
+> trancher**.
 
 
 ---

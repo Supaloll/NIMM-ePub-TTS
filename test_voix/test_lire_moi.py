@@ -5,8 +5,9 @@
 script fait quoi. Un mode d'emploi qui cite un fichier renomme ou supprime est
 pire que pas de mode d'emploi : il envoie dans le mur. Ce test l'empeche.
 
-Il verifie aussi que le script payant et son lanceur sont TOUJOURS proteges :
-le mot « PAYANT » dans leur nom, et le garde-fou `--je-paie` dans le script.
+Il verifie aussi que TOUS les outils payants sont TOUJOURS proteges : le mot
+« PAYANT » dans leur nom, le garde-fou `--je-paie` dans le script, et un lanceur
+qui demande une saisie humaine avant de payer (jamais un simple double-clic).
 
 Usage : python test_voix/test_lire_moi.py
 """
@@ -52,14 +53,30 @@ def main_verifications():
     lanceur = DOSSIER / '_PAYANT_lancer_test_attribution.bat'
     verifier('le script payant est renomme avec PAYANT', script.is_file(), script)
     verifier('son lanceur est renomme avec PAYANT', lanceur.is_file(), lanceur)
-    if script.is_file():
-        contenu = script.read_text(encoding='utf-8')
-        verifier('le script payant exige --je-paie (garde-fou)',
-                 '--je-paie' in contenu and 'sys.exit(2)' in contenu)
-    if lanceur.is_file():
-        contenu = lanceur.read_text(encoding='utf-8')
-        verifier('le lanceur demande confirmation avant de payer',
-                 'choice' in contenu and '--je-paie' in contenu)
+
+    # TOUS les outils payants du dossier, pas seulement le premier : le projet
+    # en compte plusieurs depuis le 24/09/2026 (comparaison des providers), et
+    # le garde-fou doit tenir pour chacun -- y compris ceux qu'on ajoutera.
+    # Deux exigences, les memes pour tous :
+    #   - le script s'arrete sans l'option explicite `--je-paie` (code 2) ;
+    #   - son lanceur ne paie JAMAIS sur un simple double-clic : il demande une
+    #     saisie humaine (`choice`, ou `set /p` pour un numero de livre).
+    payants = sorted(DOSSIER.glob('_PAYANT_*.py'))
+    lanceurs = sorted(DOSSIER.glob('_PAYANT_*.bat'))
+    verifier('le dossier declare bien ses outils payants',
+             len(payants) >= 2 and len(lanceurs) >= 2,
+             '%d script(s), %d lanceur(s)' % (len(payants), len(lanceurs)))
+    for fichier in payants:
+        contenu = fichier.read_text(encoding='utf-8')
+        verifier('%s exige --je-paie (garde-fou)' % fichier.name,
+                 '--je-paie' in contenu
+                 and ('sys.exit(2)' in contenu or 'return 2' in contenu))
+    for fichier in lanceurs:
+        contenu = fichier.read_text(encoding='utf-8')
+        verifier('%s demande une saisie avant de payer' % fichier.name,
+                 '--je-paie' in contenu
+                 and ('choice' in contenu or 'set /p' in contenu))
+
     verifier('l ancien nom « test_attribution.py » n existe plus',
              not (DOSSIER / 'test_attribution.py').exists())
     verifier('l ancien lanceur neutre n existe plus',

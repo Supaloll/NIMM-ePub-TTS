@@ -1007,6 +1007,151 @@ async def synthesize_kyutai(text: str, voice: str, rate: str = "+0%",
 
 
 # ==============================================================
+# QWEN3-TTS -- moteur de CLONAGE (Alibaba), ajoute le 26/09/2026
+# ==============================================================
+# Cinquieme moteur de clonage, et le seul dont la licence soit LIBRE des deux
+# cotes : code ET poids en **Apache-2.0** (`Qwen/Qwen3-TTS-12Hz-0.6B-Base`).
+# L'audio produit est donc PARTAGEABLE, ce qu'XTTS v2 (CPML, non commercial)
+# ne permet pas -- c'est ce qui a decide Laurent a l'essayer.
+#
+# MEMES 35 EXTRAITS QUE KYUTAI, donc MEMES VOIX ET MEMES PRENOMS (verifie le
+# 26/09/2026 : les 35 identifiants du catalogue sont exactement les 35
+# references de sa garde-robe, dans les deux sens). Seul le moteur change :
+# `kyutai:10087_11650_000028-0002` et `qwen:10087_11650_000028-0002` sont le
+# MEME enregistrement de voix, lu par deux moteurs differents.
+#
+# CE QUI LE DISTINGUE DES AUTRES (mesures des 25 et 26/09/2026) :
+#   - il a besoin du TEXTE EXACT de l'extrait, en plus de l'extrait (le
+#     service le lit dans `qwen_tts_service/voix/references.csv`) ;
+#   - PAS DE STREAMING dans la version installee (`qwen-tts` 0.1.1) : l'audio
+#     sort d'un bloc, donc 2 a 4 s avant le premier son d'un chapitre ;
+#   - il rend PARFOIS une phrase vide (0,36 s de silence) : le service relance
+#     tout seul ;
+#   - VITESSE, mesure du 26/09/2026 sur la RTX 4060, phrase par phrase (notre
+#     facon de demander) : **x0,45 a x0,50 le temps reel**, soit environ DEUX
+#     FOIS trop lent pour suivre la lecture. Ni l'attention « sdpa » (x0,49)
+#     ni deux generations de front (x0,50) n'y changent rien : la carte n'est
+#     qu'a 27 % pendant la generation, l'attente est dans la boucle du modele.
+#     NIMM Voix mesure x1,2 a x1,6, mais en envoyant QUATRE PHRASES PAR APPEL.
+#     Le prechargement du lecteur (2 phrases d'avance, 5 000 caracteres)
+#     encaisse le demarrage, pas un chapitre entier : attendre des blancs.
+#   - le « contexte glissant » de Kyutai (fin de la phrase precedente) n'a
+#     PAS d'equivalent ici : il est transmis puis ignore par le service.
+
+QWEN_URL = os.environ.get("NIMM_QWEN_URL", "http://127.0.0.1:8086")
+# Delai large : une phrase se calcule en gros en DEUX FOIS sa duree de lecture
+# (mesure du 26/09/2026), et la premiere phrase d'une voix paie en plus son
+# empreinte (0,7 a 1,4 s).
+QWEN_DELAI_S = float(os.environ.get("NIMM_QWEN_DELAI", "600") or "600")
+
+# ATTENTION : le catalogue `QWEN_VOICES` est CONSTRUIT PLUS BAS, apres le
+# catalogue Pocket -- voir sa section en fin de catalogues. Il reprend les TROIS
+# familles (Kyutai, Kokoro, Pocket), donc il ne peut pas etre ecrit ici : Python
+# ne connaitrait pas encore `KOKORO_VOICES` ni `POCKET_VOICES` (erreur attrapee
+# le 28/09/2026, quand le catalogue est passe de 35 a 157 voix).
+
+
+class QwenIndisponible(RuntimeError):
+    """Le service Qwen3-TTS ne repond pas (moteur eteint ou en chargement)."""
+
+
+def _qwen_voix_id(voice: str) -> str:
+    """Retire le prefixe 'qwen:' pour obtenir l'identifiant de la voix."""
+    return voice.split(":", 1)[1] if ":" in voice else voice
+
+
+async def _demander_au_moteur_qwen(texte: str, identifiant_voix: str) -> bytes:
+    """Envoie une phrase au service Qwen3-TTS et renvoie le WAV brut.
+
+    Le service tourne a cote (`qwen_tts_service/`, Python 3.12 + PyTorch,
+    port 8086). Il relance lui-meme une phrase revenue vide : ici, on ne voit
+    qu'un WAV, ou une erreur claire.
+    """
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=QWEN_DELAI_S) as client:
+            reponse = await client.post(
+                QWEN_URL + "/tts",
+                json={"texte": texte, "voix": identifiant_voix},
+            )
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout,
+            httpx.RemoteProtocolError, httpx.WriteError) as erreur:
+        raise QwenIndisponible(
+            "Le moteur de voix Qwen3-TTS ne repond pas ("
+            + type(erreur).__name__ + "). Double-clique sur "
+            "DEMARRER_QWEN_TTS.bat (dossier qwen_tts_service), puis relance "
+            "la lecture."
+        )
+
+    if reponse.status_code != 200:
+        detail = ""
+        try:
+            detail = (reponse.json() or {}).get("erreur", "")
+        except Exception:
+            detail = ""
+        raise QwenIndisponible(
+            "Le moteur de voix Qwen3-TTS a refuse la phrase (code %d%s)."
+            % (reponse.status_code, (" : " + detail) if detail else "")
+        )
+
+    return reponse.content
+
+
+async def synthesize_qwen(text: str, voice: str, rate: str = "+0%",
+                          pitch: str = "+0Hz", vocabulaire=None) -> bytes:
+    """
+    Synthese Qwen3-TTS pour une phrase. Le moteur tourne dans son propre
+    service (Python 3.12 + PyTorch), appele ici en HTTP local.
+
+    Vitesse : aucun reglage natif -> post-traitement ffmpeg (atempo).
+    Hauteur : aucun reglage natif -> post-traitement _apply_pitch_shift
+    (Rubber Band), comme pour Kokoro, Piper et Kyutai.
+    L'audio final est mis en cache disque, exactement comme les autres
+    moteurs : un passage deja lu ne redemande rien au moteur.
+
+    Cache : la cle porte le PREFIXE de la voix (`qwen:...`), donc elle ne
+    peut pas confondre un rendu Qwen avec un rendu Kyutai de la meme voix --
+    c'est pour cela que VERSION_CACHE n'a pas eu besoin de bouger.
+    """
+    text = _clean_text(text, vocabulaire)
+    if not text:
+        return b""
+
+    cached = _tts_cache.get_audio(text, voice, rate, pitch, "wav")
+    if cached is not None:
+        return cached
+
+    wav_bytes = await _demander_au_moteur_qwen(text, _qwen_voix_id(voice))
+    if not wav_bytes:
+        return b""
+
+    # Rognage du silence de QUEUE, comme pour Kyutai (23/09/2026) : le moteur
+    # garde la respiration qu'il vient de produire, et Laurent trouve les
+    # pauses apres les points trop longues. On regle la queue ICI, et la pause
+    # entre paragraphes reste a 600 ms dans `frontend/app.js`.
+    wav_bytes = _audio_queue.rogner_queue_wav(wav_bytes)
+
+    # Vitesse puis hauteur (aucun des deux n'existe dans le moteur).
+    wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
+    wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
+
+    # Niveau : normalise comme les autres moteurs, pour qu'aucune phrase ne
+    # « decroche » a cote de ses voisines.
+    wav_bytes = _audio_gain.normaliser_wav_parole(wav_bytes)
+
+    # Fondu d'entree (29/09/2026, retour d'ecoute de Laurent) : la respiration
+    # posee entre deux phrases rendait audible un « tic » d'attaque -- un
+    # transitoire que la normalisation amplifie. Laurent a choisi 100 ms a
+    # l'oreille (banc : 0 / 25 / 50 / 100 ms). Applique EN DERNIER, apres la
+    # normalisation : c'est l'audio final qui est adouci.
+    wav_bytes = _audio_gain.fondu_entree_wav(wav_bytes)
+
+    _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)
+    return wav_bytes
+
+
+# ==============================================================
 # XTTS v2 -- moteur de CLONAGE (35 voix francaises, memes echantillons
 # que Kyutai), branche le 14/09/2026
 # ==============================================================
@@ -1350,6 +1495,46 @@ POCKET_VOICES = [
     {"id": "pocket:JEAN_EDGAR", "name": "Edgar", "region": "\U0001F1EB\U0001F1F7 France (Pocket TTS)", "gender": "M", "stars": 3},
 ]
 # --- FIN CATALOGUE POCKET TTS ---
+
+
+# ==============================================================
+# CATALOGUE QWEN3-TTS -- CONSTRUIT, 157 voix (28/09/2026)
+# ==============================================================
+# POURQUOI ICI, ET PAS DANS LA SECTION QWEN : ce catalogue reprend les TROIS
+# familles de voix -- Kyutai, Kokoro et Pocket -- donc il doit etre construit
+# APRES leurs catalogues. Ecrit a sa place « logique » (pres de la section Qwen),
+# il plantait : `KOKORO_VOICES` et `POCKET_VOICES` n'existaient pas encore
+# (NameError attrape le 28/09/2026, en passant de 35 a 157 voix).
+#
+# POURQUOI TROIS FAMILLES : NIMM Voix a **clone** dans qwentts.cpp les voix que
+# nous avions deja -- les 35 Kyutai (CML-TTS), les 94 Kokoro et les 28
+# « Decoupage OK » (nos 28 references Pocket). MEME identifiant, donc meme
+# prenom, meme genre et memes etoiles : seule la LECTURE change de moteur.
+# Construit et non recopie, comme avant : deux tables ecrites a la main
+# finiraient par diverger -- c'est exactement ce que le memo de NIMM Voix veut
+# eviter (« un seul jeu de noms et de notes dans les deux ateliers »).
+#
+# Verifie le 28/09/2026 : les 157 extraits sont chez le moteur et chacun a sa
+# voix connue ici (`_essais/_test_catalogue_qwen.py`, `_essais/_etat_157_voix.py`).
+
+
+def _region_qwen(region: str) -> str:
+    """La region d'une voix, avec le moteur remplace par « (Qwen) ».
+
+    Les catalogues sources portent « (NIMM Voix) », « (Kyutai) »,
+    « (Pocket TTS) »... : c'est le meme drapeau et le meme pays, un autre moteur.
+    """
+    return re.sub(r"\([^)]*\)\s*$", "(Qwen)", region).strip()
+
+
+QWEN_VOICES = [
+    {"id": "qwen:" + v["id"].split(":", 1)[1],
+     "name": v["name"],
+     "region": _region_qwen(v["region"]),
+     "gender": v["gender"],
+     "stars": v["stars"]}
+    for v in KYUTAI_VOICES + KOKORO_VOICES + POCKET_VOICES
+]
 
 
 class XttsIndisponible(RuntimeError):

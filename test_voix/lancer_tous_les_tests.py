@@ -48,6 +48,22 @@ TESTS_PY = [
     # respiration : 0,30 a 0,43 s). Testable A FROID -- aucun moteur a allumer,
     # et c'est justement ce qui permet de le mesurer sur de vrais WAV.
     "test_rogner_queue_kyutai.py",
+    # Ajoute le 24/09/2026 : les INCISES INVERSEES (« m'a-t-il dit »,
+    # « m'annonca-t-il », « Demanda-t-elle. »). Laurent a entendu cette incise
+    # lue par le PERSONNAGE dans 22/11/63 : le module ne la voyait pas (132 sur
+    # 139 dans ce livre). Ce test fige les formes reconnues, la version parlee
+    # attendue, les formes volontairement laissees dehors, et surtout les deux
+    # pieges : le faux positif « Dis voir, Mike » et les VRAIES questions
+    # (« A-t-il mange ? ») qui ne doivent jamais etre touchees.
+    "test_incises_inversees.py",
+    # Ajoute le 29/09/2026 : le GARDE-FOU DE DERIVE du service Qwen3-TTS. Laurent
+    # a entendu un GARGOUILLIS dans « Le Chevalier Errant » : le moteur avait
+    # fabrique 163,84 s d'audio pour une replique de 8 jetons (son plafond de
+    # frames, sans jamais s'arreter). Ce test tourne A FROID -- la bibliotheque du
+    # moteur est importee DANS une fonction -- donc il branche un FAUX moteur et
+    # verifie les trois comportements : phrase normale intacte, derive relancee,
+    # derive rognee en dernier recours.
+    "test_garde_fou_derive_qwentts.py",
 ]
 
 

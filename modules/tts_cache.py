@@ -133,7 +133,52 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       17/09/2026 : sans cet increment, une phrase deja ecoutee continuerait de
 #       servir l'ancien silence, et Laurent entendrait deux rhythmes differents
 #       dans le meme chapitre.
-VERSION_CACHE = 18
+#  19 = 27/09/2026 : LES REFERENCES DE VOIX POCKET ONT ETE RECOUPEES. Les 28
+#       extraits de `pocket_tts_service/voix/` etaient coupes au ras du son
+#       (mesure du 27/09/2026 : 23 references sur 28 avec au moins un bord sale,
+#       et 21 avec une TETE a 0 ms) -- d'ou les mots manges en debut de phrase
+#       sur les petites repliques, diagnostiques par NIMM Voix le meme jour.
+#       Cette version n'oublie rien du pretraitement : elle force la RELECTURE
+#       des phrases deja produites avec ces references. La cle du cache ne
+#       contient en effet NI le contenu des fichiers de voix NI leur date : une
+#       phrase deja generee serait servie a l'ancienne coupe, et Laurent
+#       entendrait les deux rendus dans le meme chapitre (lecon du 17/09/2026,
+#       appliquee telle quelle). Aucun fichier n'est supprime : les anciens
+#       restent sur le disque, simplement plus servis.
+#  20 = 27/09/2026 au soir : TEMPERATURE DU MOTEUR POCKET RAMENEE A 0,3 (elle
+#       valait 0,7, le defaut du paquet -- la configuration francaise ne la fixe
+#       pas, alors que Kyutai recommande 0,3 pour l'anglais). A 0,7, les prises
+#       sont tres inegales et certaines ne contiennent qu'un FRAGMENT de la
+#       phrase, avec un pic eleve : le garde-fou du service, qui ne juge que le
+#       pic, les acceptait. Laurent entendait donc des fins de phrase coupees
+#       ("Oui. Je sais." -> "Oui. Je.") et des "tic". Sans cet increment,
+#       les mauvaises prises DEJA EN CACHE seraient resservies telles quelles, et
+#       la correction resterait inaudible -- la lecon du 17/09/2026, sixieme
+#       application.
+#       20 -> 21 (29/09/2026) : le moteur Qwen recoit un FONDU D'ENTREE de
+#       100 ms (le « tic » d'attaque entendu par Laurent quand la respiration
+#       entre deux phrases est reapparue). Applique EN DERNIER dans
+#       `synthesize_qwen` : les prises deja en cache n'ont pas ce fondu, donc
+#       sans cette montee la MEME phrase relue resservirait l'ancien son -- la
+#       lecon du 17/09/2026, huitieme application. (Les prises de l'essai du
+#       28/09 sur le livre 28 restent justes : meme moteur, meme voix.)
+#       21 -> 22 (29/09/2026, le soir) : les EXTRAITS DE REFERENCE des voix Qwen
+#       ont ete ROGNES. Vingt sur cent cinquante-sept portaient plus de 0,20 s de
+#       silence en tete ou en queue, jusqu'a 1,04 s (`af_kore`), et le clonage
+#       ICL aligne l'audio de reference sur SON TEXTE : un silence de bord
+#       desalignait les deux. Meme lecon, neuvieme application -- sans cette
+#       montee, le lecteur resservirait l'ancien rendu pour toutes les phrases
+#       deja en cache, et elles sont nombreuses (ces extraits servent a Albert de
+#       Morcerf, Ada Veen, Villefort...). Copies d'origine des extraits :
+#       `qwen_tts_service/voix/_bords_avant_20260929_1511/`.
+#       22 -> 23 (29/09/2026, la nuit) : les TEXTES DE REFERENCE transcrits ont ete
+#       CORRIGES (17 des 63 textes non atelier portaient des mots mal reconnus,
+#       dont « le trois males pharaon » -> « le trois-mats le Pharaon », celui qui
+#       faisait deraper la voix d'Aubin). ATTENTION : le texte de REFERENCE n'entre
+#       pas dans la cle du cache -- seule la phrase a lire y entre -- donc sans
+#       cette montee, les phrases deja generees seraient resservies telles quelles,
+#       avec l'ancien texte. Dixieme application de la lecon du 17/09/2026.
+VERSION_CACHE = 23
 
 
 def _hash_key(text, voice, rate, pitch):
