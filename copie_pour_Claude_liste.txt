@@ -1,0 +1,108 @@
+# ============================================================
+#  copie_pour_Claude_liste.txt
+#
+#  Un chemin par ligne, relatif a la racine du projet (avec / ).
+#  Les lignes vides et celles qui commencent par # sont ignorees.
+#  Ce fichier peut etre modifie par Laurent ou par Cline.
+#
+#  Rien de secret n'est copie, MEME si un chemin est liste ici :
+#  le script refuse data/config.json, les .env, references_privees.csv,
+#  les bases, l'audio, les modeles, les .bak, .venv, __pycache__...
+#
+#  PREFIXE : mis devant le nom des copies (EPUB__ARCHITECTURE.md) ET des deux
+#  fichiers fabriques (EPUB__ETAT_DU_JOUR.md, EPUB__INDEX.txt). C'est ce qui
+#  evite que la copie de NIMM ePub et celle de NIMM Voix s'ecrasent quand les
+#  deux sont glissees dans le MEME projet Claude.
+# prefixe: EPUB
+# ============================================================
+
+# --- Les documents du projet ---
+ARCHITECTURE.md
+BACKLOG.md
+MOTEURS_DE_VOIX.md
+METHODE_DE_TRAVAIL.md
+PROBLEMATIQUE_decoupage_voix.md
+REGLES_INCISES_a_eprouver.md
+
+# --- Le lecteur (serveur + page) ---
+main.py
+START.bat
+frontend/app.js
+frontend/index.html
+frontend/manifest.json
+frontend/sw.js
+
+# --- Le texte lu (decoupage, incises, prononciation) ---
+modules/decoupage.py
+modules/incises.py
+modules/majuscules.py
+modules/prononciation.py
+modules/silence.py
+
+# --- Les moteurs de voix (le coeur) ---
+modules/tts.py
+modules/voice_casting.py
+modules/tts_cache.py
+modules/audio_gain.py
+modules/audio_queue.py
+modules/audio_rate.py
+modules/audio_trim.py
+modules/config.py
+core/epub_parser.py
+
+# --- Le MODE DIAGNOSTIC du lecteur (03/10/2026) : quand NIMM_DIAGNOSTIC=1, le
+#     cache est ignore (chaque phrase est vraiment fabriquee) et chaque phrase
+#     laisse une trace : le texte avant/apres le nettoyage, la voix, la vitesse,
+#     la hauteur, et l'audio aux 6 etapes du traitement avec les niveaux mesures.
+modules/diagnostic.py
+
+# --- LES NOMBRES EN LETTRES (03/10/2026) : un moteur de voix lit des LETTRES,
+#     pas des chiffres (« a 180 degres » sortait en « pi huit-cent »). Ce module
+#     reecrit les nombres avant le moteur (entiers jusqu'aux milliards, avec
+#     l'orthographe francaise, decimales, pourcentages, ordinaux), et laisse
+#     volontairement « 22/11/63 » et « 10-12 » tranquilles.
+modules/nombres.py
+
+# --- Les services de voix (code + modes d'emploi) ---
+qwentts_service/servir_qwentts_cpp.py
+qwentts_service/LIRE_MOI.md
+qwentts_service/DEMARRER_QWENTTS_CPP_GPU.bat
+pocket_tts_service/LIRE_MOI.md
+
+# --- L'outil d'ecoute des references : ecouter chaque voix et reecrire
+#     ce qu'on entend (02/10/2026). Il repond au mot parasite du debut des
+#     phrases, cause par un texte de reference qui ne colle pas a l'audio.
+test_voix/_corriger_references_a_l_oreille.py
+test_voix/LIRE_MOI.md
+
+# --- Le test A/B de la LONGUEUR des references (03/10/2026) : il fabrique une
+#     reference COURTE et une LONGUE pour la MEME voix (coupees exactement
+#     pareil), puis fait dire la meme phrase aux deux. Il tranche la question
+#     « une reference plus longue fait-elle une voix meilleure ? ».
+test_voix/_test_AB_longueur_reference.py
+
+# --- Le lot des 35 voix Kyutai « bords propres » (03/10/2026) : il ramene le
+#     silence de chaque bord a 150 ms (marge quand il manque, rognage quand il y
+#     en a trop), pose un fondu de 20 ms, NE COUPE AUCUN MOT et NE CHANGE PAS LES
+#     TEXTES, puis mesure l'ATTAQUE de chaque voix (instantanee = la coupe est
+#     dans le mot, donc suspecte : aucune marge ne peut la reparer).
+test_voix/_preparer_lot_kyutai_recoupe.py
+
+# --- L'APPLICATION en production (03/10/2026) : il remplace les 35 references
+#     Kyutai par leurs versions a bords propres, ecrit les textes corriges a
+#     l'oreille, recolle les notes au nom abime, monte VERSION_CACHE -- avec
+#     copie datee de TOUT avant d'ecrire, et relecture de controle apres.
+#     Rapport seul par defaut ; `--ecrire` pour appliquer.
+test_voix/_appliquer_bords_et_textes.py
+
+# --- Le banc des SOUFFLES de la carte (03/10/2026) : il compare, a l'oreille et
+#     a l'aveugle, 4 moteurs (carte Q4 avec/sans clamp_fp16, processeur, carte
+#     Q8_0) sur la meme voix et les memes phrases, et mesure les aigus. Il REFUSE
+#     de partir si le moteur tourne (8086), sinon un repli silencieux sur le
+#     processeur fausserait le test.
+test_voix/_banc_gpu_souffles.py
+
+# --- OPTION (a activer si besoin) : le BACKLOG reduit aux items OUVERTS ---
+# Genere par :   python _extraire_backlog_ouvert.py
+# Puis DECOMMENTE la ligne ci-dessous (retire le # du debut) :
+# BACKLOG_ouvert.md

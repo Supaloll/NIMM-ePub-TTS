@@ -15,9 +15,10 @@ Ce fichier a **deux parties**, et c'est voulu :
 
 # PARTIE A — Collaboration
 
-_Partie A — version du 23/09/2026 (ajout du **carnet de session** — le même
-ajout est à répercuter dans l'atelier NIMM Voix). Le fond, lui, n'a pas bougé
-depuis le 16/09/2026._
+_Partie A — version du 01/10/2026 (ajout de la **« copie pour Claude »** en fin de
+session — le même ajout est à répercuter dans l'atelier NIMM Voix, où la même
+synchro tourne avec le préfixe `VOIX`). Version précédente : 23/09/2026 (le
+carnet de session). Le fond n'a pas bougé depuis le 16/09/2026._
 
 ## Deux maximes de Laurent, pour lire ce fichier
 
@@ -140,6 +141,14 @@ français (décision + risques). Le test terrain de Laurent est le filet final.
   de le retrouver.
 - **Fin** : le récap dit toujours (1) ce qui a changé, (2) comment le vérifier,
   (3) ce qui reste à faire — avec des émojis, puisqu'il les aime là.
+- **La « copie pour Claude » (demandée par Laurent le 01/10/2026)** : **après la
+  dernière modification de la session** (et avant le récap final), lancer la
+  synchro — `python _synchroniser_copie_claude.py` (double-clic
+  `SYNCHRO_COPIE_CLAUDE.cmd` pour Laurent) — puis **le dire dans le récap** :
+  « **synchro faite, N fichiers, X Ko** ». Si la session a aussi touché l'atelier
+  NIMM Voix, lancer **sa** synchro aussi. Le script **préfixe** chaque copie par
+  le projet (`EPUB__`, `VOIX__`) pour que les deux se glissent dans le **même**
+  projet Claude sans s'écraser.
 
 ## Honnêteté technique
 - **Quand un test dément une hypothèse, le dire franchement** et l'écrire dans

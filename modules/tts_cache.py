@@ -178,9 +178,12 @@ _written_since_purge = 0     # octets ecrits depuis la derniere mesure/purge
 #       pas dans la cle du cache -- seule la phrase a lire y entre -- donc sans
 #       cette montee, les phrases deja generees seraient resservies telles quelles,
 #       avec l'ancien texte. Dixieme application de la lecon du 17/09/2026.
-VERSION_CACHE = 23
-
-
+#       23 -> 24 (01/10/2026) : les voix des PETITS ROLES passent de Piper
+#       (Jessica/Pierre) a Qwen (Hortense/Hugo). Le voice_id entre dans la cle
+#       du cache : sans cette montee, les repliques deja lues par les figurants
+#       seraient resservies avec l'ANCIENNE voix. Onzieme application de la
+#       lecon du 17/09/2026.
+VERSION_CACHE = 25
 def _hash_key(text, voice, rate, pitch):
     """Cle de cache : hash de la VERSION, des parametres reels de la synthese."""
     h = hashlib.sha256()

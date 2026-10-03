@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
 """Appareil de voix qwentts.cpp -- service local de NIMM ePub (port 8086).
 
-CE QUE C'EST : Qwen3-TTS **en C++/GGML** (`qwentts.cpp`), donc SANS PyTorch et
-SANS carte graphique : il tourne sur le PROCESSEUR, ce qui laisse la carte libre
-pour Kyutai ou Pocket. Il remplace notre ancien service Transformers
-(`qwen_tts_service/`), qui demandait Python 3.12 + PyTorch + 2,6 a 3,8 Go de
-carte, et qui n'arrivait qu'a x0,45 a x0,51 le temps reel.
+CE QUE C'EST : Qwen3-TTS **en C++/GGML** (`qwentts.cpp`), donc SANS PyTorch. Il
+remplace notre ancien service Transformers (`qwen_tts_service/`), qui demandait
+Python 3.12 + PyTorch + 2,6 a 3,8 Go de carte, et qui n'arrivait qu'a x0,45 a
+x0,51 le temps reel.
+
+SUR QUOI IL TOURNE (ajout du 01/10/2026) : par DEFAUT sur le PROCESSEUR (il ne
+prend pas la carte, il cohabite avec Pocket) ; `NIMM_QWENTTS_MOTEUR=gpu` le fait
+tourner sur la CARTE GRAPHIQUE (mesure de NIMM Voix le 01/10/2026 : x6,5 a x7,5
+le temps reel en generation complete, contre x0,85 sur le processeur). SI LA
+CARTE ECHOUE, le service REPLIE TOUT SEUL sur le processeur et le dit dans
+`/sante` (`repli: true` + la raison) -- il ne s'arrete jamais.
 
 VALIDATION (28/09/2026) : Laurent a ECOUTE et valide -- « c'est vraiment bon,
 pas d'accrocs, prosodie impec, on a notre moteur ! » -- sur un banc d'ecoute
@@ -47,16 +53,21 @@ CE QU'ON SAIT DU MOTEUR (i5-12400F, 6 coeurs, mesures des 28 et 29/09/2026) :
     fond au demarrage : desactive par defaut, a decider a l'usage -- Laurent a
     trouve cette attente perfectible le 28/09/2026.
 
-Lancement : DEMARRER_QWENTTS_CPP.bat
+Lancement : DEMARRER_QWENTTS_CPP.bat       (processeur -- le defaut)
+            DEMARRER_QWENTTS_CPP_GPU.bat   (carte graphique -- le plus rapide)
 Variables : NIMM_QWENTTS_PORT (8086), _HOST, _VOIX, _LANGUE (french),
             _CODEC_FILS (4), _FRAMES (2), _COEURS (6), _PRECHAUFFE (0),
-            _MODELES (q4 ; « q8 » force les anciens GGUF)
+            _MODELES (q4 ; « q8 » force les anciens GGUF, cote processeur),
+            _MOTEUR (cpu ; « gpu » = la carte, avec repli processeur),
+            _VARIANTE (Q4_K_M ; la quantification a charger sur la carte),
+            _TEMPERATURE (0.9 ; la « chaleur » du tirage, pour les essais)
 
 Licences : port et code **MIT**, modele et codec **Apache-2.0**, voix **CC BY
 4.0** (Kyutai + CML-TTS) : l'audio produit peut sortir de l'atelier, avec
 attribution (voir ATTRIBUTION.md).
 """
 
+import inspect
 import io
 import json
 import os
@@ -92,6 +103,30 @@ NOMS_Q4 = ('qwen-talker-0.6b-base-Q4_K_M.gguf',
            'qwen-tokenizer-12hz-Q4_K_M.gguf')
 NOMS_Q8 = ('qwen-talker-0.6b-base-Q8_0.gguf',
            'qwen-tokenizer-12hz-Q8_0.gguf')
+
+
+def _gguf(variante):
+    """Les deux GGUF d'une quantification (« Q4_K_M » ou « Q8_0 »).
+
+    Chemins construits par NOM : les deux paires existent dans `models\\`
+    (Q8_0 depuis le 28/09, Q4_K_M depuis le 29/09), donc le choix se fait a
+    l'execution sans retelecharger quoi que ce soit.
+    """
+    return (MODELS / ('qwen-talker-0.6b-base-%s.gguf' % variante),
+            MODELS / ('qwen-tokenizer-12hz-%s.gguf' % variante))
+
+
+def _variante_cpu():
+    """Notre variante PROCESS EUR en service : Q4_K_M (le choix de Laurent,
+    29/09/2026). NIMM_QWENTTS_MODELES=q8 force les anciens Q8_0 ; si les Q4
+    manquent, on retombe tout seul sur les Q8_0.
+    """
+    choix = (os.environ.get('NIMM_QWENTTS_MODELES') or '').strip().lower()
+    if choix in ('q8', 'q8_0'):
+        return 'Q8_0'
+    if (MODELS / NOMS_Q4[0]).exists() and (MODELS / NOMS_Q4[1]).exists():
+        return 'Q4_K_M'
+    return 'Q8_0'
 
 
 def _choisir_modeles():
@@ -151,6 +186,22 @@ FRAMES = int(os.environ.get('NIMM_QWENTTS_FRAMES', '2') or '2')
 COEURS = int(os.environ.get('NIMM_QWENTTS_COEURS', '6') or '6')
 PRECHAUFFE = os.environ.get('NIMM_QWENTTS_PRECHAUFFE', '') == '1'
 
+# SUR QUOI LE MOTEUR TOURNE (ajout du 01/10/2026, repris du service de NIMM
+# Voix) :
+#   _MOTEUR      « cpu » (defaut, inchange) ou « gpu » (la carte graphique).
+#                Avec « gpu », si la carte refuse de demarrer, le service
+#                REPLIE sur le processeur au lieu de s'arreter, et /sante le dit.
+#   _VARIANTE    la quantification a charger SUR LA CARTE : « Q4_K_M » (notre
+#                choix a l'oreille du 29/09) ou « Q8_0 ». Cote processeur, la
+#                variante reste celle de `_choisir_modeles` (Q4_K_M par defaut).
+#   _TEMPERATURE la « chaleur » du tirage du moteur (0,9 = son defaut) : sert
+#                aux essais (0,6 contre 0,9) et n'a pas d'autre role.
+MOTEUR_DEMANDE = (os.environ.get('NIMM_QWENTTS_MOTEUR', 'cpu')
+                  or 'cpu').strip().lower()
+VARIANTE_DEMANDEE = (os.environ.get('NIMM_QWENTTS_VARIANTE', 'Q4_K_M')
+                     or 'Q4_K_M').strip()
+TEMPERATURE = float(os.environ.get('NIMM_QWENTTS_TEMPERATURE', '0.9') or '0.9')
+
 # Une phrase plus longue que ca est refusee : le lecteur n'en envoie jamais
 # d'aussi longues, et on ne laisse pas un texte enorme occuper le processeur.
 TEXTE_MAX = 5000
@@ -162,33 +213,90 @@ REPRISES = 2
 SEUIL_SILENCE = 0.01
 
 # ============================================================
-# GARDE-FOU DE DERIVE (29/09/2026)
+# GARDE-FOU DE DERIVE (renforce le 01/10/2026, repris du service de NIMM Voix)
 # ============================================================
-# Laurent a entendu un GARGOUILLIS en changeant la voix de Lord_ivrogne (livre
-# 35, voix `homme_aigu_6877654`, prenom Aubin). Le journal du moteur a montre
-# **163,84 s d'audio pour une replique de 8 jetons** : 163,84 s = 2048 frames
-# divise par 12,5 Hz, soit EXACTEMENT son plafond de frames -- le moteur ne s'est
-# jamais arrete (aucun EOS) : il a DERIVE. La cause est un texte de reference
-# TRANSCRIT (references.csv dit « le trois males pharaon » la ou l'audio dit
-# « le trois-mats le Pharaon ») : en mode ICL, le moteur recoit un audio qui dit
-# une chose et un texte qui en dit une autre.
+# LA DERIVE : le moteur produit des images audio (12,5 par seconde) jusqu'a ce
+# qu'il decide de s'arreter (jeton de fin). Parfois il n'arrete JAMAIS : il court
+# jusqu'au plafond par defaut du moteur, 2048 images = 163,84 s. Constat de NIMM
+# ePub le 30/09/2026 (une phrase de 196 caracteres -> 163,8 s), reproduit par
+# NIMM Voix le 01/10/2026 sur la phrase 31 du chapitre 3 (377 caracteres).
 #
-# Remede, le MEME que le service NeuTTS (`neutts_service/servir_neutts.py`,
-# `duree_max_derivee`) : un plafond de duree, volontairement ENORME (3 fois la
-# duree plausible, plus 1 s, avec un plancher de 3 s). Aucune phrase francaise
-# lue normalement ne peut l'atteindre : c'est un filet de securite contre un
-# emballement, pas une contrainte de lecture.
-CARACTERES_PAR_SECONDE = 14.0
-MARGE_DERIVE = 3.0
-MARGE_DERIVE_S = 1.0
-DERIVE_MINIMUM_S = 3.0
+# DEUX PARADES, DANS CET ORDRE (mesure du 01/10/2026 chez NIMM Voix : 8 phrases
+# derivees sur 2 037 appels, toutes rattrapees par la coupe en deux, 0 echec) :
+#   1. PLAFOND D'IMAGES proportionnel a la longueur du texte, borne dur a
+#      540 images = 43,2 s : on le PASSE au moteur (`max_new_tokens`), qui ne
+#      peut donc plus courir 164 s ;
+#   2. COUPE EN DEUX : si la sortie atteint quand meme ce plafond, la phrase est
+#      RELANCEE en DEUX moities (au plus pres d'une ponctuation), recollées avec
+#      0,10 s de silence. Le defaut depend de la longueur, donc relancer la
+#      phrase ENTIERE a peu de chances de faire mieux.
+VITESSE_LECTURE = 15.0          # caracteres/seconde en lecture naturelle
+IMAGES_PAR_SECONDE = 12.5       # debit du codec audio (modele 12 Hz)
+PLAFOND_IMAGES = 540            # 43,2 s : borne dure, quelle que soit la taille
+MARGE_PLAFOND = 2.5             # le plafond vaut 2,5 fois la duree attendue...
+DUREE_MINI_ATTENDUE = 8.0       # ... mais jamais moins de 8 s
+FACTEUR_SUSPECT = 2.5           # au-dela, la sortie est jugee derivee
+SILENCE_ENTRE_MOITIES = 0.10    # s de silence insere entre les deux moities
 
 
-def duree_max_derivee(texte):
-    """Duree au-dela de laquelle on considere que le moteur a DERIVE."""
-    calculee = ((len(texte) / CARACTERES_PAR_SECONDE) * MARGE_DERIVE
-                + MARGE_DERIVE_S)
-    return max(DERIVE_MINIMUM_S, calculee)
+def duree_attendue(texte):
+    """La duree d'audio a attendre pour un texte (lecture naturelle)."""
+    return max(DUREE_MINI_ATTENDUE, len(texte) / VITESSE_LECTURE)
+
+
+def plafond_pour(texte):
+    """Le plafond d'images pour un texte : proportionnel, borne dur a 540."""
+    images = int(duree_attendue(texte) * MARGE_PLAFOND * IMAGES_PAR_SECONDE)
+    return max(100, min(PLAFOND_IMAGES, images))
+
+
+def sortie_derivee(duree, texte):
+    """Vrai si l'audio est parti au plafond (le moteur n'a pas fini).
+
+    DEUX CRITERES, expres :
+      - le critere SUR : la duree atteint 90 % du plafond -> le moteur n'a pas
+        trouve son jeton de fin (la signature exacte du defaut) ;
+      - le critere PROPORTIONNEL : la duree depasse 2,5 fois la duree attendue
+        (il attrape le cas ou le plafond ne serait pas la cause).
+    """
+    plafond = plafond_pour(texte) / IMAGES_PAR_SECONDE
+    return (duree >= 0.9 * plafond) or (duree > FACTEUR_SUSPECT
+                                        * duree_attendue(texte))
+
+
+def couper_en_deux(texte):
+    """Coupe une phrase en DEUX, au plus pres du milieu.
+
+    On PREFERE une ponctuation (le moteur termine alors une proposition, ce qui
+    l'aide a trouver son jeton de fin), mais on prend l'espace le plus proche du
+    milieu si aucune ponctuation n'est assez proche : c'est l'EQUILIBRE des deux
+    moities qui fait tomber la derive. Renvoie (moitie1, moitie2), ou None si la
+    phrase est trop courte pour etre coupee.
+    """
+    if len(texte) < 60:
+        return None
+    milieu = len(texte) // 2
+    marge = 20
+    candidats = {}
+    for signe in (', ', '; ', ': ', '. ', '! ', '? ', '… '):
+        debut = 0
+        while True:
+            position = texte.find(signe, debut)
+            if position < 0:
+                break
+            coupe = position + len(signe)
+            if marge < coupe < len(texte) - marge:
+                candidats[coupe] = 0.0          # ponctuation : prioritaire
+            debut = position + 1
+    for position, lettre in enumerate(texte):
+        if lettre == ' ':
+            coupe = position + 1
+            if marge < coupe < len(texte) - marge:
+                candidats.setdefault(coupe, 8.0)   # espace : penalise de 8
+    if not candidats:
+        return None
+    coupe = min(candidats, key=lambda p: abs(p - milieu) + candidats[p])
+    return texte[:coupe].strip(), texte[coupe:].strip()
 
 _moteur = None                   # le moteur, charge une fois
 _voix_cache = {}                 # identifiant de voix -> (chemin WAV, texte)
@@ -198,12 +306,17 @@ _contexte_signale = False        # le champ « contexte » a-t-il ete signale ?
 _infos = {
     "pret": False,
     "moteur": "qwentts.cpp (%s)" % NOM_MODELE,
-    "appareil": "processeur",
+    "appareil": "chargement...",
+    "variante": VARIANTE_DEMANDEE,
+    "repli": False,
+    "repli_raison": "",
+    "temperature": TEMPERATURE,
     "langue": LANGUE,
     "codec_fils": CODEC_FILS,
     "frames": FRAMES,
     "coeurs": COEURS,
     "voix": 0,
+    "charge_en": 0.0,
 }
 
 
@@ -335,15 +448,37 @@ def _est_vide(sons):
 # LE MOTEUR : charge une fois, puis chaque phrase sans rien recharger
 # ============================================================
 
-def charger_moteur():
-    """Charge qwentts.cpp en memoire (processeur), une fois pour toutes.
+def _ouvrir_moteur(moteur, variante):
+    """Ouvre le moteur : 'gpu' (paquet `qwentts_cpp`) ou 'cpu' (`qwentts_cpp_cpu`).
 
-    Mesures du 28/09/2026 : 1,4 a 2,2 s. Aucune carte graphique n'est touchee,
-    et c'est ce qui permet a ce moteur de COHABITER avec Kyutai ou Pocket.
+    Le paquet PROCESS EUR recoit nos reglages (coeurs, fils de codec, tranches
+    du flux) ; le paquet CARTE ne les connait pas et n'en a pas besoin (il ne
+    prend que la memoire video).
+    """
+    talker, codec = _gguf(variante)
+    for chemin in (talker, codec):
+        if not chemin.is_file():
+            raise FileNotFoundError("GGUF manquant : %s" % chemin)
+    if moteur == 'gpu':
+        from qwentts_cpp import QwenTTS
+        return QwenTTS(str(talker), str(codec)), 'carte graphique'
+    from qwentts_cpp_cpu import QwenTTS
+    if 'cpu_threads' in inspect.signature(QwenTTS.__init__).parameters:
+        return (QwenTTS(str(talker), str(codec), cpu_threads=COEURS,
+                        cpu_codec_threads=CODEC_FILS,
+                        cpu_stream_frames=FRAMES), 'processeur')
+    return QwenTTS(str(talker), str(codec)), 'processeur'
+
+
+def charger_moteur():
+    """Charge qwentts.cpp : sur la carte si on le demande, sinon sur le processeur.
+
+    REGLE (01/10/2026) : avec `NIMM_QWENTTS_MOTEUR=gpu`, le service essaie la
+    carte ; si elle echoue (pilote, DLL, VRAM, GGUF absent), il REPLIE sur le
+    processeur, le dit a l'ecran, et `/sante` porte `repli: true` avec la raison.
+    Le service ne s'arrete JAMAIS parce que la carte manque.
     """
     global _moteur
-
-    from qwentts_cpp_cpu import QwenTTS
 
     _repertorier_voix()
     if not _voix_cache:
@@ -354,19 +489,51 @@ def charger_moteur():
     # La priorite d'entame EXIGE le chevauchement du codec ET une cadence de 2 ou
     # 4 images : sans les deux, le moteur REFUSE au lieu de degrader en silence
     # (contrainte decouverte le 28/09/2026). On la pose donc AVANT de construire
-    # le contexte, et nos deux autres reglages la respectent.
+    # le contexte, et nos deux autres reglages la respectent. Elle ne concerne
+    # que le processeur ; la carte l'ignore.
     os.environ.setdefault('QWENTTS_CPU_STARTUP_PRIORITY', 'second_chunk')
 
-    print("Chargement du moteur qwentts.cpp (processeur) : %d coeurs, %d fils de "
-          "codec, tranches de %d images." % (COEURS, CODEC_FILS, FRAMES),
-          flush=True)
-    debut = time.time()
-    _moteur = QwenTTS(str(TALKER), str(CODEC),
-                      cpu_threads=COEURS,
-                      cpu_codec_threads=CODEC_FILS,
-                      cpu_stream_frames=FRAMES)
-    _infos["charge_en"] = round(time.time() - debut, 1)
-    _infos["voix"] = len(_voix_cache)
+    essais = []
+    if MOTEUR_DEMANDE in ('gpu', 'carte', 'cuda'):
+        essais.append(('gpu', VARIANTE_DEMANDEE,
+                       'carte graphique (%s)' % VARIANTE_DEMANDEE))
+        essais.append(('cpu', _variante_cpu(),
+                       'processeur (%s), REPLI' % _variante_cpu()))
+    else:
+        if MOTEUR_DEMANDE != 'cpu':
+            print("Reglage NIMM_QWENTTS_MOTEUR inconnu (« %s ») : on reste sur le "
+                  "processeur." % MOTEUR_DEMANDE, flush=True)
+        essais.append(('cpu', _variante_cpu(),
+                       'processeur (%s)' % _variante_cpu()))
+
+    for rang, (moteur, variante, libelle) in enumerate(essais):
+        print("Chargement du moteur qwentts.cpp -- %s..." % libelle, flush=True)
+        debut = time.time()
+        try:
+            _moteur, appareil = _ouvrir_moteur(moteur, variante)
+        except Exception as erreur:
+            print("  ECHEC sur %s : %s : %s"
+                  % (libelle, type(erreur).__name__, erreur), flush=True)
+            if rang == 0:
+                print("  -> on REPLIE sur le processeur.", flush=True)
+                _infos["repli"] = True
+                _infos["repli_raison"] = '%s : %s' % (type(erreur).__name__,
+                                                      erreur)
+                continue
+            print("ARRET : ni la carte ni le processeur n'ont pu demarrer.",
+                  flush=True)
+            sys.exit(1)
+        _infos["appareil"] = appareil
+        _infos["variante"] = variante
+        _infos["moteur"] = "qwentts.cpp (0.6B base %s)" % variante
+        _infos["charge_en"] = round(time.time() - debut, 1)
+        _infos["voix"] = len(_voix_cache)
+        print("Moteur pret en %.1f s sur %s -- %d voix disponibles."
+              % (_infos["charge_en"], appareil, len(_voix_cache)), flush=True)
+        if _infos["repli"]:
+            print("  (REPLI : la carte a echoue -- %s)" % _infos["repli_raison"],
+                  flush=True)
+        break
 
     # Le prechauffage se fait AVANT d'annoncer « pret » : tant que les empreintes
     # ne sont pas pretes, la premiere phrase de chaque voix paie l'attente (x0,53
@@ -376,8 +543,6 @@ def charger_moteur():
         _prechauffer_les_voix()
 
     _infos["pret"] = True
-    print("Moteur pret en %.1f s -- %d voix disponibles."
-          % (_infos["charge_en"], len(_voix_cache)), flush=True)
     print("Service pret : http://%s:%d   (/sante, /voix, /tts)"
           % (HOTE, PORT), flush=True)
 
@@ -422,15 +587,62 @@ def _empreinte(identifiant):
 # LA GENERATION D'UNE PHRASE
 # ============================================================
 
-def generer_wav(texte, identifiant_voix):
-    """Genere une phrase en CONSOMMANT LE FLUX. Renvoie (octets WAV, duree).
+def _une_prise(texte, spk, codes, texte_reference, plafond):
+    """UNE generation en flux, avec le plafond d'images PASSE au moteur.
 
     POURQUOI LE FLUX : c'est le mode le plus rapide du moteur (mesure du
     28/09/2026 : x0,94 le temps reel avec les trois reglages, contre x0,66 sans
-    le chevauchement). On accumule tout, puis on rend un WAV COMPLET : le contrat
-    du lecteur ne change pas, et le defaut des « 2 s perdues en fin de flux »
-    disparait, puisqu'on consomme jusqu'au bout au lieu de s'arreter au dernier
-    morceau recu.
+    le chevauchement). On consomme jusqu'au bout puis on rend un WAV COMPLET.
+
+    `max_new_tokens` BORNE la generation : c'est ce qui empeche une DERIVE de
+    courir jusqu'aux 2048 images du moteur (163,84 s). `temperature` est la
+    « chaleur » du tirage (0,9 par defaut), reglable pour les essais.
+    """
+    import numpy as np
+
+    morceaux = []
+    taux = 24000
+    for bloc, taux in _moteur.stream(
+            text=texte, lang=LANGUE, ref_spk_emb=spk, ref_codes=codes,
+            ref_text=texte_reference, max_new_tokens=plafond,
+            temperature=TEMPERATURE):
+        morceaux.append(bloc)
+    if not morceaux:
+        return np.zeros(0, dtype=np.float32), taux
+    return np.concatenate(morceaux), taux
+
+
+def _vram_maintenant():
+    """La memoire video utilisee, en Mo -- ou None si on est sur le processeur.
+
+    Sert a la ligne de journal par phrase (demande de Laurent, 01/10/2026 : « note
+    pour chaque phrase le x temps reel et la memoire video »). C'est un NIVEAU lu
+    juste apres la phrase, pas un pic : le PIC se mesure en echantillonnant
+    pendant toute la duree de l'appel.
+    """
+    if 'carte' not in str(_infos.get('appareil', '')):
+        return None
+    try:
+        import subprocess
+        sortie = subprocess.run(
+            ['nvidia-smi', '--query-gpu=memory.used',
+             '--format=csv,noheader,nounits'],
+            capture_output=True, text=True, timeout=20)
+        return float(sortie.stdout.strip())
+    except Exception:
+        return None
+
+
+def generer_wav(texte, identifiant_voix):
+    """Genere une phrase : plafond d'images, reprise si vide, coupe en deux si derive.
+
+    1. la phrase ENTIERE, avec le plafond d'images (proportionnel, borne a 540) :
+       le moteur ne peut plus courir 163,84 s sans fin de phrase ;
+    2. le SILENCE PUR (pic < `SEUIL_SILENCE`) : une reprise a l'identique ;
+    3. la DERIVE (la sortie atteint le plafond) : relance COUPEE EN DEUX MOITIES,
+       recollées avec 0,10 s de silence.
+
+    Renvoie (octets WAV, duree, VRAM en Mo ou None, etiquettes de journal).
     """
     import numpy as np
 
@@ -439,65 +651,62 @@ def generer_wav(texte, identifiant_voix):
     if identifiant_voix not in _voix_cache:
         raise ValueError("voix inconnue : %s" % identifiant_voix)
 
+    etiquettes = ""
     with _verrou:
         spk, codes = _empreinte(identifiant_voix)
         _chemin, texte_reference = _voix_cache[identifiant_voix]
+        plafond = plafond_pour(texte)
+
+        # --- 1) la phrase entiere, avec le plafond, et la reprise si silence
         taux = 24000
-        plafond = duree_max_derivee(texte)
         sons = np.zeros(0, dtype=np.float32)
-        derive = False
         for essai in range(REPRISES + 1):
-            morceaux = []
-            for bloc, taux in _moteur.stream(
-                    text=texte, lang=LANGUE, ref_spk_emb=spk, ref_codes=codes,
-                    ref_text=texte_reference):
-                morceaux.append(bloc)
-            sons = (np.concatenate(morceaux) if morceaux
-                    else np.zeros(0, dtype=np.float32))
-            if _est_vide(sons):
-                if essai < REPRISES:
-                    print("  phrase VIDE (silence) -- reprise %d/%d"
-                          % (essai + 1, REPRISES), flush=True)
+            sons, taux = _une_prise(texte, spk, codes, texte_reference, plafond)
+            if not _est_vide(sons):
+                if essai:
+                    print("  phrase relancee (1re sortie vide)", flush=True)
+                    etiquettes += "|vide_relancee"
+                break
+            print("  phrase VIDE (silence) -- tentative %d sur %d"
+                  % (essai + 1, REPRISES + 1), flush=True)
+        duree = len(sons) / float(taux) if taux else 0.0
+
+        # --- 2) la derive : la phrase est reprise en DEUX moities
+        if sortie_derivee(duree, texte):
+            print("  phrase DERIVEE : %.2f s d'audio pour %d caracteres "
+                  "(plafond %.1f s atteint)"
+                  % (duree, len(texte), plafond / IMAGES_PAR_SECONDE), flush=True)
+            etiquettes += "|derivee"
+            moities = couper_en_deux(texte)
+            if moities:
+                print("  -> relance COUPEE EN DEUX : %d + %d caracteres"
+                      % (len(moities[0]), len(moities[1])), flush=True)
+                morceaux = []
+                for index, moitie in enumerate(moities, 1):
+                    sous, taux = _une_prise(moitie, spk, codes, texte_reference,
+                                            plafond_pour(moitie))
+                    sous_duree = len(sous) / float(taux) if taux else 0.0
+                    if sortie_derivee(sous_duree, moitie):
+                        print("  la moitie %d DERIVE aussi (%.2f s) : elle est "
+                              "gardee" % (index, sous_duree), flush=True)
+                        etiquettes += "|moitie%d_derivee" % index
+                    morceaux.append(sous)
+                if len(morceaux) == 2 and morceaux[0].size and morceaux[1].size:
+                    silence = np.zeros(int(SILENCE_ENTRE_MOITIES * taux),
+                                       dtype=np.float32)
+                    sons = np.concatenate([morceaux[0], silence, morceaux[1]])
+                    duree = len(sons) / float(taux)
+                    etiquettes += "|coupee_en_deux"
+                    print("  -> phrase rendue COUPEE EN DEUX : %.2f s au total"
+                          % duree, flush=True)
                 else:
-                    print("  phrase VIDE (silence) -- plus de reprise",
+                    print("  -> une moitie est vide : on garde la prise entiere",
                           flush=True)
-                continue
-            duree_essai = len(sons) / float(taux) if taux else 0.0
-            if duree_essai > plafond:
-                # DERIVE : le moteur s'est emballe (constat du 29/09/2026, voix
-                # Aubin : 163,84 s d'audio pour une replique de 8 jetons). On
-                # RELANCE -- c'est un tirage aleatoire, la generation suivante
-                # peut etre juste. On ne livre jamais un gargouillis de plusieurs
-                # minutes.
-                derive = True
-                if essai < REPRISES:
-                    print("  phrase DERIVEE (%.1f s pour %d caracteres, plafond "
-                          "%.1f s) -- reprise %d/%d"
-                          % (duree_essai, len(texte), plafond, essai + 1,
-                             REPRISES), flush=True)
-                else:
-                    print("  phrase DERIVEE (%.1f s pour %d caracteres, plafond "
-                          "%.1f s) -- plus de reprise, elle sera rognee"
-                          % (duree_essai, len(texte), plafond), flush=True)
-                continue
-            if essai:
-                print("  phrase relancee apres %d essai(s) rate(s)" % essai,
-                      flush=True)
-            derive = False
-            break
+            else:
+                print("  -> phrase trop courte pour etre coupee : gardee telle "
+                      "quelle", flush=True)
 
-        # DERNIER FILET : le moteur n'a jamais rendu de phrase plausible. On
-        # rogne la derniere generation (le remede du service NeuTTS) plutot que
-        # de rendre plusieurs minutes de babil -- le lecteur, lui, jouerait tout.
-        if derive:
-            maximum = int(plafond * taux)
-            if len(sons) > maximum:
-                print("  phrase ROGNEE a %.1f s (rien de plausible rendu)"
-                      % plafond, flush=True)
-                sons = sons[:maximum]
-
-    duree = len(sons) / float(taux) if taux else 0.0
-    return _wav_depuis_pcm(sons, taux), duree
+    return _wav_depuis_pcm(sons, taux), duree, _vram_maintenant(), etiquettes
 
 
 # ============================================================
@@ -509,11 +718,17 @@ class Repondeur(BaseHTTPRequestHandler):
 
     # --- reponses -------------------------------------------------
 
-    def _envoyer(self, code, contenu, type_contenu):
+    def _envoyer(self, code, contenu, type_contenu, etiquettes=""):
         self.send_response(code)
         self.send_header("Content-Type", type_contenu)
         self.send_header("Content-Length", str(len(contenu)))
         self.send_header("Cache-Control", "no-store")
+        # Les ETIQUETTES de la generation (`derivee`, `coupee_en_deux`, ...) :
+        # ajoutees le 01/10/2026 (reprises de NIMM Voix) pour que l'outil qui
+        # interroge le service puisse COMPTER les phrases derivees et coupees
+        # sans lire le journal. Le lecteur de NIMM ePub IGNORE cet en-tete.
+        if etiquettes:
+            self.send_header("X-NIMM-Etiquettes", etiquettes.strip("|"))
         self.end_headers()
         self.wfile.write(contenu)
 
@@ -549,9 +764,21 @@ class Repondeur(BaseHTTPRequestHandler):
             # ainsi ajouter une voix sans redemarrer le service (nos 35 voix
             # viendront peut-etre s'agrandir -- voix Kokoro clonees, langues
             # etrangeres...).
+            #
+            # ATTENTION, CORRIGE LE 03/10/2026 : l'empreinte d'une voix est
+            # calculee a sa PREMIERE utilisation et gardee en memoire. Sans le
+            # `clear` ci-dessous, remplacer le WAV d'une voix DEJA UTILISEE ne
+            # changeait RIEN : le service continuait de parler avec l'ancienne
+            # reference, et en silence. On accepte donc de recalculer les
+            # empreintes (quelques secondes a la premiere phrase de chaque voix)
+            # plutot que de servir une reference qui n'existe plus.
             _repertorier_voix()
-            print("voix rechargees : %d" % len(_voix_cache), flush=True)
+            oubliees = len(_empreintes)
+            _empreintes.clear()
+            print("voix rechargees : %d (empreintes oubliees : %d)"
+                  % (len(_voix_cache), oubliees), flush=True)
             self._envoyer_json(200, {"voix": len(_voix_cache),
+                                     "empreintes_oubliees": oubliees,
                                      "liste": sorted(_voix_cache.keys())})
             return
 
@@ -589,7 +816,7 @@ class Repondeur(BaseHTTPRequestHandler):
 
         debut = time.time()
         try:
-            wav, duree = generer_wav(texte, voix)
+            wav, duree, vram, etiquettes = generer_wav(texte, voix)
         except ValueError as erreur:
             self._envoyer_json(400, {"erreur": str(erreur)})
             return
@@ -604,9 +831,12 @@ class Repondeur(BaseHTTPRequestHandler):
         # un chapitre (> 1 = plus vite qu'on ne lit).
         rapport = (duree / calcul) if calcul else 0.0
         print("phrase generee  voix=%-28s  %5.1f s de calcul  %5.1f s d'audio"
-              "  x%.2f le temps reel" % (voix, calcul, duree, rapport),
+              "  x%.2f le temps reel%s%s"
+              % (voix, calcul, duree, rapport,
+                 ("  | VRAM %d Mo" % vram) if vram else "",
+                 ("  | %s" % etiquettes.strip("|")) if etiquettes else ""),
               flush=True)
-        self._envoyer(200, wav, "audio/wav")
+        self._envoyer(200, wav, "audio/wav", etiquettes)
 
     # --- journal lisible ------------------------------------------
 
@@ -677,6 +907,9 @@ def main():
           % (HOTE, PORT))
     print("reglages : %d coeurs | %d fils de codec | tranches de %d images | %s"
           % (COEURS, CODEC_FILS, FRAMES, LANGUE))
+    print("demande  : moteur %s | variante carte %s | temperature %.2f"
+          "  (repli processeur automatique)"
+          % (MOTEUR_DEMANDE, VARIANTE_DEMANDEE, TEMPERATURE))
     print("prechauffage des empreintes : %s" % ("oui" if PRECHAUFFE else "non"))
     print("")
 

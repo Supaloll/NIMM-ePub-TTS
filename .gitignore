@@ -258,3 +258,48 @@ test_voix/rapport_passage_piege_*.txt
 # sont deja couverts par *.wav, mais le dossier porte aussi son RECAP.txt, et un
 # banc d'ecoute ne laisse rien sur le depot (meme regle que les sorties ci-dessus).
 test_voix/sortie_banc_qwentts_q4/
+
+# Lots d'ecoute Pocket du 30/09/2026 (mesure de debit, banc de reglages,
+# versions recousues) : les WAV portent des PHRASES REELLES des livres de
+# Laurent -- et la regle `test_voix/*.wav` ci-dessus ne couvre que le PREMIER
+# NIVEAU du dossier, pas ses sous-dossiers. Les rapports, eux, se regenerent en
+# une commande. Meme regle que les autres lots d'ecoute : rien sur le depot.
+test_voix/mesure_pocket_*/
+test_voix/banc_reglages_pocket_*/
+test_voix/_dernier_recousu.txt
+test_voix/_dernier_banc.txt
+# Banc « chapitre » (30/09/2026) : il monte un vrai chapitre lu par le modele
+# leger dans UN SEUL WAV, plus ses 24 prises brutes et son rapport. Meme regle
+# que les autres lots d'ecoute : ces fichiers portent des phrases de livre.
+test_voix/banc_chapitre_pocket_*/
+test_voix/_dernier_chapitre.txt
+# Test A/B « la longueur de la reference » du 03/10/2026 : les 12 WAV d'ecoute,
+# les 4 references de test et les rapports. Meme regle que les autres lots : un
+# lot d'ecoute ne laisse rien sur le depot, et il se refabrique en un double-clic.
+test_voix/sortie_test_AB_longueur/
+# Lot des 35 voix Kyutai « bords propres » (03/10/2026) : les 35 WAV recoupes,
+# leurs textes et les syntheses. Il se refabrique en un double-clic.
+test_voix/lot_kyutai_*/
+# Banc des SOUFFLES (03/10/2026) : les passages d'ecoute des 4 moteurs (carte et
+# processeur, poids Q4_K_M et Q8_0) et leurs mesures. Il se refabrique en un
+# double-clic, NIMM ePub ferme.
+test_voix/sortie_banc_souffles_gpu/
+# Mode DIAGNOSTIC du lecteur (03/10/2026) : la trace de chaque phrase lue (les 6
+# etapes en WAV + les rapports, avec le texte des livres). Rien sur le depot.
+test_voix/sortie_diagnostic_phrase/
+# Les journaux du moteur et du lecteur lances pour le diagnostic (03/10/2026).
+test_voix/_diag_engine.txt
+test_voix/_diag_engine_err.txt
+test_voix/_diag_lecteur.txt
+test_voix/_diag_lecteur_err.txt
+# Les phrases de l'essai des nombres (03/10/2026) : ce sont des phrases REELLES
+# d'un roman du commerce, ecrites en UTF-8 pour ne pas perdre les accents.
+test_voix/_diag_phrases.txt
+# La « copie pour Claude » (01/10/2026) est un dossier GENERE : il est vide puis
+# recopie a chaque synchro (test_copie_claude.py le verifie). Sa place n'est pas
+# dans le depot -- il doublerait tous les documents du projet.
+copie_pour_Claude/
+# Le BACKLOG reduit aux items OUVERTS, lui aussi genere par
+# `_extraire_backlog_ouvert.py` : meme raison.
+BACKLOG_ouvert.md
+

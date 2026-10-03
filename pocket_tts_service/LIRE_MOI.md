@@ -122,6 +122,43 @@ Kyutai ≈ ×2,3, NeuTTS ×0,7 (carte graphique).
 **À écouter** : `ECOUTER_LA_MESURE.bat` (ou le dossier `sortie_mesure\`) — trois
 WAV, la voix **Femme001**, en trois longueurs de texte.
 
+## 🪶 Le modèle français LÉGER (6 couches) — piste ouverte le 30/09/2026
+
+Retour d'écoute de Laurent : « il y a beaucoup de blancs encore et parfois
+carrément la lecture s'arrête complètement […] un modèle encore plus léger si
+ça existe ». Le chiffre qui explique ces blancs est celui-ci : **le moteur Qwen
+en service tourne à ×1,04 le temps réel** (banc du 29/09) — il n'a **aucune
+marge**, donc tout ce que fait le PC en plus se paie en blancs.
+
+Kyutai publie, pour le français, **deux tailles** (vérifié le 30/09/2026) :
+
+| Modèle | Poids | Couches | Où |
+|---|---|---|---|
+| **`french_24l`** (celui du service aujourd'hui) | 672 Mo | 24 | `languages/french_24l/` |
+| **`french`** (le léger) | **219 Mo** | **6** | `languages/french/` |
+
+Kyutai présente les variantes 24 couches comme **plus belles mais plus lentes** :
+le léger est donc un vrai candidat, à condition que l'oreille suive.
+
+Le fichier **`configs/french_leger.yaml`** décrit ce modèle léger pour **notre**
+version du paquet : la **3.1.0** installée **refuse** `language='french'`
+(« for technical reasons, only a larger 24-layer model is available »), mais
+elle accepte un **chemin de configuration local** — ce YAML est donc notre porte
+d'entrée. *Vérifié le 30/09/2026* : le paquet le charge, **6 couches**, poids et
+tokenizer du français léger, révisions figées (reproductible).
+
+- **Qui s'en sert aujourd'hui** : **personne en usage normal**. Seul le banc
+  `test_voix/LANCER_MESURE_DEBIT_POCKET.bat` le passe au moteur, pour comparer
+  les deux tailles (débit **et** oreille). Le service, lui, reste sur
+  `french_24l` tant que Laurent n'a pas tranché.
+- **Premier chiffre de contrôle (30/09, 1 prise)** : le **24 couches** fait
+  **×1,56 le temps réel** dans les conditions du service (4 cœurs,
+  température 0,3), contre **×1,04 pour le Qwen** — c'est déjà **56 % de marge**
+  là où le Qwen en a **4 %**. Le 6 couches doit faire mieux : le banc le dira.
+- **Retour arrière** : supprimer ce fichier. Rien d'autre ne le lit, et le
+  service n'y touche pas.
+
+
 ## 🔧 Les outils
 
 

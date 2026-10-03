@@ -5,6 +5,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 import re
 import os
 import asyncio
+import time
 import edge_tts
 from modules import tts_cache as _tts_cache
 from modules import audio_trim as _audio_trim
@@ -13,6 +14,7 @@ from modules import audio_gain as _audio_gain
 from modules import audio_queue as _audio_queue
 from modules import incises as _incises
 from modules import majuscules as _majuscules
+from modules import nombres as _nombres
 from modules import prononciation as _prononciation
 
 # ==============================================================
@@ -411,6 +413,16 @@ def _clean_text(text: str, vocabulaire=None) -> str:
 
     # Developpe les abreviations (M. -> Monsieur, Mme -> Madame, etc.)
     text = _expand_abbreviations(text)
+
+    # --- LES NOMBRES, EN LETTRES (03/10/2026, demande de Laurent) -----------
+    # Un moteur de voix lit des LETTRES, pas des CHIFFRES : sur « a 180 degres »
+    # il inventait (« pi huit-cent »), alors que « cent quatre-vingts » passe
+    # tout seul. Meme principe que les prenoms (`modules/prononciation.py`) :
+    # le texte AFFICHE ne bouge jamais, seul celui envoye au moteur change.
+    # Vaut pour TOUS les moteurs, et la cle de cache portant le texte, les
+    # phrases qui portent un nombre se regenerent toutes seules (pas besoin de
+    # monter VERSION_CACHE).
+    text = _nombres.pour_lecture(text)
 
     # Normalise les suites de points en une seule suspension. Edge TTS
     # marque une pause sur CHAQUE point sinon ("...." = 4 pauses courtes
@@ -1114,31 +1126,56 @@ async def synthesize_qwen(text: str, voice: str, rate: str = "+0%",
     peut pas confondre un rendu Qwen avec un rendu Kyutai de la meme voix --
     c'est pour cela que VERSION_CACHE n'a pas eu besoin de bouger.
     """
+    texte_avant = text
     text = _clean_text(text, vocabulaire)
     if not text:
         return b""
 
-    cached = _tts_cache.get_audio(text, voice, rate, pitch, "wav")
-    if cached is not None:
-        return cached
+    # MODE DIAGNOSTIC (03/10/2026, demande de Laurent). Quand `NIMM_DIAGNOSTIC=1`,
+    # deux choses changent : on IGNORE le cache (chaque phrase est vraiment
+    # fabriquee au moment ou elle est lue) et on trace CHAQUE etape du traitement
+    # dans `modules/diagnostic.py`. Sans la variable, rien ne change du tout.
+    from modules import diagnostic
+    suivi = diagnostic.actif()
+    etapes = []
+    debut_total = time.perf_counter() if suivi else 0.0
 
+    if not suivi:
+        cached = _tts_cache.get_audio(text, voice, rate, pitch, "wav")
+        if cached is not None:
+            return cached
+
+    debut_moteur = time.perf_counter() if suivi else 0.0
     wav_bytes = await _demander_au_moteur_qwen(text, _qwen_voix_id(voice))
+    secondes_moteur = (time.perf_counter() - debut_moteur) if suivi else 0.0
     if not wav_bytes:
         return b""
+    if suivi:
+        etapes.append(('01_brut_moteur', wav_bytes))
 
     # Rognage du silence de QUEUE, comme pour Kyutai (23/09/2026) : le moteur
     # garde la respiration qu'il vient de produire, et Laurent trouve les
     # pauses apres les points trop longues. On regle la queue ICI, et la pause
     # entre paragraphes reste a 600 ms dans `frontend/app.js`.
     wav_bytes = _audio_queue.rogner_queue_wav(wav_bytes)
+    if suivi:
+        etapes.append(('02_rognage_queue', wav_bytes))
 
     # Vitesse puis hauteur (aucun des deux n'existe dans le moteur).
     wav_bytes = _audio_rate.appliquer_vitesse(wav_bytes, _percent_to_speed(rate))
+    if suivi:
+        etapes.append(('03_vitesse', wav_bytes))
     wav_bytes = _apply_pitch_shift(wav_bytes, _hz_to_semitones(pitch))
+    if suivi:
+        etapes.append(('04_hauteur', wav_bytes))
 
     # Niveau : normalise comme les autres moteurs, pour qu'aucune phrase ne
-    # « decroche » a cote de ses voisines.
+    # « decroche » a cote de ses voisines. C'EST ICI que le gain peut atteindre
+    # x4 (+12 dB) sur une phrase faible : c'est l'etape a regarder quand un
+    # bruit de fond devient audible.
     wav_bytes = _audio_gain.normaliser_wav_parole(wav_bytes)
+    if suivi:
+        etapes.append(('05_normalisation', wav_bytes))
 
     # Fondu d'entree (29/09/2026, retour d'ecoute de Laurent) : la respiration
     # posee entre deux phrases rendait audible un « tic » d'attaque -- un
@@ -1146,8 +1183,15 @@ async def synthesize_qwen(text: str, voice: str, rate: str = "+0%",
     # l'oreille (banc : 0 / 25 / 50 / 100 ms). Applique EN DERNIER, apres la
     # normalisation : c'est l'audio final qui est adouci.
     wav_bytes = _audio_gain.fondu_entree_wav(wav_bytes)
+    if suivi:
+        etapes.append(('06_fondu_entree', wav_bytes))
 
-    _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)
+    if suivi:
+        diagnostic.enregistrer(texte_avant, text, voice, rate, pitch, etapes,
+                               secondes_moteur,
+                               time.perf_counter() - debut_total)
+    else:
+        _tts_cache.put_audio(text, voice, rate, pitch, "wav", wav_bytes)
     return wav_bytes
 
 

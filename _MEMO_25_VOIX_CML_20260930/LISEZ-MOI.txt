@@ -1,0 +1,33 @@
+﻿MEMO DE NIMM VOIX POUR TA SESSION -- 25 VOIX NOUVELLES (CML-TTS)
+================================================================
+Depose le 30/09/2026 par l'atelier NIMM Voix, avec l'accord de Laurent.
+
+CE QU'IL Y A DANS CE DOSSIER
+  UN SEUL fichier a lire :
+    MEMO_25_VOIX_CML_30-09-2026_pour_la_session_NIMM_ePub.md
+
+CE QU'IL DEMANDE (3 gestes, chez toi)
+  1. une sauvegarde datee de qwen_tts_service\voix\references.csv ;
+  2. la copie des 25 WAV depuis
+     G:\NIMM Voix\outils\qwentts_cpp\voix\cml_restants\
+     (fichiers NEUFS : aucun de ces 25 identifiants n'existe chez toi,
+     verifie -- il n'y a donc rien a ecraser) ;
+  3. l'ajout des 25 lignes a references.csv -- elles sont EN ANNEXE du
+     memo, pretes a coller.
+  Ensuite /voix doit annoncer 183 (158 + 25).
+
+CE QUI N'A PAS ETE TOUCHE CHEZ TOI
+  RIEN. Aucune voix, aucun references.csv, aucun fichier de ton atelier n'a
+  ete modifie, deplace ni supprime : ce dossier ne contient QU'UN memo.
+  La copie des voix et l'ajout des lignes restent a faire par ta session
+  (c'est toi qui ecris dans ton atelier).
+
+DROITS
+  Ces 25 voix viennent de la banque CML-TTS, licence CC BY 4.0 : libre,
+  y compris pour un PARTAGE, a condition de citer "Kyutai + CML-TTS".
+  (L'inverse de Maya_normale, qui est une voix privee.)
+
+LE MAITRE DU FICHIER
+  G:\NIMM Voix\passerelle_NIMM_ePub\ENVOYES_par_NIMM_Voix\
+  Regle de la passerelle : la copie deposee chez toi est un INSTANTANE ;
+  si les deux divergent, c'est le fichier de l'atelier NIMM Voix qui fait foi.

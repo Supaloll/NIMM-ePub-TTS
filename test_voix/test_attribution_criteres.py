@@ -132,10 +132,9 @@ def verifications():
              index.get(attribution['Fillette']['voice_id'], {}).get('genre') == 'F',
              attribution['Fillette'])
     # Les deux voix GENERIQUES des petits roles sont HORS de cet index, par
-    # construction : `_index_voix()` ne couvre que les familles du pool
-    # automatique (Edge, Kokoro, Kyutai), et Piper n'en fait pas partie. Ces
-    # deux voix sont CHOISIES, pas piochees (decision de Laurent du 21/09/2026 :
-    # Jessica 3 etoiles, Pierre 1 etoile) : le controle des 0 etoile porte donc
+    # construction : ces deux voix sont CHOISIES, pas piochees (decision de
+    # Laurent : Jessica/Pierre en Piper depuis le 21/09/2026, remplacees par
+    # Hortense/Hugo en QWEN le 01/10/2026) : le controle des 0 etoile porte donc
     # sur les voix DEDIEES, pas sur elles.
     generiques = (voice_casting.GENERIC_VOICE_F, voice_casting.GENERIC_VOICE_M)
     verifier('aucune voix notee 0 etoile n a ete attribuee (hors generiques)',
@@ -149,13 +148,13 @@ def verifications():
     verifier('le petit role (< 8 repliques) recoit la voix GENERIQUE de son genre',
              attribution['Figurant']['voice_id'] == voice_casting.GENERIC_VOICE_M,
              attribution['Figurant'])
-    verifier('cette voix generique est bien Pierre (Piper, hommes)',
-             voice_casting.GENERIC_VOICE_M == 'piper:upmc:1',
+    verifier('cette voix generique est bien Hugo (Qwen, hommes)',
+             voice_casting.GENERIC_VOICE_M == 'qwen:fm_hugo',
              voice_casting.GENERIC_VOICE_M)
-    verifier('et le petit role a bien la voix de son genre (femmes = Jessica)',
-             voice_casting.GENERIC_VOICE_F == 'piper:upmc:0'
-             and voice_casting._voix_generique('F') == 'piper:upmc:0'
-             and voice_casting._voix_generique('H') == 'piper:upmc:1')
+    verifier('et le petit role a bien la voix de son genre (femmes = Hortense)',
+             voice_casting.GENERIC_VOICE_F == 'qwen:cml6348'
+             and voice_casting._voix_generique('F') == 'qwen:cml6348'
+             and voice_casting._voix_generique('H') == 'qwen:fm_hugo')
     verifier('la hauteur suit l age (personnage age = -15 Hz)',
              attribution['Vieux_seigneur']['pitch'] == '-15Hz',
              attribution['Vieux_seigneur']['pitch'])

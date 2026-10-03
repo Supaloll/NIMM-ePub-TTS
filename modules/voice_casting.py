@@ -1456,27 +1456,21 @@ def _kyutai_pool(genre: str) -> list:
 # compte sans redemarrage du code.
 _recalculer_pools()
 
-# Voix partagee pour les personnages mineurs (peu de repliques) -- Piper.
+# Voix partagee pour les personnages mineurs (peu de repliques) -- QWEN.
 #
 # DECISION DE LAURENT, 21/09/2026 : les petits roles (< MINOR_THRESHOLD
-# repliques) sont joues par DEUX voix, une par genre -- Jessica pour les
-# femmes, Pierre pour les hommes, toutes les deux en Piper (modele studio
-# fr_FR-upmc-medium). C'est la reponse a la question restee ouverte le
-# 15/09/2026 : ce jour-la, les voix generiques d'alors (Siwis et Tom) avaient
-# ete jugees « inaudibles, vraiment moches » a l'ecoute de Shantaram, et les
-# petits roles etaient passes au NARRATEUR en attendant que Laurent choisisse
-# deux voix neutres. Il les a choisies : ces deux emplacements sont remplis.
+# repliques) sont joues par DEUX voix, une par genre. Elles etaient en Piper
+# (Jessica/Pierre) ; elles sont passees en QWEN le 01/10/2026 (decision de
+# Laurent) : un re-cast faisait TOUJOURS retomber les petits roles sur Piper,
+# qui etait justement la source des gargouillis entendus.
 #
-# A savoir : Jessica (upmc:0, 3 etoiles a l'ecoute) et Pierre (upmc:1,
-# 1 etoile) sont DEUX AUTRES voix Piper que Siwis/Tom -- les voix refusees ne
-# reviennent donc pas. Attention aussi a l'homonyme : il existe une Jessica
-# Kokoro americaine (kokoro:af_jessica) dans le catalogue ; celle des petits
-# roles est bien la PIPER FRANCE.
-#
-# Piper reste par ailleurs hors du pool automatique ci-dessus : il ne sert
-# ici, et pour ces deux voix seulement.
-GENERIC_VOICE_F = "piper:upmc:0"   # Jessica (France, Piper)
-GENERIC_VOICE_M = "piper:upmc:1"   # Pierre  (France, Piper)
+# A savoir : ces deux voix restent HORS du pool automatique (comme Piper
+# l'etait) -- `test_pool_casting.py` exige qu'un petit role ne consomme PAS une
+# voix dediee, sinon un personnage principal aurait la meme voix que tous les
+# figurants. On ne prend donc PAS les jumelles Qwen des voix Kyutai (elles sont
+# dans le pool) : Hortense (cml6348) et Hugo (fm_hugo) n'y sont pas.
+GENERIC_VOICE_F = "qwen:cml6348"   # Hortense (femme, Qwen)
+GENERIC_VOICE_M = "qwen:fm_hugo"   # Hugo     (homme, Qwen)
 
 
 def _voix_generique(genre: str) -> str:

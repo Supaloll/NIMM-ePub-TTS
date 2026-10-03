@@ -121,7 +121,7 @@ console.log('3) filtre par etat des personnages');
 const caster = etatCasting(ROWS, 'caster');
 verifier('filtre « a caster » : seulement les bonnes lignes',
          caster.rowsFiltrees.length === 2
-         && caster.rowsFiltrees.every(r => r.v.voice_id.indexOf('piper:') === 0),
+         && caster.rowsFiltrees.every(r => VOIX_GENERIQUES.includes(r.v.voice_id)),
          caster.rowsFiltrees.map(r => r.nom));
 const partagee = etatCasting(ROWS, 'partagee');
 verifier('filtre « partagee » : seulement les bonnes lignes',

@@ -14,7 +14,8 @@ moteurs dont j'ai besoin ») :
     ce fichier -- donc START.bat le rallumera ensuite. XTTS v2 et NeuTTS restent
     lancables a la main, par leur propre lanceur ;
   - QWEN3-TTS (qwentts.cpp, port 8086) est le moteur des voix de personnages : il
-    tourne sur le processeur, il COHABITE, et il demarre avec le lecteur.
+    tourne SUR LA CARTE GRAPHIQUE depuis le 01/10/2026 (repli processeur
+    automatique), et il demarre avec le lecteur.
 
 Ce que le script controle, sans RIEN lancer (ni moteur, ni lecteur) :
   1. les trois lanceurs ecrivent bien leur nom dans data\\moteur_voix.txt ;
@@ -83,8 +84,8 @@ def fabriquer_copie_neutre():
         # ferme le bloc et fait derailler cmd -- la lecon du 14/09/2026,
         # retrouvee ici par accident : le remplacement du « timeout » plus bas
         # vit, lui, DANS le bloc du garde-fou.
-        # Qwen3-TTS : DEPUIS LE 28/09/2026 c'est qwentts.cpp, et il COHABITE --
-        # il est lance PLUS HAUT, avec Pocket, et non plus a la place de Kyutai.
+        # Qwen3-TTS : c'est qwentts.cpp, lance PLUS HAUT, avec Pocket, et depuis
+        # le 01/10/2026 par le bouton CARTE GRAPHIQUE.
         # Oublier cette ligne ferait LANCER POUR DE VRAI le moteur pendant le
         # test (1,2 Go de modeles charges en memoire) -- c'est exactement le
         # piege du 21/09/2026 avec NeuTTS. Le controle « la copie neutre ne
@@ -92,7 +93,7 @@ def fabriquer_copie_neutre():
         # CHEMIN COMPLET depuis le 29/09/2026 (voir START.bat) : sans lui, lancer
         # START.bat depuis un programme (variable NoDefaultCurrentDirectoryInExePath)
         # fait echouer le `cmd /k` sur un nom court, et AUCUN moteur ne demarre.
-        ('start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k "%~dp0qwentts_service\\DEMARRER_QWENTTS_CPP.bat"',
+        ('start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k "%~dp0qwentts_service\\DEMARRER_QWENTTS_CPP_GPU.bat"',
          'echo [NEUTRE] ici serait lance : Qwen3-TTS, dans sa fenetre'),
         ('python main.py', 'echo [NEUTRE] ici le lecteur demarrerait'),
         ('pause', ''),
@@ -247,12 +248,12 @@ def test_garde_fou_deja_en_marche():
              ':moteur_xtts' not in source and ':moteur_kyutai' not in source)
     # Depuis le 21/09/2026, les moteurs automatiques ont leur fenetre : Kyutai
     # (comme avant), Pocket TTS (pour pouvoir l'eteindre en la fermant), et
-    # Qwen3-TTS -- qui, depuis le 28/09/2026, est le portage qwentts.cpp : il
-    # tourne sur le processeur, donc il COHABITE avec Kyutai au lieu de le
-    # remplacer, et c'est START.bat qui l'allume en meme temps que Pocket.
+    # Qwen3-TTS -- le portage qwentts.cpp : depuis le 01/10/2026 il tourne SUR LA
+    # CARTE GRAPHIQUE (repli processeur automatique), et c'est START.bat qui
+    # l'allume en meme temps que Pocket.
     verifier('les deux moteurs a fenetre sont Qwen et Kyutai, en CHEMIN COMPLET',
              original.count('start "') == 2
-             and 'cmd /k "%~dp0qwentts_service\\DEMARRER_QWENTTS_CPP.bat"' in original
+             and 'cmd /k "%~dp0qwentts_service\\DEMARRER_QWENTTS_CPP_GPU.bat"' in original
              and 'cmd /k "%~dp0kyutai_service\\DEMARRER_KYUTAI.bat"' in original
              and 'cmd /k DEMARRER_POCKET_TTS' not in original
              and 'cmd /k DEMARRER_XTTS' not in original

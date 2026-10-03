@@ -1,0 +1,95 @@
+# ============================================================================
+# french_leger.yaml -- Pocket TTS FRANCAIS LEGER (6 couches), 219 Mo
+# Ecrit le 30/09/2026 pour la question de Laurent : « il y a beaucoup de blancs
+# [...] il faut trouver une autre solution, un modele encore plus leger si ca
+# existe ».
+#
+# CE QUE C'EST : la configuration du modele francais LEGER de Kyutai, celui que
+# la version RECENTE du paquet (3.3.0) livre sous le nom `french` -- 6 couches
+# au lieu des 24 de `french_24l` (le modele du service aujourd'hui).
+#   - poids  : 219 Mo contre 672 Mo (3 fois moins de calcul par image) ;
+#   - meme tokenizer francais, meme codec Mimi, memes voix clonees ;
+#   - Kyutai annonce les variantes 24 couches comme « plus belles mais plus
+#     lentes » : ce fichier sert donc a MESURER ce que leger coute a l'oreille.
+#
+# POURQUOI CE FICHIER EXISTE : notre paquet installe est en 3.1.0, et cette
+# version-la REFUSE la langue `french` (« For technical reasons, only a larger
+# 24-layer model is available for French »). Mais elle accepte un CHEMIN DE
+# CONFIGURATION LOCAL (`TTSModel.load_model(config=...)`), donc on peut eprouver
+# le modele leger SANS rien installer ni mettre a jour.
+#
+# D'OU VIENNENT LES LIGNES : copie de la config officielle `config/french.yaml`
+# du paquet 3.3.0 (verifiee le 30/09/2026 : num_layers = 6), reecrite pour la
+# 3.1.0 :
+#   - `tokenizer: sentencepiece` (la 3.1.0 ne connait que celui-la) au lieu de
+#     `tokenizers` + tokenizer.json ;
+#   - pas de `replace_characters` (cle apparue APRES la 3.1.0 : notre lecteur
+#     fait deja ce nettoyage lui-meme, dans modules/tts.py) ;
+#   - les deux revisions sont FIGEES (celles de la config officielle), pour que
+#     la mesure soit reproductible.
+# Rien d'autre n'est change par rapport au modele en service : memes reglages,
+# pour que la comparaison ne porte que sur le nombre de couches.
+#
+# RETOUR ARRIERE : supprimer ce fichier (il n'est lu par PERSONNE en usage
+# normal ; seul le banc `test_voix/_mesurer_debit_pocket.py` le passe au moteur).
+# ============================================================================
+
+weights_path: hf://kyutai/pocket-tts/languages/french/model.safetensors@d0ebc5deb50bc6b225f686782f124dd37e2dca0a
+weights_path_without_voice_cloning: hf://kyutai/pocket-tts-without-voice-cloning/languages/french/model.safetensors@8843db76457a91db32077edf8dfcd1c0e3e755fd
+
+remove_semicolons: true
+model_recommended_frames_after_eos: 8
+
+flow_lm:
+  insert_bos_before_voice: true
+  dtype: float32
+  flow:
+    depth: 6
+    dim: 512
+  transformer:
+    d_model: 1024
+    hidden_scale: 4
+    max_period: 10000
+    num_heads: 16
+    num_layers: 6
+  lookup_table:
+    dim: 1024
+    n_bins: 4000
+    tokenizer: sentencepiece
+    tokenizer_path: hf://kyutai/pocket-tts-without-voice-cloning/languages/french/tokenizer.model@8843db76457a91db32077edf8dfcd1c0e3e755fd
+
+mimi:
+  dtype: float32
+  sample_rate: 24000
+  inner_dim: 32
+  outer_dim: 512
+  channels: 1
+  frame_rate: 12.5
+  seanet:
+    dimension: 512
+    channels: 1
+    n_filters: 64
+    n_residual_layers: 1
+    ratios:
+    - 6
+    - 5
+    - 4
+    kernel_size: 7
+    residual_kernel_size: 3
+    last_kernel_size: 3
+    dilation_base: 2
+    pad_mode: constant
+    compress: 2
+  transformer:
+    d_model: 512
+    num_heads: 8
+    num_layers: 2
+    layer_scale: 0.01
+    context: 250
+    dim_feedforward: 2048
+    input_dimension: 512
+    output_dimensions:
+    - 512
+  quantizer:
+    dimension: 32
+    output_dimension: 512

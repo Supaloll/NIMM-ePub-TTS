@@ -2,8 +2,10 @@
 
 **En une phrase** : c'est le moteur qui fait parler les voix `qwen:` du lecteur.
 Il porte Qwen3-TTS **en C++/GGML** (le portage `qwentts.cpp`), donc **sans
-PyTorch et sans carte graphique** : il tourne sur le **processeur**, et il
-**cohabite** avec Kyutai et Pocket au lieu de les remplacer.
+PyTorch**. **Par défaut il tourne sur le processeur** (il cohabite alors avec
+Kyutai et Pocket) ; depuis le **01/10/2026** il peut aussi tourner sur la
+**carte graphique** — bouton `DEMARRER_QWENTTS_CPP_GPU.bat`, avec **repli
+automatique** sur le processeur si la carte manque.
 
 **Validé à l'oreille** par Laurent le **28/09/2026**, sur un banc d'écoute
 100 % Qwen (le chapitre d'essai, 15 personnages et le narrateur) : « c'est
@@ -28,7 +30,23 @@ vraiment bon, pas d'accrocs, prosodie impec, on a notre moteur ! »
 | Modèles | **Q4_K_M depuis le 29/09/2026** (629 + 255 Mo), choisis **à l'oreille par Laurent** : « les plus jolies à l'oreille, prosodie et clarté un demi-cran au-dessus ». Les **Q8_0** (947 + 278 Mo) restent sur le disque en **repli automatique** |
 | Réglages | 6 cœurs, **4 fils de codec**, tranches de **2 images**, priorité d'entame |
 | Débit mesuré | **×1,0 à ×1,2 le temps réel** (Q4_K_M, 29/09/2026) — avant, ×0,94 avec les Q8_0 (28/09) |
-| Mémoire | **884 Mo de fichiers** (Q4_K_M), aucune carte graphique |
+| Mémoire | **884 Mo de fichiers** (Q4_K_M) ; sur le processeur : aucune carte ; sur la carte : **~3,7 Go de mémoire vidéo** |
+
+## Depuis le 01/10/2026 : le moteur peut tourner sur la CARTE GRAPHIQUE
+
+Deux façons de l'allumer — **le même service**, le même port, les mêmes voix :
+
+- `DEMARRER_QWENTTS_CPP.bat` → **processeur** (le défaut, inchangé) ;
+- `DEMARRER_QWENTTS_CPP_GPU.bat` → **carte graphique** (Q4_K_M). Mesure du
+  01/10/2026 : **×3,9 sur une phrase courte** (3,7 s d'audio en 0,9 s), ~**3,7 Go
+  de mémoire vidéo**, moteur chargé en ~5 s.
+
+**Si la carte échoue, le service reprend tout seul sur le processeur** (il ne
+s'arrête jamais) : `/sante` porte alors `repli: true` avec la raison. Ce sont les
+réglages `NIMM_QWENTTS_MOTEUR=gpu` et `NIMM_QWENTTS_VARIANTE=Q4_K_M` qui le
+demandent ; le **garde-fou anti-dérive** a été renforcé en même temps (plafond
+d'images **540** = 43,2 s + relance **coupée en deux**). Retour au processeur :
+fermer la fenêtre, puis `DEMARRER_QWENTTS_CPP.bat`.
 
 ## Depuis le 29/09/2026 : le modèle allégé **Q4_K_M** (choisi à l'oreille)
 
@@ -127,8 +145,10 @@ existant, donc elles n'entrent par aucune boucle.
    son **empreinte** (timbre + codes ICL), une fois par voix ; ensuite ×0,93.
    `NIMM_QWENTTS_PRECHAUFFE=1` prépare les 35 empreintes au démarrage (désactivé
    par défaut : cela prend quelques minutes).
-3. **Il ne prend pas la carte graphique** : inutile d'éteindre Kyutai « pour lui
-   faire de la place » — les deux cohabitent, c'est même tout l'intérêt.
+3. **Sur le processeur (le défaut), il ne prend pas la carte graphique** :
+   inutile d'éteindre Kyutai « pour lui faire de la place » — les deux
+   cohabitent. **Sur la carte** (bouton GPU), au contraire, il l'occupe
+   (~3,7 Go) : ne lancez pas Kyutai en même temps.
 
 ## Ce que le service fait d'une phrase qui DÉRAPE (29/09/2026)
 

@@ -143,9 +143,10 @@ nimm-epub/
 │   ├── INSTALLER_POCKET_TTS.bat — Installation unique (environnement, modèle, voix)
 │   ├── DEMARRER_POCKET_TTS.bat  — Allume le moteur, dans SA fenêtre (l'arrêt se fait là)
 │   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
-├── qwentts_service/       — Moteur Qwen3-TTS **qwentts.cpp** (C++/GGML, sur le PROCESSEUR, il cohabite), port 8086
+├── qwentts_service/       — Moteur Qwen3-TTS **qwentts.cpp** (C++/GGML ; **processeur par défaut**, **carte graphique en option** depuis le 01/10/2026), port 8086
 │   ├── servir_qwentts_cpp.py — Service HTTP local (127.0.0.1:8086), même contrat que les autres moteurs
-│   ├── DEMARRER_QWENTTS_CPP.bat — Allume le moteur, dans SA fenêtre (START.bat le fait tout seul)
+│   ├── DEMARRER_QWENTTS_CPP.bat — Allume le moteur sur le PROCESSEUR, dans SA fenêtre
+│   ├── DEMARRER_QWENTTS_CPP_GPU.bat — Allume le moteur sur la CARTE GRAPHIQUE (c'est lui que START.bat lance)
 │   ├── models/            — Les deux GGUF du moteur (1,2 Go, hors Git)
 │   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
 ├── qwen_tts_service/      — ANCIEN service Qwen3-TTS (Transformers, Python 3.12 + PyTorch, 3,8 Go de carte) : **plus branché** depuis le 28/09/2026, gardé pour l'historique
@@ -2536,8 +2537,9 @@ robotiques — motive le chantier Kokoro (voir backlog plus bas).
 - **le seuil des petits rôles est le même des deux côtés** :
   `_CAST_MINOR_THRESHOLD` = **8** (`frontend/app.js`) et `MINOR_THRESHOLD` = **8**
   (`modules/voice_casting.py`) ; les **deux** voix génériques concordent aussi
-  (`_CAST_VOIX_GENERIQUES` = `piper:upmc:0` / `piper:upmc:1`, soit
-  `GENERIC_VOICE_F` / `GENERIC_VOICE_M`) ;
+  (`_CAST_VOIX_GENERIQUES` = `qwen:cml6348` / `qwen:fm_hugo`, soit
+  `GENERIC_VOICE_F` / `GENERIC_VOICE_M`, **depuis le 01/10/2026** — c'étaient
+  `piper:upmc:0` / `piper:upmc:1` avant) ;
 - **le badge « partagée » s'arrête à six noms** (`_etatVoix` : `noms.slice(0, 6)`,
   `frontend/app.js`) et renvoie ensuite à l'onglet « Voix partagée », qui les
   liste **tous**, un par ligne ;
@@ -2960,21 +2962,23 @@ Siwis/Tom), et le code gardait **deux emplacements vides exprès**
 (`GENERIC_VOICE_F/M`) avec ce commentaire : « le jour où Laurent aura choisi
 deux voix neutres, il suffira de les y mettre, puis de re-caster ».
 
-- **Les deux voix** : `piper:upmc:0` = **Jessica** (femme, **3 étoiles** à
-  l'écoute) et `piper:upmc:1` = **Pierre** (homme, **1 étoile**), toutes les deux
-  dans le modèle **studio** Piper `fr_FR-upmc-medium`. Ce ne sont PAS les voix
-  refusées (Siwis/Tom) ; l'homonyme à ne pas confondre est `kokoro:af_jessica`,
-  une Jessica **américaine** du catalogue Kokoro.
-- `modules/voice_casting.py` : `GENERIC_VOICE_F/M` remplis, et `assign_voices()`
-  appelle la nouvelle fonction `_voix_generique(genre)` au lieu d'écrire un vide.
-  Un genre inconnu part sur **Pierre**, comme partout ailleurs (le genre par
-  défaut d'une fiche est `H`). La hauteur reste `+0Hz` (voir « reste possible »).
-- `frontend/app.js` : `_CAST_VOIX_GENERIQUES = ['piper:upmc:0', 'piper:upmc:1']`
+- **Les deux voix** : `qwen:cml6348` = **Hortense** (femme) et `qwen:fm_hugo` =
+  **Hugo** (homme), **depuis le 01/10/2026** (décision de Laurent : un re-cast
+  faisait TOUJOURS retomber les petits rôles sur Piper, la source des
+  gargouillis). Avant : `piper:upmc:0` = **Jessica** (3 étoiles à l'écoute) et
+  `piper:upmc:1` = **Pierre** (1 étoile), dans le modèle **studio** Piper
+  `fr_FR-upmc-medium` — les voix refusées (Siwis/Tom) n'étaient déjà pas elles.
+- `modules/voice_casting.py` : `GENERIC_VOICE_F/M`, et `assign_voices()` appelle
+  `_voix_generique(genre)`. Un genre inconnu part sur la voix **masculine**,
+  comme partout ailleurs (le genre par défaut d'une fiche est `H`). La hauteur
+  reste `+0Hz` (voir « reste possible »).
+- `frontend/app.js` : `_CAST_VOIX_GENERIQUES = ['qwen:cml6348', 'qwen:fm_hugo']`
   — **l'ordre compte** ([0] femmes, [1] hommes, cf.
-  `_deplacerAutresVersGenerique`). Sans cette mise à jour, Jessica et Pierre
-  auraient été comptées comme « voix partagée » des centaines de fois.
-- Piper reste **hors du pool automatique** : il ne sert qu'ici, et pour ces deux
-  voix.
+  `_deplacerAutresVersGenerique`). Sans cette mise à jour, les deux voix
+  seraient comptées comme « voix partagée » des centaines de fois.
+- Ces deux voix restent **hors du pool automatique** (comme Piper l'était) :
+  `test_pool_casting.py` exige qu'un petit rôle ne consomme pas une voix dédiée.
+  On ne prend donc PAS les jumelles Qwen des voix Kyutai (elles sont dans le pool).
 
 **Livres déjà castés — migration ciblée (l'option choisie par Laurent).**
 `test_voix/migrer_petits_roles.py`, avec son lanceur double-clic
@@ -3999,10 +4003,10 @@ automatique** (`_kyutai_pool()` conservée mais non appelée ; les voix Kyutai
 restent choisissables à la main) ; l'item de BACKLOG porte le détail.
 Garde-fous inchangés : la voix XTTS **écartée à l'écoute** (`stars: 0`) est
 exclue du pool ; les **petits rôles** (moins de `MINOR_THRESHOLD` = 8
-répliques) reçoivent une voix générique **Piper** (`piper:siwis:0` /
-`piper:tom:0`). ⚠️ **Remplacé le 21/09/2026** : ce sont désormais **Jessica /
-Pierre** (`piper:upmc:0` / `piper:upmc:1`) — voir « Les petits rôles : une voix
-par genre » plus bas.
+répliques) reçoivent une voix générique : **Siwis/Tom** (`piper:siwis:0` /
+`piper:tom:0`) du 15/09 au 21/09/2026, puis **Jessica/Pierre** (`piper:upmc:0` /
+`piper:upmc:1`) du 21/09 au 01/10/2026, et **Hortense/Hugo** (`qwen:cml6348` /
+`qwen:fm_hugo`) depuis — voir « Les petits rôles : une voix par genre » plus bas.
 
 ### Ordre du pool automatique (session du 12/09/2026 — Kyutai en tête)
 Décision de Laurent : les **35 voix Kyutai** (timbres français natifs,

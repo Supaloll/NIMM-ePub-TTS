@@ -13,8 +13,9 @@ rem  CE QUI S'ALLUME, DEPUIS LE 29/09/2026 (demande de Laurent :
 rem  « on ne garde que les moteurs dont j'ai besoin »)
 rem
 rem  - QWEN3-TTS (qwentts_service, port 8086) : LE moteur des voix de
-rem    personnages. Il tourne sur le processeur, donc il cohabite avec
-rem    tous les autres, et c'est lui que le lecteur appelle par defaut.
+rem    personnages. DEPUIS LE 01/10/2026 il tourne SUR LA CARTE GRAPHIQUE
+rem    (repli processeur automatique), et c'est lui que le lecteur appelle
+rem    par defaut.
 rem  - POCKET TTS : SUSPENDU (essais d'ecoute non conclusifs, et sa seule
 rem    voix encore attribuee est passee chez Qwen). Il ne s'allume plus.
 rem  - KYUTAI : PLUS ALLUME (data\moteur_voix.txt porte « aucun » depuis
@@ -145,14 +146,15 @@ rem    commandes de lancement, commentaires compris).
 
 :pocket_pret
 
-rem -- QWEN3-TTS / qwentts.cpp (28/09/2026) : le moteur de voix Qwen tourne sur
-rem    le PROCESSEUR (portage C++/GGML, VALIDE A L'OREILLE par Laurent le
-rem    28/09/2026 : « c'est vraiment bon, pas d'accrocs, prosodie impec »). Il
-rem    n'occupe donc PAS la carte graphique : il COHABITE avec Kyutai et Pocket,
-rem    et il ne remplace personne. Comme Pocket, c'est START.bat qui l'allume --
-rem    Laurent n'a rien a ouvrir. Son port est le 8086, celui que le lecteur
-rem    appelle PAR DEFAUT (aucune variable a poser).
-if not exist "qwentts_service\DEMARRER_QWENTTS_CPP.bat" (
+rem -- QWEN3-TTS / qwentts.cpp : le moteur de voix Qwen. DEPUIS LE 01/10/2026 il
+rem    est allume SUR LA CARTE GRAPHIQUE (bouton DEMARRER_QWENTTS_CPP_GPU.bat ;
+rem    mesure du 01/10/2026 : x3,9 a x7 le temps reel selon la phrase). C'est
+rem    START.bat qui l'allume : Laurent n'a rien a ouvrir. Son port est le 8086,
+rem    celui que le lecteur appelle PAR DEFAUT (aucune variable a poser).
+rem    SI LA CARTE ECHOUE, le service reprend TOUT SEUL sur le processeur (il ne
+rem    s'arrete jamais) : /sante le dit. Pour repasser au processeur a la main :
+rem    fermer sa fenetre, puis double-clic sur DEMARRER_QWENTTS_CPP.bat.
+if not exist "qwentts_service\DEMARRER_QWENTTS_CPP_GPU.bat" (
     echo  Moteur de voix Qwen3-TTS : NON INSTALLE - ses voix seront indisponibles.
     goto qwentts_pret
 )
@@ -167,8 +169,8 @@ rem    la variable NoDefaultCurrentDirectoryInExePath=1 : cmd ne cherche plus da
 rem    son dossier courant, et un nom court (le lanceur ecrit seul) n'est PAS
 rem    trouve -- la fenetre s'ouvre sur une erreur, et AUCUN moteur ne demarre.
 rem    Avec le chemin complet, ca marche dans les deux cas. Constat du 29/09/2026.
-echo  Moteur de voix Qwen3-TTS : demarrage - sa fenetre s'ouvre...
-start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k "%~dp0qwentts_service\DEMARRER_QWENTTS_CPP.bat"
+echo  Moteur de voix Qwen3-TTS : demarrage SUR LA CARTE - sa fenetre s'ouvre...
+start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k "%~dp0qwentts_service\DEMARRER_QWENTTS_CPP_GPU.bat"
 
 :qwentts_pret
 
@@ -176,7 +178,7 @@ start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k 
 if /i "%MOTEUR_VOIX%"=="aucun" (
     echo  Moteur de voix LOURD : aucun - choix enregistre le 29/09/2026.
     echo  Voix disponibles : Edge, Kokoro, Piper, plus QWEN3-TTS, allume
-    echo  plus haut - il tourne sur le processeur et cohabite avec tous.
+    echo  plus haut - sur la carte graphique, avec repli processeur.
     echo  Kyutai, XTTS et NeuTTS ne demarrent pas. Pour l'un d'eux : son
     echo  lanceur, ex. kyutai_service\DEMARRER_KYUTAI.bat, ou le bouton
     echo  "Voix de personnages" dans le lecteur.
@@ -193,17 +195,17 @@ if /i "%MOTEUR_VOIX%"=="neutts" (
     echo  Pour utiliser NeuTTS : neutts_service\DEMARRER_NEUTTS.bat
 )
 
-rem -- QWEN3-TTS : DEPUIS LE 28/09/2026, IL COHABITE -- il n'est plus un moteur
-rem    lourd qui remplace Kyutai. Le portage qwentts.cpp tourne sur le
-rem    processeur et il est allume PLUS HAUT, avec Pocket : comme il ne prend pas
-rem    la carte, il n'y a plus de choix a faire entre lui et Kyutai.
+rem -- QWEN3-TTS : allume PLUS HAUT, avec Pocket, et depuis le 01/10/2026 SUR LA
+rem    CARTE GRAPHIQUE, avec REPLI processeur automatique. Il ne remplace personne.
 rem    Si data\moteur_voix.txt porte encore « qwen » (choix du 26/09/2026), on le
 rem    DIT et on continue : Kyutai demarre normalement, et les deux vivent
 rem    ensemble -- c'est le sens du drapeau « cohabite » de main.py.
+rem    ATTENTION : Qwen sur la carte prend ~3,7 Go des 8 Go de la carte ; lancer
+rem    Kyutai EN MEME TEMPS peut manquer de memoire video.
 if /i not "%MOTEUR_VOIX%"=="qwen" goto pas_qwen
 echo.
-echo  Moteur retenu : Qwen3-TTS. Il tourne sur le processeur, donc il
-echo  COHABITE avec Kyutai : les deux demarrent, et rien ne les oppose.
+echo  Moteur retenu : Qwen3-TTS, sur la carte graphique - repli processeur.
+echo  Il COHABITE avec Kyutai, mais les deux sur la carte peut manquer de place.
 echo.
 
 :pas_qwen

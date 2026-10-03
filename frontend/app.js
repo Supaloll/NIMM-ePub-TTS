@@ -106,10 +106,11 @@ let _castRechercheOuverte = false;
 const _CAST_MINOR_THRESHOLD = 8;
 
 // Les deux voix generiques partagees des petits roles (cf. GENERIC_VOICE_F/M
-// cote serveur) : Jessica pour les femmes, Pierre pour les hommes -- deux voix
-// Piper, choisies par Laurent le 21/09/2026. L'ORDRE compte : [0] = femmes,
-// [1] = hommes (c'est ce que lit _deplacerAutresVersGenerique).
-const _CAST_VOIX_GENERIQUES = ['piper:upmc:0', 'piper:upmc:1'];
+// cote serveur) : Hortense pour les femmes, Hugo pour les hommes -- deux voix
+// QWEN, choisies par Laurent le 01/10/2026 (avant : Jessica/Pierre, en Piper,
+// qui gargouillaient). L'ORDRE compte : [0] = femmes, [1] = hommes (c'est ce
+// que lit _deplacerAutresVersGenerique).
+const _CAST_VOIX_GENERIQUES = ['qwen:cml6348', 'qwen:fm_hugo'];
 
 // --- Message audio « pas de reseau » (15/09/2026) ---
 // _messageHorsLigne : URL (blob) du message prepare, ou null si pas encore pret.
@@ -1494,7 +1495,7 @@ function _pitchPartageLibre(pitchesUtilises) {
 //   - « LIBRE »     : aucun personnage ne la porte -> c'est la ou piocher ;
 //   - « partagee »  : plusieurs personnages la portent (les noms sont donnes) ;
 //   - « narrateur » : elle lit la narration de ce livre, donc elle est prise ;
-//   - « generique » : voix des petits roles (Piper Jessica/Pierre), partagee par
+//   - « generique » : voix des petits roles (Qwen Hortense/Hugo), partagee par
 //     construction : jamais comptee comme libre.
 function _etatVoix(etatCasting, voixProposees, voixNarrateur) {
   const generique   = (id) => _CAST_VOIX_GENERIQUES.indexOf(id) >= 0;
@@ -2607,8 +2608,8 @@ async function _deplacerAutresVersGenerique(autres) {
   }
   for (let i = 0; i < autres.length; i++) {
     const fiche = (_currentBookData.voices || {})[autres[i].nom] || {};
-    // La voix generique depend du GENRE : piper:upmc:0 = Jessica (femmes) ou
-    // piper:upmc:1 = Pierre (hommes) -- les deux constantes du casting.
+    // La voix generique depend du GENRE : [0] = Hortense (femmes) ou
+    // [1] = Hugo (hommes) -- les deux constantes du casting.
     const generique = (fiche.genre === 'F')
       ? _CAST_VOIX_GENERIQUES[0] : _CAST_VOIX_GENERIQUES[1];
     const ok = await _updateCharacterVoice(autres[i].nom, generique,

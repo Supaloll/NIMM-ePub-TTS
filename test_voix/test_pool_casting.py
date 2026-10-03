@@ -178,15 +178,15 @@ def main_test():
     voix2 = vc.assign_voices(fiche2, compte2)
     print("   Petit  -> %r" % voix2["Petit"]["voice_id"])
     print("   Petite -> %r" % voix2["Petite"]["voice_id"])
-    # DECISION DE LAURENT, 21/09/2026 : les petits roles sont joues par DEUX
-    # voix, une par genre -- Jessica (femmes) et Pierre (hommes), les deux en
-    # Piper. Elles remplacent le voice_id VIDE qui prevaut depuis le
-    # 15/09/2026 (les petits roles etaient alors lus par le NARRATEUR, les voix
-    # Siwis/Tom ayant ete jugees « inaudibles » a l'ecoute de Shantaram).
+    # DECISION DE LAURENT (21/09/2026, voix changees le 01/10/2026) : les petits
+    # roles sont joues par DEUX voix, une par genre -- Hortense (femmes) et Hugo
+    # (hommes), en QWEN depuis le 01/10/2026 (avant : Jessica/Pierre, en Piper,
+    # la source des gargouillis). Elles remplacent le voice_id VIDE qui prevaut
+    # depuis le 15/09/2026 (les petits roles etaient alors lus par le NARRATEUR).
     assert voix2["Petit"]["voice_id"] == vc.GENERIC_VOICE_M, voix2["Petit"]["voice_id"]
     assert voix2["Petite"]["voice_id"] == vc.GENERIC_VOICE_F, voix2["Petite"]["voice_id"]
-    assert vc.GENERIC_VOICE_F == "piper:upmc:0", vc.GENERIC_VOICE_F   # Jessica
-    assert vc.GENERIC_VOICE_M == "piper:upmc:1", vc.GENERIC_VOICE_M   # Pierre
+    assert vc.GENERIC_VOICE_F == "qwen:cml6348", vc.GENERIC_VOICE_F   # Hortense
+    assert vc.GENERIC_VOICE_M == "qwen:fm_hugo", vc.GENERIC_VOICE_M   # Hugo
     assert voix2["Petit"]["pitch"] == "+0Hz", voix2["Petit"]["pitch"]
     # ...et un petit role ne consomme PAS une voix du pool dedie.
     dediees_utilisees = [v["voice_id"] for n, v in voix2.items()

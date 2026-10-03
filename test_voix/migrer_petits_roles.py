@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""MIGRER LES PETITS ROLES vers les deux voix generiques (Jessica / Pierre).
+"""MIGRER LES PETITS ROLES vers les deux voix generiques (Hortense / Hugo).
 
 Decision de Laurent, 21/09/2026 : tout personnage de MOINS de 8 repliques est
 joue par une voix generique selon son genre -- Jessica (femmes) et Pierre
