@@ -2275,7 +2275,12 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
 
 
 ## 🟠 Priorité 2 — Voix & casting
-- [ ] **📋 LES 25 VOIX CML-TTS ET LA VOIX DE LA FAMILLE : LEURS NOTES D'ÉCOUTE NE
+- [ ] 
+- [ ] **🗣️ LES VOIX ÉTRANGÈRES QUI PASSENT DANS LE CASTING — et les voix à produire (idée de Laurent, 16/10/2026).** Ses mots : « *il va falloir que je fasse un tri dans les voix, il y a beaucoup de voix étrangères qui passent dans le casting, elles doivent être mal annotées par moi je pense* », et « *il va falloir que je me mette à la production de voix pour enrichir le casting* ». **Deux chantiers jumelés, dans cet ordre :**
+  1. **LE TRI.** La règle en vigueur (20/09/2026, voix à accent) est : une voix étrangère est **classée « étranger » et notée 0 étoile**, ce qui l'**écarte du casting automatique** tout en la gardant **choisissable à la main**. Si elles passent quand même, c'est donc que leurs **notes d'écoute sont absentes ou fausses** (0 étoile non appliquée). La chaîne existe déjà : l'écran « Écouter les voix » (critères fixes : âge, timbre, débit, **accent**, registre), `test_voix/_etat_annotations_voix.py` et le pont `_appliquer_annotations_voix.py` (+ `APPLIQUER_LES_NOTES_D_ECOUTE.bat`).
+  2. **LA PRODUCTION.** Enrichir la garde-robe de voix françaises (`qwen_tts_service/voix/`, **201 extraits au 10/10/2026**) : la recette et les droits sont chez NIMM Voix, et le geste se fait **dans l'autre atelier**.
+  **PREMIÈRE ÉTAPE, ensemble et SANS RIEN CHANGER** : un **état des lieux** des voix de la garde-robe — combien sont marquées **« étranger »**, chez quels moteurs, avec quelles étoiles, et surtout **lesquelles sont réellement attribuées à un personnage** dans un livre déjà casté (c'est là que ça s'entend). `_etat_annotations_voix.py` en fait déjà une partie ; il faudra le croiser avec la table `voices`. **Ensuite seulement**, on décidera : re-noter, écarter, ou produire des remplaçantes françaises.
+**📋 LES 25 VOIX CML-TTS ET LA VOIX DE LA FAMILLE : LEURS NOTES D'ÉCOUTE NE
   REJOIGNENT PAS LE CATALOGUE** — décision de Laurent, 30/09/2026 : « on partirait
   sur B, on (tu) les réécrirais "à plat" comme pour toutes les autres ».
   *Le constat* : l'écran « Écouter les voix » range tes notes dans
