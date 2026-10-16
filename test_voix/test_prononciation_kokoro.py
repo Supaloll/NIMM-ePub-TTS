@@ -167,13 +167,21 @@ def main():
                     else [p for p in chemin.rglob('*') if p.is_file()])
         for fichier in fichiers:
             # `prononciation.py` DEFinit la fonction, `tts.py` l'appelle : les
-            # deux sont legitimes. Tout autre fichier qui la cite serait un
+            # deux sont legitimes. Tout autre fichier qui l'APPELLE serait un
             # affichage modifie -- ce qu'on ne veut pas.
             if fichier.suffix != '.py' or fichier.name in ('tts.py',
                                                            'prononciation.py'):
                 continue
-            if 'pour_lecture' in fichier.read_text(encoding='utf-8',
-                                                   errors='replace'):
+            # ON CHERCHE L'APPEL, PAS LE NOM (corrige le 16/10/2026). Le
+            # controle cherchait le seul mot « pour_lecture », et il signalait
+            # donc `modules/nombres.py`, qui DEFINIT sa propre `pour_lecture`
+            # (les nombres en lettres, 03/10/2026) sans jamais toucher a la table
+            # de prononciation : le test etait ROUGE depuis le 03/10 a cause de
+            # cette simple homonymie, et un test rouge ne dit plus rien. Un VRAI
+            # appel a la table reste attrape : le motif exige
+            # « ...prononciation.pour_lecture( ».
+            if re.search(r'\w*prononciation\w*\.pour_lecture\(',
+                         fichier.read_text(encoding='utf-8', errors='replace')):
                 autres.append(fichier.name)
     verifier('aucun autre fichier ne l appelle (le texte affiche reste intact)',
              not autres, autres)

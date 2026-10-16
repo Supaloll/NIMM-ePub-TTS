@@ -154,6 +154,63 @@ test_voix/_proposer_surnoms_pov.py
 #     2 a confirmer (SCHLINGUE et LA LAIDERONNE).
 test_voix/POV_VERIFIES_Le_Trone_de_Fer.md
 
+# --- LE PRENOM ANGLAIS (16/10/2026) : le banc d'ecoute qui fait entendre, pour les
+#     12 noms les mieux castes de 22/11/63, trois choses cote a cote -- la CIBLE en
+#     vraie voix anglaise (Edge en-US, le repere de l'oreille), ce que le moteur dit
+#     AUJOURD'HUI deja, et des GRAPHIES candidates (le nom reecrit pour la lecture
+#     seule, jamais pour l'affichage). C'est la reponse au « dictionnaire de phonemes »
+#     demande par Laurent : les trois portes du moteur sont fermees (une seule langue
+#     par phrase, `instruct` refuse sur les modeles base, pas de phonemes chez Qwen),
+#     donc le seul levier est l'ORTHOGRAPHE -- et le patron existe deja, dans l'autre
+#     sens, dans modules/prononciation.py. Lanceur double-clic :
+#     test_voix/ECOUTER_LES_PRENOMS_ANGLAIS.bat
+test_voix/ecouter_prenoms_22_11_63.py
+test_voix/ECOUTER_LES_PRENOMS_ANGLAIS.bat
+
+# --- LE PHONETISEUR AUX ORDRES DES NOMS ANGLAIS (16/10/2026) : la « formule » qui
+#     devait exister pour que Laurent n'ait plus a corriger les noms un par un.
+#     Le phonetiseur (espeak-ng, par `phonemizer`) est DEJA dans le projet et parle
+#     les deux langues ; ce qui manquait, c'est la conversion « phonemes anglais ->
+#     graphie francaise » : une table de ~50 lignes + 2 leviers globaux, et la
+#     boucle complete (graphie -> re-phonemisee en francais -> score). Le rapport
+#     porte les chiffres ET les deux bugs que la mesure a trouves.
+test_voix/_essai_prononciation_anglaise.py
+test_voix/_essai_prononciation_anglaise.txt
+
+# --- LE PREMIER LOT AUTOMATIQUE (16/10/2026) : les 13 noms les plus bavards du
+#     Trone de Fer, avec leur voix, ou la MACHINE propose la graphie (formule) et
+#     Laurent n'a plus qu'a dire si c'est mieux en anglais ou en francais. C'est
+#     la reponse a « sinon je vais devoir corriger tous les noms un par un ».
+#     Lanceur double-clic : test_voix/ECOUTER_LES_NOMS_ANGLAIS_AUTO.bat
+test_voix/ecouter_noms_got_auto.py
+test_voix/ECOUTER_LES_NOMS_ANGLAIS_AUTO.bat
+
+# --- LE CONFORT D'ECOUTE (16/10/2026) : retour de Laurent, « je n'ai pas les liens
+#     pour les ecouter ». Le lot avait ete fait en tache de fond, donc RIEN ne
+#     s'etait ouvert chez lui, et 39 fichiers a cliquer pour comparer trois prises
+#     d'un meme nom, c'est penible. Cet outil RECOLLE les prises de chaque nom en
+#     UN fichier (0,70 s de silence entre elles), ecrit une notice et une liste
+#     .m3u, et ouvre le dossier. Lanceur double-clic (ou glisser-deposer d'un
+#     dossier de lot) : test_voix/OUVRIR_UN_LOT_POUR_ECOUTER.bat
+test_voix/_grouper_un_lot.py
+test_voix/OUVRIR_UN_LOT_POUR_ECOUTER.bat
+
+# --- SON VERDICT sur le lot automatique du Trone de Fer (16/10/2026) : sur les 12
+#     noms, RIEN A CORRIGER -- le moteur lit deja les noms anglais « a la
+#     francaise », et c'est ce qu'il prefere. Preuve mesuree : le phonetiseur
+#     (espeak) dit « j'aime » pour Jaime la ou Qwen dit « Jemy » : il ne peut pas
+#     modeliser Qwen, donc il sert a TRIER, jamais a juger.
+test_voix/ecoute_noms_got_auto_20261016-1752/VERDICTS_DE_LAURENT.txt
+test_voix/ecoute_noms_got_auto_20261016-1752/LISEZ-MOI.txt
+
+# --- Ses PREMIERS VERDICTS d'oreille (16/10/2026), ses mots tels quels, plus les
+#     textes exacts envoyes au lot 2 : ce que le moteur dit deja bien (Jake, Al),
+#     ce qu'il rate (Dunning entendu « Dinning »), et la lecon -- le moteur
+#     reconnait les noms anglais tout seul, donc ON NE REECRIT QUE CE QUI RATE.
+test_voix/ecoute_prenoms_22_11_63_20261016-1703/VERDICTS_DE_LAURENT.txt
+test_voix/ecoute_prenoms_22_11_63_lot2_20261016-1719/LISEZ-MOI.txt
+test_voix/ecoute_prenoms_22_11_63_lot2_20261016-1719/RECAP.txt
+
 # --- OPTION (a activer si besoin) : le BACKLOG reduit aux items OUVERTS ---
 # Genere par :   python _extraire_backlog_ouvert.py
 # Puis DECOMMENTE la ligne ci-dessous (retire le # du debut) :
