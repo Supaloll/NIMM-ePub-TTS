@@ -4,11 +4,11 @@
 A lancer avec le Python du LECTEUR (aucun moteur necessaire) :
     python test_voix/test_nettoyage_tts.py
 
-Ce qui est verifie, apres la journee d'ecoute du 18/09/2026 :
+Ce qui est verifie (point d'exclamation mis a jour le 04/10/2026) :
 
-1. POINT D'EXCLAMATION retire du texte envoye au moteur. Laurent entendait
-   « OOOOOOoooooh » sur les interjections : les moteurs neuronaux jouent le
-   « ! » comme une montee de hauteur. Le texte AFFICHE garde son « ! ».
+1. POINT D'EXCLAMATION LAISSE TEL QUEL dans le texte envoye au moteur. Avant le
+   04/10/2026 il etait retire : les moteurs d'ALORS (Kokoro, Edge) le jouaient
+   comme une montee de hauteur. Le texte AFFICHE n'a jamais bouge.
 2. POINT FINAL NON AJOUTE apres une abreviation developpee (M. -> Monsieur).
    La page decoupe les phrases apres le point d'une abreviation, donc le moteur
    recevait un morceau finissant par « ... complimenter Monsieur » ; le point
@@ -52,20 +52,20 @@ def main():
     print('=' * 74)
 
     print('')
-    print('1) le point d\'exclamation ne fait plus monter la voix')
-    print('   (banc du 18/09/2026 : VIRGULE dans les phrases courtes, POINT dans')
-    print('    les phrases entieres — deux choix de Laurent a l\'ecoute)')
-    egal('interjection courte -> virgule', 'Oh !', 'Oh,')
-    egal('replique courte -> virgule', 'Il partit !', 'Il partit,')
-    egal('exclamation collee au mot', 'Viens!', 'Viens,')
-    egal('exclamations en rafale', 'Oh !!', 'Oh,')
-    egal('exclamation dans une replique courte',
-         '\u00ab Va-t\'en ! \u00bb', '\u00ab Va-t\'en, \u00bb')
-    egal('phrase entiere -> point (choix de Laurent)',
-         '\u2014 Cela recommence, comte !', '\u2014 Cela recommence, comte.')
-    egal('exclamation dans une phrase longue',
-         'Bonjour ! Comment vas-tu ?', 'Bonjour. Comment vas-tu ?')
-    egal('interrogation + exclamation',
+    print('1) le point d\'exclamation est LAISSE TEL QUEL (04/10/2026)')
+    print('   (avant : VIRGULE dans les phrases courtes, POINT dans les phrases')
+    print('    entieres — reglage du 18/09/2026, du temps de Kokoro et Edge)')
+    egal('interjection courte : « ! » garde', 'Oh !', 'Oh !')
+    egal('replique courte : « ! » garde', 'Il partit !', 'Il partit !')
+    egal('exclamation collee au mot : gardee', 'Viens!', 'Viens!')
+    egal('exclamations en rafale : gardees', 'Oh !!', 'Oh !!')
+    egal('exclamation dans une replique courte : gardee',
+         '\u00ab Va-t\'en ! \u00bb', '\u00ab Va-t\'en ! \u00bb')
+    egal('phrase entiere : « ! » garde',
+         '\u2014 Cela recommence, comte !', '\u2014 Cela recommence, comte !')
+    egal('exclamation dans une phrase longue : gardee',
+         'Bonjour ! Comment vas-tu ?', 'Bonjour ! Comment vas-tu ?')
+    egal('interrogation + exclamation : le « ? » reste seul',
          'Quoi ?!', 'Quoi ?')
 
     print('')

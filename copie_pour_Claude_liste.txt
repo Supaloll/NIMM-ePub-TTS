@@ -102,6 +102,58 @@ test_voix/_appliquer_bords_et_textes.py
 #     processeur fausserait le test.
 test_voix/_banc_gpu_souffles.py
 
+# --- Le banc des EXCLAMATIONS sur la carte (04/10/2026) : le moteur Qwen Q8_0
+#     lit-il enfin un « ! » comme un vrai point d'exclamation ? Il envoie les
+#     phrases DIRECTEMENT au moteur (il contourne expres le nettoyage du lecteur,
+#     sinon le « ! » ne partirait jamais), fait lire la MEME voix de six facons
+#     (colle / a la francaise / virgule / point / signe de dialogue devant /
+#     rattache a la phrase suivante), sur des interjections courtes et longues
+#     et des phrases entieres + 2 vraies phrases de 22/11/63. ECoute A L'AVEUGLE
+#     (noms au hasard, cle hors du dossier). Il REFUSE de partir si le moteur
+#     tourne (port 8086) ou si la memoire video est insuffisante.
+test_voix/_banc_qwen_exclamations.py
+
+# --- La CARTE DES POV (15/10/2026) : avant d'ecouter LE TRONE DE FER. Dans cette
+#     saga, chaque chapitre est ecrit du point de vue d'un personnage : le
+#     narrateur du chapitre EST ce personnage (« BRAN », « CATELYN », « EDDARD »).
+#     L'outil dit, chapitre par chapitre, le nom qu'on ARRIVE a reconnaitre -- par
+#     le TITRE (tomes 01 a 09) ou par la PREMIERE LIGNE du texte (tomes 13 a 15,
+#     « Tyrion Il passa tout le detroit a boire. ») -- et, surtout, ceux ou l'on
+#     n'arrive a RIEN (c'est la que se cachent les surnoms : « SCHLINGUE » = Theon,
+#     « Le lord perdu » = Jon Connington). Il croise le nom avec le CASTING quand le
+#     tome est deja dans la bibliotheque, et ecrit un rapport chapitre par chapitre
+#     dans test_voix/sortie_pov_chapitres.txt. LECTURE SEULE : aucune base touchee,
+#     aucun moteur a allumer, rien de facture.
+#     Lanceur double-clic : test_voix/VOIR_LES_POV_DES_CHAPITRES.bat
+test_voix/_voir_pov_chapitres.py
+
+# --- La REGLE des POV, ecrite UNE SEULE FOIS (15/10/2026) : qui raconte chaque
+#     chapitre d'un livre. Elle sert a la fois le lecteur (main.py, point d'entree
+#     GET /api/books/{id}/pov, pour le chantier « le narrateur d'un chapitre est
+#     le personnage du chapitre ») et l'outil de controle de l'atelier. Deux
+#     copies de la regle auraient derive, donc il n'y en a qu'une.
+modules/pov.py
+
+# --- Les deux tests qui VERROUILLENT la decision de l'audit du 15/10/2026 : la
+#     carte des POV ne dit que « qui raconte » (jamais la voix, qui serait figee),
+#     la voix se relit dans le casting, et la bascule de chapitre part bien a la
+#     voix du nouveau chapitre des sa premiere phrase.
+test_voix/test_voix_narrateur_chapitre.js
+test_voix/test_pov_carte.py
+
+# --- L'outil des SURNOMS (15/10/2026) : il PROPOSE et il ECRIT le rattachement d'un
+#     surnom de chapitre (« SCHLINGUE », « LE NOYÉ », « Le lord perdu ») a un
+#     personnage du CASTING, en le PROUVANT par le texte quand c'est possible (au-dela
+#     de 3 mentions du nom dans le chapitre). La table `pov_surnoms` est a la portee
+#     de la SAGA : une ligne sert les quinze tomes. Rien n'est ecrit sans validation.
+test_voix/_proposer_surnoms_pov.py
+
+# --- LA VERIFICATION des surnoms (15/10/2026) : 29 surnoms ou titres descriptifs des
+#     tomes 10 a 15, avec pour chacun la proposition de POV, la MESURE dans le chapitre
+#     (source interne) et la confirmation par Wikipedia FR quand elle existe. 27 nets,
+#     2 a confirmer (SCHLINGUE et LA LAIDERONNE).
+test_voix/POV_VERIFIES_Le_Trone_de_Fer.md
+
 # --- OPTION (a activer si besoin) : le BACKLOG reduit aux items OUVERTS ---
 # Genere par :   python _extraire_backlog_ouvert.py
 # Puis DECOMMENTE la ligne ci-dessous (retire le # du debut) :

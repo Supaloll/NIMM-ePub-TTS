@@ -90,8 +90,10 @@ def main_test():
 
     print('')
     print('5) dans le circuit complet du nettoyage')
-    egal('« c est LUI ! » -> « c est lui, »',
-         _clean_text('c\u2019est LUI !', vocabulaire), 'c\u2019est lui,')
+    # Attendu mis a jour le 04/10/2026 : le « ! » n'est plus transforme (ni en
+    # virgule ni en point) -- il est LAISSE TEL QUEL (voir modules/tts.py).
+    egal('« c est LUI ! » -> « c est lui ! »',
+         _clean_text('c\u2019est LUI !', vocabulaire), 'c\u2019est lui !')
     egal('et le sigle survit',
          _clean_text('le FBI arrive.', vocabulaire), 'le FBI arrive.')
 

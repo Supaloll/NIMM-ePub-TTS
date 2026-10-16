@@ -680,7 +680,8 @@ body {
    elle apparaît seulement quand le livre a une voix enregistrée qui n'est pas
    disponible (moteur éteint). Même mise en page que le voyant « Réparer »
    ci-dessus : sur sa propre ligne ; vide, elle ne prend aucune place. */
-#narrateur-etat {
+#narrateur-etat,
+#narrateur-chapitre-etat {
   flex-basis: 100%;
   width: 100%;
   font-size: 0.72rem;
@@ -688,7 +689,8 @@ body {
   padding: 2px 2px 0;
   line-height: 1.3;
 }
-#narrateur-etat:empty { display: none; }
+#narrateur-etat:empty,
+#narrateur-chapitre-etat:empty { display: none; }
 
 /* Sur mobile : cible tactile confortable (44 px) pour le bouton « Réparer ». Il
    occupe sa propre ligne, donc l'agrandir ne serre aucun autre reglage. */
@@ -753,7 +755,8 @@ body {
 #bookmarks-open-btn,
 #rsvp-open-btn,
 #cache-open-btn,
-#incises-btn {
+#incises-btn,
+#narrateur-chapitre-btn {
   flex: 0 1 auto;
   min-height: 30px;
   padding: 5px 10px;
@@ -772,7 +775,8 @@ body {
 #bookmarks-open-btn:hover,
 #rsvp-open-btn:hover,
 #cache-open-btn:hover,
-#incises-btn:hover {
+#incises-btn:hover,
+#narrateur-chapitre-btn:hover {
   border-color: var(--accent-dim);
   color: var(--accent);
 }

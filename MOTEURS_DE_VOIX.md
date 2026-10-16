@@ -28,7 +28,7 @@ _Mis à jour le **01/10/2026** : **Qwen tourne maintenant sur la carte graphique
 | **Edge** (en ligne, Microsoft) | non | correct (voix natives FR) | très rapide (c'est un service) | **en service** — mais aucune des voix n'est la tienne |
 | **Piper** (local) | non | natif (voix FR natives) | très rapide (ONNX, CPU) | **en service** — petits rôles ; 3 voix seulement, sans clonage |
 | **Kokoro** (local, 82 M) | **non, sauf piste** (voir plus bas) | **une seule voix FR** (`ff_siwis`) | très rapide (ONNX, CPU) | **en service** ; ses 94 voix sont **anglaises** (d'où l'accent) — ses 94 jumelles Qwen existent |
-| **Qwen3-TTS** (qwentts.cpp, 0,6 B) | oui (**183 voix FR** — c'est le roi du clonage) | natif | **×3,9 à ×7,5 sur la CARTE** (×1,04 à ×1,20 sur le processeur) | ⭐ **EN SERVICE, SUR LA CARTE GRAPHIQUE depuis le 01/10/2026** — décision de Laurent : « on reste sur ce moteur et sur la carte graphique » |
+| **Qwen3-TTS** (qwentts.cpp, 0,6 B) | oui (**201 voix FR** — c'est le roi du clonage) | natif | **×3,9 à ×7,5 sur la CARTE** (×1,04 à ×1,20 sur le processeur) | ⭐ **EN SERVICE, SUR LA CARTE GRAPHIQUE depuis le 01/10/2026** — décision de Laurent : « on reste sur ce moteur et sur la carte graphique » |
 | **Pocket TTS 24 couches** (Kyutai, 672 Mo) | oui | natif | ×1,40 à ×1,56 | **écarté le 30/09** définitivement : pauses **au milieu des mots**, « j'avais » lu « je avait », mots inventés — 4 prises propres sur 36 |
 | **Pocket TTS 6 couches** (le **léger**, 219 Mo) | oui (les mêmes 28 voix clonées) | natif | **×4,12** | **écarté le 30/09 au soir** : verdict de Laurent sur un chapitre entier — « **5 % du texte c'est un mot mâché, oublié, bégayé** ». Les chiffres étaient bons (17 prises saines sur 18, zéro trou après recousu) : **l'oreille a tranché** |
 | **Kyutai TTS** (1,6 B, carte graphique) | **techniquement oui, mais impossible chez nous** — il manque le codec voix (16 codebooks) que Kyutai n'a jamais publié (vérifié le 30/09/2026) | natif | ≈ ×2,3 (carte graphique) | ⭐ **le seul moteur que l'oreille de Laurent a validé sur un vrai chapitre** (« **tout est propre** », 17/09/2026) — prêt à tourner (venv, **141 fichiers**, modèle en cache), **indépendant du processeur** — **mais seulement 35 voix publiques (CML-TTS)** : insuffisant pour un livre |
@@ -46,7 +46,7 @@ coûtent à la phrase.
 
 ## Ce qui compte vraiment, dit simplement
 
-1. **Le clonage, on l'a** : Qwen (183 voix) et Pocket (28 voix) clonent tes
+1. **Le clonage, on l'a** : Qwen (201 voix) et Pocket (28 voix) clonent tes
    extraits. Le problème n'était pas là — il était dans **la tenue**. **Réglé
    pour Qwen** le 01/10/2026 en le passant sur la **carte graphique** (×3,9 à
    ×7,5 : plus de blancs). Pocket, lui, reste écarté (trous et mots mangés).

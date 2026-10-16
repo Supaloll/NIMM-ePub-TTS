@@ -313,25 +313,25 @@ def _expand_abbreviations(text: str) -> str:
 # PONCTUATION QUI DERANGE LA VOIX (reglages d'ecoute)
 # ==============================================================
 
-# Point d'exclamation : RETIRE du texte envoye au moteur.
-# Retour d'ecoute de Laurent du 18/09/2026 : « Retirer les points
-# d'exclamation ». A l'oreille, les moteurs neuronaux JOUENT ce signe comme une
-# MONTERE de hauteur : « Il partit ! » sortait en « Il partiiiiit », et les
-# interjections (« Oh ! ») en « OOOOOOoooooh ».
+# Point d'exclamation : LAISSE TEL QUEL dans le texte envoye au moteur
+# (decision de Laurent, 04/10/2026).
 #
-# ON NE TOUCHE PAS au texte affiche : la phrase garde son « ! » a l'ecran. Il ne
-# disparait que de ce qui est envoye au moteur.
+# HISTORIQUE. Du 18/09/2026 au 03/10/2026, le « ! » etait RETIRE du texte envoye
+# au moteur et remplace par la VIRGULE (phrase de 25 caracteres ou moins) ou le
+# POINT (phrase plus longue) : les moteurs d'ALORS (Kokoro, Edge) le jouaient
+# comme une MONTERE de hauteur (« Il partit ! » -> « Il partiiiiit », « Oh ! » ->
+# « OOOOOOoooooh »). Ce choix venait d'une ecoute du 18/09/2026 (banc
+# `test_voix/ecoute_ponctuation_20260918_1937`, 6 phrases reelles du tome 5),
+# faite avec CES moteurs-la.
 #
-# DEUX SIGNES, choisis par une ECCOUTE (banc du 18/09/2026, lot
-# `test_voix/ecoute_ponctuation_20260918_1937`, 6 phrases reelles du tome 5) :
-#   - INTERJECTION COURTE (« Oh ! », « Comte ! », « quel poignet ! ») : Laurent
-#     a prefere la VIRGULE — c'est le point qui « trainait » encore ;
-#   - PHRASE EXCLAMATIVE ENTIERE (« Cela recommence, comte ! ») : il a prefere
-#     le POINT, une vraie fin de phrase.
-# La frontiere entre les deux est la LONGUEUR de la phrase (SEUIL_INTERJECTION).
-PONCTUATION_EXCLAMATION = '.'          # phrase exclamative entiere
-PONCTUATION_EXCLAMATION_COURTE = ','   # interjection / replique tres courte
-SEUIL_INTERJECTION = 25                # en caracteres
+# Le moteur en service a change (Qwen3-TTS en C++, sur la carte, en Q8_0) et
+# Laurent a demande le 04/10/2026 de REMETTRE le « ! » : « remettre les points
+# d'exclamation comme des points d'exclamation au lieu des virgules ou des
+# points ». Les trois constantes qui portaient l'ancien reglage
+# (PONCTUATION_EXCLAMATION, PONCTUATION_EXCLAMATION_COURTE, SEUIL_INTERJECTION)
+# disparaissent avec lui. Pour revenir en arriere A L'OREILLE, le banc
+# `test_voix/_banc_qwen_exclamations.py` rejoue le « ! » face a la virgule et au
+# point. ON NE TOUCHE JAMAIS au texte affiche : la phrase garde son « ! ».
 
 # Mots sur lesquels un point final NE DOIT JAMAIS etre ajoute.
 # Retour d'ecoute de Laurent du 18/09/2026 : « les silences apres les M. (lu
@@ -393,10 +393,9 @@ def _clean_text(text: str, vocabulaire=None) -> str:
     # respiration attendue de part et d'autre.
     text = text.replace('(', ', ').replace(')', ',')
 
-    # Le point d'exclamation est traite TOUT A LA FIN de ce nettoyage : il a
-    # besoin de connaitre la LONGUEUR de la phrase (voir PONCTUATION_EXCLAMATION
-    # et SEUIL_INTERJECTION), et il ne doit pas etre transforme par la regle de
-    # fin de segment (sinon la virgule des interjections redeviendrait un point).
+    # Le « ?! » est traite TOUT A LA FIN de ce nettoyage : il ne doit pas etre
+    # transforme par la regle de fin de segment (sinon le « ? » se retrouverait
+    # suivi d'un point). Le « ! » seul, lui, n'est PLUS touche (04/10/2026).
 
     # Supprime les caracteres de controle
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
@@ -457,20 +456,15 @@ def _clean_text(text: str, vocabulaire=None) -> str:
           and not MOTS_SANS_POINT_FINAL.search(text)):
         text += '.'
 
-    # --- LE POINT D'EXCLAMATION, EN DERNIER ---------------------------------
-    # Place ici EXPRES : apres la regle de fin de segment, sinon la virgule des
-    # interjections serait reconvertie en point (« Oh, » -> « Oh. »).
-    # L'espace typographique qui precede est retire en meme temps (« Oh ! » ->
-    # « Oh, », et non « Oh , ») ; l'espace qui SUIT est conserve, sinon deux
-    # mots se colleraient.
-    # Le « ?! » est traite a part : c'est une INTERROGATION suivie d'une
-    # exclamation, et le « ? » doit rester seul (sinon on lirait deux signes).
+    # --- LE « ?! » EN DERNIER (le « ! » seul est LAISSE TEL QUEL) -----------
+    # Place ici EXPRES : apres la regle de fin de segment, sinon le « ? » se
+    # retrouverait suivi d'un point.
+    # Le « ?! » est a part : c'est une INTERROGATION suivie d'une exclamation,
+    # et on garde le « ? » seul (cas rare, pas rejoue a l'oreille). Laurent a
+    # demande le 04/10/2026 de REMETTRE le « ! » seul (voir le bloc en haut du
+    # fichier) : « remettre les points d'exclamation comme des points
+    # d'exclamation au lieu des virgules ou des points ».
     text = re.sub(r'\?\s*!+', '?', text)
-    if '!' in text:
-        signe = (PONCTUATION_EXCLAMATION_COURTE
-                 if len(text) <= SEUIL_INTERJECTION
-                 else PONCTUATION_EXCLAMATION)
-        text = re.sub(r'\s*!+', signe if signe else ' ', text)
 
     return text
 
@@ -1680,6 +1674,68 @@ QWEN_VOICES += [
                 + (" - accent " + accent if accent else "")),
      "gender": genre, "stars": etoiles}
     for identifiant, prenom, genre, etoiles, accent in _VOIX_CML_30_09_2026
+]
+
+# ==============================================================
+# LES 18 VOIX INDIENNES (10/10/2026) -- pour SHANTARAM
+# ==============================================================
+# Fabriquees par l'atelier NIMM Voix : des timbres montes en melangeant les
+# QUATRE voix hindi de Kokoro (hf_alpha, hf_beta, hm_omega, hm_psi) a des voix
+# espagnoles, italiennes et anglaises, puis CLONEES par qwentts.cpp. Laurent
+# les a gardees a l'oreille (72 extraits ecoutes, 24 retenues, puis un elagage
+# mesure en a garde 18 : 10 hommes, 8 femmes) et les 18 clones disent TOUT le
+# texte (18/18 a 41/41 mots, verifie par transcription). Paquet recu le
+# 10/10/2026 (memo MEMO_FAMILLE_HINDI_10-10-2026) : les 18 WAV sont dans
+# `qwen_tts_service/voix/` et leurs 18 lignes dans `references.csv`.
+#
+# POURQUOI HORS BOUCLE : comme `Maya_normale`, elles n'ont AUCUNE jumelle dans
+# les catalogues existants -- ce sont des timbres NEUFS, on les ecrit a la main.
+#
+# LE NOM est un PRENOM INDIEN, donne le 10/10/2026 (demande de Laurent : « si tu
+# peux les nommer avec des prenoms Hindou »). L'IDENTIFIANT, lui, NE BOUGE PAS :
+# il reste `hindi_*`, le nom du fichier -- c'est ainsi que NIMM Voix les connait
+# et que le moteur les appelle (le nom du fichier EST l'identifiant de la voix).
+#
+# LE DRAPEAU : la `region` porte le drapeau INDIEN. Le libelle affiche TOUJOURS
+# le drapeau francais en premier (la langue), puis celui-ci -- soit « 🇫🇷🇮🇳 »,
+# exactement comme « 🇫🇷🇬🇧 » pour les voix anglaises (app.js,
+# `_secondDrapeauDeVoix`). FICHIER VOLONTAIREMENT en UTF-8 : ne pas le
+# re-encoder en ASCII.
+#
+# 0 ETOILE A L'IMPORT, comme les 10 voix « accent allemand » du 20/09/2026 : une
+# voix notee 0 reste CHOISISSABLE A LA MAIN mais est ECARTEE du casting
+# automatique. Laurent ne les a pas encore notees a l'oreille ; leur fiche
+# d'ecoute (`data/annotations_voix.json`, role « etranger ») les fera entrer
+# dans le pool le jour ou il les notera.
+#
+# DROITS : voix 100 % SYNTHETIQUES (Kokoro + melanges, Apache-2.0), AUCUNE
+# personne reelle. PARTAGEABLES, comme les 30 voix du catalogue.
+_VOIX_HINDI_10_10_2026 = (
+    # (identifiant, prenom, genre, etoiles)
+    ("hindi_h07_jeune",       "Arjun",   "M", 0),
+    ("hindi_h13_adulte",      "Rohan",   "M", 0),
+    ("hindi_h14_adulte_aigu", "Vikram",  "M", 0),
+    ("hindi_h17_enfant",      "Aryan",   "M", 0),
+    ("hindi_h19_grave",       "Suresh",  "M", 0),
+    ("hindi_h20_grave",       "Ramesh",  "M", 0),
+    ("hindi_h02_adulte",      "Rajesh",  "M", 0),
+    ("hindi_h06_jeune_aigu",  "Kiran",   "M", 0),
+    ("hindi_h09_adulte",      "Sanjay",  "M", 0),
+    ("hindi_h16_jeune_aigu",  "Amit",    "M", 0),
+    ("hindi_f02_adulte",      "Priya",   "F", 0),
+    ("hindi_f06_grave",       "Meera",   "F", 0),
+    ("hindi_f07_adulte_aigu", "Anjali",  "F", 0),
+    ("hindi_f08_jeune_aigu",  "Sneha",   "F", 0),
+    ("hindi_f09_vieux_aigu",  "Kamala",  "F", 0),
+    ("hindi_f12_grave",       "Lakshmi", "F", 0),
+    ("hindi_f14_grave",       "Radha",   "F", 0),
+    ("hindi_f16_jeune_aigu",  "Deepa",   "F", 0),
+)
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": "\U0001F1EE\U0001F1F3 Inde (Qwen)",
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles in _VOIX_HINDI_10_10_2026
 ]
 
 

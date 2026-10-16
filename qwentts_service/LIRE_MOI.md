@@ -26,7 +26,7 @@ vraiment bon, pas d'accrocs, prosodie impec, on a notre moteur ! »
 | | |
 |---|---|
 | Port | **8086** (`NIMM_QWENTTS_PORT` pour le changer) |
-| Voix | les **183 références** de `../qwen_tts_service/voix/` — le dossier est **partagé** (même matériau, avec le texte exact qui active le mode ICL) : **35** extraits Kyutai/CML-TTS, **94** Kokoro et **28** « Découpage OK » (copiés le 28/09/2026), **25** CML-TTS « cml_restants » (30/09/2026) et la voix privée **Maya** |
+| Voix | les **201 références** de `../qwen_tts_service/voix/` — le dossier est **partagé** (même matériau, avec le texte exact qui active le mode ICL) : **35** extraits Kyutai/CML-TTS, **94** Kokoro et **28** « Découpage OK » (copiés le 28/09/2026), **25** CML-TTS « cml_restants » (30/09/2026), **18** voix indiennes `hindi_*` (10/10/2026) et la voix privée **Maya** |
 | Modèles | **Q4_K_M depuis le 29/09/2026** (629 + 255 Mo), choisis **à l'oreille par Laurent** : « les plus jolies à l'oreille, prosodie et clarté un demi-cran au-dessus ». Les **Q8_0** (947 + 278 Mo) restent sur le disque en **repli automatique** |
 | Réglages | 6 cœurs, **4 fils de codec**, tranches de **2 images**, priorité d'entame |
 | Débit mesuré | **×1,0 à ×1,2 le temps réel** (Q4_K_M, 29/09/2026) — avant, ×0,94 avec les Q8_0 (28/09) |
@@ -104,6 +104,29 @@ Ce qu'il faut savoir :
   29/09). L'outil de fusion (`_essais/_fusionner_textes_qwen.py`) écrivait en
   **CRLF** sans le vouloir — Python traduit `\n` en `\r\n` sous Windows :
   corrigé le 30/09/2026 par `newline=''`.
+
+## Les 18 voix indiennes (10/10/2026) : la garde-robe passe à 201
+
+NIMM Voix a fabriqué **18 voix « indiennes »** pour lire *Shantaram* et les a
+déposées ici le 10/10/2026 avec leur paquet et leur mémo
+(`MEMO_FAMILLE_HINDI_10-10-2026`, dossier `passerelle_NIMM_ePub`). La garde-robe
+passe de **183 à 201 voix**, et `/voix` annonce **201**.
+
+- **ce ne sont PAS des timbres existants** : ce sont des **mélanges** des 4 voix
+  hindi de Kokoro (`hf_alpha`, `hf_beta`, `hm_omega`, `hm_psi`) avec des voix
+  espagnoles, italiennes et anglaises, puis **clonés** par `qwentts.cpp` ;
+- **18/18 clones disent TOUT le texte** (41/41 mots, vérifié par transcription) ;
+- **droits** : 100 % synthétiques (Kokoro, Apache-2.0), **partageables** — leurs
+  textes vont donc dans `references.csv` (le public), jamais dans le privé ;
+- **nom affiché** : un **prénom indien** ; l'**identifiant** reste `hindi_*` (le
+  nom du fichier, comme NIMM Voix les connaît) ;
+- **classement** : rôle « étranger », **0 étoile** à l'import → **hors casting
+  automatique**, mais **choisissables à la main** (même convention que les voix
+  à accent du 20/09/2026) ;
+- **deux références** (`hindi_h13_adulte`, `hindi_h14_adulte_aigu`) commencent
+  au mot « se » (« se couchait derrière les collines… ») : texte et audio
+  restent cohérents entre eux, c'est ce qui compte pour l'ICL (signalé par
+  NIMM Voix) — un recoupement est possible depuis la source si besoin.
 
 ## Les textes de référence : un fichier PUBLIC, un fichier PRIVÉ (29/09/2026)
 

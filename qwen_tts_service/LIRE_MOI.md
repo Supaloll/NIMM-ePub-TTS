@@ -2,7 +2,7 @@
 
 Ce dossier contient **l'appareil de voix Qwen3-TTS** de NIMM ePub : un
 programme séparé du lecteur, qui fait parler **les voix françaises libres de la
-garde-robe** — **183 extraits au 30/09/2026**, dont les 35 mêmes que Kyutai
+garde-robe** — **201 extraits au 10/10/2026**, dont les 35 mêmes que Kyutai
 (mêmes extraits, donc mêmes timbres et mêmes prénoms) — avec le moteur
 **Qwen3-TTS** d'Alibaba.
 
@@ -30,7 +30,7 @@ ne tournent **jamais ensemble**. Le bouton « Voix de personnages » du lecteur
 | **DEMARRER_QWEN_TTS.bat** | pour allumer le moteur (seul, ou appelé par `START.bat`) | charge le modèle (≈ 5 s) puis reste ouvert |
 | **servir_qwen_tts.py** | — | le service lui-même (routes `/sante`, `/voix`, `/tts`) |
 | **tester_service.py** | après une installation, ou en cas de doute | vérifie que le service répond et fait dire une vraie phrase |
-| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **183 au 30/09/2026** — **et** leur texte exact (`references.csv`) |
+| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **201 au 10/10/2026** — **et** leur texte exact (`references.csv`) |
 
 **Pour éteindre le moteur, il suffit de fermer sa fenêtre** : un « gardien »
 intégré au service s'arrête dès que la fenêtre disparaît (même mécanisme que
@@ -54,6 +54,30 @@ voix `qwen:` deviennent indisponibles.
 5. **Le « contexte glissant » n'existe pas ici** : la fin de la phrase
    précédente (envoyée à Kyutai depuis le 17/09/2026) est reçue, **ignorée**,
    et le service le dit une fois dans sa fenêtre.
+
+## Les 18 voix indiennes (10/10/2026)
+
+NIMM Voix a fabriqué **18 voix « indiennes »** pour lire *Shantaram* : des
+timbres montés en mélangeant les **4 voix hindi de Kokoro** à des voix
+espagnoles, italiennes et anglaises, puis **clonés** par `qwentts.cpp`. Laurent
+les a gardées à l'oreille (72 extraits écoutés, 24 retenues, puis un élagage
+mesuré en a gardé 18 : 10 hommes, 8 femmes) et les **18 clones disent tout le
+texte** (41/41 mots, vérifié par transcription). Elles sont **entièrement
+synthétiques** (Kokoro, Apache-2.0), donc **partageables**.
+
+Ce qu'il faut savoir :
+
+- leur **identifiant** commence par `hindi_` (ex. `hindi_h17_enfant`) : c'est le
+  **nom du fichier**, et c'est ce que le moteur appelle ;
+- à l'écran, elles portent un **prénom indien** et le **drapeau indien** (`🇫🇷🇮🇳`)
+  — `modules/tts.py`, catalogue `QWEN_VOICES` ;
+- elles sont **classées « étranger »** et notées **0 étoile** à l'import : cela
+  les **écarte du casting automatique**, tout en les gardant **choisissables à
+  la main** (même convention que les voix à accent du 20/09/2026) ;
+- leurs 18 lignes de texte sont dans `references.csv`, le fichier **public**.
+
+Le détail de la recette et des droits est dans le mémo de NIMM Voix
+(`MEMO_FAMILLE_HINDI_10-10-2026_pour_la_session_NIMM_ePub.md`).
 
 ## L'environnement Python (à lire avant de s'inquiéter)
 

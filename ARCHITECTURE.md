@@ -67,6 +67,7 @@ tâches à faire vivent dans `BACKLOG.md`, pas ici. Pour s'y retrouver :
   - Attribution des voix par critères (16/09/2026)
 - **🎙️ Les voix : les pools et les notes d'écoute**
   - Voix du narrateur : par livre, sans héritage entre livres (20/09/2026)
+  - 🎭 Le narrateur d'un chapitre est le personnage qui raconte (15/10/2026)
   - 🔊 Banque de voix (session du 08/09/2026 — pool élargi aux Kokoro)
   - 🔼 Règle des paliers d'étoiles — session du 15/09/2026
   - Symboles ♀️ / ♂️ de genre devant les prénoms — session du 20/09/2026.
@@ -119,6 +120,9 @@ nimm-epub/
 │   ├── audio_gain.py      — Niveau de la parole ramené à celui des autres moteurs (Kyutai)
 │   ├── audio_queue.py     — Rognage du silence de queue des phrases Kyutai (0,20 s)
 │   ├── voice_casting.py   — Casting IA : analyse, fiche de personnages, attribution des voix
+│   ├── nombres.py         — Les NOMBRES en lettres avant le moteur (« à 180 degrés », 03/10/2026)
+│   ├── diagnostic.py      — Trace d'une phrase à CHAQUE étape du traitement (mode NIMM_DIAGNOSTIC, 03/10/2026)
+│   ├── pov.py             — La carte des POV : QUI raconte chaque chapitre, règle écrite UNE SEULE FOIS (15/10/2026)
 │   └── config.py          — Clés API (data/config.json, hors Git)
 ├── kyutai_service/        — Moteur de voix Kyutai, lancé À PART (Python 3.12 + PyTorch)
 │   ├── servir_kyutai.py   — Service HTTP local (127.0.0.1:8082)
@@ -157,6 +161,7 @@ nimm-epub/
 │   └── LIRE_MOI.md        — Mode d'emploi + ATTRIBUTION.md (licences)
 ├── test_voix/             — L'atelier : les tests, les mesures, les bancs d'écoute (voir son LIRE_MOI.md)
 ├── Extraits de voix/      — Les extraits de voix libres de droits, sources des clonages (hors Git)
+├── copie_pour_Claude/     — La « copie pour Claude » : copies plates des fichiers à relire (hors Git, regénérable)
 ├── frontend/
 │   ├── index.html         — Interface unique : bibliothèque + lecteur (+ version de cache `?v=`)
 │   ├── app.js             — Logique client : navigation, lecture, casting, RSVP, mode dialogue
@@ -459,7 +464,7 @@ structure.
 - **trois fichiers, aucun framework** : `index.html`, `app.js` (HTML/CSS/JS
   vanilla) et `styles.css`, servis par `main.py`
   (`app.mount("/static", StaticFiles(directory=FRONTEND_DIR))`) ; la feuille porte
-  la version de cache `?v=20260929-1`, **une seule valeur** pour toute la page ;
+  la version de cache `?v=20261015-1`, **une seule valeur** pour toute la page ;
 - **service worker** : `frontend/sw.js` — sans lui, rien ne s'installe ;
 - **PWA** : `frontend/manifest.json` (`id` et `start_url` `/`,
   `display: standalone`, `orientation: portrait`, thème `#0d0d0d`) et **un fichier
@@ -1809,8 +1814,9 @@ correction.
   incises de parole retirées **tout au début** (`modules/incises.py`), `;` et `:`
   changés en virgules, suites de points ramenées à `…`, abréviations développées
   (`ABBREVIATION_RULES` : `M.` → Monsieur, `MR.` reconnu quelle que soit la
-  casse), et le **point d'exclamation remplacé en dernier** par `.` ou `,` selon
-  `SEUIL_INTERJECTION = 25`. **Le texte affiché n'est jamais touché** ;
+  casse), et le **point d'exclamation laissé tel quel** (depuis le 04/10/2026 :
+  le moteur en service, Qwen, le lit comme un vrai « ! »). **Le texte affiché
+  n'est jamais touché** ;
 - **Kokoro entend des phonèmes** : `_phonemes_kokoro()` les calcule puis retire
   les marques de langue d'espeak-ng (`MARQUE_LANGUE`), et le moteur reçoit
   `is_phonemes=True` — c'est ce qui supprime les syllabes inventées. Kokoro et
@@ -2019,20 +2025,20 @@ les pauses audibles au milieu ou entre les phrases, `_clean_text()` :
 après une demi-journée d'écoute, Laurent a demandé de retirer les points
 d'exclamation et a signalé un silence après « M. » (lu « monsieur ») :
 
-- **Point d'exclamation retiré** du texte envoyé au moteur : les moteurs
-  neuronaux le jouent comme une **montée de hauteur** (« Il partit ! » →
-  « Il partiiiiit », « Oh ! » → « OOOOOOoooooh »). Il est remplacé par **deux
-  signes selon la longueur de la phrase**, après le banc d'écoute du 18/09/2026
-  (lot `test_voix/ecoute_ponctuation_20260918_1937`, 6 phrases réelles du
-  tome 5) : **VIRGULE** dans les phrases courtes (interjections — c'est le point
-  qui « traînait » encore), **POINT** dans les phrases entières (une vraie fin
-  de phrase). Frontière : `SEUIL_INTERJECTION = 25` caractères.
-  Le traitement est appliqué **en fin de nettoyage**, après la règle de fin de
-  segment, sinon la virgule des interjections redeviendrait un point. L'espace
-  typographique qui précède est retiré ; le texte **affiché** garde son « ! » ;
-  le `?` reste intact (`Quoi ?!` → `Quoi ?`) ; les suites (`!!`) sont ramenées
-  à un seul signe. Les valeurs sont en **une ligne** chacune
-  (`PONCTUATION_EXCLAMATION`, `PONCTUATION_EXCLAMATION_COURTE`).
+- **Point d'exclamation LAISSÉ TEL QUEL** dans le texte envoyé au moteur
+  (décision de Laurent, 04/10/2026). Du 18/09/2026 au 03/10/2026 il était au
+  contraire **retiré** et remplacé par une **VIRGULE** (phrase de 25 caractères
+  ou moins) ou un **POINT** (phrase plus longue), parce que les moteurs d'ALORS
+  (Kokoro, Edge) le jouaient comme une **montée de hauteur** (« Il partit ! » →
+  « Il partiiiiit », « Oh ! » → « OOOOOOoooooh ») — banc d'écoute du 18/09/2026
+  (lot `test_voix/ecoute_ponctuation_20260918_1937`). Le moteur en service a
+  changé (Qwen3-TTS en C++, sur la carte, en Q8_0) et Laurent a demandé de
+  **remettre le « ! »** ; les trois constantes de l'ancien réglage
+  (`PONCTUATION_EXCLAMATION`, `PONCTUATION_EXCLAMATION_COURTE`,
+  `SEUIL_INTERJECTION`) ont disparu. Le `?` reste intact (`Quoi ?!` → `Quoi ?`) :
+  ce cas rare est gardé par prudence. Le banc
+  `test_voix/_banc_qwen_exclamations.py` rejoue le « ! » face à la virgule et au
+  point, pour revenir sur ce choix à l'oreille si besoin.
 - **Incises de parole retirées du texte parlé** (`modules/incises.py`, décision
   de Laurent du 18/09/2026 : « la voix me paraît plus fluide ») : avec une voix
   par personnage, « , dit-il, » est redondant et coupe la voix en pleine
@@ -2521,9 +2527,10 @@ robotiques — motive le chantier Kokoro (voir backlog plus bas).
   reportées** — l'aperçu répond `TOUT EST À JOUR` et ne demande aucune écriture ;
   la **seule** voix du catalogue jamais annotée est **`pocket:JEAN_EDGAR`**
   (Edgar), laissée **volontairement** à l'oreille de Laurent ; **quatre notes
-  Piper** (`piper:siwis:0`, `piper:tom:0`, `piper:upmc:0`, `piper:upmc:1`) ne
-  figurent dans **aucun** catalogue — ces voix ne passent pas par les catalogues,
-  il n'y a donc rien à reporter pour elles ;
+  Piper** (piper:siwis:0, piper:tom:0, piper:upmc:0, piper:upmc:1, écrites ici
+  sans accent grave : ce sont des **clés de notes**, pas des identifiants de
+  catalogue) ne figurent dans **aucun** catalogue — ces voix ne passent pas par
+  les catalogues, il n'y a donc rien à reporter pour elles ;
 - **détail relevé le 23/09/2026** : **dix notes Pocket** portent leur genre en
   convention des catalogues (`M`) au lieu de celle de l'écoute (`H`) — c'est le
   lot des dix voix importées le 23/09/2026 par
@@ -2539,15 +2546,16 @@ robotiques — motive le chantier Kokoro (voir backlog plus bas).
   (`modules/voice_casting.py`) ; les **deux** voix génériques concordent aussi
   (`_CAST_VOIX_GENERIQUES` = `qwen:cml6348` / `qwen:fm_hugo`, soit
   `GENERIC_VOICE_F` / `GENERIC_VOICE_M`, **depuis le 01/10/2026** — c'étaient
-  `piper:upmc:0` / `piper:upmc:1` avant) ;
+  ex-piper:upmc:0 / ex-piper:upmc:1 avant) ;
 - **le badge « partagée » s'arrête à six noms** (`_etatVoix` : `noms.slice(0, 6)`,
   `frontend/app.js`) et renvoie ensuite à l'onglet « Voix partagée », qui les
   liste **tous**, un par ligne ;
 - **les chiffres du casting**, relevés en base le 23/09/2026 (ils bougent à
   chaque re-cast) : « 22/11/63 » porte **176 personnages** ; sa plus grande
   famille de voix **hors voix génériques** en porte **3** (`kokoro:fm_papi`) —
-  les 67 porteurs de `piper:upmc:1` sont la voix générique des petits rôles,
-  comptée à part ; la plus grande famille hors génériques de **toute la base** en
+  les 67 porteurs de la voix générique des petits rôles d'alors (ex-piper:upmc:1,
+  aujourd'hui `qwen:fm_hugo`) sont comptés à part ; la plus grande famille hors
+  génériques de **toute la base** en
   porte **9** (Monte-Cristo, tome 4, `kokoro:im_nicola`) ; **Jake Epping** compte
   **3 615 répliques**, il est **verrouillé**, et sa voix est celle du narrateur du
   livre (**OUI**) ;
@@ -2965,8 +2973,8 @@ deux voix neutres, il suffira de les y mettre, puis de re-caster ».
 - **Les deux voix** : `qwen:cml6348` = **Hortense** (femme) et `qwen:fm_hugo` =
   **Hugo** (homme), **depuis le 01/10/2026** (décision de Laurent : un re-cast
   faisait TOUJOURS retomber les petits rôles sur Piper, la source des
-  gargouillis). Avant : `piper:upmc:0` = **Jessica** (3 étoiles à l'écoute) et
-  `piper:upmc:1` = **Pierre** (1 étoile), dans le modèle **studio** Piper
+  gargouillis). Avant : ex-piper:upmc:0 = **Jessica** (3 étoiles à l'écoute) et
+  ex-piper:upmc:1 = **Pierre** (1 étoile), dans le modèle **studio** Piper
   `fr_FR-upmc-medium` — les voix refusées (Siwis/Tom) n'étaient déjà pas elles.
 - `modules/voice_casting.py` : `GENERIC_VOICE_F/M`, et `assign_voices()` appelle
   `_voix_generique(genre)`. Un genre inconnu part sur la voix **masculine**,
@@ -3667,6 +3675,126 @@ de livre en livre. » Mesure du 20/09/2026 sur la base (**lecture seule**) :
   `.bak_avant_narrateur_par_livre_20260920` : `data/nimm_epub.db`,
   `frontend/app.js`, `frontend/index.html`, `ARCHITECTURE.md`.
 
+### 🎭 Le narrateur d'un chapitre est le personnage qui raconte — 15/10/2026
+
+**Aujourd'hui — l'état actuel en clair** : dans une saga écrite à la **troisième personne
+focalisée** (*Le Trône de Fer*), chaque chapitre est raconté du point de vue d'un personnage :
+le narrateur du chapitre **est** ce personnage. Quand le réglage est **allumé**, la narration
+d'un chapitre est lue par la **voix du personnage reconnu**, avec ses réglages ; un chapitre
+sans personnage identifié (prologue, page de garde, surnom non relié) garde la **voix du
+narrateur du livre**. Le réglage appartient au **livre**, et il est **éteint par défaut** :
+aucun livre déjà casté ne change.
+
+- **la règle de reconnaissance est écrite UNE SEULE FOIS** : `modules/pov.py` (fichier neuf)
+  — `normaliser`, `est_generique`, `premiere_ligne`, `candidat_du_titre`,
+  `candidat_du_texte`, `personnages_du_livre`, `rapprocher`, `carte_du_livre`,
+  `compte_par_nom`, `carte_pour_api`, `sans_voix_pour_api`. Elle sert le serveur **et**
+  l'outil de contrôle de l'atelier, et rien d'autre : deux copies auraient dérivé ;
+- **deux points d'entrée** (`main.py`) : `GET /api/books/{id}/pov` — la carte, calculée à la
+  demande et **sans cache** (donc jamais périmée par un re-cast), qui ne renvoie **que**
+  `{chapitre: {nom, source}}` ; et `PUT /api/books/{id}/narrateur_par_chapitre` — le réglage
+  du livre ;
+- **une colonne** : `books.narrateur_par_chapitre` (`0` = un seul narrateur pour tout le
+  livre, valeur des livres déjà castés ; `1` = le personnage du chapitre raconte) ;
+- **la table des SURNOMS** : `pov_surnoms` (`portee` = `saga:…` ou `livre:…`, `surnom`,
+  `canonical_name`, `source`, `preuve`) — elle dit à quel personnage **du casting** un
+  surnom de chapitre correspond (`LE NOYÉ`, `SCHLINGUE`, `Le lord perdu`). Elle vit à la
+  portée de la **saga** quand le livre en a une, ce qui évite d'écrire quinze fois les
+  mêmes lignes. Sa définition est dans `modules/pov.py` (`creer_table_surnoms`), appelée
+  par `init_db()` **et** par l'outil — une seule définition, donc aucune dérive. Elle est
+  **vide au départ** ; un surnom qui ne pointe pas sur le casting est **ignoré** (le champ
+  `sans_voix` de la carte le dit au lecteur). Elle se remplit par
+  `test_voix/_proposer_surnoms_pov.py` (double-clic `PROPOSER_LES_SURNOMS.bat`) : le
+  **texte d'abord** (au-delà de **3 mentions** du nom dans le chapitre, la proposition est
+  **prouvée**), les **pistes** ensuite, et le LLM seulement en dernier recours ;
+- **la lecture** : **un seul point de passage** est modifié, `_voixDuNarrateur()`
+  (`frontend/app.js`) — il sert la narration, les incises confiées au narrateur, le repli des
+  petits rôles, l'aperçu ▶ et le panneau « Voir la voix ». La voix, la hauteur et la vitesse
+  sont relues **dans le casting, à chaque phrase** (`_fichePersonnage`), **jamais dans la
+  carte** : c'est ce qui fait qu'un changement de voix s'entend tout de suite, dans la
+  narration comme dans le dialogue ;
+- **qui on change quand on change une voix** : `_cibleDeLaPhrase()` — le personnage attribué
+  à la phrase, ou **celui qui raconte le chapitre**. Le panneau « Voir la voix », l'aperçu ▶,
+  la porte vers le casting et la lecture suivent tous cette même règle ;
+- **le bouton** : `#narrateur-chapitre-btn` (« 📖 Narrateur : unique » / « 🎭 Narrateur : par
+  chapitre ») dans la barre du lecteur ; la carte n'est demandée **que si le réglage est
+  allumé** (`_chargerPovDuLivre`) ;
+- **la limite, dite à l'écran** : un nom reconnu **sans voix au casting** (personnage qui ne
+  parle jamais dans le livre) laisse son chapitre au narrateur du livre — la page l'écrit
+  sous les menus (`#narrateur-chapitre-etat`), à partir du champ `sans_voix` de la carte ;
+- **la reconnaissance d'un TITRE DESCRIPTIF** (15/10/2026) : certains chapitres ne portent
+  pas un nom mais une **expression** — « Le lord perdu », « Le domestique du marchand », « Le
+  prince de Winterfell », « Un fantôme à Winterfell », « Le tourne-casaque ». `surnom_du_debut`
+  (`modules/pov.py`) les reconnaît : un **déterminant** au début, puis des mots qui s'arrêtent
+  sur la **majuscule qui ouvre la vraie phrase** — sauf après une **liaison** (« de
+  Winterfell »), sinon la capture s'arrêterait à « Le prince de ». Sans cela, ces chapitres ne
+  pouvaient **jamais** être reliés : la table des surnoms a besoin d'un **candidat**. Mesure :
+  **5** chapitres dans les tomes 13 à 15, tous de **vrais POV**. La borne des titres est passée
+  de **4 à 5 mots** le même jour, et de 30 à 34 caractères : cela n'ajoute que **deux** titres
+  sur 404 chapitres (« LA FILLE DE LA SEICHE », « LA PRINCESSE EN LA TOUR »), deux vrais POV ;
+- **la vérification, écrite** : `test_voix/POV_VERIFIES_Le_Trone_de_Fer.md` — **29** surnoms ou
+  titres descriptifs, dont **27 prouvés** par la mesure du texte et **11 confirmés en plus par
+  Wikipédia FR** (page *A Feast for Crows*, « Personnages principaux »), avec deux cas à
+  confirmer (`SCHLINGUE`, que le texte ne nomme jamais « Theon », et `LA LAIDERONNE`, dont la
+  mesure est faible) ;
+- **l'outil de contrôle** : `test_voix/_voir_pov_chapitres.py` (double-clic
+  `VOIR_LES_POV_DES_CHAPITRES.bat`) — **lecture seule**, rapport dans
+  `test_voix/sortie_pov_chapitres.txt` ;
+- **les tests** : `test_voix/test_voix_narrateur_chapitre.js` (28 contrôles) et
+  `test_voix/test_pov_carte.py` (**36** contrôles, dont ceux des surnoms et des portées) ;
+  deux contrôles de `test_voix/test_voix_phrase.js` ont été mis à jour (35 contrôles) ;
+- **une seule voix, jamais de « teinte »** : la narration et le dialogue du personnage qui
+  raconte sont lus par **la même voix**. La distinction dialogue / narration se fait par
+  l'**attribution des phrases**, jamais par le timbre.
+
+**Pourquoi pas un narrateur « teinté ».** Le topo d'origine (Gemini) proposait de **mélanger
+deux vecteurs de voix** — 80 % de narrateur, 20 % du personnage — pour donner au narrateur une
+« teinte » sonore de chaque chapitre. Écarté, pour deux raisons : le moteur en service
+(`qwentts.cpp`, Qwen3-TTS) **clone une voix à partir d'un extrait audio**, il n'a donc pas de
+vecteur de timbre à additionner ; et surtout la décision de Laurent, le 15/10/2026 :
+« *J'ai un peu écouté un livre où le narrateur a aussi du dialogue […] J'ai essayé, le rendu
+n'est pas aussi bon que lorsque le narrateur raconte ou parle. On fait bien la distinction
+entre du dialogue et de la narration.* » → **une seule voix, la même**.
+
+**Où le personnage se trouve** (mesure du 15/10/2026, les 15 tomes français, **404 chapitres**) :
+tomes 01 à 09, le **prénom est le titre** du chapitre (`BRAN`, `CATELYN`, `EDDARD`…) ; tomes
+10 à 12, mélange de prénoms et de **surnoms** (`LE NOYÉ`, `LA FILLE DE LA SEICHE`) ; tomes 13
+à 15, le titre est « Chapitre N » mais le **prénom ouvre le texte** ; le tome 00 (Le Chevalier
+Errant) n'en porte **aucun** (POV unique : Dunk, à régler à la main). Chaque tome commence par
+**3 à 5 « chapitres » de bruit** (page de garde, liste des personnages, prélu, remerciements)
+que la reconnaissance écarte.
+
+**Deux pièges corrigés le jour même** : les paragraphes du **tome 13 sont séparés par des
+retours chariots** — lire « la première ligne » donnait le chapitre entier, donc **26 chapitres
+muets** ; et la **page de l'auteur** (« George R.R. Martin ») passait pour un personnage (les
+initiales et le dialogue en tête de chapitre sont désormais écartés).
+
+**Les surnoms de chapitre, et le cas du POV unique.** Deux familles de titres échappent à la
+reconnaissance : les **surnoms** (`LE NOYÉ`, `SCHLINGUE`, `Le lord perdu`) et les titres
+**muets** (`Chapitre 2`). Pour les premiers, l'outil mesure, **dans le chapitre**, combien de
+fois chaque personnage du casting est nommé : « Quentyn » **48 fois** dans « Le domestique du
+marchand », « Griff » **54** dans « Le lord perdu » — mais « Theon » **une seule fois** dans
+les chapitres « Schlingue », parce que le livre cache volontairement qui est Reek. D'où une
+**table** (`pov_surnoms`) pour ce que le texte ne prouve pas, et un **seuil de 3 mentions**
+pour ce qu'il prouve. Pour un titre **muet**, la table ne peut rien : elle a besoin d'un
+**candidat** à rattacher, et « Chapitre 2 » n'en fournit aucun. Le cas type est **Le
+Chevalier Errant** (tome 00, POV unique) : ses cinq chapitres s'appellent « Chapitre N », et
+pourtant **Dunk** y est nommé **211, 170, 209 et 175 fois**. Ce livre se règle donc par le
+**menu du narrateur** (la voix de Dunk), pas par la table — le réglage « par chapitre » n'a
+rien à y ajouter.
+
+**La leçon de l'audit du 15/10/2026 (Claude.AI).** Le défaut signalé était **réel** : la
+narration lisait une **copie** de la carte prise à l'ouverture du livre, alors que les répliques
+lisaient le casting **en direct** — changer la voix d'un personnage s'entendait donc dans ses
+répliques et **pas** dans la narration de ses chapitres, jusqu'à la réouverture du livre. Deux
+voix pour la même personne, en travers de la règle « une seule voix ». La règle à retenir :
+**une carte (ou un cache, une copie) qui transporte un réglage le fige** ; on y met un **fait**
+(« qui raconte ce chapitre »), jamais une **valeur qui peut changer** (« quelle voix »).
+
+**Ce qui n'est pas encore fait** : la table des **surnoms** (`SCHLINGUE`, `Le lord perdu`…),
+qui ne se devinent ni par le titre ni par la première ligne — elle se reliera au casting par la
+mécanique des alias (`character_aliases`, sujet « 🧩 Regroupement des alias » plus haut).
+
 ### 🔊 Banque de voix (session du 08/09/2026 — pool élargi aux Kokoro)
 Le pool d'attribution automatique était limité aux voix Edge TTS françaises
 (et à quelques voix Piper). Depuis la session du 08/09/2026, les pools
@@ -3750,11 +3878,13 @@ qu'aux appels qui ne passent pas par `main.py` (tests).
   le bouton « Filtres » de l'en-tête, replié par défaut sur téléphone) ; ses
   deux symboles sont écrits en **entités HTML** (`&#x2640;&#xFE0F;`,
   `&#x2642;&#xFE0F;`) pour ne pas dépendre de l'encodage du fichier ;
-- **la règle de style de la barre du lecteur porte SIX boutons**
+- **la règle de style de la barre du lecteur porte SEPT boutons**
   (`frontend/styles.css`) : « 🎭 Voix multiples », « 🎧 Écouter les voix »,
-  « 🔖 Onglets », « 👀 Lecture Rapide », « 🧹 Vider le cache » et « Incises » —
-  elle en portait **trois** le 20/09/2026, et **tout nouveau bouton de cette
-  barre la rejoint** (c'est la leçon du jour, elle a déjà servi deux fois) ;
+  « 🔖 Onglets », « 👀 Lecture Rapide », « 🧹 Vider le cache », « Incises » et
+  **« 📖 Narrateur : unique / 🎭 Narrateur : par chapitre »**
+  (`#narrateur-chapitre-btn`, arrivé le 15/10/2026) — elle en portait **trois**
+  le 20/09/2026, et **tout nouveau bouton de cette barre la rejoint** (c'est la
+  leçon du jour, elle a déjà servi **trois** fois) ;
 - **le bouton du cache** : `_libelleBoutonCache()` compose « 🧹 Vider le cache
   (604 Mo) » (`_formatOctets`, **virgule française**, jamais « undefined »), ses
   deux routes sont `GET /api/cache_audio` et `POST /api/cache_audio/vider`
@@ -5655,7 +5785,7 @@ pour les passages déjà générés (écran verrouillé inclus).
   des phrases de un ou deux mots en **régénérant** la prise
   (`NIVEAU_MINI = 0,05`, `ESSAIS_MAX = 4`, le meilleur essai gardé) ;
 - **la clé du cache audio ne porte pas le rognage** : elle vaut `VERSION_CACHE`
-  (`modules/tts_cache.py`, **23** aujourd'hui) + le texte + la voix + la vitesse
+  (`modules/tts_cache.py`, **25** aujourd'hui) + le texte + la voix + la vitesse
   + la hauteur. C'est donc **la version**, incrémentée à la main, qui force un
   nouveau rendu : changer une marge de rognage sans y toucher laisse les phrases
   déjà générées sur l'ancien rendu jusqu'à purge de `data/tts_cache/` ;

@@ -145,6 +145,19 @@ def init_db():
     if "incises_narrateur" not in books_cols:
         conn.execute(
             "ALTER TABLE books ADD COLUMN incises_narrateur INTEGER DEFAULT 0")
+    # Ajout non destructif de la colonne "narrateur_par_chapitre" (15/10/2026,
+    # chantier « le narrateur d'un chapitre est le personnage du chapitre »). Dans
+    # une saga comme *Le Trone de Fer*, chaque chapitre est ecrit du point de vue
+    # d'un personnage : le narrateur du chapitre EST ce personnage. Quand ce
+    # reglage est ALLUME, la narration d'un chapitre est lue par la voix de ce
+    # personnage (voir `modules/pov.py`, et `GET /api/books/{id}/pov`) ; quand il
+    # n'y a pas de personnage reconnu (prologue, page de garde, surnom non relie),
+    # c'est la voix du narrateur du livre qui lit -- comportement d'avant.
+    # 0 = un seul narrateur pour tout le livre (defaut) : AUCUN livre deja caste
+    # ne change de comportement du seul fait de cette colonne.
+    if "narrateur_par_chapitre" not in books_cols:
+        conn.execute(
+            "ALTER TABLE books ADD COLUMN narrateur_par_chapitre INTEGER DEFAULT 0")
     # Ajout non destructif de la colonne "decoupe_dialogue" (21/09/2026,
     # demande de Laurent) : le livre est en « mode dialogue », ou la NARRATION
     # est separee de la REPLIQUE au decoupage -- le beat (« Richie est
@@ -244,6 +257,17 @@ def init_db():
             created_at    TEXT DEFAULT (datetime('now'))
         )
     """)
+    # --- Table des SURNOMS de POV (15/10/2026) ---
+    # Un titre de chapitre peut porter un SURNOM et non un prenom (« LE PROPHETE »,
+    # « LE NOYE », « SCHLINGUE », « Le lord perdu »), et le texte ne le donne pas
+    # toujours : d'ou une TABLE, ecrite une fois, qui dit a quel personnage du
+    # CASTING chaque surnom correspond. SA DEFINITION VIT AILLEURS, avec la regle qui
+    # la lit (`modules/pov.py`, `creer_table_surnoms`) : l'outil de l'atelier qui
+    # remplit la table la cree par la MEME fonction, il n'y a donc qu'une seule
+    # definition et aucune derive possible. La table est VIDE au depart : aucun livre
+    # ne change de comportement du seul fait de sa creation.
+    from modules.pov import creer_table_surnoms
+    creer_table_surnoms(conn)
     conn.execute("UPDATE books SET cast_status = 'error' WHERE cast_status LIKE 'processing%'")
     conn.commit()
     conn.close()
@@ -953,6 +977,87 @@ async def set_incises_narrateur(book_id: int, demande: IncisesRequest,
     conn.commit()
     conn.close()
     return {"ok": True, "incises_narrateur": bool(demande.narrateur)}
+
+
+class NarrateurParChapitreRequest(BaseModel):
+    """Le narrateur change-t-il a chaque chapitre, pour un livre ?"""
+    actif: bool = False
+
+
+@app.put("/api/books/{book_id}/narrateur_par_chapitre")
+async def set_narrateur_par_chapitre(book_id: int,
+                                     demande: NarrateurParChapitreRequest,
+                                     user_id: int):
+    """Retient, POUR CE LIVRE, si le narrateur change a chaque chapitre (15/10/2026).
+
+    Dans une saga comme *Le Trone de Fer*, chaque chapitre est ecrit du point de vue
+    d'un personnage : le narrateur du chapitre EST ce personnage. Reglage allume, la
+    narration d'un chapitre est lue par la voix de ce personnage ; s'il n'y en a pas
+    (prologue, page de garde, surnom non relie), c'est la voix du narrateur du livre
+    qui lit -- le repli est sur, et c'est exactement le comportement d'avant.
+
+    Ce reglage ne touche a AUCUNE donnee : ni le texte affiche, ni l'attribution des
+    locuteurs, ni les voix du casting. Il ne change que la FACON DE LIRE. Le defaut
+    est a 0, donc aucun livre deja caste ne change tant que Laurent ne l'allume pas.
+    """
+    conn = get_db()
+    conn.execute(
+        "UPDATE books SET narrateur_par_chapitre = ? WHERE id = ? AND user_id = ?",
+        (1 if demande.actif else 0, book_id, user_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "narrateur_par_chapitre": bool(demande.actif)}
+
+
+@app.get("/api/books/{book_id}/pov")
+async def get_pov_du_livre(book_id: int, user_id: int):
+    """Qui raconte chaque chapitre de ce livre ? (15/10/2026)
+
+    Repond `{chapter_index: {"nom", "source"}}` -- **le nom seulement**, et c'est
+    volontaire : la voix, la hauteur et la vitesse se relisent dans le CASTING a
+    chaque phrase, cote page, comme pour les repliques. Les figer dans la carte les
+    rendrait perimes jusqu'a la reouverture du livre, et un personnage dont on
+    change la voix aurait deux voix differentes (narration et dialogue) -- leçon de
+    l'audit du 15/10/2026.
+
+    Les chapitres SANS personnage reconnu n'y figurent PAS : le lecteur leur garde
+    la voix du narrateur du livre. Ceux dont le nom est reconnu mais qui n'ont PAS
+    de voix au casting sont listes a part dans `sans_voix`, pour que la page le
+    DISE (limite connue, pas une panne).
+
+    La regle de reconnaissance est ecrite UNE SEULE FOIS (`modules/pov.py`) et sert
+    aussi l'outil de controle `test_voix/_voir_pov_chapitres.py` : deux copies de la
+    regle auraient derive, c'est deja arrive avec le decoupage des phrases. Le
+    rapprochement se fait avec le CASTING du livre (alias compris) : c'est lui le
+    vrai filtre.
+
+    Calcul a la demande, sans cache : le fichier est relu a chaque appel, donc la
+    reponse ne peut pas etre perimee par un re-cast. Aucune ecriture, rien n'est
+    modifie.
+    """
+    from modules.pov import (carte_du_livre, carte_pour_api,
+                             personnages_du_livre, sans_voix_pour_api)
+
+    conn = get_db()
+    book = conn.execute(
+        "SELECT filename FROM books WHERE id = ? AND user_id = ?",
+        (book_id, user_id)).fetchone()
+    if not book:
+        conn.close()
+        raise HTTPException(404, "Livre introuvable")
+
+    personnes = personnages_du_livre(conn, book_id)
+    conn.close()
+
+    if not personnes:
+        # Livre pas encore caste : il n'y a rien a rapprocher, donc rien a dire.
+        return {"book_id": book_id, "pov": {}, "sans_voix": {},
+                "raison": "aucun casting"}
+
+    lignes = carte_du_livre(LIBRARY_DIR / book["filename"], personnes)
+    return {"book_id": book_id,
+            "pov": carte_pour_api(lignes),
+            "sans_voix": sans_voix_pour_api(lignes)}
 
 
 @app.get("/api/books/{book_id}/chapter/{chapter_index}")

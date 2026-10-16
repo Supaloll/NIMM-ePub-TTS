@@ -24,7 +24,11 @@ check("suspension", _clean_text("Bonjour... comment vas-tu ?"), "Bonjour… comm
 check("suspension2", _clean_text("Il dit . . . M. Dantes."), "Il dit… Monsieur Dantes.")
 
 # 2. Retours a la ligne -> espace simple (pas de virgule)
-check("newline", _clean_text("Ligne 1\nligne 2."), "Ligne 1 ligne 2.")
+# Attendu mis a jour le 04/10/2026 : les chiffres partent en toutes lettres
+# (modules/nombres.py, 03/10/2026) -- la « 1 » et la « 2 » deviennent donc
+# « un » et « deux ». L'OBJET du test reste le retour a la ligne : il ne doit
+# PAS se transformer en virgule.
+check("newline", _clean_text("Ligne 1\nligne 2."), "Ligne un ligne deux.")
 
 # 3. Abreviation developpee, ponctuation francaise conservee
 check("guillemet", _clean_text("\"Au revoir\""), "\"Au revoir\"")
@@ -57,12 +61,12 @@ if any(len(s) > 470 for s in segs):
     fail += 1
 
 # 8. Chunk apres clean_text (production : _clean_text puis _split_into_chunks)
-# Attendu mis a jour le 18/09/2026 : le point d'exclamation est retire du texte
-# envoye au moteur (il faisait monter la voix). Le « ! » de la phrase affichee
-# ne change pas ; seule la version parlee devient un point.
+# Attendu mis a jour le 04/10/2026 : le point d'exclamation est LAISSE TEL QUEL
+# dans le texte envoye au moteur (avant, il etait retire ; les moteurs d'alors,
+# Kokoro et Edge, le jouaient comme une montee de hauteur).
 cleaned = _clean_text("Premiere phrase...\nSeconde phrase!")
 check("chunk_suspension", _split_into_chunks(cleaned, max_chars=4000),
-      ["Premiere phrase… Seconde phrase."])
+      ["Premiere phrase… Seconde phrase!"])
 
 # 9. Fin de segment sur virgule -> point final (pas de "virgule puis point")
 check("fin_virgule", _clean_text("Premier morceau, seconde moitie,"),

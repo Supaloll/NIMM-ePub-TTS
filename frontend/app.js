@@ -25,6 +25,19 @@ let _incisesEnCours  = null;
 // (colonne `books.incises_narrateur`). Faux = comportement historique : l'incise
 // de parole est retirée du texte lu.
 let _incisesNarrateur = false;
+// Le livre ouvert est-il réglé sur « le narrateur du chapitre est son personnage » ?
+// (colonne `books.narrateur_par_chapitre`, chantier du 15/10/2026.) Faux =
+// comportement historique : un seul narrateur pour tout le livre (le menu du haut).
+let _narrateurParChapitre = false;
+// La carte des POV du livre ouvert : { n° de chapitre: { nom, voice_id, pitch,
+// rate } }. Elle vient du SERVEUR (`GET /api/books/{id}/pov`, règle écrite une
+// seule fois dans `modules/pov.py`) : la page ne devine RIEN, elle applique.
+// Vide = aucun personnage reconnu (livre pas encore casté, ou chapitres sans POV).
+let _povDuLivre = {};
+// Les chapitres dont le nom a bien été reconnu mais qui n'ont PAS de voix au
+// casting (le personnage ne parle jamais dans le livre : on ne lui a jamais donné
+// de voix). Leur narration reste au narrateur du livre -- on le DIT à Laurent.
+let _povSansVoix = {};
 let _allVoices       = [];
 // Catalogue COMPLET des voix (toutes familles, moteurs eteints compris),
 // charge par /api/voix_catalogue. Il ne sert PAS a proposer des voix (c'est le
@@ -998,6 +1011,147 @@ if (_btnIncises) {
   });
 }
 
+// ============================================================
+// LE NARRATEUR DU CHAPITRE EST SON PERSONNAGE (15/10/2026)
+// ============================================================
+// Dans une saga comme *Le Trône de Fer*, chaque chapitre est écrit du point de vue
+// d'un personnage : le narrateur du chapitre EST ce personnage. Quand ce réglage
+// est allumé, la narration d'un chapitre est lue par la VOIX de ce personnage,
+// avec ses réglages.
+//
+// DÉCISION DE LAURENT (15/10/2026) : UNE SEULE VOIX, la même, pour la narration
+// ET pour le dialogue du personnage qui raconte -- aucune teinte, aucun décalage.
+// « J'ai essayé, le rendu n'est pas aussi bon » : la distinction dialogue /
+// narration se fait par l'ATTRIBUTION des phrases, pas par le timbre.
+//
+// QUI SAIT QUEL PERSONNAGE RACONTE ? Le SERVEUR (`modules/pov.py`, point d'entrée
+// `GET /api/books/{id}/pov`) : la page ne devine RIEN. Un chapitre sans personnage
+// reconnu (prologue, page de garde, surnom non relié) garde la voix du narrateur
+// du livre : c'est le repli voulu, et c'est exactement le comportement d'avant.
+//
+// AUCUNE DONNÉE N'EST TOUCHÉE : ni le texte, ni l'attribution, ni les voix du
+// casting. Seule la FACON DE LIRE change, et pour un seul livre à la fois.
+const LIBELLE_NARRATEUR_UNIQUE   = 'Narrateur : unique';
+const LIBELLE_NARRATEUR_CHAPITRE = 'Narrateur : par chapitre';
+const TITRE_NARRATEUR_CHAPITRE =
+  'Qui lit la narration ?\n'
+  + 'unique = un seul narrateur pour tout le livre (le menu du haut) ;\n'
+  + 'par chapitre = la voix du personnage qui raconte ce chapitre.';
+
+function _majBoutonNarrateurChapitre() {
+  const bouton = document.getElementById('narrateur-chapitre-btn');
+  if (!bouton) return;
+  bouton.textContent = (_narrateurParChapitre ? '\uD83C\uDFAD ' : '\uD83D\uDCD6 ')
+    + (_narrateurParChapitre ? LIBELLE_NARRATEUR_CHAPITRE : LIBELLE_NARRATEUR_UNIQUE);
+  bouton.title = TITRE_NARRATEUR_CHAPITRE;
+  bouton.setAttribute('aria-pressed', _narrateurParChapitre ? 'true' : 'false');
+}
+
+// Ce que le livre ouvert a enregistré (0 = unique, 1 = par chapitre).
+function _restaurerNarrateurParChapitre(book) {
+  _narrateurParChapitre = !!(book && book.narrateur_par_chapitre);
+  _majBoutonNarrateurChapitre();
+}
+
+// Le personnage qui raconte CE chapitre, ou null (réglage éteint, ou chapitre
+// sans personnage reconnu). LA CARTE NE PORTE QUE SON NOM : sa voix, sa hauteur et
+// sa vitesse se relisent dans le casting, à chaque phrase, comme pour ses
+// répliques (voir `_voixDuNarrateur`). Aucun accès réseau : tout est en mémoire.
+function _povDuChapitre() {
+  if (!_narrateurParChapitre) return null;
+  const pov = _povDuLivre[_currentChapter];
+  return (pov && pov.nom) ? pov : null;
+}
+
+// Ce qu'il faut SAVOIR quand le réglage est allumé (limite connue, signalée par
+// l'audit du 15/10/2026) : un personnage reconnu dont le nom n'est pas au casting
+// ne peut pas raconter -- son chapitre reste lu par le narrateur du livre. On le
+// DIT, sinon on croirait à une panne.
+function _messageNarrateurChapitre() {
+  const el = document.getElementById('narrateur-chapitre-etat');
+  if (!el) return;
+  if (!_narrateurParChapitre) { el.textContent = ''; return; }
+  const noms = Object.values(_povSansVoix || {});
+  if (!noms.length) { el.textContent = ''; return; }
+  const seuls = [...new Set(noms)];
+  const montres = seuls.slice(0, 5).join(', ');
+  el.textContent = '\u26A0\uFE0F ' + seuls.length + ' nom' + (seuls.length > 1 ? 's' : '')
+    + ' de chapitre sans voix au casting (' + montres
+    + (seuls.length > 5 ? ', …' : '') + ') : ces chapitres sont lus par le '
+    + 'narrateur du livre. Relie-les au casting pour qu\'ils racontent.';
+}
+
+// La carte des POV du livre. Demandée UNE fois (à l'ouverture du livre, ou en
+// allumant le réglage) et SEULEMENT s'il est allumé : sinon aucun appel.
+async function _chargerPovDuLivre() {
+  _povDuLivre = {};
+  _povSansVoix = {};
+  if (!_narrateurParChapitre || !_currentBookId) {
+    _messageNarrateurChapitre();
+    return;
+  }
+  try {
+    const res = await fetch('/api/books/' + _currentBookId
+                            + '/pov?user_id=' + _currentUserId);
+    if (!res.ok) return;                 // serveur à relancer : on lit comme avant
+    const data = await res.json();
+    _povDuLivre = (data && data.pov) || {};
+    _povSansVoix = (data && data.sans_voix) || {};
+  } catch (e) {
+    // Sans la carte, la lecture reste EXACTEMENT celle d'avant (voix du menu) :
+    // un réglage ne doit jamais pouvoir casser la lecture.
+    console.warn('Carte des narrateurs de chapitre indisponible :', e);
+  }
+  _messageNarrateurChapitre();
+}
+
+async function _enregistrerNarrateurParChapitre() {
+  if (!_currentBookId) return;
+  try {
+    const res = await fetch('/api/books/' + _currentBookId
+                            + '/narrateur_par_chapitre?user_id=' + _currentUserId, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ actif: !!_narrateurParChapitre })
+    });
+    if (!res.ok) {
+      console.warn('Réglage du narrateur par chapitre NON enregistré '
+                   + '(serveur à relancer ?) : ' + res.status);
+    }
+  } catch (e) {
+    // Le réglage reste valable pour la session en cours.
+    console.warn('Réglage du narrateur par chapitre non enregistré :', e);
+  }
+}
+
+const _btnNarrateurChapitre = document.getElementById('narrateur-chapitre-btn');
+if (_btnNarrateurChapitre) {
+  _btnNarrateurChapitre.addEventListener('click', async () => {
+    _narrateurParChapitre = !_narrateurParChapitre;
+    _majBoutonNarrateurChapitre();
+    if (_currentBookData) {
+      _currentBookData.narrateur_par_chapitre = _narrateurParChapitre ? 1 : 0;
+    }
+    _enregistrerNarrateurParChapitre();
+    // En ALLUMANT, il faut la carte AVANT de relire : c'est elle qui dit quel
+    // personnage raconte quel chapitre. En éteignant, on l'oublie -- et on efface
+    // le message d'avertissement, qui ne veut plus rien dire.
+    if (_narrateurParChapitre) {
+      await _chargerPovDuLivre();
+    } else {
+      _povDuLivre = {};
+      _povSansVoix = {};
+      _messageNarrateurChapitre();
+    }
+    // Le changement doit s'ENTENDRE tout de suite : même mécanisme que le bouton
+    // « Incises » et que le changement de voix d'un personnage.
+    if (_ttsState === 'playing' || _ttsState === 'loading') {
+      _stopTTS();
+      _startTTS();
+    }
+  });
+}
+
 // Charge les positions des incises du chapitre (calculées par le serveur).
 // Ne fait RIEN quand le livre est réglé sur « muettes » : aucun calcul, aucune
 // requête, aucun octet échangé.
@@ -1022,7 +1176,40 @@ async function _chargerIncises(index) {
 // Voix du NARRATEUR : celle du menu du bas, à SA vitesse (le menu est son
 // réglage, voir `_vitesseDeFiche`). Sert au récit, aux petits rôles -- et, depuis
 // le 22/09/2026, aux incises de parole quand le livre les confie au narrateur.
+//
+// DEPUIS LE 15/10/2026, ELLE PEUT CHANGER À CHAQUE CHAPITRE : quand le livre est
+// réglé sur « par chapitre » et qu'un personnage est reconnu pour CE chapitre,
+// c'est SA voix qui lit la narration -- avec SES réglages (hauteur et vitesse),
+// donc la même que ses répliques dans ce chapitre : aucun changement de tempo en
+// passant de la narration à son dialogue.
+//
+// REPLI (le comportement d'avant, et le cas des prologues, des pages de garde et
+// des surnoms non reliés) : la voix du menu du bas, à la vitesse du menu.
 function _voixDuNarrateur() {
+  // LA VOIX SE RELIT DANS LE CASTING, EN DIRECT -- jamais dans la carte des POV.
+  // C'est la leçon de l'audit du 15/10/2026 : la carte ne dit que « qui raconte
+  // quel chapitre » ; la voix, la hauteur et la vitesse se prennent ici, exactement
+  // comme pour les répliques (`_voiceForSentence`). Sans cela, changer la voix d'un
+  // personnage ne s'entendait dans la narration qu'après avoir rouvert le livre :
+  // on avait alors DEUX voix pour la même personne, ce qui contredit la décision
+  // « une seule voix pour la narration et le dialogue » (15/10/2026).
+  //
+  // Le `typeof` n'est pas une précaution de style : il protège les TESTS node qui
+  // extraient cette fonction du fichier réel et l'évaluent hors navigateur (ils ne
+  // connaissent ni `_narrateurParChapitre`, ni `_povDuLivre`, ni
+  // `_fichePersonnage`). C'est la même convention que dans `loadChapter` : sans ces
+  // variables, on retombe exactement sur le comportement d'avant, la voix du menu.
+  if (typeof _narrateurParChapitre !== 'undefined' && _narrateurParChapitre
+      && typeof _povDuLivre !== 'undefined'
+      && typeof _fichePersonnage === 'function') {
+    const pov = _povDuLivre[_currentChapter];
+    const fiche = _fichePersonnage(pov && pov.nom);
+    if (fiche && fiche.voice_id) {
+      return { voice: fiche.voice_id,
+               pitch: fiche.pitch,
+               rate:  _vitesseDeFiche(fiche.rate) || PERSONNAGE_RATE_DEFAUT };
+    }
+  }
   const choix = document.getElementById('voice-select');
   return { voice: (choix && choix.value) ? choix.value : NARRATEUR_VOIX_DEFAUT,
            pitch: '+0Hz', rate: null };
@@ -1259,6 +1446,12 @@ async function openBook(bookId) {
     // ... et SON réglage d'incises (22/09/2026), qui décide si les incises de
     // parole sont muettes ou dites par le narrateur dans ce livre.
     _restaurerIncises(_currentBookData);
+    // ... et SON réglage de narrateur par chapitre (15/10/2026) : un seul narrateur
+    // (le menu du haut), ou la voix du personnage qui raconte chaque chapitre.
+    // La carte des POV n'est demandée QUE si ce réglage est allumé (un livre sans
+    // POV ne paie donc rien), et si elle manque, la lecture reste celle d'avant.
+    _restaurerNarrateurParChapitre(_currentBookData);
+    if (_narrateurParChapitre) await _chargerPovDuLivre();
 
     document.getElementById('reader-book-title').textContent =
       _currentBookData.title || 'Sans titre';
@@ -2916,8 +3109,10 @@ async function _previewCharacterVoice(characterName, voiceId, rate, pitch, btn) 
   // Personnage sans voix dediee (petit role lu par le narrateur) : l'apercu
   // utilise alors la voix du lecteur, plutot que d'echouer.
   if (!voiceId) {
-    const choix = document.getElementById('voice-select');
-    voiceId = choix ? choix.value : voiceId;
+    // Un petit rôle est lu par le NARRATEUR : c'est donc la voix du narrateur DU
+    // CHAPITRE quand le livre est réglé « par chapitre » (15/10/2026), et celle du
+    // menu sinon. On passe par `_voixDuNarrateur` pour n'avoir qu'une seule règle.
+    voiceId = _voixDuNarrateur().voice;
   }
   btn.disabled = true;
   const original = btn.textContent;
@@ -5952,6 +6147,26 @@ function _personnageDePhrase(idx) {
   return nom;
 }
 
+// QUI LIT cette phrase -- et donc QUI on change quand on change « sa » voix
+// (15/10/2026, décision de Laurent : « ce que tu changes, c'est ce que tu
+// entends »). Trois cas :
+//   1. la phrase a un personnage attribué        -> ce personnage ;
+//   2. c'est de la NARRATION et le livre est réglé « narrateur par chapitre »,
+//      avec un personnage reconnu pour CE chapitre -> ce personnage : sa voix lit
+//      la narration de ce chapitre, donc changer la voix ici, c'est changer la
+//      SIENNE (narration ET dialogues, une seule voix) ;
+//   3. sinon -> null : c'est le narrateur du livre, la voix du menu du haut.
+//
+// Un seul endroit décide donc de la cible : le panneau « Voir la voix » change la
+// voix, l'aperçu ▶ prend les réglages, la porte vers le casting vise le bon
+// personnage, et la lecture (`_voixDuNarrateur`) suit la MÊME règle.
+function _cibleDeLaPhrase(idx) {
+  const nom = _personnageDePhrase(idx);
+  if (nom) return nom;
+  const pov = _povDuChapitre();
+  return (pov && pov.nom) ? pov.nom : null;
+}
+
 // Fiche de casting d'un personnage : { voice_id, rate, pitch, genre, ... }.
 function _fichePersonnage(nom) {
   if (!nom || !_currentBookData || !_currentBookData.voices) return null;
@@ -5965,6 +6180,12 @@ function _voixDePhrase(idx) {
     const fiche = _fichePersonnage(nom);
     if (fiche && fiche.voice_id) return fiche.voice_id;
   }
+  // Sans personnage, c'est la NARRATION : la voix du narrateur DU CHAPITRE quand
+  // le livre est réglé « par chapitre » (15/10/2026), celle du menu sinon. On
+  // passe par `_voixDuNarrateur` pour qu'il n'y ait qu'UNE règle, ici comme a la
+  // lecture. Le `typeof` protège les tests node qui isolent ce bloc du reste de
+  // `app.js` (même convention que dans `loadChapter`).
+  if (typeof _voixDuNarrateur === 'function') return _voixDuNarrateur().voice;
   const choix = document.getElementById('voice-select');
   return choix ? choix.value : '';
 }
@@ -6128,7 +6349,10 @@ function _peindreListeVoixPhrase() {
 // suit le choix tout de suite.
 async function _choisirVoixPhrase(voixId) {
   if (_voicePhraseIdx < 0 || !voixId) return;
-  const nom  = _personnageDePhrase(_voicePhraseIdx);
+  // QUI on change : le personnage de la phrase -- ou, sur une phrase de narration
+  // d'un chapitre raconté par un personnage, CE personnage (15/10/2026) : c'est sa
+  // voix qu'on entend, donc c'est la sienne qu'on change.
+  const nom  = _cibleDeLaPhrase(_voicePhraseIdx);
   const note = document.getElementById('voice-phrase-note');
 
   if (nom) {
@@ -6180,20 +6404,27 @@ function _openVoicePanel(sentIdx) {
   _voicePhraseIdx = sentIdx;
 
   const nom    = _personnageDePhrase(sentIdx);
-  const fiche  = _fichePersonnage(nom);
+  // QUI on change quand on change cette voix : le personnage attribué, ou celui qui
+  // raconte le chapitre quand le livre est réglé « narrateur par chapitre »
+  // (15/10/2026). La cible des réglages est la même que celle qui lit.
+  const cible  = _cibleDeLaPhrase(sentIdx);
+  const fiche  = _fichePersonnage(cible);
   const voixId = _voixDePhrase(sentIdx);
 
   const texte = _sentences[sentIdx].text || '';
   document.getElementById('voice-phrase-extrait').textContent =
     (texte.length > 150 ? texte.slice(0, 147) + '...' : texte);
 
+  // Le personnage du chapitre quand il narre (15/10/2026) : on l'ECRIT, sinon on
+  // croirait que la narration est lue par la voix du menu alors que c'est la sienne.
+  const povNarration = nom ? null : _povDuChapitre();
   document.getElementById('voice-phrase-personnage').textContent =
-    nom ? nom : 'Narration';
+    nom ? nom : (povNarration ? 'Narration — ' + povNarration.nom : 'Narration');
 
   // La voix, nommee comme partout ailleurs (jamais un identifiant technique),
   // avec les reglages du personnage quand ils ne sont pas neutres.
   let info = _libelleCatalogue(voixId) || voixId;
-  if (nom && fiche) {
+  if (cible && fiche) {
     const reglages = [];
     if (fiche.rate  && fiche.rate  !== '+0%')  reglages.push('vitesse ' + fiche.rate);
     if (fiche.pitch && fiche.pitch !== '+0Hz') reglages.push('hauteur ' + fiche.pitch);
@@ -6201,9 +6432,15 @@ function _openVoicePanel(sentIdx) {
   }
   document.getElementById('voice-phrase-voix').textContent = info;
 
-  document.getElementById('voice-phrase-label').textContent = nom
-    ? 'Changer la voix de ' + nom + ' (toutes ses phrases)'
-    : 'Changer la voix du lecteur';
+  // Le libellé DIT qui on change — et, sur une narration confiée au personnage,
+  // POURQUOI c'est lui (15/10/2026) : sans ce mot, on croirait qu'on change la voix
+  // du menu, alors qu'on change celle du personnage qui raconte.
+  document.getElementById('voice-phrase-label').textContent = !cible
+    ? 'Changer la voix du lecteur'
+    : (nom
+       ? 'Changer la voix de ' + cible + ' (toutes ses phrases)'
+       : 'Changer la voix de ' + cible + ', qui raconte ce chapitre : sa voix sert'
+         + ' \u00e0 la narration et \u00e0 ses dialogues (toutes ses phrases).');
   document.getElementById('voice-phrase-note').textContent = '';
 
   // Etat de la voix dans TOUT le livre : libre, prise par un personnage,
@@ -6229,13 +6466,15 @@ function _openVoicePanel(sentIdx) {
   // voix ; pour le reste (cadenas 🔒, curseurs vitesse et hauteur, tiroir 🗣️ des
   // voix libres, badges d'etat), le bouton juste a cote ouvre la vraie fenetre
   // SUR ce personnage, mis en evidence.
-  // Elle est CACHEE pour la NARRATION : le narrateur n'a pas de ligne dans le
-  // casting (sa voix se change dans le menu du haut), le bouton n'aurait donc
-  // rien a viser.
+  // Elle est CACHEE quand il n'y a AUCUN personnage a viser : c'est le cas de la
+  // narration d'un livre sans « narrateur par chapitre » (sa voix se change dans le
+  // menu du haut). DEPUIS LE 15/10/2026, elle s'AFFICHE sur la narration d'un
+  // chapitre raconte par un personnage : la cible existe au casting, et c'est
+  // justement la que se règlent sa vitesse et sa hauteur.
   // `if` : comme pour la ligne d'usage juste au-dessus, on ne veut jamais
   // empecher le panneau de s'ouvrir (page plus ancienne que le script, cache).
   const porteCasting = document.getElementById('voice-phrase-cast-btn');
-  if (porteCasting) porteCasting.classList.toggle('hidden', !nom);
+  if (porteCasting) porteCasting.classList.toggle('hidden', !cible);
 
   document.getElementById('voice-phrase-panel').classList.remove('hidden');
 }
@@ -6261,12 +6500,15 @@ async function _apercuVoixPhrase(voixId, btn) {
   if (!btn) return;
   const note  = document.getElementById('voice-phrase-note');
   const voix  = voixId || _voicePhraseVoix;
-  const nom   = _personnageDePhrase(idx);
-  const fiche = _fichePersonnage(nom);
+  // Les réglages de la voix de la phrase : ceux du personnage A VISER -- le
+  // personnage de la phrase, ou celui qui raconte le chapitre (15/10/2026) --
+  // sinon ceux du menu, comme pour la lecture.
+  const cible = _cibleDeLaPhrase(idx);
+  const fiche = _fichePersonnage(cible);
   const vitesse = document.getElementById('speed-select');
-  const rate  = (nom && fiche && fiche.rate)  ? fiche.rate
+  const rate  = (cible && fiche && fiche.rate)  ? fiche.rate
               : (vitesse ? vitesse.value : '+0%');
-  const pitch = (nom && fiche && fiche.pitch) ? fiche.pitch : '+0Hz';
+  const pitch = (cible && fiche && fiche.pitch) ? fiche.pitch : '+0Hz';
   const texte = (((_sentences[idx] || {}).text) || 'Bonjour.').slice(0, 120);
 
   btn.disabled = true;
@@ -6320,8 +6562,11 @@ document.getElementById('voice-phrase-close-btn')
 // moins riche que casting des voix »). Le panneau ne change qu'UNE voix ; pour
 // le reste, on ouvre la vraie fenetre SUR le personnage, mis en evidence.
 // Trois precautions :
-//   - la NARRATION n'a pas de ligne dans le casting : le bouton est cache (voir
-//     _openVoicePanel), et ce garde-fou evite un clic dans le vide ;
+//   - il faut un personnage A VISER : quand il n'y en a pas (narration d'un livre
+//     sans « narrateur par chapitre »), le bouton est cache (voir
+//     _openVoicePanel), et ce garde-fou evite un clic dans le vide. DEPUIS LE
+//     15/10/2026, la cible est `_cibleDeLaPhrase` : sur la narration d'un chapitre
+//     raconte par un personnage, le bouton vise CE personnage ;
 //   - on FERME le panneau avant d'ouvrir : jamais deux fenetres empilees, et on
 //     retrouve sa lecture en fermant le casting ;
 //   - la porte ramene TOUJOURS au personnage : si un filtre d'etat (« a
@@ -6332,7 +6577,7 @@ document.getElementById('voice-phrase-close-btn')
 // noms cliquables du badge « partagee avec ... » (19/09/2026), rien de nouveau
 // a apprendre.
 document.getElementById('voice-phrase-cast-btn').addEventListener('click', async () => {
-  const nom = _personnageDePhrase(_voicePhraseIdx);
+  const nom = _cibleDeLaPhrase(_voicePhraseIdx);
   if (!nom) return;
   _closeVoicePanel();
   if (_castEtatFiltre !== 'T' || _castRecherche.trim()) {

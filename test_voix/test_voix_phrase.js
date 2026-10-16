@@ -275,17 +275,18 @@ console.log('5) la porte vers le casting (20/09/2026)');
 // Plutot que d'appauvrir le panneau ou de le remplacer -- il est le SEUL a dire
 // QUI PARLE dans cette phrase -- on ajoute une PORTE vers la vraie fenetre, sur
 // le personnage de la phrase. Ce que le test protege :
-//   - le bouton est CACHE pour la narration : le narrateur n'a pas de ligne
-//     dans le casting (sa voix se change dans le menu du haut) ;
-//   - la porte FERME le panneau avant d'ouvrir : jamais deux fenetres empilees,
-//     et on retrouve sa lecture en fermant le casting ;
-//   - elle remet les filtres d'etat ET la recherche a zero avant d'ouvrir,
-//     sinon elle ouvrirait le casting sur une liste ou le personnage est
-//     invisible -- sans que rien ne l'explique ;
-//   - elle surligne le personnage avec _allerAuPersonnage, soit EXACTEMENT le
-//     reperage des noms cliquables du badge « partagee avec ... » (19/09/2026).
-verifier('le bouton est CACHE pour la narration',
-         source.includes("porteCasting.classList.toggle('hidden', !nom)"));
+//   - le bouton est CACHE quand il n'y a AUCUN personnage a viser : c'est le cas
+//     de la narration d'un livre sans « narrateur par chapitre » (sa voix se
+//     change dans le menu du haut). DEPUIS LE 15/10/2026 il S'AFFICHE sur la
+//     narration d'un chapitre raconte par un personnage, et vise CE personnage
+//     (la cible vient de `_cibleDeLaPhrase`, la meme regle que la lecture) ;
+verifier('le bouton est cache quand il n y a aucune cible (narration sans personnage)',
+         source.includes("porteCasting.classList.toggle('hidden', !cible)"));
+verifier('la cible d une phrase est le personnage de la phrase, ou celui qui raconte',
+         /function _cibleDeLaPhrase\(idx\) \{[\s\S]{0,400}?_personnageDePhrase\(idx\)/
+           .test(source)
+         && /function _cibleDeLaPhrase\(idx\) \{[\s\S]{0,400}?_povDuChapitre\(\)/
+              .test(source));
 // On isole le bloc DE LA PORTE (de son bouton a la fin de son gestionnaire) :
 // le fichier est en fin de ligne Windows (CRLF), donc on evite d'y chercher des
 // retours a la ligne -- et le controle porte ainsi sur ce bloc, pas sur tout le
@@ -293,10 +294,10 @@ verifier('le bouton est CACHE pour la narration',
 const debutPorte = source.indexOf(
   "document.getElementById('voice-phrase-cast-btn').addEventListener");
 const blocPorte = source.slice(debutPorte, source.indexOf('});', debutPorte));
-verifier('la porte existe et ne fait rien sans personnage',
+verifier('la porte vise la CIBLE et ne fait rien sans personnage',
          debutPorte >= 0
          && blocPorte.includes("addEventListener('click', async () => {")
-         && blocPorte.includes('const nom = _personnageDePhrase(_voicePhraseIdx);')
+         && blocPorte.includes('const nom = _cibleDeLaPhrase(_voicePhraseIdx);')
          && blocPorte.includes('if (!nom) return;'));
 verifier('elle ferme le panneau avant d ouvrir le casting',
          blocPorte.includes('_closeVoicePanel();')

@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png" />
   <link rel="icon" type="image/png" sizes="512x512" href="/static/icon-512.png" />
   <title>NIMM ePub</title>
-  <link rel="stylesheet" href="/static/styles.css?v=20260929-1" />
+  <link rel="stylesheet" href="/static/styles.css?v=20261015-1" />
 </head>
 <body>
   <div id="app">
@@ -287,6 +287,24 @@
                   title="Incises de parole : muettes, ou dites par le narrateur.">
             Incises : muettes
           </button>
+          <!-- Narrateur par chapitre (15/10/2026, chantier « Le Trône de Fer »).
+               Dans cette saga, chaque chapitre est raconté du point de vue d'un
+               personnage : le narrateur du chapitre EST ce personnage. Quand ce
+               réglage est allumé, la narration d'un chapitre est lue par la VOIX
+               de ce personnage (décision de Laurent : une seule voix, la même,
+               pour la narration ET le dialogue du personnage qui raconte) ; les
+               chapitres sans personnage reconnu (prologue, page de garde, surnom
+               non relié) gardent la voix du menu du haut -- le comportement
+               d'avant. Le libellé du bouton PORTE l'état ; app.js le remplit à
+               l'ouverture du livre et l'enregistre pour ce livre (colonne
+               books.narrateur_par_chapitre). Éteint par défaut : aucun livre
+               déjà casté ne change. -->
+          <button id="narrateur-chapitre-btn"
+                  aria-label="Qui lit la narration : un seul narrateur, ou le personnage du chapitre"
+                  aria-pressed="false"
+                  title="Qui lit la narration : unique, ou le personnage qui raconte ce chapitre.">
+            &#128214; Narrateur : unique
+          </button>
           <!-- Les deux menus sont groupes sur leur propre rangee (15/09/2026,
                demande de Laurent : agencement plus compact) : la voix du
                narrateur prend la place restante, la vitesse garde sa taille. -->
@@ -304,6 +322,13 @@
                  lui est enregistree (moteur eteint). Vide en temps normal, donc
                  invisible (voir #narrateur-etat:empty dans styles.css). -->
             <span id="narrateur-etat"></span>
+            <!-- Ligne d'explication du réglage « narrateur par chapitre »
+                 (15/10/2026) : quand ce réglage est allumé et que des chapitres
+                 portent un nom absent du casting, on le DIT -- sinon on croirait à
+                 une panne alors que c'est une limite connue (le personnage n'a
+                 jamais parlé, donc il n'a pas de voix). Vide en temps normal, donc
+                 invisible (voir #narrateur-chapitre-etat:empty dans styles.css). -->
+            <span id="narrateur-chapitre-etat"></span>
           </div>
           <!-- Réparer les moteurs de voix (21/09/2026, demande de Laurent).
                Remplace l'ancien bouton de CHANGEMENT de moteur : un simple
@@ -949,6 +974,6 @@
 
   </div><!-- #app -->
 
-  <script src="/static/app.js?v=20260930-1"></script>
+  <script src="/static/app.js?v=20261015-1"></script>
 </body>
 </html>

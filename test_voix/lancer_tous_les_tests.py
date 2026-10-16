@@ -64,6 +64,10 @@ TESTS_PY = [
     # verifie les trois comportements : phrase normale intacte, derive relancee,
     # derive rognee en dernier recours.
     "test_garde_fou_derive_qwentts.py",
+    # La carte des POV (15/10/2026) : la regle ecrite une seule fois dans
+    # `modules/pov.py`, et la decision de l'audit -- la carte ne dit que QUI
+    # raconte, la voix se relit dans le casting (sinon elle serait figee).
+    "test_pov_carte.py",
 ]
 
 

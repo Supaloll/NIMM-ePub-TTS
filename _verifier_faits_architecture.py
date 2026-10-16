@@ -38,7 +38,8 @@ sujet : la fonction des symboles et ses deux conventions (M / H), les trois
 emplacements, le libelle exact d'une voix (les drapeaux, jamais le pays ecrit),
 la table des icones de moteurs -- SEPT depuis Pocket, la ou le tableau du
 document s'arretait a six -- et la regle de style commune des boutons de la
-barre du lecteur, qui en porte six elle aussi.
+barre du lecteur, qui en porte SEPT elle aussi depuis le 15/10/2026 (six du
+22/09 au 15/10, trois le 20/09/2026).
 
 La section 15 tient ceux du LECTEUR et de l'ECRAN VERROUILLE : les quatre
 constantes du prechargement avec leur valeur, le declencheur de la reserve
@@ -694,7 +695,14 @@ def check_sujet_notes():
     generiques_page = re.findall(r"'([^']+)'", bloc_generiques[0]) \
         if bloc_generiques else []
     generiques_serveur = re.findall(r'GENERIC_VOICE_\w = "([^"]+)"', serveur)
-    generiques_doc = re.findall(r'`(piper:upmc:\d+)`', texte)
+    # Le motif SUIT les voix actuelles du code. Il cherchait « piper:upmc: » EN
+    # DUR : ecrit le 21/09/2026, il ne pouvait donc plus rien trouver des que les
+    # voix generiques sont passees chez Qwen (01/10/2026) -- l'ecart accusait le
+    # document alors que c'etait le CONTROLE qui avait derive. Constat du
+    # 15/10/2026, corrige ici.
+    generiques_doc = (re.findall(
+        r'`(%s)`' % '|'.join(re.escape(v) for v in generiques_page), texte)
+        if generiques_page else [])
     # Le sujet a le droit de citer une voix generique PLUSIEURS fois (le nombre
     # de ses porteurs, par exemple) : on compare la liste des identifiants
     # DISTINCTS, dans leur ordre de premiere apparition.
@@ -1048,12 +1056,16 @@ def check_sujet_symboles():
              'l icone de %s (%s) n est pas dans le sujet' % (libelle, icone))
 
     # -- 5. La regle de style commune des boutons du lecteur. ----------------
+    # SEPT selecteurs depuis le 15/10/2026 (« Narrateur : unique / par chapitre »,
+    # `#narrateur-chapitre-btn`) : c'etait six depuis le 22/09/2026, et trois le
+    # 20/09/2026. Tout nouveau bouton de cette barre rejoint cette regle -- c'est
+    # la lecon du sujet, alors ce controle compte EXACTEMENT.
     bloc_regle = next((m.group(1) for m in
                        re.finditer(r'((?:#[a-z-]+,\n)*#[a-z-]+ \{)', css)
                        if '#multivoice-btn' in m.group(1)), '')
     boutons = re.findall(r'#[a-z-]+', bloc_regle)
-    fait('la regle de style commune des boutons porte six boutons',
-         len(boutons) == 6,
+    fait('la regle de style commune des boutons porte sept boutons',
+         len(boutons) == 7,
          'la regle commune porte %d selecteur(s) : %s' % (len(boutons), boutons))
     fait('les boutons de la regle sont TOUS cites par le sujet',
          bool(boutons) and all(b in texte for b in boutons),
