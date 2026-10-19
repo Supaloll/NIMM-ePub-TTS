@@ -6851,6 +6851,53 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   **Rien n'est décidé** : idée notée, et sa première brique (le pool ouvert à
   Qwen) est déjà une suite connue du 27/09.
 
+- [ ] **🎙️ Choisir un extrait selon l'USAGE : un extrait de DIALOGUE donne un
+  clone qui JOUE — pour lire un récit, il faut un extrait POSÉ** (constat
+  d'écoute de Laurent, **16/10/2026 au soir**, sur les 3 voix de série clonées le
+  jour même). Ses mots : « J'ai écouté quelques passages avec la voix de Thyrion
+  et Saul. Ça n'est pas convaincant en lecture. Quelque chose cloche. Je pense que
+  comme ça vient d'extraits de **dialogues**, les voix sont dans un **mood
+  parlé**, non pas lu. […] Je dois trouver des extraits de voix plus posées. Une
+  voix qui vient d'un extrait parlé est difficilement adaptable pour du récit
+  type narrateur. »
+  **Pourquoi c'est cohérent avec la technique** : le clonage `qwentts.cpp`
+  travaille en mode **ICL** (audio **+** texte) — le clone **hérite de la façon de
+  dire** de l'extrait, pas seulement de son timbre. Une référence jouée donne donc
+  un lecteur qui *joue*.
+  ⚠️ **Ce n'est PAS la même question qu'au 18/09/2026**, et il ne faut pas
+  confondre les deux : ce jour-là, Laurent cherchait des extraits de **dialogues**
+  pour *fabriquer des timbres* (les voix Kokoro par mélange), et la **mélodie**
+  (demi-tons) lui donnait raison (**4,77** sur les dix classées « expressives »
+  contre **2,87**). Ici, la question est le **comportement de lecture** d'un clone,
+  pas le timbre : les deux réflexions ne se contredisent pas, elles parlent de deux
+  usages.
+  **CE QU'ON A FAIT, PUIS CE QU'ON FERAIT** :
+  1. **LA MESURE A ÉTÉ TENTÉE LE MÊME SOIR, ET ELLE NE TRANCHE PAS** — c'est écrit
+     ici pour que la piste ne soit **pas** relancée à l'aveugle. Outil de l'atelier
+     NIMM Voix `scripts\mesurer_expressivite_voix.py` (mélodie en demi-tons,
+     dynamique, part de parole) appliqué aux **3 extraits de série** ET à
+     **trois témoins de NARRATION** : deux extraits CML-TTS qui lisent du domaine
+     public et `Maya_normale`. Verdict : **les deux familles se recouvrent** —
+     séries **3,68 / 2,57 / 4,80** de mélodie, contre **3,03** et **5,84** pour les
+     CML-TTS et **4,67** pour Maya. Autrement dit : **Maya, qui LIT un roman, est
+     plus « mélodique » que Thyrion et Sersei**. Le repère de l'outil (« < 1,5 =
+     lecture posée ; > 2,5 = voix qui joue ») **ne classe donc pas** ces fichiers,
+     et les trois familles ne sont pas comparables à la lettre (micro différent,
+     humain contre synthèse, textes différents). **Conclusion honnête : ce n'est
+     PAS la variation de hauteur qui fait « clocher » la lecture.**
+  2. **Chercher le BON indicateur**, si on veut chiffrer un jour : le **débit**
+     (mots ou syllabes par seconde), la **prosodie** (les phrases courtes et
+     tombantes d'une réplique jouée) ou l'**articulation** — sans rien promettre
+     avant de l'avoir mesuré. C'est la leçon du soir : *une mesure qui ne tranche
+     pas est déjà une information*.
+  3. **Juger un clone sur un passage de RÉCIT avant de l'entrer au catalogue** —
+     c'est **la leçon principale** : le lot d'écoute actuel ne fait dire qu'**une
+     phrase de contrôle** (221 caractères), ce qui ne dit rien de la tenue d'une
+     voix sur un livre. À ajouter au protocole : le clone doit lire un extrait de
+     récit (narration **et** dialogue), et c'est cette écoute-là qui décide.
+  *État actuel* : les 3 voix restent **en place** (décision de Laurent), à
+  **0 étoile** donc hors casting automatique, et **rien n'a été committé**.
+
 
 ## 🟡 Priorité 3 — Robustesse & architecture
 
@@ -6939,6 +6986,25 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   en même temps (`_verifier_faits_architecture.py` compte les sujets,
   `_auditer_documentation.py` contrôle le plan du dossier). **Aucun effet à
   l'usage** : chantier de documentation, à faire un jour de calme.
+
+- [ ] **`test_voix/test_voix_ecoutables.py` a dérivé : il n'a pas suivi les
+  décisions de fin septembre** (relevé le **16/10/2026**, en passant la
+  garde-robe de 201 à 204 voix — **aucun code n'est en cause**). Trois de ses
+  contrôles échouent : (1) il exige que **Kyutai, XTTS et NeuTTS** soient *les
+  seuls* moteurs suivis, alors que le lecteur suit aussi **Pocket** et **Qwen**
+  depuis la fin septembre ; (2) il exige que **toutes** les voix
+  `FRENCH_VOICES + KOKORO_VOICES + PIPER_VOICES` — soit **110** aujourd'hui —
+  soient proposées par `/api/voices`, alors que **Kokoro a été retranché des
+  menus le 29/09/2026** (décision écrite : 94 doublons avec Qwen) et que seules
+  **16** (12 Edge + 4 Piper) sortent ; (3) son contrôle de la « mémoire de 5 s »
+  (il compare deux objets de l'état des moteurs) échoue aussi — **la cause reste
+  à établir**, elle n'est pas dans les catalogues de voix. **Ce n'est pas une
+  régression de l'application** : le test a été écrit le **14/09/2026**, avant
+  ces décisions. *À faire un jour de calme* : réécrire ses contrôles **1, 2 et
+  3** pour qu'ils expriment les règles **d'aujourd'hui** (cinq moteurs suivis ;
+  Kokoro **volontairement** absent des menus ; la mémoire de 5 s vérifiée
+  autrement), puis vérifier qu'il ne fait plus échouer la suite pour de mauvaises
+  raisons.
 
 ## ♿ Accessibilité — chantier ouvert le 15/09/2026 (avec Nando)
 
@@ -7943,3 +8009,94 @@ l'audit du 22/09/2026 a montré que plusieurs ne sont **pas** dans
   `role=etranger`, 18/18 `stars=0`, drapeau reconnu par le motif d'`app.js`,
   `py_compile` OK. Les 18 clones disent tout le texte (18/18 à 41/41 mots,
   contrôle de NIMM Voix).
+
+- [x] **🎬 Les 3 voix de SÉRIE : Thyrion, Sersei et Saul — ✅ FAIT le 16/10/2026.**
+  Demande de Laurent : « On va cloner des nouvelles voix […] Il y a Thyrion,
+  Sersei et Saul. Elles ressemblent bien aux originales […] donc on va les
+  appeler comme ça. » Clonage dans l'atelier NIMM Voix (pipeline
+  `_cloner_et_ecouter.py`, moteur `qwentts.cpp`, lot
+  `trois_voix_thyrion_sersei_saul_20261016` : 3 extraits de 17,1 à 17,4 s,
+  clones fabriqués en 28 à 29 s chacun). **Contrôle machine** : les **3 clones
+  disent 100 % du texte de contrôle** (41/41 mots, relus par Whisper) ; Laurent
+  a gardé les trois à l'oreille. Entrée dans le service : 3 WAV copiés dans
+  `qwen_tts_service/voix/` et 3 lignes de texte, la garde-robe passe de **201 à
+  204**. **Où vivent ces lignes, et pourquoi** : posées d'abord dans
+  `references.csv` (le fichier **versionné**), elles ont été **basculées le même
+  soir dans `references_privees.csv`** (le fichier **hors dépôt**), **avant tout
+  commit** — ce sont des répliques de dialogues d'œuvres sous droits, et la règle
+  écrite du projet est qu'aucun texte de ce genre ne part sur le dépôt (c'est
+  déjà le cas pour le texte de Maya). Le service lit les deux fichiers : **les
+  204 voix ont toutes leur texte**. Outil de bascule :
+  `_essais/_basculer_textes_series_prive_20261016.py` (rapport seul par défaut,
+  `--ecrire` pour agir), avec **copies datées des deux CSV** ; les formats
+  mesurés sont respectés (public **CRLF**, privé **LF**, UTF-8 sans BOM chez les
+  deux).
+  Catalogue `modules/tts.py` (`QWEN_VOICES`) : **identifiant = nom du fichier**
+  (`Thyrion`, `Sersei`, `Saul`), **prénom = nom du personnage** (orthographe de
+  Laurent), **drapeau français 🇫🇷** — **correction de Laurent le 16/10/2026** :
+  « le drapeau doit être français, ce sont des voix 100 % françaises. Pas voix
+  étrangères, ni de drapeau autre que FR » (la première idée, le drapeau
+  britannique, venait de ce que les séries sont anglaises) — et **0 étoile** →
+  **hors casting automatique**, choisissables à la main (même convention que les
+  18 voix indiennes et Maya).
+  **Aucune fiche d'écoute** dans `data/annotations_voix.json` : comme Maya et
+  JEAN_EDGAR, on n'invente pas des critères (âge, timbre, accent) qu'on n'a pas
+  mesurés — Laurent les notera à l'oreille le jour venu. Copies datées **avant** :
+  `references.bak_avant_thyrion_sersei_saul_20261016.csv` et
+  `modules/tts.py.bak_avant_thyrion_sersei_saul_20261016`. Outil neuf :
+  `_essais/_entrer_voix_series_20261016.py` (**rapport seul** par défaut,
+  `--ecrire` pour agir, idempotent). **DROITS : voix d'ACTEURS d'œuvres du
+  commerce (Game of Thrones, Better Call Saul) → usage PRIVÉ dans l'atelier**,
+  comme les extraits venus de livres audio du commerce ; le portage et le modèle
+  restent libres (MIT / Apache-2.0). **Vérifié** : `_essais/_test_catalogue_qwen.py`
+  (**204 voix**, tous les champs, aucun extrait absent), `test_voix/test_libelles_voix.py`
+  (TOUT EST OK), `_verifier_faits_architecture.py` (0 écart) et `py_compile`.
+  *Leçon notée au passage* : la documentation disait le `references.csv` en
+  **fins de ligne LF** — il est en **CRLF** depuis début octobre (relevé du
+  16/10 : 204 CRLF, aucun LF seul) : la note est corrigée dans
+  `qwentts_service/LIRE_MOI.md`. *Écarté, et dit* : `JEAN EDGAR.mp3` (déposé le
+  18/09, il a déjà son clone depuis le 28/09) et l'épisode `Game of Thrones`,
+  que le pipeline ignore de lui-même (extension `.mp4` hors de sa liste audio).
+  **⚠️ ET L'OREILLE A TRANCHÉ EN LECTURE, LE MÊME SOIR — c'est le fait le plus
+  important de cette livraison, à lire absolument.** Laurent a écouté Thyrion et
+  Saul **en lisant un vrai récit** : « ça n'est pas convaincant en lecture,
+  quelque chose cloche ». Son diagnostic, écrit ici tel quel : « comme ça vient
+  d'extraits de **dialogues**, les voix sont dans un **mood parlé**, non pas lu.
+  […] Une voix qui vient d'un extrait parlé est difficilement adaptable pour du
+  récit type narrateur. » **Ce que ça apprend** : le lot d'écoute d'un clonage ne
+  fait dire qu'**une phrase de contrôle** (221 caractères) — il ne dit donc
+  **rien** de la tenue d'un clone sur un récit entier. Les 3 voix **restent en
+  place** (« on les laisse en place pour le moment »), à **0 étoile** donc hors
+  casting automatique, et **aucun commit** n'a été fait ce soir-là pour cette
+  raison. La piste de travail est un item ouvert (« Priorité 2 » : choisir un
+  extrait selon l'USAGE — dialogue *vs* narration).
+
+- [x] **🎭 CINQ VOIX DE PLUS dans la garde-robe : Aldo, Gus, Jesse, Vergès et Sandor — ✅ FAIT le 19/10/2026.**
+  Mémo de NIMM Voix (`passerelle_NIMM_ePub`, `MEMO_5_VOIX_19-10-2026`) et lot
+  `sorties\les_5_voix_retenues_20261019` : cinq voix françaises clonées par
+  `qwentts.cpp` (ICL), gardées à l'oreille par Laurent (« 5/5 » pour les quatre
+  premières, « le 04, D, est top » pour Sandor), **41/41 mots** du texte de
+  contrôle pour quatre d'entre eux (**Jesse** : 40/41). **Garde-robe : 201 → 206** (5 WAV copiés dans
+  `qwen_tts_service/voix/`, 24 kHz mono 16 bits, contrôlé). **Textes dans le
+  fichier PRIVÉ** `references_privees.csv` (il passe de 1 à 6 lignes, **UTF-8
+  sans BOM et LF**, son format d'origine) : ce sont des répliques de doublages
+  d'œuvres du commerce, donc **jamais** dans `references.csv` (le public,
+  versionné) — un texte commité resterait dans l'historique Git. Catalogue
+  `modules/tts.py`, bloc `_VOIX_19_10_2026` : **identifiant = nom du fichier**
+  (`Verges` sans accent), **prénom affiché = « Vergès »**, **genre M** (le « H »
+  rend les voix invisibles), **drapeau français et rien d'autre** (précision de
+  Laurent du 16/10), **0 étoile** → hors casting automatique, choisissables à la
+  main. Outil neuf `_essais/_entrer_5_voix_20261019.py` (**rapport seul** par
+  défaut, `--ecrire`, idempotent, **copie datée automatique** du privé avant
+  écriture) et vérification dédiée `_essais/_verifier_5voix_20261019.py`.
+  Copies datées : `references_privees.csv.bak_avant_5voix_20261019`,
+  `modules/tts.py.bak_avant_5voix_20261019`. **Vérifié** : `py_compile`,
+  **206 entrées** de catalogue et **206 WAV**, les 5 voix avec leur WAV et leur
+  texte, aucun identifiant en double, aucun texte de ces voix dans le public.
+  **DROITS : voix d'ACTEURS de doublages → usage PRIVÉ dans l'atelier.**
+  *Trois écarts de documentation corrigés au passage* (c'est le disque qui a
+  raison) : `qwen_tts_service/LIRE_MOI.md` et `qwentts_service/LIRE_MOI.md`
+  annonçaient **204** voix et des textes de série encore dans le privé, alors
+  que les 3 voix de série ont été **retirées le 17/10** (201 voix, privé réduit à
+  `Maya_normale`, tuple `_VOIX_SERIES_16_10_2026` vide). Les deux modes d'emploi
+  disent maintenant **206**, avec les comptes exacts des deux fichiers de texte.

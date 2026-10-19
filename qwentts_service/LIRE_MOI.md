@@ -26,7 +26,7 @@ vraiment bon, pas d'accrocs, prosodie impec, on a notre moteur ! »
 | | |
 |---|---|
 | Port | **8086** (`NIMM_QWENTTS_PORT` pour le changer) |
-| Voix | les **201 références** de `../qwen_tts_service/voix/` — le dossier est **partagé** (même matériau, avec le texte exact qui active le mode ICL) : **35** extraits Kyutai/CML-TTS, **94** Kokoro et **28** « Découpage OK » (copiés le 28/09/2026), **25** CML-TTS « cml_restants » (30/09/2026), **18** voix indiennes `hindi_*` (10/10/2026) et la voix privée **Maya** |
+| Voix | les **206 références** de `../qwen_tts_service/voix/` — le dossier est **partagé** (même matériau, avec le texte exact qui active le mode ICL) : **35** extraits Kyutai/CML-TTS, **94** Kokoro et **28** « Découpage OK » (copiés le 28/09/2026), **25** CML-TTS « cml_restants » (30/09/2026), **18** voix indiennes `hindi_*` (10/10/2026), les **5 voix du 19/10/2026** (`Aldo`, `Gus`, `Jesse`, `Verges`, `Sandor`) et la voix privée **Maya** — les **3 voix de série** du 16/10 (`Thyrion`, `Sersei`, `Saul`) ont été **retirées le 17/10/2026** |
 | Modèles | **Q4_K_M depuis le 29/09/2026** (629 + 255 Mo), choisis **à l'oreille par Laurent** : « les plus jolies à l'oreille, prosodie et clarté un demi-cran au-dessus ». Les **Q8_0** (947 + 278 Mo) restent sur le disque en **repli automatique** |
 | Réglages | 6 cœurs, **4 fils de codec**, tranches de **2 images**, priorité d'entame |
 | Débit mesuré | **×1,0 à ×1,2 le temps réel** (Q4_K_M, 29/09/2026) — avant, ×0,94 avec les Q8_0 (28/09) |
@@ -100,17 +100,25 @@ Ce qu'il faut savoir :
   « Kyutai + CML-TTS » — voir `ATTRIBUTION.md`, dans `qwen_tts_service/`. C'est
   l'inverse de `Maya_normale`, qui reste privée ;
 - **piège de format, à ne pas refaire** : le `references.csv` de la garde-robe
-  est en **UTF-8 sans BOM et fins de ligne LF** (relevé par NIMM Voix le
-  29/09). L'outil de fusion (`_essais/_fusionner_textes_qwen.py`) écrivait en
-  **CRLF** sans le vouloir — Python traduit `\n` en `\r\n` sous Windows :
-  corrigé le 30/09/2026 par `newline=''`.
+  est en **UTF-8 sans BOM** et, **depuis début octobre, en fins de ligne CRLF**
+  (relevé du 16/10/2026 : **204 CRLF, aucun LF seul** ; **201** depuis le retrait
+  des 3 voix de série le 17/10, toujours en CRLF) — le relevé du 29/09 qui
+  disait « LF » ne vaut donc plus, et la sauvegarde d'avant le lot hindi (celle
+  du 03/10/2026) était **déjà** toute en CRLF. Le piège reste entier : Python
+  traduit `\n` en `\r\n` sous Windows, donc **tout outil qui écrit ce fichier
+  doit surveiller ses fins de ligne** (l'outil de fusion
+  `_essais/_fusionner_textes_qwen.py` écrivait du CRLF sans le vouloir, corrigé
+  le 30/09/2026 par `newline=''` ; l'outil d'entrée des voix du 16/10/2026, lui,
+  écrit du CRLF **volontairement** et le vérifie).
 
-## Les 18 voix indiennes (10/10/2026) : la garde-robe passe à 201
+## Les 18 voix indiennes (10/10/2026) : la garde-robe est passée à 201
 
 NIMM Voix a fabriqué **18 voix « indiennes »** pour lire *Shantaram* et les a
 déposées ici le 10/10/2026 avec leur paquet et leur mémo
 (`MEMO_FAMILLE_HINDI_10-10-2026`, dossier `passerelle_NIMM_ePub`). La garde-robe
-passe de **183 à 201 voix**, et `/voix` annonce **201**.
+est passée de **183 à 201 voix**, et `/voix` annonçait **201** — elle est à
+**206** depuis le 19/10/2026 (après un aller-retour par 204 le 16/10, puis le
+retrait des 3 voix de série le 17/10 ; voir « Les 5 voix du 19/10/2026 »).
 
 - **ce ne sont PAS des timbres existants** : ce sont des **mélanges** des 4 voix
   hindi de Kokoro (`hf_alpha`, `hf_beta`, `hm_omega`, `hm_psi`) avec des voix
@@ -128,6 +136,62 @@ passe de **183 à 201 voix**, et `/voix` annonce **201**.
   restent cohérents entre eux, c'est ce qui compte pour l'ICL (signalé par
   NIMM Voix) — un recoupement est possible depuis la source si besoin.
 
+## Les 3 voix de série (16/10/2026) : passées à 204, retirées le 17/10/2026
+
+Laurent a déposé trois extraits dans « Voix a faires » de NIMM Voix (Saul,
+Sersei, Thyrion) et les a fait cloner par `qwentts.cpp` le 16/10/2026 : ce sont
+des voix de séries anglaises, gardées à l'oreille — « elles ressemblent bien aux
+originales ». Les **trois clones disent 100 % du texte de contrôle** (41/41 mots,
+relus par Whisper), et la garde-robe est passée de **201 à 204 voix**.
+**Elles ont été RETIRÉES le 17/10/2026** (demande de Laurent : « on va faire mieux
+plus tard ») : les 3 WAV sont sortis du dossier et le tuple
+`_VOIX_SERIES_16_10_2026` de `modules/tts.py` est **vide** depuis — la garde-robe
+est revenue à **201** ce jour-là.
+
+- leur **identifiant** est le nom du fichier : `Thyrion`, `Sersei`, `Saul`
+  (l'orthographe est celle de Laurent, pas celle des séries) ;
+- à l'écran, elles portaient **le nom du personnage** et le **drapeau français**
+  (`🇫🇷`) — ce sont des voix **françaises**, pas des voix « étrangères »
+  (précision de Laurent, 16/10/2026), donc **aucun second drapeau** :
+  `modules/tts.py`, catalogue `QWEN_VOICES` ;
+- **0 étoile** à l'import → **hors casting automatique**, mais
+  **choisissables à la main** (même convention que les voix indiennes et Maya) ;
+- leurs 3 lignes de texte étaient dans `references_privees.csv`, le fichier
+  **PRIVÉ (hors dépôt)** : leurs répliques sont des **dialogues d'œuvres sous
+  droits**, et la règle du projet est qu'aucun texte de ce genre ne part sur le
+  dépôt (même raison que pour Maya). **Retirées le 17/10 avec les voix** : le
+  fichier privé ne contenait plus que `Maya_normale` avant le lot du 19/10
+  (copie datée : `references_privees.csv.bak_avant_retrait_voix_serie_20261018_1302`).
+  L'**audio** reste lui aussi en **usage privé dans l'atelier** : ces voix sont
+  celles d'**acteurs** d'œuvres du commerce (voir `ATTRIBUTION.md`) ;
+- **entrée faite** par `_essais/_entrer_voix_series_20261016.py` (rapport seul
+  par défaut, `--ecrire` pour agir) et, **avant** lui, une **copie datée** du
+  fichier de textes : `references.bak_avant_thyrion_sersei_saul_20261016.csv`.
+
+## Les 5 voix du 19/10/2026 : la garde-robe passe à 206
+
+Cinq extraits déposés par Laurent dans « Voix à faires » ont été clonés par
+`qwentts.cpp` le 19/10/2026 : **Aldo**, **Gus**, **Jesse**, **Vergès** et
+**Sandor**. Quatre clones sur cinq disent **41/41 mots** du texte de contrôle
+(**Jesse** : 40/41, « qu'il » entendu « qu'elle »), et la garde-robe passe de
+**201 à 206 voix** (`/voix` annonce **206**).
+
+- **identifiants** = nom du fichier : `Aldo`, `Gus`, `Jesse`, `Verges` (sans
+  accent, comme le fichier), `Sandor` ; à l'écran « Vergès » garde l'accent ;
+- **références** : 24 kHz, mono, PCM 16 bits (les deux autres formats lèvent
+  une erreur), 16,4 à 20,4 s ;
+- à l'écran : **drapeau français**, **aucun second drapeau**, **0 étoile** →
+  **hors casting automatique**, choisissables **à la main** ;
+- **textes PRIVÉS** : les 5 lignes sont dans `references_privees.csv` (hors
+  dépôt), **jamais** dans `references.csv` — répliques de dialogues sous droits.
+  Le privé est en **LF** (7 lignes au 19/10), le public en **CRLF** (201 lignes) ;
+- **droits** : voix d'**acteurs de doublages** → **usage privé dans l'atelier**
+  (voir `ATTRIBUTION.md`) ;
+- **entrée faite** par `_essais/_entrer_5_voix_20261019.py` (rapport seul par
+  défaut, `--ecrire`, idempotent), avec **copies datées avant** :
+  `references_privees.csv.bak_avant_5voix_20261019` et
+  `modules/tts.py.bak_avant_5voix_20261019`.
+
 ## Les textes de référence : un fichier PUBLIC, un fichier PRIVÉ (29/09/2026)
 
 Le mode **ICL** a besoin du **texte** de chaque extrait (c'est ce qui fait la
@@ -136,8 +200,8 @@ désormais **deux** fichiers de textes, et le service lit **les deux** :
 
 | Fichier | Contenu | Sur le dépôt |
 |---|---|---|
-| `references.csv` | les **157 voix « publiques »** (35 Kyutai, 94 Kokoro, 28 « Découpage OK ») | **oui** — c'est lui qui porte les corrections de texte relues à la main |
-| `references_privees.csv` | les voix de la **famille** (`Maya_normale` pour commencer) | **non** — il reste sur le PC |
+| `references.csv` | les **voix « publiques »** — les lots utilisables LIBREMENT (35 Kyutai, 94 Kokoro, 28 « Découpage OK », 25 CML-TTS, 18 indiennes : **201 lignes au 19/10/2026**, en-tête compris) | **oui** — c'est lui qui porte les corrections de texte relues à la main |
+| `references_privees.csv` | les voix **qui ne partent pas** : celle de la **famille** (`Maya_normale`) **et** les **5 voix du 19/10/2026** (`Aldo`, `Gus`, `Jesse`, `Verges`, `Sandor`), dont les répliques viennent d'œuvres sous droits (**7 lignes au 19/10**, en-tête compris) | **non** — il reste sur le PC |
 
 **Pourquoi ce partage** : Maya a lu le début d'un roman du commerce, et la règle
 du projet est qu'**aucun extrait d'œuvre sous droits ne part sur le dépôt**. Son

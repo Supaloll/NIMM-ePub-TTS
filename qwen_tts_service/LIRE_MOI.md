@@ -2,7 +2,7 @@
 
 Ce dossier contient **l'appareil de voix Qwen3-TTS** de NIMM ePub : un
 programme séparé du lecteur, qui fait parler **les voix françaises libres de la
-garde-robe** — **201 extraits au 10/10/2026**, dont les 35 mêmes que Kyutai
+garde-robe** — **206 extraits au 19/10/2026**, dont les 35 mêmes que Kyutai
 (mêmes extraits, donc mêmes timbres et mêmes prénoms) — avec le moteur
 **Qwen3-TTS** d'Alibaba.
 
@@ -30,7 +30,7 @@ ne tournent **jamais ensemble**. Le bouton « Voix de personnages » du lecteur
 | **DEMARRER_QWEN_TTS.bat** | pour allumer le moteur (seul, ou appelé par `START.bat`) | charge le modèle (≈ 5 s) puis reste ouvert |
 | **servir_qwen_tts.py** | — | le service lui-même (routes `/sante`, `/voix`, `/tts`) |
 | **tester_service.py** | après une installation, ou en cas de doute | vérifie que le service répond et fait dire une vraie phrase |
-| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **201 au 10/10/2026** — **et** leur texte exact (`references.csv`) |
+| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **206 au 19/10/2026** — **et** leur texte exact (`references.csv`) |
 
 **Pour éteindre le moteur, il suffit de fermer sa fenêtre** : un « gardien »
 intégré au service s'arrête dès que la fenêtre disparaît (même mécanisme que
@@ -78,6 +78,71 @@ Ce qu'il faut savoir :
 
 Le détail de la recette et des droits est dans le mémo de NIMM Voix
 (`MEMO_FAMILLE_HINDI_10-10-2026_pour_la_session_NIMM_ePub.md`).
+
+## Les 3 voix de série (16/10/2026) — retirées le 17/10/2026
+
+Trois extraits déposés par Laurent (« Voix à faires » de NIMM Voix) ont été
+clonés par `qwentts.cpp` le 16/10/2026 : **Thyrion**, **Sersei** et **Saul** —
+des voix de séries anglaises, qu'il a gardées parce qu'elles lui font penser aux
+originales. Chaque clone dit **100 % du texte de contrôle** (41/41 mots). La
+garde-robe était passée de **201 à 204 extraits**.
+
+**Elles en ont été RETIRÉES le 17/10/2026** (demande de Laurent : « on va faire
+mieux plus tard ») : les 3 WAV sont sortis de `voix/` et le tuple
+`_VOIX_SERIES_16_10_2026` de `modules/tts.py` est **vide** depuis. La garde-robe
+est donc revenue à **201** ce jour-là — et seuls leurs fichiers de sauvegarde
+témoignent encore de leur passage.
+
+- leur **identifiant** est le nom du fichier (`Thyrion`, `Sersei`, `Saul`) ;
+- à l'écran : le **nom du personnage**, le **drapeau français** (`🇫🇷` — voix
+  **françaises**, pas « étrangères » : précision de Laurent, 16/10/2026, donc
+  **aucun second drapeau**) et **0 étoile** → **hors casting automatique**, mais
+  **choisissables à la main** (même convention que les voix indiennes et
+  Maya) ;
+- **droits** : ce sont les voix d'**acteurs** d'œuvres du commerce → **usage
+  privé dans l'atelier**, comme les extraits issus de livres audio du commerce.
+  Leurs 3 textes avaient été mis dans `references_privees.csv`, le fichier
+  **PRIVÉ (hors dépôt)** — ce sont des répliques de dialogues sous droits, et la
+  règle du projet est qu'aucun texte de ce genre ne part sur le dépôt (même
+  raison que pour Maya). **Ils ont été retirés le 17/10/2026** en même temps que
+  les voix : le fichier privé ne contenait plus que `Maya_normale` avant
+  l'arrivée des 5 voix du 19/10/2026 (copie datée du retrait :
+  `references_privees.csv.bak_avant_retrait_voix_serie_20261018_1302`) ;
+- l'entrée a été faite par `_essais/_entrer_voix_series_20261016.py`, avec une
+  **copie datée** du fichier de textes avant
+  (`references.bak_avant_thyrion_sersei_saul_20261016.csv`).
+
+## Les 5 voix du 19/10/2026 : la garde-robe passe à 206
+
+NIMM Voix a cloné **cinq voix françaises** de plus avec `qwentts.cpp` (mode
+ICL), à partir de cinq extraits déposés par Laurent le 19/10/2026 : **Aldo**,
+**Gus**, **Jesse**, **Vergès** et **Sandor**. « 5/5 » à l'oreille pour les quatre
+premières, « le 04, D, est top » pour Sandor. Quatre clones sur cinq disent
+**41/41 mots** du texte de contrôle ; **Jesse** en dit 40/41 (« qu'il » entendu
+« qu'elle »).
+
+- **identifiants** = nom du fichier, donc `Aldo`, `Gus`, `Jesse`, `Verges`
+  (sans accent, comme le fichier), `Sandor` ; à l'écran « Vergès » garde
+  l'accent ;
+- **format des références** : 24 kHz, mono, PCM 16 bits, 16,4 à 20,4 s ;
+- à l'écran : **drapeau français** et **aucun second drapeau** (même précision
+  de Laurent que pour les voix de série), **0 étoile** → **hors casting
+  automatique**, mais **choisissables à la main** ;
+- **droits** : voix d'**acteurs de doublages** (œuvres du commerce) → **usage
+  privé dans l'atelier**. Leurs **5 textes sont dans `references_privees.csv`**
+  (le fichier **hors dépôt**), **jamais** dans `references.csv` : répliques de
+  dialogues sous droits, et un texte commité reste dans l'historique Git ;
+- **entrée faite** par `_essais/_entrer_5_voix_20261019.py` (rapport seul par
+  défaut, `--ecrire` pour agir, idempotent), avec **copie datée automatique**
+  du fichier privé avant l'écriture :
+  `references_privees.csv.bak_avant_5voix_20261019`, et copie de `modules/tts.py`
+  (`modules/tts.py.bak_avant_5voix_20261019`).
+
+**Deux formats à ne pas mélanger** : le **public** `references.csv` est en
+**CRLF** (201 lignes au 19/10 : en-tête + 200 voix), le **privé**
+`references_privees.csv` est en **LF** (7 lignes au 19/10 : en-tête + Maya +
+les 5 voix). Les deux sont en **UTF-8 sans BOM**, et l'outil d'entrée vérifie
+ces trois points après écriture.
 
 ## L'environnement Python (à lire avant de s'inquiéter)
 

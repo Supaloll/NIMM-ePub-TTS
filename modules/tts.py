@@ -1738,6 +1738,115 @@ QWEN_VOICES += [
     for identifiant, prenom, genre, etoiles in _VOIX_HINDI_10_10_2026
 ]
 
+# ==============================================================
+# LES 3 VOIX DE SERIE (16/10/2026) -- Thyrion, Sersei et Saul
+# ==============================================================
+# Demande de Laurent, mot pour mot : « On va cloner des nouvelles voix [...] Il y
+# a Thyrion, Sersei et Saul. Elles ressemblent bien aux originales, en tout cas
+# elles m'y font penser, donc on va les appeler comme ca. »
+#
+# LE CLONAGE : trois extraits deposes par Laurent dans « Voix a faires » de
+# l'atelier NIMM Voix (17,1 a 17,4 s chacun), clones par qwentts.cpp le
+# 16/10/2026 -- lot `sorties\trois_voix_thyrion_sersei_saul_20261016`. Laurent a
+# garde les TROIS a l'oreille, et le controle machine dit la meme chose : les
+# trois clones disent 100 % du texte de controle (41 / 41 mots, relus par
+# Whisper -- `VERIFICATION_DU_TEXTE.txt` du lot).
+#
+# POURQUOI HORS BOUCLE : comme `Maya_normale` et les 18 voix indiennes, ce sont
+# des timbres NEUFS -- aucune jumelle dans `KYUTAI_VOICES + KOKORO_VOICES +
+# POCKET_VOICES` : on les ecrit a la main, ici. Leurs 3 WAV sont dans
+# `qwen_tts_service/voix/` et leurs 3 lignes de texte dans le fichier **PRIVE**
+# `references_privees.csv` (**hors depot**) : ce sont des repliques de dialogues
+# d'oeuvres sous droits, et la regle du projet est qu'aucun texte de ce genre ne
+# part sur le depot -- exactement comme celui de Maya. Elles avaient d'abord ete
+# posees dans le fichier public par erreur ; elles ont ete **basculees avant tout
+# commit** (`_essais/_basculer_textes_series_prive_20261016.py`) et le service,
+# qui lit les DEUX fichiers, n'y voit aucune difference. Outil d'entree :
+# `_essais/_entrer_voix_series_20261016.py` ; copies datees AVANT l'ecriture :
+# `references.bak_avant_thyrion_sersei_saul_20261016.csv` (le public) et
+# `references_privees.csv.bak_avant_bascule_prive_20261016` (le prive).
+#
+# L'IDENTIFIANT est le nom du fichier (`Thyrion`, `Sersei`, `Saul`) -- c'est ainsi
+# que le moteur les appelle ; le PRENOM affiche est le nom du personnage, et
+# l'orthographe est celle de Laurent : « Thyrion » et « Sersei ».
+#
+# LE DRAPEAU : `region` porte le drapeau FRANCAIS, et rien d'autre -- precision
+# de Laurent, 16/10/2026 : « le drapeau doit etre francais, ce sont des voix
+# 100 % francaises. Pas voix etrangeres, ni de drapeau autre que FR. » Ces voix
+# sont clonees pour LIRE du francais : c'est la langue qui compte. La region ne
+# porte donc AUCUN second drapeau (ni Royaume-Uni, ni autre) : app.js
+# (`_secondDrapeauDeVoix`) n'affiche que « FR », comme pour les autres voix
+# francaises. La premiere idee (drapeau britannique, parce que les series sont
+# anglaises) a ete ecartee par Laurent le meme jour.
+#
+# 0 ETOILE A L'IMPORT (convention du 20/09/2026, comme les 18 voix indiennes et
+# Maya) : une voix notee 0 reste CHOISISSABLE A LA MAIN mais est ECARTEE du
+# casting automatique. Laurent ne les a pas encore notees a l'oreille ; sa fiche
+# d'ecoute (`data/annotations_voix.json`) les fera entrer dans le pool le jour ou
+# il les notera. AUCUNE fiche n'est ecrite ici -- comme pour Maya et JEAN_EDGAR,
+# on n'invente pas des criteres (age, timbre, accent) qu'on n'a pas mesures.
+#
+# DROITS : ce sont les voix d'ACTEURS d'oeuvres du commerce (Game of Thrones,
+# Better Call Saul) : usage PRIVE dans l'atelier, comme les extraits venus de
+# livres audio du commerce (`qwen_tts_service/ATTRIBUTION.md`). Pour partager un
+# jour, il faudrait des extraits libres de droits. Le portage et le modele, eux,
+# sont libres (MIT / Apache-2.0).
+# RETIREES LE 17/10/2026 (demande de Laurent) : les 3 voix de serie sont
+# sorties de la garde-robe -- « on va faire mieux plus tard », avec un
+# programme d'extraction a fabriquer (les extraits d'origine restent dans
+# `NIMM Voix/Voix a faires/`). Le tuple est VIDE : le code qui suit
+# (`QWEN_VOICES += [...]`) fonctionne avec une liste vide.
+_VOIX_SERIES_16_10_2026 = ()
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": "\U0001F1EB\U0001F1F7 France (Qwen)",
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles in _VOIX_SERIES_16_10_2026
+]
+
+# ==============================================================
+# LES 5 VOIX DU 19/10/2026 -- Aldo, Gus, Jesse, Verges, Sandor
+# ==============================================================
+# Clonees par NIMM Voix (lot `sorties\les_5_voix_retenues_20261019`),
+# gardees par Laurent a l'oreille le 19/10/2026 (5/5 pour les quatre
+# premieres, « le 04, D, est top » pour Sandor). Memo :
+# `passerelle_NIMM_ePub\ENVOYES_par_NIMM_Voix\
+# MEMO_5_VOIX_19-10-2026_pour_la_session_NIMM_ePub.md`. Elles sont arrivees
+# dans `qwen_tts_service\voix/` (5 WAV de plus : 201 -> 206).
+#
+# POURQUOI HORS BOUCLE : comme `Maya_normale`, les 18 voix indiennes et les
+# 3 voix de serie, ce sont des timbres NEUFS -- aucune jumelle dans
+# `KYUTAI_VOICES + KOKORO_VOICES + POCKET_VOICES` : on les ecrit a la main.
+#
+# PRIVEES : voix d'acteurs de doublages -> audio et textes en usage prive
+# (textes dans `references_privees.csv`, hors depot, jamais dans le public).
+# Outil d'entree : `_essais/_entrer_5_voix_20261019.py` (rapport seul par
+# defaut, `--ecrire` pour agir) ; copie datee du fichier prive AVANT
+# l'ecriture : `references_privees.csv.bak_avant_5voix_20261019`.
+#
+# IDENTIFIANT = nom du fichier sans `_reference` ; « Verges » sans accent,
+# parce que le fichier n'en porte pas (l'atelier retire les accents des
+# noms de fichiers). Le PRENOM affiche garde l'orthographe de Laurent.
+# GENRE : « M » (code des 18 voix indiennes). Un « H » ecrit par erreur le
+# 17/10 rendait les voix invisibles.
+# 0 ETOILE : hors casting automatique, choisissable a la main.
+# DRAPEAU : francais et rien d'autre (precision de Laurent, 16/10/2026 :
+# « ce sont des voix 100 % francaises ») -- aucun second drapeau.
+_VOIX_19_10_2026 = (
+    # (identifiant, prenom, genre, etoiles)
+    ("Aldo",   "Aldo",   "M", 0),
+    ("Gus",    "Gus",    "M", 0),
+    ("Jesse",  "Jesse",  "M", 0),
+    ("Verges", "Vergès", "M", 0),
+    ("Sandor", "Sandor", "M", 0),
+)
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": "\U0001F1EB\U0001F1F7 France (Qwen)",
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles in _VOIX_19_10_2026
+]
+
 
 class XttsIndisponible(RuntimeError):
     """Le service XTTS v2 ne repond pas (moteur eteint ou en chargement)."""
