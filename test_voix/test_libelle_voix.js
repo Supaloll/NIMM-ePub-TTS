@@ -11,7 +11,8 @@
 //   2. le 2e drapeau vient de la region quand elle en porte un (Etats-Unis,
 //      Japon), sinon d'un accent NOMME dans la region (« accent allemand »),
 //      sinon d'un pays ecrit en clair (Canada, Belgique, Suisse), sinon de
-//      l'accent annote par Laurent ;
+//      l'accent annote par Laurent (asiatique, hindou...), sinon du role
+//      « etranger » (globe, faute de pays nommable) ;
 //   3. les voix Edge, dont la region s'ecrit « France » / « Canada », affichent
 //      enfin un drapeau (elles n'en avaient AUCUN) ;
 //   4. l'age et le timbre affiches sont les LIBELLES du serveur (« mûr » et non
@@ -107,6 +108,9 @@ const CA = '\uD83C\uDDE8\uD83C\uDDE6';
 const DE = '\uD83C\uDDE9\uD83C\uDDEA';
 const BE = '\uD83C\uDDE7\uD83C\uDDEA';
 const IT = '\uD83C\uDDEE\uD83C\uDDF9';
+const IN = '\uD83C\uDDEE\uD83C\uDDF3';
+const ASIE = '\uD83C\uDF0F';
+const GLOBE = '\uD83C\uDF10';
 // Les symboles de genre, ecrits AVEC leur selecteur emoji, comme app.js.
 const SYM_F = '\u2640\uFE0F';
 const SYM_M = '\u2642\uFE0F';
@@ -174,6 +178,38 @@ egal('Nicola (accent italien annote)',
                  { accent: 'italien', age: 'vieux', timbre: 'grave' } })(
        V('kokoro:im_nicola', 'Nicola', '\uD83C\uDDEE\uD83C\uDDF9 Italie', 'M')),
      SYM_M + ' Nicola ' + FR + IT + ' vieux grave \u2014 ' + ICO_KOKORO);
+
+// Ajouts du 19/10/2026 (demande de Laurent) : « asiatique » et « hindou »
+// entrent dans les accents, et le role « etranger » affiche un drapeau.
+egal('une voix a accent asiatique annote',
+     fabriquer({ 'kokoro:ff_li': { accent: 'asiatique' } })(
+       V('kokoro:ff_li', 'Li', '\uD83C\uDDEB\uD83C\uDDF7 France (NIMM Voix)', 'F')),
+     SYM_F + ' Li ' + FR + ASIE + ' \u2014 ' + ICO_KOKORO);
+egal('une voix a accent hindou annote',
+     fabriquer({ 'kokoro:ff_asha': { accent: 'hindou' } })(
+       V('kokoro:ff_asha', 'Asha',
+         '\uD83C\uDDEB\uD83C\uDDF7 France (NIMM Voix)', 'F')),
+     SYM_F + ' Asha ' + FR + IN + ' \u2014 ' + ICO_KOKORO);
+egal('un accent « autre » ne donne AUCUN drapeau (accent non identifie)',
+     fabriquer({ 'kokoro:ff_autre': { accent: 'autre' } })(
+       V('kokoro:ff_autre', 'Autre',
+         '\uD83C\uDDEB\uD83C\uDDF7 France (NIMM Voix)', 'F')),
+     SYM_F + ' Autre ' + FR + ' \u2014 ' + ICO_KOKORO);
+egal('un role « etranger » sans accent donne le globe',
+     fabriquer({ 'kokoro:ff_etrangere': { role: 'etranger', accent: 'neutre' } })(
+       V('kokoro:ff_etrangere', 'Etrangere',
+         '\uD83C\uDDEB\uD83C\uDDF7 France (NIMM Voix)', 'F')),
+     SYM_F + ' Etrangere ' + FR + GLOBE + ' \u2014 ' + ICO_KOKORO);
+egal('l accent nomme passe AVANT le role « etranger »',
+     fabriquer({ 'kokoro:ff_otto':
+                 { role: 'etranger', accent: 'allemand' } })(
+       V('kokoro:ff_otto', 'Otto',
+         '\uD83C\uDDEB\uD83C\uDDF7 France (NIMM Voix)', 'M')),
+     SYM_M + ' Otto ' + FR + DE + ' \u2014 ' + ICO_KOKORO);
+egal('le drapeau de la region passe avant le role',
+     fabriquer({ 'kokoro:af_heart': { role: 'etranger', accent: 'neutre' } })(
+       V('kokoro:af_heart', 'Heart', '\uD83C\uDDFA\uD83C\uDDF8 Etats-Unis', 'F')),
+     SYM_F + ' Heart ' + FR + US + ' \u2014 ' + ICO_KOKORO);
 
 console.log('');
 console.log('6) le 2e drapeau : un pays ecrit en clair (les 12 voix Edge)');

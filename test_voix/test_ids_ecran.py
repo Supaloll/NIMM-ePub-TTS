@@ -215,10 +215,20 @@ def main():
         verifier('style %s declare' % classe, classe in styles_lecteur)
 
     print('')
-    print('4) la phrase d\'ecoute est bien definie (une seule, pour toutes)')
-    verifier('constante PHRASE_ECOUTE presente', 'const PHRASE_ECOUTE' in js)
-    verifier('phrase non vide',
-             re.search(r"const PHRASE_ECOUTE\s*=\s*'[^']{20,}", js) is not None)
+    print('4) le texte d\'ecoute (trois lots, trois phrases par ecoute)')
+    # Depuis le 21/10/2026, il n'y a plus UNE phrase pour toutes les voix :
+    # trois lots de dix phrases, une par lot a chaque ecoute, puis melangees
+    # (demande de Laurent). Ici, on controle seulement le BRANCHEMENT -- la
+    # matiere des 30 phrases et le tirage sont verifies finement par
+    # `test_voix/test_phrases_ecoute.js`.
+    verifier('les lots de phrases existent', 'const LOTS_PHRASES_ECOUTE' in js)
+    verifier('le tirage des trois phrases existe',
+             'function _tirerTexteEcoute' in js)
+    verifier('le tirage prend une phrase dans CHAQUE lot',
+             'LOTS_PHRASES_ECOUTE.map(' in js)
+    verifier('la fenetre d\'ecoute utilise le tirage',
+             'text: _tirerTexteEcoute()' in js)
+    verifier('l\'ancienne phrase unique a disparu', 'const PHRASE_ECOUTE' not in js)
 
     print('')
     print('5) le code se connecte bien aux routes du serveur')

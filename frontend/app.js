@@ -255,6 +255,12 @@ function selectProfile(userId) {
 // pas, et les menus du casting groupent deja « Femmes » / « Hommes ».
 const DRAPEAU_FR = '\uD83C\uDDEB\uD83C\uDDF7';
 
+// Le globe n'est pas un pays : il dit seulement « cette voix est reservee aux
+// personnages etrangers » quand aucun drapeau plus precis n'est connu (role
+// « etranger »). Il ne s'affiche PAS pour un accent « autre », qui veut dire
+// « accent non identifie » : mieux vaut aucun drapeau qu'un drapeau faux.
+const DRAPEAU_GLOBE = '\uD83C\uDF10';
+
 // Un drapeau emoji s'ecrit avec DEUX « indicateurs regionaux » : d'ou ce motif
 // en UTF-16 (0xD83C + 0xDDE6..0xDDFF, deux fois de suite).
 const MOTIF_DRAPEAU = /\uD83C[\uDDE6-\uDDFF]\uD83C[\uDDE6-\uDDFF]/g;
@@ -275,15 +281,25 @@ const DRAPEAUX_PAR_MOT = {
   'canadien': '\uD83C\uDDE8\uD83C\uDDE6',
   'espagnol': '\uD83C\uDDEA\uD83C\uDDF8',
   'italien':  '\uD83C\uDDEE\uD83C\uDDF9',
+  // Ajoutes le 19/10/2026 (demande de Laurent) : ces deux accents existent
+  // deja dans la garde-robe, mais n'etaient pas proposables dans « Ecouter les
+  // voix ». L'Asie n'etant pas un pays, elle porte le GLOBE Asie ; l'Inde a son
+  // drapeau. « autre » ne donne AUCUN drapeau (accent non identifie) ; le role
+  // « etranger » a le globe, lui, parce qu'il dit explicitement « etranger ».
+  'asiatique': '\uD83C\uDF0F',              // globe Asie
+  'hindou':    '\uD83C\uDDEE\uD83C\uDDF3', // Inde
 };
 
 // Le SECOND drapeau, par ordre de fiabilite :
 //   1. un drapeau DEJA ecrit dans la region (le plus precis : Etats-Unis, Japon) ;
 //   2. un accent NOMME dans la region (« accent allemand ») ;
 //   3. un pays ecrit en clair (Canada, Belgique, Suisse...) ;
-//   4. l'accent annote par Laurent dans la fenetre d'ecoute.
+//   4. l'accent annote par Laurent dans la fenetre d'ecoute (asiatique, hindou ;
+//      « autre » ne donne rien, faute de pays nommable) ;
+//   5. le role « etranger », qui n'a pas de pays : globe, lui, parce qu'il dit
+//      explicitement que la voix est etrangere.
 // Jamais le drapeau francais : il est deja devant. '' si la voix est francaise
-// sans accent.
+// sans accent et sans role « etranger ».
 function _secondDrapeauDeVoix(v) {
   const region = String((v && v.region) || '');
   const trouves = (region.match(MOTIF_DRAPEAU) || [])
@@ -301,7 +317,14 @@ function _secondDrapeauDeVoix(v) {
   // `typeof` : certains tests node evaluent ces fonctions HORS de app.js.
   const annots = (typeof _annotationsVoix === 'undefined') ? {} : _annotationsVoix;
   const annote = annots[(v && v.id) || ''] || {};
-  return DRAPEAUX_PAR_MOT[annote.accent] || '';
+  const parAccent = DRAPEAUX_PAR_MOT[annote.accent] || '';
+  if (parAccent) {
+    return parAccent;
+  }
+  // Role « etranger » SANS accent nomme (demande de Laurent, 19/10/2026) : la
+  // voix est reservee aux personnages etrangers, donc elle doit se voir dans
+  // les menus. Le globe est le seul symbole honnete quand le pays est inconnu.
+  return (annote.role === 'etranger') ? DRAPEAU_GLOBE : '';
 }
 
 // Le libelle AFFICHE d'une valeur de critere (« mur » -> « mûr »,
@@ -3146,11 +3169,110 @@ async function _previewCharacterVoice(characterName, voiceId, rate, pitch, btn) 
 // remarque). Les notes restent sur l'ordinateur : c'est ce qui remplace les
 // lots d'ecoute par fichiers utilises jusqu'ici.
 
-// Phrase IDENTIQUE pour toutes les voix : c'est ce qui rend la comparaison
-// juste. Elle contient des pieges utiles (nombres, noms propres, accents,
-// liaisons) et sert deja aux lots d'ecoute du projet.
-const PHRASE_ECOUTE = 'Le 24 février 1815, la vigie de Notre-Dame de la Garde '
-  + 'signala le trois-mâts le Pharaon, venant de Smyrne, Trieste et Naples.';
+// LE TEXTE D'ECOUTE : TROIS LOTS DE DIX PHRASES, TROIS PHRASES PAR ECOUTE
+// (demande de Laurent, 21/10/2026 : « ça donnera l'impression d'un texte à
+// chaque fois différent »).
+// ----------------------------------------------------------------------
+// Jusqu'ici, toutes les voix disaient LA MEME phrase : c'etait juste pour
+// comparer, mais a force de l'entendre l'oreille s'habitue et n'entend plus
+// les defauts -- et une seule phrase ne revele pas tout (un moteur peut
+// buter sur un nom propre et passer une phrase simple sans broncher).
+//
+// Chaque lot interroge donc une chose differente :
+//   1. la VOIX NUE  : phrases courtes et simples (timbre, clarte, souffle,
+//                     bruits d'attaque, mots manges) ;
+//   2. les PIEGES   : nombres, noms propres, homographes (« les fils »),
+//                     liaisons -- la phrase de reference du projet ouvre le
+//                     lot, pour ne pas perdre l'historique des ecoutes ;
+//   3. la PROSODIE  : phrases longues, virgules, question, accumulation
+//                     (rythme, blancs, monotonie, respiration en fin).
+//
+// A chaque ecoute, on tire UNE phrase dans CHAQUE lot, puis on melange les
+// trois : mille combinaisons possibles, donc un texte neuf a chaque fois, et
+// toujours les trois dimensions a l'oreille. Le tirage se fait ICI, dans la
+// page : le serveur recoit un texte, exactement comme avant.
+//
+// DEUX REGLES en ecrivant une phrase ici :
+//   - pas de didascalie (« , dit-il, ») : le nettoyage du serveur les retire
+//     du texte parle (modules/incises.py), et la phrase arriverait mutilee ;
+//   - pas de point d'exclamation : il fait monter la voix et fausse la
+//     comparaison entre deux voix.
+const LOTS_PHRASES_ECOUTE = [
+  [ // 1. la voix nue
+    'Il fait beau ce matin.',
+    'Elle ouvre la porte sans bruit.',
+    'Nous partirons avant la nuit.',
+    'La maison reste silencieuse.',
+    'Le chat dort sur la table.',
+    'Tu as vu ton frère hier soir.',
+    'Le train arrive dans une heure.',
+    'Personne ne lui répondit.',
+    'Ils marchent côte à côte.',
+    'La lumière baisse peu à peu.',
+  ],
+  [ // 2. les pieges
+    'Le 24 février 1815, la vigie de Notre-Dame de la Garde signala le '
+      + 'trois-mâts le Pharaon, venant de Smyrne, Trieste et Naples.',
+    'Le fils du roi tient les fils dorés entre ses doigts.',
+    'Il est midi et le vent est tombé.',
+    'Nous étions vingt et un dans la salle.',
+    'Le peintre expose quatre-vingts toiles à Poitiers.',
+    'Monsieur Delcourt a reçu deux mille cinq cents francs.',
+    'Elle a acheté un bouquet de thym et de romarin.',
+    'Le hockey et le handball se jouent en salle.',
+    'Il a payé sept euros et cinquante centimes.',
+    'La Seine traverse Paris, et la Loire passe à Orléans.',
+  ],
+  [ // 3. la prosodie
+    'Après avoir longtemps hésité, il poussa la porte, entra dans la pièce '
+      + 'et ne dit pas un mot.',
+    'Le vieil homme, fatigué par deux jours de veille, se laissa tomber '
+      + 'près du feu.',
+    'Est-ce que la porte de la grange est restée ouverte toute la nuit ?',
+    'On aurait dit que le silence, loin de se briser, devenait plus épais '
+      + 'à chaque instant.',
+    'D\'abord il refusa, puis il hésita, ensuite il accepta et enfin il '
+      + 'partit sans rien dire.',
+    'Elle répéta la même phrase trois fois, comme si personne ne l\'avait '
+      + 'entendue.',
+    'Le bateau quitta le port au lever du jour, et les mouettes suivirent '
+      + 'longtemps sa trace.',
+    'Ce qu\'il craignait par-dessus tout, ce n\'était pas la fatigue, mais '
+      + 'le silence des autres.',
+    'Il faut partir maintenant, sans bruit, sans lumière et sans regarder '
+      + 'derrière soi.',
+    'Une longue journée de marche nous attend, et la route monte encore '
+      + 'jusqu\'au col.',
+  ],
+];
+
+// Tire le texte d'une ecoute : une phrase par lot, ordre melange.
+// Un tirage identique au precedent est refait : deux clics de suite ne
+// doivent pas redonner le meme texte (1 chance sur 1000, donc rare -- mais
+// on croirait que le tirage ne marche pas, et le cache repondrait si vite
+// qu'on douterait de la voix).
+let _dernierTexteEcoute = '';
+
+function _tirerTexteEcoute() {
+  let texte = '';
+  for (let essai = 0; essai < 5; essai++) {
+    const choisies = LOTS_PHRASES_ECOUTE.map(
+      lot => lot[Math.floor(Math.random() * lot.length)]);
+    // Melange des trois (Fisher-Yates) : le texte ne commence pas toujours
+    // par le meme lot, sinon les phrases s'enchaineraient toujours dans le
+    // meme ordre et l'ecoute ressemblerait a un rituel.
+    for (let i = choisies.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tempo = choisies[i];
+      choisies[i] = choisies[j];
+      choisies[j] = tempo;
+    }
+    texte = choisies.join(' ');
+    if (texte !== _dernierTexteEcoute) break;
+  }
+  _dernierTexteEcoute = texte;
+  return texte;
+}
 
 // Les moteurs de voix, dans l'ordre d'affichage. Troisieme element : leur
 // ICONE (20/09/2026, demande de Laurent : « trouver des icones pour les
@@ -3271,8 +3393,9 @@ async function _sauverAnnotationVoix(voiceId, ligne) {
   }
 }
 
-// Ecoute une voix avec la phrase de reference. On coupe la precedente : sinon
-// deux voix se superposeraient si Laurent en lance une autre pendant l'ecoute.
+// Ecoute une voix avec le texte tire pour cette ecoute (trois phrases, voir
+// `_tirerTexteEcoute`). On coupe la precedente : sinon deux voix se
+// superposeraient si Laurent en lance une autre pendant l'ecoute.
 async function _ecouterVoix(voiceId, btn) {
   if (_ecouteurAudio) {
     _ecouteurAudio.pause();
@@ -3285,7 +3408,7 @@ async function _ecouterVoix(voiceId, btn) {
     const res = await fetch('/api/tts', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ text: PHRASE_ECOUTE, voice: voiceId,
+      body:    JSON.stringify({ text: _tirerTexteEcoute(), voice: voiceId,
                                 rate: '+0%', pitch: '+0Hz' })
     });
     if (!res.ok) throw new Error('Echec ecoute voix');
@@ -3358,7 +3481,7 @@ function _construireLigneVoix(voix) {
   btn.type = 'button';
   btn.className = 'voice-play-btn';
   btn.textContent = '\u25B6';
-  btn.title = 'Ecouter cette voix (phrase de reference)';
+  btn.title = 'Ecouter cette voix (3 phrases tirees au hasard)';
   btn.addEventListener('click', () => _ecouterVoix(voix.id, btn));
 
   const info = document.createElement('div');
@@ -3425,7 +3548,16 @@ function _construireLigneVoix(voix) {
     // n'etait choisi, donc le nom de la rubrique disparaissait des la premiere
     // valeur selectionnee (constat de Laurent, 19/09/2026).
     const options = [['', '\u2013']];
-    (critere.valeurs || []).forEach(v => options.push([v.valeur, v.libelle]));
+    (critere.valeurs || []).forEach(v => {
+      // Le drapeau de l'accent est ecrit DEVANT son libelle dans le menu
+      // (demande de Laurent, 19/10/2026) : on reutilise `DRAPEAUX_PAR_MOT`,
+      // la meme table que le libelle d'une voix -- aucune liste en double.
+      let libelle = v.libelle;
+      if (critere.cle === 'accent' && DRAPEAUX_PAR_MOT[v.valeur]) {
+        libelle = DRAPEAUX_PAR_MOT[v.valeur] + ' ' + libelle;
+      }
+      options.push([v.valeur, libelle]);
+    });
     _listeOptions(sel, options, annot[critere.cle] || '');
     _majStyleCritere(sel);
     sel.addEventListener('change', () => {

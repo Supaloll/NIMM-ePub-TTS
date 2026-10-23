@@ -38,7 +38,8 @@ sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
 
 # Les suivis ecrits par les bancs (le plus recent gagne) : c'est ainsi qu'on
 # retrouve « le dernier lot » sans rien demander a Laurent.
-SUIVIS = ['_dernier_lot_got_auto.txt', '_dernier_lot_prenoms.txt']
+SUIVIS = ['_dernier_lot_got_auto.txt', '_dernier_lot_prenoms.txt',
+          '_dernier_lot_ponctuation.txt']
 
 # Un fichier de lot : « 01_eddard_stark__2_FRANCAIS.wav »
 MOTIF = re.compile(r'^(\d+)_(.+?)__(\d+)_(.+)\.wav$', re.IGNORECASE)
@@ -122,7 +123,18 @@ def _nettoyer(sortie):
 
 
 def _a_lire(sortie, faits, dossier):
-    """La petite notice DU dossier d'ecoute : ce qu'on entend, et quoi repondre."""
+    """La petite notice DU dossier d'ecoute : ce qu'on entend, et quoi repondre.
+
+    Si le lot porte sa PROPRE notice (`LISEZ-MOI.txt`, ecrite par le banc qui l'a
+    fabrique), c'est elle qui est recopiee : le texte generique ci-dessous parle
+    d'un lot de prenoms (trois prises : cible anglaise, francais, anglais) et
+    n'aurait aucun sens pour un autre banc.
+    """
+    notice_du_lot = dossier / 'LISEZ-MOI.txt'
+    if notice_du_lot.is_file():
+        (sortie / 'A_LIRE.txt').write_text(
+            notice_du_lot.read_text(encoding='utf-8'), encoding='utf-8')
+        return
     lignes = [
         "A LIRE AVANT D ECOUTER -- %d noms" % len(faits),
         "=" * 60,
@@ -186,8 +198,15 @@ def main():
     faits = []
     for numero in sorted(groupes):
         nom, prises = groupes[numero]
-        etiquettes = '-'.join(etiquette.replace('_', '-').upper()
-                              for _n, etiquette, _c in prises)
+        # Les libelles des prises, dans l'ordre, SANS repeter deux fois de suite
+        # le meme : un banc qui tire deux fois la meme variante donnerait sinon
+        # « A-AUJOURDHUI-A-AUJOURDHUI » dans le nom du fichier recolle.
+        libelles = []
+        for _n, etiquette, _c in prises:
+            libelle = etiquette.replace('_', '-').upper()
+            if not libelles or libelles[-1] != libelle:
+                libelles.append(libelle)
+        etiquettes = '-'.join(libelles)
         cible = sortie / ('%02d_%s__%s.wav'
                           % (numero, _nom_lisible(nom), etiquettes))
         _coller(prises, cible)

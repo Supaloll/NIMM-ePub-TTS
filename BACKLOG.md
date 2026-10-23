@@ -15,6 +15,10 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 
 ## 🚩 À FAIRE EN PRIORITÉ — décidé le 22/09/2026
 
+- [ ] **🎙️ NEUF VOIX À REPRENDRE — diagnostic fait le 19/10/2026, reprise confiée à NIMM Voix.** Laurent a signalé à l'écoute **Théodore, Édouard, Aubin, Maya, Achille, Berthe, Cécile, Joséphine et Maurice**. **Toutes sont des voix Qwen**, le moteur du lecteur (les livres ne portent que des `voice_id` Qwen). Le diagnostic est **prouvé par la mesure** : **cinq références ont un texte qui ne dit pas ce que dit leur audio** (Théodore : une phrase en trop au début ; Achille : « madame » manquant ; Cécile : la fin de l'audio absente du texte ; Aubin : « Morgi » coupé, et le clone recopie « de Morgi(l) » au début ; Maya : plusieurs écarts). C'est la cause première du babil et des premières syllabes mangées ; **l'égaliseur ne doit venir qu'après**. Le cas d'**Achille** (« madame » manquant) était **déjà connu depuis le 02/10/2026** (`ETAT_DU_JOUR` de la copie pour Claude) et n'a jamais été appliqué en production ; `Femme004` (« 4 mots de trop à la fin ») relève du même défaut. Les quatre autres sont des défauts de couleur, de niveau ou de souffle (Édouard et Maurice clairs, Berthe et Joséphine soufflantes, Joséphine à bords sales). **Mémo complet** : `test_voix/MEMO_VOIX_A_REFAIRE_19-10-2026_pour_NIMM_Voix.md` (symptômes, mesures, geste voix par voix, protocole de contrôle en deux prises). **Mise à jour du soir** : Laurent a corrigé les neuf textes ; **5 appliqués** en production (copies datées), **4 déjà justes**. **Aucun WAV touché** à ce moment-là. **Réparé et installé dans la nuit du 20/10** : **7 références** remplacées (Théodore recoupé à **6,50 s**, Édouard à **0,45 s** + matage **−6 dB** au-dessus de 3 kHz, Aubin recoupé à **8,30 s** ; Berthe, Joséphine et Maya passées à DeepFilterNet + égalisation ; Maurice à l'égalisation), sauvegarde `SAUVEGARDE_PRODUCTION_20261020_0702`. **Achille et Cécile** gardent leur audio (couper dans une phrase continue risquait de manger un mot), avec leur **texte corrigé**. **Contrôle machine** : les **18 clones** (p1 + p2) relus par Whisper — les 9 p1 démarrent sur le bon texte, les 9 p2 disent la phrase complète, **plus de babil**. *Reste* : l'écoute de Laurent dans `_essais/_reparation_9_voix_20261019/A_ECOUTER/` (bouton `ECOUTER_LA_REPARATION_DES_9_VOIX.cmd`), et éventuellement recouper la fin d'Achille/Cécile sur un extrait plus long.
+
+- [ ] **🧹 FILTRES ANTI-BRUIT SUR LES EXTRAITS DE CLONAGE — idée de Laurent (19/10/2026).** « On devrait appliquer les filtres anti-bruit sur les extraits qui servent au clonage. » **Oui, et c'est le bon endroit** : dans le lecteur, la voix **est** l'extrait de référence ; le moteur le recopie à chaque phrase. Nettoyer le clone après coup, c'est nettoyer la conséquence. **Chaîne proposée** (outils de NIMM Voix) : mesurer d'abord (`mesurer_timbre_voix.py`, `mesurer_bords_extrait.py`, `mesurer_attaques_lot.py`, `mesurer_spectre_voix.py`), puis **DeepFilterNet** pour le souffle/fond, **Demucs seulement si musique/effets** (`--sans-demucs` sur une voix seule), **décruchage** si la source sature (Maya — DeepFilterNet ne répare pas la saturation), passe-haut ≈ 80 Hz, **égalisation médiane** bornée ±6 dB, puis **niveau −23 dBFS, pics 0,97, 100 ms aux bords, 24 kHz mono**. **Garde-fou** : **ne pas filtrer les 206 voix en aveugle** (un débruiteur trop fort éteint la voix) — commencer par les **neuf**, A/B, **deux prises**, Whisper, puis étendre **famille par famille**. *Voir* `test_voix/MEMO_SUITE_VOIX_19-10-2026_pour_NIMM_ePub.md` § 4.
+
 - [ ] **🔊 LES SOUFFLES : le PROCESSEUR en produit, la CARTE non — verdict de l'oreille de Laurent (03/10/2026).** Son signalement, mot pour mot : « *parfois je me retrouve avec des parasites dans la voix comme un bruit de fond, un souffle, juste sur une phrase […] quand c'était sur CPU, c'était très lent, mais c'était très propre.* » **Banc** `test_voix\_banc_gpu_souffles.py` (lanceur `TESTER_LES_SOUFFLES_DE_LA_CARTE.bat` ; il **refuse de partir si le moteur tourne**, sinon un repli silencieux sur le processeur fausserait le test) : 4 passages continus **à l'aveugle** — même voix (`1770_1028_000036-0002`), les mêmes **3 phrases réelles** de 22/11/63, 2 tirages — avec **A** carte Q4_K_M précision **OFF** (la config en service), **B** carte Q4 précision **ON** (`clamp_fp16`, le levier direct, jamais passé par notre service), **C** le **processeur**, **D** la carte en **Q8_0**. **VERDICT : UN SEUL passage porte un souffle — `opdg1mxtsigcp3t4`, qui est le C, le PROCESSEUR.** Les **trois** passages de la carte (dont celui d'aujourd'hui) sont **nickels**. → **La carte n'est PAS en cause : la configuration en service est propre, il n'y a rien à changer.** Les leviers `clamp_fp16` et Q8_0 restent des options, **non nécessaires**. ⚠️ **Deux mesures tentées, et qui NE TRANCHENT PAS** : les « aigus » (A **0,096** ≈ C **0,097** ; D **0,159**) et le **plancher de bruit** (A **−34,3** / B **−33,6** / **C −33,1** / D **−37,1** dBFS) — la direction va dans le sens de son oreille pour C, mais **1,2 dB d'écart ne suffisent pas à détecter un souffle**. **CE QUI RESTE** : (1) le souffle entendu **en LISANT** n'a **pas** été reproduit ici, or il lit avec la **carte** → il faut le traquer **dans la chaîne du lecteur** (la phrase vient du livre, et le lecteur applique **hauteur et vitesse par personnage** : `modules\audio_rate.py`, `audio_gain.py`, `audio_trim.py`, le cache, le transport) → **il faut un exemple concret de Laurent** (livre + phrase + voix) pour le refaire à l'identique ; (2) à savoir : le **repli processeur** du service (`repli: true` dans `/sante`) n'est donc **pas équivalent en qualité** — s'il tombe dessus, il aura des souffles.
   **🔬 OUTIL DE DIAGNOSTIC LIVRÉ ET TESTÉ (03/10/2026, demande de Laurent).** `modules\diagnostic.py` (fichier neuf) + un **crochet gardé par `NIMM_DIAGNOSTIC=1`** dans `modules\tts.py` (fonction `synthesize_qwen`) + le lanceur **`test_voix\LANCER_LE_LECTEUR_EN_DIAGNOSTIC.bat`**. En mode diagnostic : **(1)** le **cache est ignoré** (ni lu ni écrit) → chaque phrase est **vraiment fabriquée** au moment où on l'écoute ; **(2)** chaque phrase laisse une **trace** dans `test_voix\sortie_diagnostic_phrase\` : le **texte avant et après le nettoyage**, la voix, la vitesse, la hauteur, et l'audio **aux 6 étapes du traitement** (`01_brut_moteur`, `02_rognage_queue`, `03_vitesse`, `04_hauteur`, `05_normalisation`, `06_fondu_entree`) avec **`pic`, `niveau` et plancher de bruit mesurés**, plus un `journal.txt` global. **Vérifié pour de vrai**, moteur sur la carte : 3 phrases (une normale, une à +20 % / +50 Hz, une courte « Oui. ») → les **3 traces sont écrites**, et **aucune étape ne fait bondir le plancher de bruit** (la normalisation suit le signal : **−2,0 dB** sur la phrase forte, **+2,9 dB** sur la courte). **CE QUI RESTE** : que Laurent lise **en mode diagnostic** et dise **quelle phrase** porte le souffle → on écoute alors **les 6 étapes de CETTE phrase**, dans l'ordre, et on voit **à quelle étape** il apparaît. *Le mode est sans effet quand la variable n'est pas posée : le lecteur normal est inchangé.*
   **RÉSULTAT DES DEUX PHRASES SIGNALÉES PAR LAURENT (03/10/2026, 51 phrases tracées en mode diagnostic).** Ses mots : « *Ai-je compris qu'il m'avait touché au point de m'emporter le cuir chevelu…* » — « **qui part dans une voix aiguë** » ; et « *La vie prend des virages à 180 degrés…* » — « *sur le passage "virages à 180 degrés," il bafouille pas mal* ». **CE QUE LA TRACE A MONTRÉ** : les deux phrases sont bien dans les traces, **avec la MÊME voix** (`qwen:1770_1028_000036-0002`, vitesse +0 %, hauteur +0 Hz) → ce **n'est donc pas** le casting ni un décalage de hauteur. Et surtout : **la même phrase régénérée n'est pas la même** — « cuir chevelu » donne **7,28 s** au premier tirage (départ à **176 Hz**) et **5,68 s** au second (départ à **156 Hz**), soit **+28 % d'écart**. **LA HAUTEUR DE LA VOIX VAGABONDE** : mesurée sur les 51 phrases, la F0 médiane est de **140 Hz** mais elle va de **111 à 232 Hz** selon la phrase (par tiers : 115 à 176 Hz) — la phrase « cuir chevelu » démarre à **176 Hz**, ≈ **+4 demi-tons au-dessus de sa propre médiane** : c'est très probablement la « voix aiguë » entendue. **Le défaut est donc DANS L'AUDIO BRUT DU MOTEUR** (visible dès l'étape `01_brut_moteur`, avant rognage/vitesse/hauteur/normalisation) → **la chaîne de traitement du lecteur est INNOCENTE**. **CE QUI N'A PAS ÉTÉ TROUVÉ (dit franchement)** : la **bafouille** — ni le débit (18,3 car/s, **plus rapide** que la médiane de 15,5), ni la hauteur, ni la **répétition dans l'enveloppe** (0,32 pour la phrase signalée contre **0,34 pour un témoin**) ne la distinguent d'une phrase normale : **l'oreille la voit, mes chiffres non**. **🎯 LA BAFOUILLE EST EXPLIQUÉE : C'EST LE NOMBRE « 180 » ! (03/10/2026, l'oreille de Laurent).** Il a transcrit exactement ce qu'il entend : « *La vie prend des virage**s** à **pi huit-cent** degrés.* » (tirage 1) et « *…à **pi huit-cent eugré** degrés.* » (tirage 2) — **deux tirages, deux fois le même défaut** : ce n'est donc **pas** le hasard du moteur, c'est **le nombre que le moteur ne sait pas lire**. **VÉRIFIÉ** : (1) les traces du mode diagnostic montrent que le texte envoyé au moteur porte bien **`à 180 degrés`** (chiffres **inchangés** : `texte_avant` = `texte_apres`) ; (2) **aucun module du lecteur ne convertit les nombres en lettres** (recherche `num2words` / `en_lettres` / `to_words` : **rien**, ni dans `modules\`, ni dans `core\`, ni dans `main.py`) ; (3) l'essai comparatif est fabriqué : `test_voix\sortie_diagnostic_phrase\A_ECOUTER_CHIFFRES\` — **A1** « …à 180 degrés », **B1** « …à cent quatre-vingts degrés », **A2** « Le 24 février 1815… », **B2** « Le vingt-quatre février mil huit cent quinze… ». ⚠️ **PORTÉE GÉNÉRALE : tous les nombres de tous les livres sont mal lus** (un moteur TTS lit des lettres, pas des chiffres). **CORRECTIF À PROPOSER (niveau 3 : ça change la lecture)** — un module **`modules\nombres.py`** (nombres → lettres en français) appliqué **avant** d'envoyer au moteur, exactement comme `prononciation.py` le fait pour les mots ; cas à traiter et à faire valider **à l'oreille** : **années** (« 1815 » → « mil huit cent quinze »), **décimales**, **plages** (« 10-12 »), **ordinaux** (« XXe »), **titres à barres obliques** (« 22/11/63 ») et **grands nombres**.
@@ -879,6 +883,13 @@ priorité, à raison d'une ou deux par session — jamais tout d'un coup.**
 ---
 
 ## 🔴 Priorité 1 — Lecture audio (confort immédiat)
+
+- [ ] **🎧 LA PONCTUATION DU LIVRE, DONNÉE TELLE QUELLE AU MOTEUR — LIVRÉ POUR QWEN le 23/10/2026 ; DEUX SUITES À TRANCHER.** Constat de Laurent à l'écoute de « Dialogues désaccordés » : « *Parfois, le texte est traité de façon étrange. Pour les virgules, parfois elles « sonnent » comme si c'était un point. La voix tombe comme pour une fin de phrase.* » Le diagnostic a séparé **deux causes** : (1) le **deux-points changé en virgule** (et `;` et parenthèses aplatis) venait de **nos règles** du 17/09/2026, écrites du temps d'Edge et Kokoro ; (2) la **virgule qui tombe** venait du **moteur**, sur une longue chaîne de virgules — la phrase de **398 caractères** part en **une seule requête**, et le service n'a posé **aucune étiquette** `derivee` / `coupee_en_deux` : ni la règle « virgule finale → point », ni la coupe en deux n'étaient en cause.
+  **LE BANC (livré)** : `test_voix/_banc_qwen_ponctuation.py` + lot **`test_voix/ecoute_ponctuation_libre_20261023_1109/`** — **6 écoutes** du **même passage**, voix **Naulleau**, moteur **sur la carte** (Q8_0, aucun repli) : A le texte d'aujourd'hui et B la ponctuation du livre (**2 tirages** chacun, le moteur est à température 0,9), C sans guillemets, D coupé au deux-points, E la fin seule avec sa virgule, F la même fin avec un **vrai point**. L'outil est inscrit dans `test_voix/LIRE_MOI.md`. *Mesure au passage* : la hauteur des 100 dernières millisecondes avant la pause, contre la médiane de la phrase, donne **+8,6 demi-tons sur la virgule du livre** (« reste en l'air ») et **−6,0 sur un vrai point** (elle tombe) ; et la version du livre dure **1,5 à 2 s de moins** (17,6 et 18,2 s contre 20,8 et 19,4 s) avec **une** chute au milieu contre **quatre**.
+  **✅ VERDICT DE LAURENT (23/10/2026)** : « *Le passage B est très bon. On prend celui-ci comme référence.* » Et sur l'extrait court, il préfère **F (le vrai point)** à la virgule de l'auteur — cas isolé, **aucune règle n'en est tirée**.
+  **✅ LIVRÉ** : le drapeau `_clean_text(..., ponctuation_libre=True)`, **activé seulement dans `synthesize_qwen`**. Défaut `False` : **Edge, Kokoro, Piper, Kyutai, XTTS, NeuTTS et Pocket ne changent pas d'un caractère**. `test_nettoyage_tts.py` passe de 41 à **48 contrôles** (les sept nouveaux verrouillent le drapeau). Copie datée avant la bascule : `modules/tts.py.bak_avant_ponctuation_libre_qwen_20261023`. Le texte envoyé change, donc les phrases déjà lues **se régénèrent** d'elles-mêmes (la clé du cache porte le texte — rien à vider).
+  **SUITE 1 — les autres moteurs** : ils gardent les règles du 17/09/2026 **sans avoir été réécoutés**. Le même banc, avec une voix d'un autre moteur, dira si `;`, `:` et les parenthèses doivent rester aplatis chez eux (rien ne prouve aujourd'hui que ces règles leur soient inutiles).
+  **SUITE 2 — deux vrais défauts vus en chemin** : (a) les **parenthèses** laissent une ponctuation bancale — « … il entra (sans bruit). » ressort en « … il entra, sans bruit**,.** » (virgule **puis** point), à corriger indépendamment du drapeau ; (b) la **coupe à 500 caractères** de la page reste le seul endroit où une phrase est coupée en plein milieu — c'est là qu'une virgule devenait un point. Le drapeau ne l'annule pas (la virgule reste, mais la requête s'arrête quand même) : à réécouter.
 
 - [ ] **🎧 LES PRÉNOMS ANGLAIS PRONONCÉS « À L'ANGLAISE » — chantier ouvert le 16/10/2026 : le BANC D'ÉCOUTE est livré, tes verdicts sont attendus.** Demande de Laurent, mot pour mot : « *Je voudrais me pencher sur la prononciation des prénoms. Il faudrait trouver quelque chose pour que la prononciation se fasse "à l'anglaise" quand ce sont des noms ou des prénoms anglais. J'ai pensé à un "dictionnaire de phonèmes", mais je ne connais pas la phonétique.* »
   **LES TROIS PORTES SONT FERMÉES CÔTÉ MOTEUR (vérifié le 16/10/2026, dans le code)** : (1) le moteur en service, **Qwen3-TTS**, reçoit **UNE SEULE langue pour TOUTE la phrase** (`lang='french'`, `qwentts_service/servir_qwentts_cpp.py`) et la liste de **ses 10 langues** (dont `english`) **vit dans le fichier du modèle** — une seule à la fois, **pas de « auto »** ; (2) le champ `instruct` de l'API (« dis-lui comment prononcer ») est **REFUSÉ** par le moteur : « *--instruct is not supported for base models* » (chaîne lue dans `qwen.dll`) ; (3) Qwen **n'accepte pas de phonèmes** — seuls **Kokoro et Piper** en prennent (`is_phonemes=True`, espeak-ng), et ce ne sont plus les moteurs de service. → **LE SEUL LEVIER EST CE QU'ON ÉCRIT**, donc **pas de dictionnaire IPA** (inutile pour Qwen, illisible pour Laurent) : une **table de graphies**, le patron exact de `modules/prononciation.py`, **mais dans l'autre sens**. *Constat à ne pas oublier* : cette table-ci n'est branchée que sur **Kokoro et Piper** ; **`synthesize_qwen` ne l'appelle pas** — sur le moteur en service, la table actuelle est **inerte**.
@@ -6899,6 +6910,141 @@ seule (`_moisson_22_11_63.py`, `_moisson_motifs.py`, `_moisson_incise_proto.py`,
   **0 étoile** donc hors casting automatique, et **rien n'a été committé**.
 
 
+### Question de Laurent (21/10/2026) : « le moteur lit *thym mais de romarin* — c'est un souci du moteur ? »
+
+**Réponse courte : oui, c'est le moteur — une limite mesurée du modèle Qwen, ni
+notre texte ni une voix.**
+
+- **Notre texte n'y est pour rien** : `_clean_text` (`modules/tts.py`) rend la
+  phrase **mot pour mot** (« écrit » et « envoyé » sont identiques — mesuré par
+  `_essais/_verifier_texte_thym.py`), et la table de prononciation
+  (`modules/prononciation.py`) ne s'applique **qu'à Kokoro et Piper** : Qwen
+  reçoit le texte tel quel.
+- **Le moteur ne connaît pas le mot « thym »** : il **prononce son m muet** et
+  se trompe sur la nasale. Mesure du même jour : « Le thym pousse au soleil. »
+  relu par Whisper donne **« Le temps pousse au soleil »** (et « le tampousse »
+  sur une autre voix) ; sur **8 voix Qwen sur 8**, le mot sort en « temps /
+  tins / tam / utam » — jamais « thym ».
+- **Le « mais » est une collision de voisinage** : [tɛ̃m] + « et » [e] =
+  **[tɛ̃mɛ]**, soit « thym-mé », qui s'entend « thym **mais** ». Laurent l'a
+  entendu sur **quasiment toutes les voix** : c'est donc le **texte** (le mot
+  rare) qui décide, pas la voix.
+- **Ce qui varie d'un clic à l'autre** : le moteur est réglé à `TEMPERATURE` =
+  **0,9** (`qwentts_service/servir_qwentts_cpp.py`, `NIMM_QWENTTS_TEMPERATURE`)
+  — il **tire au sort** à chaque génération. Même voix + même texte peuvent
+  donner « mais » une fois et « et » la fois suivante. *Conséquence de méthode,
+  écrite pour le tri des voix* : **un défaut entendu une seule fois n'est pas un
+  verdict** — recliquer ▶ avant de noter une voix.
+
+**Décision de Laurent (21/10/2026) : on GARDE la phrase** dans le lot 2 (« Elle
+a acheté un bouquet de thym et de romarin. ») — c'est un **révélateur de
+robustesse** utile, le mot est rare dans les livres, et il ne faut **pas**
+l'imputer à une voix. *Outils de mesure* : `_essais/_verifier_texte_thym.py`
+(ce que reçoit le moteur), `_essais/_diagnostic_thym_20261021.py` (4 variantes,
+2 voix, Whisper), `_essais/_balayage_thym_20261021.py` (8 voix) ; WAV et rapport
+dans `_essais/thym_20261021/`.
+
+
+### Question de Laurent (21/10/2026) : « Margot et Léonie, c'est la même voix ? »
+
+**Réponse courte : NON — deux voix différentes. Mais l'impression est légitime,
+et elle vient d'un défaut de la référence de Margot, pas d'un doublon.**
+
+1. **Ce ne sont pas les mêmes fichiers** : les deux WAV de
+   `qwen_tts_service\voix\` ont des empreintes MD5 et des textes différents, et
+   viennent de **deux livres LibriVox différents** — `MLS_3204_F` = « Le Mystère
+   de la chambre jaune », chapitre 6 (lu par **Naf Brusa**) ; `MLS_3698_F` =
+   « Les Maîtres sonneurs », veillée 16 (lecture collective, dont **Ezwa**).
+   Deux identifiants MLS distincts, donc deux lecteurs distincts au catalogue.
+
+2. **Mesure à l'oreille de la machine** — empreinte de locuteur (états cachés de
+   `facebook/w2v-bert-2.0`, **déjà dans le cache Hugging Face**, aucun
+   téléchargement), moyennée par audio puis comparée en cosinus **après
+   centrage sur le lot** (sans centrage, toutes les voix de femme sortent
+   au-dessus de 0,98 et le test ne discrimine rien — première leçon du jour) :
+   **3204 / 3698 = 0,012**, soit le **30ᵉ rang sur 66 paires** (médiane −0,101).
+   Calibration sur des cas connus : **deux moitiés du même enregistrement**
+   donnent **0,375 à 0,862** (médiane 0,622). L'écart est sans ambiguïté.
+
+3. **Pourquoi elles se ressemblent quand même** : ce sont les **deux voix les
+   plus graves du lot** (f0 médian ≈ 173 Hz pour Léonie, 171 Hz pour Margot, là
+   où le lot va de 175 à 223 Hz) et toutes deux au débit posé. Deux timbres
+   voisins, ce n'est pas un doublon — c'est un **choix de distribution** à faire
+   (ne pas donner les deux à deux personnages du même livre).
+
+4. **Le vrai défaut, lui, est mesuré sur Margot** — sa référence est la plus
+   abîmée des douze :
+   - **6,98 % de son énergie sous 60 Hz**, avec des pics à 47-53 Hz (un
+     ronflement d'enregistrement), contre **0,01 à 0,21 %** pour neuf des onze
+     autres (seule **Bernadette** approche, à 2,79 %) ;
+   - **parole à −28,1 dBFS**, la plus faible du lot (−23 à −25 dBFS ailleurs) ;
+   - **540 ms de silence en tête** (le lot est recadré à 100 ms).
+   Un ronflement grave + une référence faible = un clone **mate et peu typé**,
+   qui « gomme » la personnalité de la voix — c'est très probablement ce que
+   l'oreille de Laurent a entendu.
+
+**Outils** (tous dans `_essais/`, lecture seule, jetables) :
+`_identifier_doublons_mls_20261021.py` (empreintes des 12 références +
+calibration), `_empreinte_clones_20261021.py` (même test sur les clones du lot),
+`_comparer_timbre_voix_20261021.py` (MFCC, première passe),
+`_comparer_clones_20261021.py`, et le montage d'écoute
+`_essais/COMPARAISON_LEONIE_MARGOT_20261021.wav` (Léonie, Margot, Léonie,
+Margot, clone Léonie, clone Margot).
+
+**À décider (niveau 3, rien n'a été touché)** : soit **refaire la référence de
+Margot** côté NIMM Voix (coupe-bas vers 80 Hz + niveau de parole ramené au profil
+du lot), soit **retirer Margot** du catalogue. Tant que la décision n'est pas
+prise, la voix reste **en place, à 0 étoile** (donc hors casting automatique).
+
+**Rappel de méthode** : deux timbres peuvent se ressembler **sans** être le même
+lecteur, et deux extraits d'un **même** lecteur peuvent sonner différemment
+(prise de son, époque, nettoyage). C'est l'**empreinte** qui tranche, pas
+l'impression d'une écoute — ni l'inverse : l'empreinte ne dit rien de
+l'**usure** d'une voix sur un livre entier.
+
+**Suite, décidée par Laurent le 21/10/2026 après écoute du montage** : « J'entends
+une légère différence ; on va pitcher une des deux voix, dans NIMM Voix, pour les
+différencier plus clairement. » Décision d'atelier : **le pitch se fait sur la
+RÉFÉRENCE, côté NIMM Voix, avant re-clonage** (le clone hérite alors de la
+hauteur, avec une prosodie cohérente).
+
+Ce que la mesure ajoute, et qui explique l'écoute de Laurent :
+
+- **L'écart réel n'est que de 0,2 demi-ton** sur les références (173,4 Hz contre
+  171,3 Hz, soit 2,1 Hz) — autant dire rien : l'oreille commence à séparer deux
+  voix vers **1 demi-ton**, et 2 demi-tons donnent une différence nette.
+- **Ce n'est pas un cas isolé** : les douze voix du lot forment **deux paquets**.
+  Six voix entre **171 et 188 Hz** avec des écarts de **0,07 à 0,64 demi-ton**
+  (Margot 171,3 / Léonie 173,4 / Germaine 177,9 / Denise 178,7 / Élise 180,9 /
+  Rose 187,7), puis six entre **203 et 222 Hz**. Le paquet grave est donc à la
+  même hauteur — c'est là que le pitch sera utile, voix après voix.
+- **Le clone remonte déjà la voix** : Margot clone ≈ 181 Hz contre ≈ 165 Hz pour
+  sa référence, Léonie clone ≈ 170 Hz. L'écart entendu dans l'application
+  (≈ 1,1 demi-ton) est donc un peu plus grand que celui des références, sans être
+  franc.
+- **Cible proposée : +2 demi-tons sur Margot** (171 → 185 Hz en référence,
+  ≈ 204 Hz en clone, contre 170 Hz pour Léonie : l'écart devient franc sans
+  caricature). Repères de l'application : **+8 Hz = 1 demi-ton**, réglage borné à
+  **±6 demi-tons** (`_hz_to_semitones`, `modules/tts.py`), et le pitch-shift
+  existant passe par **Rubber Band** (`pedalboard`, durée préservée) — pas par le
+  vocodeur de librosa, jugé caverneux à l'oreille.
+
+**Fichiers d'écoute** (rien n'a été modifié dans le catalogue) —
+`Extraits de voix\Controle_Margot_Leonie_20261021\` :
+`MARGOT_PITCH_SUR_LE_CLONE.wav` et `MARGOT_PITCH_SUR_LA_REFERENCE.wav`
+(Léonie témoin, puis Margot à 0 / +1 / +1,5 / +2 demi-tons, même traitement que
+l'application). Outils : `_essais/_pitch_quelle_voix_20261021.py` (écarts en
+demi-tons) et `_essais/_variantes_pitch_margot_20261021.py` (les variantes).
+
+**Rappel utile pour le casting** : NIMM ePub sait **déjà** décaler la hauteur
+**par personnage** (slider −20 à +20 Hz dans la fiche de casting), et l'interface
+propose une hauteur libre quand deux personnages partagent la même voix
+(`_pitchPartageLibre`, `frontend/app.js`). En revanche elle **ne prévient pas**
+quand deux voix *différentes mais très proches* se retrouvent dans le même livre
+— c'est exactement le cas Léonie / Margot, et une piste d'amélioration pour plus
+tard.
+
+
 ## 🟡 Priorité 3 — Robustesse & architecture
 
 - [ ] **Centraliser le découpage en phrases**
@@ -7225,6 +7371,14 @@ partager tout ça plutôt que de le garder juste pour ma famille et moi. »*
 ---
 
 ## ✅ Déjà livré (pour mémoire)
+
+- **🎲 Le texte d'écoute de « 🎧 Écouter les voix » change à chaque écoute — ✅ FAIT le 21/10/2026** (demande de Laurent : « 3 séries d'une dizaine de phrases […] on les permute aléatoirement […] ça donnera l'impression d'un texte à chaque fois différent »). **Trois lots de dix phrases** dans `frontend/app.js` (`LOTS_PHRASES_ECOUTE`) — **1. la voix nue** (phrases courtes : timbre, clarté, souffle), **2. les pièges** (nombres, noms propres, homographes, liaisons ; la phrase de référence « Pharaon » l'ouvre), **3. la prosodie** (phrases longues, virgules, question, accumulation) — et à chaque clic sur ▶, **une phrase par lot** tirée au hasard puis **mélangée** aux deux autres : **6000 textes possibles** (1000 combinaisons × 6 ordres), **jamais deux fois le même de suite**. Le texte part en **un seul appel** à `/api/tts`, comme un petit paragraphe. *Ce qu'on y perd* : deux voix ne disent plus la même chose — pour un A/B à l'identique (avant/après réparation d'une voix), ce sont les **bancs d'écoute** qui imposent la phrase. *Deux règles pour écrire une phrase dans ces lots* : pas de didascalie (« , dit-il, »), le serveur la retire du texte parlé ; pas de point d'exclamation, il fait monter la voix. **Garde-fou** : `test_voix/test_phrases_ecoute.js` (**20 contrôles** : la matière des 30 phrases, le tirage, le branchement), déclaré dans `test_voix/LIRE_MOI.md`. Copie datée : `frontend/app.js.bak_avant_texte_ecoute_3_phrases_20261021`.
+
+- **🔒 Le texte privé de Maya est sorti du CSV d'oreille versionné — ✅ FAIT le 19/10/2026.** En faisant lire à l'outil d'écoute le fichier **privé** (pour que Maya apparaisse enfin), le CSV `test_voix/_corrections_oreille.csv` — qui est **versionné** — a reçu le texte d'un roman du commerce. C'est exactement ce que la règle du projet interdit. **Correction** : les corrections sont désormais **séparées** — `_corrections_oreille.csv` (voix publiques, **67** corrections, versionné) et `_corrections_oreille_privees.csv` (**Maya**, **1** correction, **ignoré par Git**) ; la copie téléchargée à la racine est ignorée elle aussi, et le bouton « Télécharger mes corrections » **fusionne** les deux au moment de l'envoi. Copie datée avant nettoyage : `_corrections_oreille.csv.bak_avant_separation_privee_20261019_1851`. **Vérifié** : test `test_corrections_voix_appliquees.py` (Maya absente du public, présente dans le privé), `test_lire_moi.py`, et l'outil relancé sur un port de test (9 voix signalées, Maya toujours corrigée, téléchargement fusionné).
+
+- **🎧 La fenêtre « corriger le texte des voix » parle enfin en PRÉNOMS — ✅ FAIT le 19/10/2026** (retour de Laurent : « je ne sais pas les trouver, elles portent des noms particuliers, pas les prénoms que je peux identifier »). `test_voix/_corriger_references_a_l_oreille.py` lit maintenant le catalogue Qwen (`modules/tts.py`) et affiche **« Théodore (Homme002) »**, **« Achille (cml1840) »**… ; la **recherche** accepte le prénom, le nom de fichier, la région ou le livre, et un bouton **« Les 9 voix signalées »** isole le lot du 19/10/2026 (Théodore, Édouard, Aubin, Maya, Achille, Berthe, Cécile, Joséphine, Maurice), placé en tête de liste avec un badge « à reprendre ». **Maya manquait** : l'outil ne lisait que `references.csv`, il lit maintenant **aussi** `references_privees.csv` (le privé gagne, comme le service) → **206 voix**, **9/9 signalées**. Vérifié par `/donnees.json` (les 9 prénoms) et `python -m py_compile`.
+
+- **🏷️ Accents « asiatique » et « hindou », et drapeau des voix « étrangères » — ✅ FAIT le 19/10/2026** (demande de Laurent : « on ajoute le drapeau quand ils ont un tag étranger ou accent […] ajouter dans accent ce qu'on a déjà en voix, asiatique et hindou »). Les deux valeurs entrent dans `CRITERES_VOIX` (`main.py`), donc dans le menu **Accent** de « 🎧 Écouter les voix » sans autre liste à tenir. Le 2ᵉ drapeau du libellé (`frontend/app.js`, `_secondDrapeauDeVoix`) suit désormais **cinq** règles, dans cet ordre : drapeau déjà écrit dans la région, accent nommé dans la région, pays en clair, **accent annoté** (`asiatique` → globe Asie 🌏, `hindou` → 🇮🇳 ; `autre` = accent non identifié → **aucun drapeau**), puis **rôle « étranger »** sans pays → globe 🌐. `paysan` reste **sans drapeau** : c'est un registre, pas un pays. **Vérifié** : `node --check frontend/app.js`, `test_voix/test_libelle_voix.js` (**7 nouveaux contrôles**, TOUT EST OK), `test_criteres_voix.js` et `test_annotations_voix.py` TOUT EST OK. Le **menu Accent** écrit aussi le **drapeau devant chaque valeur** (🇩🇪 allemand, 🇮🇳 hindou, 🌏 asiatique…), et **48 voix** qui étaient notées « autre » ont été **alignées** : **26 hindou** (18 `qwen:hindi_*` + 4 Kokoro + 4 jumelles Qwen) et **22 asiatique** (Japon/Chine, Kokoro + jumelles Qwen), copie datée `annotations_voix.json.bak_avant_accents_asie_inde_20261019_1715` ; les **29 autres « autre »** sont laissés intacts. Outil : `test_voix/_retaguer_accents_asie_inde.py` (rapport seul par défaut). **Vérifié** : `test_criteres_voix.js` **27 contrôles** (drapeaux hindou/asiatique) et relecture du JSON (**48 appliqués, 0 restant**).
 
 - **👧 La voix de la famille : `Maya_normale` — ✅ BRANCHÉE le 29/09/2026** (déposée
   par l'atelier NIMM Voix, rangée dans `_VOIX_RECUE_MAYA_NORMALE_20260929/` à la
@@ -8100,3 +8254,57 @@ l'audit du 22/09/2026 a montré que plusieurs ne sont **pas** dans
   que les 3 voix de série ont été **retirées le 17/10** (201 voix, privé réduit à
   `Maya_normale`, tuple `_VOIX_SERIES_16_10_2026` vide). Les deux modes d'emploi
   disent maintenant **206**, avec les comptes exacts des deux fichiers de texte.
+
+- [x] **🎙️ DOUZE VOIX MLS POUR LES PETITS RÔLES — ✅ FAIT le 21/10/2026.**
+  Mémo de NIMM Voix (`passerelle_NIMM_ePub`, `MEMO_VOIX_MLS_20-10-2026`) et lot
+  `sorties\voix_mls_train_pretes_20261020\08_banque_finale` : **28 lecteurs MLS**
+  (Meta / LibriVox, **CC BY 4.0**) clonés, **24 retenus à l'oreille** par
+  Laurent, mais **9 étaient DÉJÀ chez nous** sous un identifiant `cml` (même
+  lecteur LibriVox, autre passage — vérifié par identifiant, genre et F0) : il ne
+  restait que **15 timbres vraiment neufs (13 F, 2 H)**. **Douze sont entrés** :
+  Albertine, Angèle, Clémence, Antoinette, Élise, Bernadette, Denise, Léonie,
+  Margot, Germaine, Marcelle et Rose — **garde-robe 206 → 218** (12 WAV
+  `MLS_<lecteur>_F_reference.wav` dans `qwen_tts_service/voix/`, 24 kHz mono
+  16 bits vérifié), **`references.csv` 201 → 213 lignes** (UTF-8 sans BOM,
+  **CRLF**, contrôlé), **fiches d'écoute 554 → 566**.
+  **TRANCHE PAR LAURENT ce jour** : (1) **n'importer que les voix sûres** — les
+  trois dont le texte de référence est à arbitrer (`MLS_5232_F`, `MLS_1817_H`,
+  `MLS_2904_H`, corrections encore vides dans `09_textes_a_relire.csv`) restent
+  **dehors** : un texte qui ne colle pas à l'audio fait bégayer le clone (leçon
+  du 19/10). Ce sont **les deux seuls hommes** du lot : **aucun timbre masculin
+  n'est entré** ; NIMM Voix en propose d'autres sur demande. (2) **Remplacer les
+  prénoms déjà pris** : **10 des 15** propositions du mémo doublonnaient une voix
+  existante (`Amélie` = `ff_amelie`, `Delphine` = `ff_delphine`, `Solange` =
+  `Femme002`, `Yvette` = `Femme003`, `Firmin` = `homme_grave_6546546`, `Marius`
+  = `Homme001`, `Blanche`, `Fanny`, `Jeanne`, `Ninon`) → remplaçants ci-dessus.
+  Catalogue `modules/tts.py`, bloc `_VOIX_MLS_20_10_2026` placé **après le bloc
+  hindi** : **0 étoile** → **hors du pool automatique** (un figurant ne doit pas
+  voler la voix d'un personnage), **genre `M`** pour un homme (jamais `H`),
+  **drapeau français** et accents nommés (`paysan` pour Bernadette, `quebecois`
+  pour Denise). **DROITS : personnes RÉELLES, CC BY 4.0** → attribution
+  « MLS / LibriVox » obligatoire en cas de diffusion, et le droit de la
+  personnalité reste entier (plus strict en France) : **usage privé, prudence
+  avant tout partage large**. Outils neufs : `_essais/_verif_voix_mls_20261021.py`
+  (**rapport avant import** : format, doublons d'identifiant, **prénoms déjà
+  pris**, remplaçants libres, textes à arbitrer),
+  `_essais/_entrer_voix_mls_20261021.py` (**rapport seul** par défaut,
+  `--ecrire`, `--avec-arbitrage`, idempotent, **copies datées automatiques** de
+  `references.csv` et `annotations_voix.json`) et
+  `_essais/_verifier_import_mls_20261021.py` (contrôle après coup). Copies
+  datées : `references.csv.bak_avant_mls_20261021`,
+  `annotations_voix.json.bak_avant_mls_20261021`,
+  `modules/tts.py.bak_avant_mls_20261021`. **Vérifié** : `py_compile`,
+  **218 entrées de catalogue et 218 WAV**, 12/12 lignes à 5 colonnes et texte
+  non vide, 12/12 fiches à 0 étoile, `references.csv` sans BOM et **tout en
+  CRLF**, **`test_pool_casting.py` OK** (les 12 sont bien écartées du pool) et
+  **`test_lire_moi.py` OK**. **RESTE À FAIRE** : (a) répondre à NIMM Voix
+  (**218 voix** au catalogue, pas les 215 annoncés — le mémo comptait 200
+  publiques, il y a aussi 6 privées —, et un `POST /tts` sur
+  `qwen:MLS_10620_F`) ; (b) importer les **3 voix en attente** dès que les textes
+  sont corrigés ; (c) **trancher l'annexe C du mémo** (le **tirage des
+  figurants** dans `voice_casting.py` : `FIGURANTS_F`/`FIGURANTS_M`, et
+  `_variante_generique(rang // len)`) — **PAS faite**, c'est un chantier à part :
+  elle change la voix de tous les petits rôles d'un re-cast, elle demande de
+  toucher aussi `frontend/app.js` (`_CAST_VOIX_GENERIQUES`) et elle **casse
+  aujourd'hui le test 6b** de `test_pool_casting.py`, qui exige 20 couples
+  (hauteur, vitesse) différents — il devrait alors compter le **timbre** en plus.

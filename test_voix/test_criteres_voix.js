@@ -71,6 +71,7 @@ function extraire(debutNom, finNom) {
 }
 
 const CODE = [
+  extraire('const DRAPEAUX_PAR_MOT', 'function _secondDrapeauDeVoix'),
   extraire('function _familleDeVoix', 'function _libelleFamille'),
   extraire('function _libelleFamille', 'async function _chargerAnnotationsVoix'),
   extraire('function _listeOptions', 'function _majStyleCritere'),
@@ -230,6 +231,19 @@ verifier('chaque groupe porte son etiquette PUIS son menu',
 verifier('les valeurs sont celles du serveur, dans l ordre',
   menusA.every((m, i) => m.children.slice(1).map(o => o.value).join(',')
     === CRITERES[i].valeurs.map(v => v.valeur).join(',')));
+// Demande de Laurent, 19/10/2026 : le drapeau doit etre ecrit DEVANT l'accent
+// dans le menu, pour qu'on sache a quoi correspond « hindou » ou « asiatique ».
+const menuAccentA = menusA.find(m => m.dataset.critere === 'accent');
+const optionHindou = menuAccentA.children.find(o => o.value === 'hindou');
+const optionAsiatique = menuAccentA.children.find(o => o.value === 'asiatique');
+verifier('le menu Accent ecrit le drapeau INDIEN devant « hindou »',
+  !!optionHindou
+  && optionHindou.textContent.indexOf('\uD83C\uDDEE\uD83C\uDDF3') === 0,
+  optionHindou && optionHindou.textContent);
+verifier('le menu Accent ecrit le globe ASIE devant « asiatique »',
+  !!optionAsiatique
+  && optionAsiatique.textContent.indexOf('\uD83C\uDF0F') === 0,
+  optionAsiatique && optionAsiatique.textContent);
 verifier('aucun critere pre-selectionne quand la voix n est pas annotee',
   menusA.every(m => m.value === ''), menusA.map(m => m.value).join(','));
 verifier('un menu vide ne porte pas la classe « renseigne »',

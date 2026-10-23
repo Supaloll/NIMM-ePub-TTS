@@ -683,10 +683,19 @@ CRITERES_VOIX = [
         ("lent", "lent"), ("pose", "posé"), ("normal", "normal"),
         ("vif", "vif"),
     ]),
+    # « asiatique » et « hindou » ajoutes le 19/10/2026 (demande de Laurent :
+    # « il faudrait aussi ajouter dans accent ce qu'on a deja en voix,
+    # asiatique et hindou »). Ils servent a TAGUER une voix dont l'accent ne se
+    # lit pas dans sa region : le drapeau du libelle vient alors de
+    # `DRAPEAUX_PAR_MOT` (frontend/app.js) -- 🇮🇳 pour « hindou », et le globe
+    # Asie pour « asiatique », qui n'est pas un pays. « autre » et le role
+    # « etranger » affichent le globe quand aucun pays plus precis n'est connu.
     ("accent", "Accent", [
         ("neutre", "neutre"), ("paysan", "paysan"), ("canadien", "canadien"),
         ("anglais", "anglais"), ("allemand", "allemand"),
-        ("espagnol", "espagnol"), ("italien", "italien"), ("autre", "autre"),
+        ("espagnol", "espagnol"), ("italien", "italien"),
+        ("asiatique", "asiatique"), ("hindou", "hindou"),
+        ("autre", "autre"),
     ]),
     ("registre", "Registre", [
         ("noble", "noble"), ("neutre", "neutre"), ("populaire", "populaire"),

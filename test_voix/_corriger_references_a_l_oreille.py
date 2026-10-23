@@ -20,7 +20,11 @@ Cet outil ouvre donc UNE PAGE dans le navigateur, ou pour chaque voix :
 
 CE QU'IL ECRIT, ET RIEN D'AUTRE :
   test_voix\\_corrections_oreille.csv
-      (voix ; texte entendu ; remarque ; quand)
+      (voix ; texte entendu ; remarque ; quand) -- voix PUBLIQUES seulement ;
+  test_voix\\_corrections_oreille_privees.csv
+      (meme format) -- voix de `references_privees.csv` (Maya). Ce fichier est
+      IGNORE PAR GIT : le CSV public est versionne, et un texte d'oeuvre sous
+      droits ne doit jamais partir sur le depot ;
   test_voix\\_corrections_oreille_etat.json (ou on en etait : la derniere voix)
 Le fichier de production `references.csv` n'est JAMAIS touche : appliquer les
 corrections est un geste separe, apres validation (copie datee d'abord).
@@ -46,10 +50,18 @@ travaille sur un LOT pose dans ce dossier (il doit contenir un `references.csv`
 et les WAV). Les corrections s'ecrivent alors DANS le lot. C'est ce qui sert
 pour les 35 voix Kyutai recoupees : on ecoute le fichier recoupe ET on corrige
 son texte au meme endroit.
+
+LE 19/10/2026 : la liste affiche le PRENOM du catalogue a cote du nom de
+fichier (« Theodore (Homme002) »), la recherche accepte le prenom, et le
+bouton « Les 9 voix signalees » isole le lot signale par Laurent. Les DEUX
+fichiers de textes sont lus (public + prive) : Maya, qui vit dans le prive,
+apparait enfin.
 """
 import argparse
 import csv
+import io
 import json
+import shutil
 import sqlite3
 import sys
 import time
@@ -64,8 +76,19 @@ DOSSIER = Path(__file__).resolve().parent
 RACINE = DOSSIER.parent
 DOSSIER_VOIX = RACINE / 'qwen_tts_service' / 'voix'
 CSV_REFERENCES = DOSSIER_VOIX / 'references.csv'
+# Le fichier PRIVE (hors Git) porte les textes d'œuvres sous droits, dont celui
+# de Maya. Le service lit les DEUX et le prive gagne sur le public ; cet outil
+# doit faire pareil, sinon Maya n'apparait pas dans la liste (constat du
+# 19/10/2026 : elle manquait, il ne restait que 8 voix sur les 9 signalees).
+CSV_PRIVEES = DOSSIER_VOIX / 'references_privees.csv'
 DB = RACINE / 'data' / 'nimm_epub.db'
 CSV_CORRECTIONS = DOSSIER / '_corrections_oreille.csv'
+# Les corrections des voix PRIVEES (Maya) vivent dans un fichier SEPARE, ignore
+# par Git : le CSV principal est versionne, et un texte d'oeuvre sous droits ne
+# doit JAMAIS partir sur le depot (regle du projet). Le 19/10/2026, Maya est
+# apparue dans le CSV principal des que l'outil a lu le fichier prive : ce
+# fichier-ci est la reparation.
+CSV_CORRECTIONS_PRIVEES = DOSSIER / '_corrections_oreille_privees.csv'
 FICHIER_ETAT = DOSSIER / '_corrections_oreille_etat.json'
 PORT_DEFAUT = 8099
 # Les suffixes que le SERVICE reconnait (la meme liste que `SUFFIXES_FICHIERS` de
@@ -74,6 +97,64 @@ PORT_DEFAUT = 8099
 # ces 35 voix s'affichaient avec un « _enhanced » colle au nom -- et le lecteur
 # ne leur retrouvait plus leur usage dans les livres.
 SUFFIXES = ('_enhanced_reference.wav', '_reference.wav')
+
+# LES NEUF VOIX SIGNALEES PAR LAURENT LE 19/10/2026.
+# La cle est le nom COURT du fichier de reference (sans suffixe) : c'est ce que
+# `lire_references` fabrique, et donc ce que la page affiche a cote du prenom.
+# Ce lot sert seulement a ISOLER ces voix dans la liste (bouton « Les 9 voix
+# signalees ») : il ne modifie ni les voix ni les notes de Laurent.
+VOIX_SIGNALEES_19_10_2026 = {
+    'Homme002': 'Théodore',
+    'Homme004': 'Édouard',
+    'homme_aigu_6877654': 'Aubin',
+    'Maya_normale': 'Maya',
+    'cml1840': 'Achille',
+    'cml1649': 'Berthe',
+    'cml1869': 'Cécile',
+    'cml2316': 'Joséphine',
+    'cml3182': 'Maurice',
+}
+
+
+def lire_catalogue():
+    """{nom court: {'prenom', 'region'}} depuis le catalogue Qwen du lecteur.
+
+    POURQUOI (19/10/2026, retour de Laurent) : dans la fenetre d'ecoute, les
+    voix s'appelaient `Homme002`, `cml1840`... -- des noms de FICHIERS, pas les
+    prenoms qu'il connait (Theodore, Achille). Le catalogue de `modules/tts.py`
+    est la seule source qui donne le prenom affiche ; on le lit ici, sans rien
+    modifier. Si l'import echoue, la page continue de fonctionner avec les noms
+    de fichiers (aucune voix ne disparait).
+    """
+    try:
+        if str(RACINE) not in sys.path:
+            sys.path.insert(0, str(RACINE))
+        from modules import tts
+    except Exception:
+        return {}
+    catalogue = {}
+    for fiche in getattr(tts, 'QWEN_VOICES', []):
+        identifiant = (fiche.get('id') or '').strip()
+        if ':' in identifiant:
+            identifiant = identifiant.split(':', 1)[1]
+        for suffixe in SUFFIXES:
+            if identifiant.endswith(suffixe):
+                identifiant = identifiant[:-len(suffixe)]
+                break
+        if identifiant:
+            catalogue[identifiant] = {
+                'prenom': (fiche.get('name') or '').strip(),
+                'region': (fiche.get('region') or '').strip(),
+            }
+    return catalogue
+
+
+def nom_court(fichier):
+    """`Homme002_reference.wav` -> `Homme002` (le nom que la page affiche)."""
+    for suffixe in SUFFIXES:
+        if fichier.endswith(suffixe):
+            return fichier[:-len(suffixe)]
+    return fichier
 
 
 def cle_voix(identifiant):
@@ -91,32 +172,50 @@ def cle_voix(identifiant):
 def lire_references():
     """Les voix du service Qwen, telles que le service les lit.
 
-    Rend une liste de dicts : fichier, nom, texte, duree, hauteur.
+    Rend une liste de dicts : fichier, nom, prenom, region, texte, duree,
+    hauteur, signalee. Le PRENOM vient du catalogue (`modules/tts.py`) : c'est
+    celui que Laurent connait (« Theodore »), a cote du nom de fichier
+    (`Homme002`).
+
+    LES DEUX FICHIERS SONT LUS, comme le service : `references.csv` (public)
+    puis `references_privees.csv` (hors Git), le PRIVE ecrasant le public a nom
+    de fichier egal. Sans cela, Maya (`Maya_normale`, texte prive) manquait.
     """
-    if not CSV_REFERENCES.is_file():
-        return []
-    with open(CSV_REFERENCES, encoding='utf-8', newline='') as fichier:
-        lignes = list(csv.reader(fichier, delimiter=';'))
-    if not lignes:
-        return []
-    corps = lignes[1:] if lignes[0] and lignes[0][0].strip() == 'fichier' \
-        else lignes
-    voix = []
-    for ligne in corps:
-        if len(ligne) < 2 or not ligne[0].strip():
+    lignes = []
+    for chemin in (CSV_REFERENCES, CSV_PRIVEES):
+        if not chemin.is_file():
             continue
-        nom = ligne[0].strip()
+        with open(chemin, encoding='utf-8-sig', newline='') as fichier:
+            morceaux = list(csv.reader(fichier, delimiter=';'))
+        if morceaux and morceaux[0] and morceaux[0][0].strip() == 'fichier':
+            morceaux = morceaux[1:]
+        lignes.extend(morceaux)
+
+    # Le PRIVE gagne sur le public, comme dans le service : meme nom de fichier,
+    # la derniere ligne lue est celle du fichier prive.
+    par_fichier = {}
+    for ligne in lignes:
+        if len(ligne) >= 2 and ligne[0].strip():
+            par_fichier[ligne[0].strip()] = ligne
+
+    catalogue = lire_catalogue()
+    voix = []
+    for nom, ligne in par_fichier.items():
         court = nom
         for suffixe in SUFFIXES:
             if nom.endswith(suffixe):
                 court = nom[:-len(suffixe)]
                 break
+        fiche = catalogue.get(court, {})
         voix.append({
             'fichier': nom,
             'nom': court,
+            'prenom': fiche.get('prenom', ''),
+            'region': fiche.get('region', ''),
             'texte': ligne[1].strip(),
             'duree': ligne[2].strip() if len(ligne) > 2 else '',
             'hauteur': ligne[3].strip() if len(ligne) > 3 else '',
+            'signalee': court in VOIX_SIGNALEES_19_10_2026,
         })
     return voix
 
@@ -182,8 +281,28 @@ def resumer_usage(nom, usages):
             'priorite': 0 if titres else 1}
 
 
-def lire_corrections():
-    """{nom: {'texte':..., 'remarque':..., 'le':...}} -- ce qui est deja fait.
+def noms_prives():
+    """Noms courts des voix qui vivent dans `references_privees.csv` (Maya...).
+
+    Sert a SEPARER les corrections : le texte d'une voix privee ne doit pas
+    partir dans le CSV versionne (regle du projet : aucun texte d'oeuvre sous
+    droits sur le depot).
+    """
+    prives = set()
+    if not CSV_PRIVEES.is_file():
+        return prives
+    with open(CSV_PRIVEES, encoding='utf-8-sig', newline='') as fichier:
+        lignes = list(csv.reader(fichier, delimiter=';'))
+    if lignes and lignes[0] and lignes[0][0].strip() == 'fichier':
+        lignes = lignes[1:]
+    for ligne in lignes:
+        if ligne and ligne[0].strip():
+            prives.add(nom_court(ligne[0].strip()))
+    return prives
+
+
+def _lire_un_fichier_corrections(chemin):
+    """{nom: {'texte':..., 'remarque':..., 'le':...}} pour UN fichier.
 
     DEUX FORMES DU FICHIER SONT ACCEPTEES : l'ancienne (sans la case remarque,
     ecrite avant le 03/10/2026) et la nouvelle. C'est l'EN-TETE qui tranche --
@@ -191,9 +310,9 @@ def lire_corrections():
     se retrouverait range dans la remarque.
     """
     donnees = {}
-    if not CSV_CORRECTIONS.is_file():
+    if not chemin.is_file():
         return donnees
-    with open(CSV_CORRECTIONS, encoding='utf-8', newline='') as fichier:
+    with open(chemin, encoding='utf-8', newline='') as fichier:
         lignes = list(csv.reader(fichier, delimiter=';'))
     if not lignes:
         return donnees
@@ -212,20 +331,60 @@ def lire_corrections():
     return donnees
 
 
-def ecrire_corrections(donnees):
-    """Ecrit le fichier lisible (ouvrable dans Excel / Notepad).
+def lire_corrections():
+    """Les corrections des DEUX fichiers : public (versionne) + prive (Maya)."""
+    donnees = {}
+    for chemin in (CSV_CORRECTIONS, CSV_CORRECTIONS_PRIVEES):
+        donnees.update(_lire_un_fichier_corrections(chemin))
+    return donnees
 
-    `csv.writer` protege les textes qui contiennent un point-virgule : sans
-    lui, une seule virgule de trop casserait la ligne -- et ce fichier est la
-    SEULE copie du travail d'ecoute de Laurent.
+
+def ecrire_corrections(donnees):
+    """Ecrit le fichier PUBLIC et le fichier PRIVE (separation des textes).
+
+    POURQUOI DEUX FICHIERS (19/10/2026) : le CSV des corrections est versionne.
+    Depuis que l'outil lit aussi les voix privees, Maya y est apparue avec le
+    texte d'un livre du commerce -- interdit sur le depot. On ecrit donc :
+      - `_corrections_oreille.csv` : les voix PUBLIQUES seulement ;
+      - `_corrections_oreille_privees.csv` : les voix de references_privees.csv
+        (Maya), fichier ignore par Git.
+
+    `csv.writer` protege les textes qui contiennent un point-virgule : sans lui,
+    une seule virgule de trop casserait la ligne -- et ce fichier est la SEULE
+    copie du travail d'ecoute de Laurent.
     """
-    with open(CSV_CORRECTIONS, 'w', encoding='utf-8', newline='') as fichier:
-        graveur = csv.writer(fichier, delimiter=';')
-        graveur.writerow(['nom', 'texte_entendu', 'remarque', 'le'])
-        for cle in sorted(donnees):
-            fiche = donnees[cle]
-            graveur.writerow([cle, fiche['texte'],
-                              fiche.get('remarque', ''), fiche['le']])
+    prives = noms_prives()
+    for chemin, public in ((CSV_CORRECTIONS, True),
+                           (CSV_CORRECTIONS_PRIVEES, False)):
+        with open(chemin, 'w', encoding='utf-8', newline='') as fichier:
+            graveur = csv.writer(fichier, delimiter=';')
+            graveur.writerow(['nom', 'texte_entendu', 'remarque', 'le'])
+            for cle in sorted(donnees):
+                if public and cle in prives:
+                    continue
+                if not public and cle not in prives:
+                    continue
+                fiche = donnees[cle]
+                graveur.writerow([cle, fiche['texte'],
+                                  fiche.get('remarque', ''), fiche['le']])
+
+
+def contenu_corrections():
+    """Le CSV FUSIONNE (public + prive) pour le telechargement.
+
+    Le fichier public ne contient pas Maya ; le prive est ignore par Git. Pour
+    que Laurent telecharge TOUT son travail d'un coup, on fusionne les deux au
+    moment de l'envoi -- sans jamais ecrire le prive dans le public.
+    """
+    tampon = io.StringIO()
+    graveur = csv.writer(tampon, delimiter=';')
+    graveur.writerow(['nom', 'texte_entendu', 'remarque', 'le'])
+    donnees = lire_corrections()
+    for cle in sorted(donnees):
+        fiche = donnees[cle]
+        graveur.writerow([cle, fiche['texte'],
+                          fiche.get('remarque', ''), fiche['le']])
+    return tampon.getvalue().encode('utf-8')
 
 
 def lire_etat():
@@ -248,14 +407,18 @@ def construire_donnees():
         item['priorite'] = resume['priorite']
         item['corrigee'] = item['nom'] in corrections
         voix.append(item)
-    # Les narrateurs de tes livres d'abord : c'est la que le defaut s'entend.
-    voix.sort(key=lambda v: (v['priorite'], v['nom'].lower()))
+    # Les neuf voix signalees le 19/10/2026 d'abord (Laurent doit les trouver
+    # tout de suite), puis les narrateurs de ses livres (c'est la que le defaut
+    # s'entend), puis le reste.
+    voix.sort(key=lambda v: (0 if v['signalee'] else 1, v['priorite'],
+                             v['nom'].lower()))
     return {
         'voix': voix,
         'corrections': {nom: {'texte': fiche['texte'],
                               'remarque': fiche.get('remarque', '')}
                         for nom, fiche in corrections.items()},
         'faites': len(corrections),
+        'signalees': sum(1 for v in voix if v['signalee']),
         'remarquees': sum(1 for fiche in corrections.values()
                           if fiche.get('remarque')),
         'derniere': lire_etat().get('derniere', ''),
@@ -296,9 +459,7 @@ class Serveur(BaseHTTPRequestHandler):
             parametres = urllib.parse.parse_qs(adresse.query)
             self._servir_audio((parametres.get('nom') or [''])[0])
         elif adresse.path == '/corrections.csv':
-            contenu = CSV_CORRECTIONS.read_bytes() \
-                if CSV_CORRECTIONS.is_file() else b''
-            self._repondre(200, contenu, 'text/csv; charset=utf-8',
+            self._repondre(200, contenu_corrections(), 'text/csv; charset=utf-8',
                            ('Content-Disposition',
                             'attachment; filename=_corrections_oreille.csv'))
         else:
@@ -395,6 +556,9 @@ button:hover{border-color:var(--bleu)}
 button.principal{background:var(--bleu);color:#fff;border-color:var(--bleu);font-weight:600}
 button.danger{color:#a11;border-color:#e6c0c0}
 button:disabled{opacity:.45;cursor:default}
+button.filtre-actif{background:var(--bleu);color:#fff;border-color:var(--bleu);font-weight:600}
+#lot{display:block;width:calc(100% - 24px);margin:8px 12px 2px;text-align:left}
+#liste li .badge{display:inline-block;background:#d92b2b;color:#fff;border-radius:4px;padding:0 5px;font-size:10.5px;font-weight:700;margin-left:6px;vertical-align:1px}
 main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:16px 20px 40px;align-items:start}
 aside{background:var(--carte);border:1px solid var(--bord);border-radius:10px;overflow:hidden}
 #recherche{width:100%;border:0;border-bottom:1px solid var(--bord);padding:11px 12px;font-size:14px;font-family:inherit}
@@ -441,7 +605,9 @@ kbd{background:#eef1f6;border:1px solid var(--bord);border-radius:4px;padding:1p
 </header>
 <main>
   <aside>
-    <input id="recherche" type="search" placeholder="Chercher une voix (nom, livre&hellip;)">
+    <input id="recherche" type="search" placeholder="Chercher un pr&eacute;nom, un fichier, un livre&hellip;">
+    <button id="lot">&#11088; Les 9 voix signal&eacute;es</button>
+    <p class="petit" style="margin:2px 12px 8px">Th&eacute;odore, &Eacute;douard, Aubin, Maya, Achille, Berthe, C&eacute;cile, Jos&eacute;phine, Maurice.</p>
     <ul id="liste"></ul>
   </aside>
   <section id="fiche">
@@ -484,6 +650,9 @@ kbd{background:#eef1f6;border:1px solid var(--bord);border-radius:4px;padding:1p
       revenir plus tard, tu reprendras o&ugrave; tu t'es arr&ecirc;t&eacute;. Dans la liste, le <b>trait vert</b>
       marque les voix d&eacute;j&agrave; not&eacute;es, <b>(A REPARER)</b> en rouge celles qui ont une remarque,
       et l'&eacute;toile &#11088; celles qui lisent d&eacute;j&agrave; tes livres.
+      <br>Les <b>neuf voix signal&eacute;es le 19/10/2026</b> sont en t&ecirc;te de liste, avec leur
+      <b>pr&eacute;nom</b> et un badge <b>&laquo; &agrave; reprendre &raquo;</b> ; le bouton
+      <b>Les 9 voix signal&eacute;es</b> les isole.
     </div>
   </section>
 </main>
@@ -491,6 +660,7 @@ kbd{background:#eef1f6;border:1px solid var(--bord);border-radius:4px;padding:1p
 "use strict";
 var donnees = {voix: [], corrections: {}, faites: 0, derniere: ""};
 var courante = null;
+var filtreLot = false;
 var onde = null;
 var audio = document.getElementById("audio");
 var texte = document.getElementById("texte");
@@ -519,7 +689,10 @@ function afficherListe() {
   var filtre = document.getElementById("recherche").value.trim().toLowerCase();
   liste.innerHTML = "";
   donnees.voix.forEach(function (v) {
-    if (filtre && (v.nom + " " + v.resume).toLowerCase().indexOf(filtre) < 0) {
+    if (filtreLot && !v.signalee) { return; }
+    var cherchable = (v.nom + " " + (v.prenom || "") + " " +
+                      (v.region || "") + " " + v.resume).toLowerCase();
+    if (filtre && cherchable.indexOf(filtre) < 0) {
       return;
     }
     var li = document.createElement("li");
@@ -529,7 +702,14 @@ function afficherListe() {
     if (courante && courante.nom === v.nom) { li.className += " actif"; }
     var nom = document.createElement("div");
     nom.className = "nom";
-    nom.textContent = (v.priorite === 0 ? "\u2B50 " : "") + v.nom;
+    var libelle = v.prenom ? (v.prenom + "  (" + v.nom + ")") : v.nom;
+    nom.textContent = (v.priorite === 0 ? "\u2B50 " : "") + libelle;
+    if (v.signalee) {
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "\u00e0 reprendre";
+      nom.appendChild(badge);
+    }
     var petit = document.createElement("div");
     petit.className = "petit";
     petit.textContent = v.resume;
@@ -545,10 +725,15 @@ function choisir(nom) {
   donnees.voix.forEach(function (v) { if (v.nom === nom) { choisi = v; } });
   if (!choisi) { return; }
   courante = choisi;
-  document.getElementById("nom").textContent = choisi.nom;
+  document.getElementById("nom").textContent = choisi.prenom
+    ? choisi.prenom + "  (" + choisi.nom + ")" : choisi.nom;
+  var details = [];
+  if (choisi.region) { details.push(choisi.region); }
+  if (choisi.duree) {
+    details.push("r\u00e9f\u00e9rence de " + choisi.duree + " s, " + choisi.hauteur);
+  }
   document.getElementById("usage").textContent = choisi.resume +
-    (choisi.duree ? "   \u2014   r\u00e9f\u00e9rence de " + choisi.duree +
-     " s, " + choisi.hauteur : "");
+    (details.length ? "   \u2014   " + details.join(" \u00b7 ") : "");
   document.getElementById("texteActuel").textContent = choisi.texte;
   var deja = Object.prototype.hasOwnProperty.call(donnees.corrections, nom);
   texte.value = deja ? donnees.corrections[nom].texte : choisi.texte;
@@ -741,6 +926,13 @@ document.getElementById("arreter").onclick = function () {
 };
 document.getElementById("recherche").addEventListener("input", afficherListe);
 
+var boutonLot = document.getElementById("lot");
+boutonLot.onclick = function () {
+  filtreLot = !filtreLot;
+  boutonLot.className = filtreLot ? "filtre-actif" : "";
+  afficherListe();
+};
+
 document.addEventListener("keydown", function (evenement) {
   if (evenement.ctrlKey && evenement.key === "Enter") {
     evenement.preventDefault();
@@ -783,17 +975,47 @@ def main():
     analyseur.add_argument('--lot', default='',
                            help='travailler sur un LOT de voix (un dossier) au '
                                 'lieu des voix de production')
+    analyseur.add_argument('--migrer', action='store_true',
+                           help='separe les corrections privees (Maya) du CSV '
+                                'versionne, puis quitte')
     options = analyseur.parse_args()
 
     # `--lot` : on ecoute et on corrige les voix d'un DOSSIER donne (un lot de
     # travail) au lieu des voix de production. Le fichier des corrections vit
     # alors DANS le lot : les deux travaux ne se melangent jamais.
     if options.lot:
-        global DOSSIER_VOIX, CSV_REFERENCES, CSV_CORRECTIONS, FICHIER_ETAT
+        global DOSSIER_VOIX, CSV_REFERENCES, CSV_PRIVEES
+        global CSV_CORRECTIONS, CSV_CORRECTIONS_PRIVEES, FICHIER_ETAT
         DOSSIER_VOIX = Path(options.lot).resolve()
         CSV_REFERENCES = DOSSIER_VOIX / 'references.csv'
+        CSV_PRIVEES = DOSSIER_VOIX / 'references_privees.csv'
         CSV_CORRECTIONS = DOSSIER_VOIX / '_corrections_oreille.csv'
+        CSV_CORRECTIONS_PRIVEES = DOSSIER_VOIX / '_corrections_oreille_privees.csv'
         FICHIER_ETAT = DOSSIER_VOIX / '_corrections_oreille_etat.json'
+
+    if options.migrer:
+        # Separation en deux fichiers : le public (versionne) et le prive
+        # (Maya, ignore par Git). Copie datee avant, puis relecture.
+        for chemin in (CSV_CORRECTIONS, CSV_CORRECTIONS_PRIVEES):
+            if chemin.is_file():
+                copie = chemin.with_name(
+                    chemin.name + '.bak_avant_separation_privee_'
+                    + time.strftime('%Y%m%d_%H%M'))
+                shutil.copy2(chemin, copie)
+                print('Copie datee : %s' % copie.name)
+        donnees = lire_corrections()
+        ecrire_corrections(donnees)
+        prives = noms_prives()
+        public = _lire_un_fichier_corrections(CSV_CORRECTIONS)
+        prive = _lire_un_fichier_corrections(CSV_CORRECTIONS_PRIVEES)
+        fuites = sorted(set(public) & prives)
+        print('Public : %d | Prive : %d' % (len(public), len(prive)))
+        if fuites:
+            print('ECHEC : voix privee(s) encore dans le public : %s'
+                  % ', '.join(fuites))
+            return 1
+        print('TOUT EST OK')
+        return 0
 
     if not CSV_REFERENCES.is_file():
         print('ARRET : le fichier des references est introuvable :')
@@ -827,7 +1049,8 @@ def main():
     print('  deja notees     : %d' % len(lire_corrections()))
     print('  dossier         : %s' % DOSSIER_VOIX)
     print('  page            : %s' % adresse)
-    print('  corrections     : %s' % CSV_CORRECTIONS.name)
+    print('  corrections     : %s (+ %s)'
+          % (CSV_CORRECTIONS.name, CSV_CORRECTIONS_PRIVEES.name))
     print('')
     print('  RIEN n est applique aux voix : ce fichier attend ton accord.')
     print('  Pour ARRETER : le bouton de la page, ou Ctrl+C ici.')
@@ -844,6 +1067,7 @@ def main():
     print('')
     print('  voix notees au total : %d' % len(lire_corrections()))
     print('  fichier : %s' % CSV_CORRECTIONS)
+    print('  prive   : %s' % CSV_CORRECTIONS_PRIVEES)
     return 0
 
 

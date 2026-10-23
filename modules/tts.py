@@ -347,7 +347,7 @@ MOTS_SANS_POINT_FINAL = re.compile(
     r"|Monseigneur|Docteur|Professeur|Saint|Sainte|numéro)$")
 
 
-def _clean_text(text: str, vocabulaire=None) -> str:
+def _clean_text(text: str, vocabulaire=None, ponctuation_libre=False) -> str:
     """Prepare le texte pour la synthese vocale.
 
     `vocabulaire` (facultatif) : les mots que le LIVRE ecrit en casse normale
@@ -357,6 +357,23 @@ def _clean_text(text: str, vocabulaire=None) -> str:
     biais (demande de Laurent, 19/09/2026). Les VRAIS sigles (« JFK », « FBI »)
     ne sont pas au vocabulaire et restent tels quels, ce qui est voulu.
     Sans vocabulaire (appels de test, textes hors livre), rien ne change.
+
+    `ponctuation_libre` (facultatif, ajoute le 23/10/2026) : quand il est VRAI,
+    on ne touche PAS a la ponctuation du livre -- `;`, ` : ` et les parentheses
+    restent tels quels, et une virgule finale n'est PAS changee en point. Le
+    reste du nettoyage (majuscules, incises, abreviations, nombres, espaces)
+    s'applique comme d'habitude. FAUX par defaut : le comportement de tous les
+    moteurs ne change pas d'un caractere.
+
+    POURQUOI CE PARAMETRE. Les conversions de ponctuation datent des moteurs
+    d'AVANT Qwen (Edge, Kokoro : 17 et 18/09/2026), qui prononçaient la
+    ponctuation ou n'en faisaient aucune pause. Le moteur en service depuis le
+    26/09/2026 (Qwen3-TTS sur la carte) lit la ponctuation naturellement --
+    constat de Laurent, 23/10/2026, sur un passage ou un « : » sortait en
+    virgule et une virgule en fin de phrase. Banc d'ecoute du meme jour
+    (`test_voix/_banc_qwen_ponctuation.py`) : **verdict, la ponctuation du livre
+    est la reference POUR QWEN**, et `synthesize_qwen` active donc ce drapeau.
+    Les autres moteurs restent a FAUX tant qu'on ne les a pas reecoutes.
     """
     # Les majuscules D'ABORD : les autres regles lisent mieux un texte en casse
     # normale, et la casse n'a aucun effet sur la prononciation.
@@ -376,22 +393,27 @@ def _clean_text(text: str, vocabulaire=None) -> str:
     # le sujet de la phrase. Regle prudente : `modules/incises.py`.
     text = _incises.retirer_incises(text)
 
-    # Point-virgule -> virgule (17/09/2026, constat de Laurent) : les moteurs
-    # neuronaux essaient de PRONONCER la ponctuation forte qu'ils ne savent pas
-    # ignorer, et le « ; » sortait parfois en « euh ». La virgule garde la
-    # respiration sans le son parasite.
-    text = text.replace(';', ',')
+    # --- LA PONCTUATION DU LIVRE, OU LA PONCTUATION ARRANGEE -----------------
+    # Tout ce bloc vient des moteurs d'AVANT Qwen (17 et 18/09/2026). Il reste
+    # le comportement par defaut ; `ponctuation_libre=True` le saute pour
+    # entendre ce que le moteur fait de la ponctuation de l'auteur.
+    if not ponctuation_libre:
+        # Point-virgule -> virgule (17/09/2026, constat de Laurent) : les
+        # moteurs neuronaux essaient de PRONONCER la ponctuation forte qu'ils ne
+        # savent pas ignorer, et le « ; » sortait parfois en « euh ». La virgule
+        # garde la respiration sans le son parasite.
+        text = text.replace(';', ',')
 
-    # Deux-points -> virgule (17/09/2026 au soir, constat de Laurent : « la
-    # ponctuation des ":" n'a pas de pause du tout »). On ne touche qu'au
-    # deux-points PRECEDE D'UNE ESPACE -- c'est la typographie francaise, et
-    # cela evite de casser « 14:30 » ou une adresse.
-    text = re.sub(r'\s+:\s*', ', ', text)
+        # Deux-points -> virgule (17/09/2026 au soir, constat de Laurent : « la
+        # ponctuation des ":" n'a pas de pause du tout »). On ne touche qu'au
+        # deux-points PRECEDE D'UNE ESPACE -- c'est la typographie francaise, et
+        # cela evite de casser « 14:30 » ou une adresse.
+        text = re.sub(r'\s+:\s*', ', ', text)
 
-    # Parentheses -> virgules (meme jour, meme constat) : le moteur les ignore,
-    # donc l'incise n'etait entouree d'AUCUNE pause. Deux virgules redonnent la
-    # respiration attendue de part et d'autre.
-    text = text.replace('(', ', ').replace(')', ',')
+        # Parentheses -> virgules (meme jour, meme constat) : le moteur les
+        # ignore, donc l'incise n'etait entouree d'AUCUNE pause. Deux virgules
+        # redonnent la respiration attendue de part et d'autre.
+        text = text.replace('(', ', ').replace(')', ',')
 
     # Le « ?! » est traite TOUT A LA FIN de ce nettoyage : il ne doit pas etre
     # transforme par la regle de fin de segment (sinon le « ? » se retrouverait
@@ -450,8 +472,17 @@ def _clean_text(text: str, vocabulaire=None) -> str:
     # (Monsieur, Madame, Docteur...) : voir MOTS_SANS_POINT_FINAL ci-dessus.
     # C'est ce qui supprime le silence entendu apres « M. » / « Mme » le
     # 18/09/2026.
+    #
+    # PONCTUATION LIBRE (23/10/2026) : une virgule finale RESTE une virgule.
+    # C'est ici que la virgule de Laurent devenait un point -- « ... sans le
+    # moindre avion, et l'avion tout aussi introuvable du Pentagone. » : le
+    # moteur recevait une vraie fin de phrase la ou l'auteur avait une virgule,
+    # d'ou la voix qui « tombe ». En libre, la ponctuation du livre part telle
+    # quelle ; en revanche, un texte sans AUCUNE ponctuation finale recoit
+    # toujours son point (frontiere dont le moteur a besoin pour s'arreter).
     if text and text[-1] in ',;:':
-        text = text[:-1].rstrip() + '.'
+        if not ponctuation_libre:
+            text = text[:-1].rstrip() + '.'
     elif (text and text[-1] not in '.!?:…»"'
           and not MOTS_SANS_POINT_FINAL.search(text)):
         text += '.'
@@ -464,6 +495,10 @@ def _clean_text(text: str, vocabulaire=None) -> str:
     # demande le 04/10/2026 de REMETTRE le « ! » seul (voir le bloc en haut du
     # fichier) : « remettre les points d'exclamation comme des points
     # d'exclamation au lieu des virgules ou des points ».
+    # En PONCTUATION LIBRE, le « ?! » reste quand meme ramene a « ? »
+    # (23/10/2026) : c'est la prudence du 04/10/2026, prise AVEC Qwen en
+    # service, et ce cas rare n'a jamais ete rejoue a l'oreille. Tout le reste
+    # de la ponctuation, lui, part tel quel.
     text = re.sub(r'\?\s*!+', '?', text)
 
     return text
@@ -1121,7 +1156,16 @@ async def synthesize_qwen(text: str, voice: str, rate: str = "+0%",
     c'est pour cela que VERSION_CACHE n'a pas eu besoin de bouger.
     """
     texte_avant = text
-    text = _clean_text(text, vocabulaire)
+    # PONCTUATION LIBRE (verdict d'oreille de Laurent, 23/10/2026) : Qwen recoit
+    # le texte tel que l'AUTEUR l'a ponctue -- « ; », « : » et parentheses ne
+    # sont plus convertis, et une virgule finale reste une virgule. Le banc
+    # `test_voix/_banc_qwen_ponctuation.py` (lot
+    # `test_voix/ecoute_ponctuation_libre_20261023_1109/`) a fait entendre les
+    # deux versions sur le meme passage de « Dialogues desaccordes » : « la
+    # ponctuation du livre » est la reference. Les AUTRES moteurs gardent les
+    # regles du 17/09/2026 (le drapeau est FAUX par defaut) : ils n'ont pas ete
+    # reecoutes, et rien ne prouve que ces regles leur soient inutiles.
+    text = _clean_text(text, vocabulaire, ponctuation_libre=True)
     if not text:
         return b""
 
@@ -1739,6 +1783,60 @@ QWEN_VOICES += [
 ]
 
 # ==============================================================
+# LES 12 VOIX MLS (20/10/2026) -- pour les PETITS ROLES
+# ==============================================================
+# Fabriquees par l'atelier NIMM Voix a partir du corpus MLS (Meta /
+# LibriVox, CC BY 4.0) : lecteurs francais de livres audio du domaine
+# public. 28 voix clonees, 24 retenues a l'oreille de Laurent, dont 9
+# etaient DEJA ici sous un identifiant `cml` (meme lecteur LibriVox,
+# autre passage) : il restait donc 15 timbres NEUFS, dont 3 dont le
+# texte de reference est encore a arbitrer (`MLS_5232_F`, `MLS_1817_H`,
+# `MLS_2904_H` -- NIMM Voix les regenere sur la foi de son
+# `09_textes_a_relire.csv`). Ces 3-la ne sont donc PAS entrees, et ce
+# sont les 2 SEULS timbres d'homme du lot : ce sont 12 voix de FEMME
+# qui arrivent ici.
+#
+# PRENOMS : proposition du memo du 20/10/2026, corrigee le 21/10/2026
+# la ou le prenom etait DEJA pris dans le catalogue -- Amelie,
+# Blanche, Delphine, Fanny, Jeanne, Ninon, Solange, Yvette, Firmin et
+# Marius avaient deja leur voix (`qwen:ff_amelie`, `qwen:ff_delphine`,
+# `qwen:Femme002`...). Releve par `_essais/_verif_voix_mls_20261021.py`,
+# nouveaux prenoms valides par Laurent le 21/10/2026.
+#
+# 0 ETOILE A L'IMPORT : elles sont destinees aux personnages de moins
+# de 8 repliques (MINOR_THRESHOLD) et doivent rester HORS du pool
+# automatique -- un figurant ne doit pas voler la voix d'un personnage
+# principal. C'est la convention du projet (Maya_normale, hindi, ...).
+#
+# DROITS : MLS = CC BY 4.0 -> attribution « MLS / LibriVox »
+# obligatoire en cas de diffusion. Ce sont des PERSONNES REELLES : la
+# licence du corpus ne regle pas le droit de la personnalite (plus
+# strict en France). Usage prive de l'atelier : OK ; prudence avant
+# tout partage large.
+_VOIX_MLS_20_10_2026 = (
+    # (identifiant, prenom, genre, etoiles, mention d'accent)
+    ("MLS_10620_F", "Albertine",  "F", 0, ""),
+    ("MLS_12709_F", "Angèle",     "F", 0, ""),
+    ("MLS_12713_F", "Clémence",   "F", 0, ""),
+    ("MLS_12981_F", "Antoinette", "F", 0, ""),
+    ("MLS_13634_F", "Élise",      "F", 0, ""),
+    ("MLS_1474_F",  "Bernadette", "F", 0, "paysan"),
+    ("MLS_2085_F",  "Denise",     "F", 0, "quebecois"),
+    ("MLS_3204_F",  "Léonie",     "F", 0, ""),
+    ("MLS_3698_F",  "Margot",     "F", 0, ""),
+    ("MLS_4512_F",  "Germaine",   "F", 0, ""),
+    ("MLS_12968_F", "Marcelle",   "F", 0, ""),
+    ("MLS_123_F",   "Rose",       "F", 0, ""),
+)
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": ("\U0001F1EB\U0001F1F7 France (Qwen)"
+                + (" - accent " + accent if accent else "")),
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles, accent in _VOIX_MLS_20_10_2026
+]
+
+# ==============================================================
 # LES 3 VOIX DE SERIE (16/10/2026) -- Thyrion, Sersei et Saul
 # ==============================================================
 # Demande de Laurent, mot pour mot : « On va cloner des nouvelles voix [...] Il y
@@ -1845,6 +1943,47 @@ QWEN_VOICES += [
      "region": "\U0001F1EB\U0001F1F7 France (Qwen)",
      "gender": genre, "stars": etoiles}
     for identifiant, prenom, genre, etoiles in _VOIX_19_10_2026
+]
+
+# ==============================================================
+# LES 2 VOIX DU 22/10/2026 -- Soral et Naulleau
+# ==============================================================
+# Clonees par NIMM Voix (lot `sorties\soral_naulleau_20261022` : deux extraits
+# deposes par Laurent dans « Voix a faires », nettoyes par DeepFilterNet,
+# egalises vers le profil median de la garde-robe, -23 dBFS, bords 100 ms).
+# Entendues par Laurent le 22/10 au soir : « Les 2 clones m'ont l'air bien. Je
+# vais les tester sur des livres. » Il demande donc leur entree en garde-robe.
+# Outil d'entree : `NIMM Voix\_atelier\
+# _entrer_soral_naulleau_chez_nimm_epub.py` (rapport seul par defaut,
+# `--ecrire` pour agir) ; copie datee du fichier prive AVANT l'ecriture :
+# `references_privees.csv.bak_avant_soral_naulleau_20261023`.
+#
+# POURQUOI HORS BOUCLE : comme `Maya_normale`, les 18 voix indiennes, les 3
+# voix de serie et les 5 du 19/10, ce sont des timbres NEUFS -- aucune jumelle
+# dans `KYUTAI_VOICES + KOKORO_VOICES + POCKET_VOICES` : on les ecrit a la main.
+#
+# PRIVEES : voix de PERSONNES REELLES (voix publiques), sources non libres,
+# usage strictement prive (decision de Laurent du 22/10/2026). Leurs textes
+# sont dans `references_privees.csv` (hors depot), JAMAIS dans
+# `references.csv` (le public) : un texte committe reste dans l'historique,
+# meme retire apres.
+#
+# IDENTIFIANT = nom du fichier sans `_reference`. PRENOM affiche = orthographe
+# de Laurent (il a ecrit « Nolleau » ; le fichier depose s'appelait
+# `Naulleau.wav`, on garde cette orthographe, c'est le nom reel). GENRE « M »
+# (code des 18 voix indiennes ; un « H » ecrit par erreur le 17/10 rendait les
+# voix invisibles). 0 ETOILE : hors casting automatique, choisissable a la
+# main, comme les 5 voix du 19/10. DRAPEAU francais et rien d'autre.
+_VOIX_22_10_2026 = (
+    # (identifiant, prenom, genre, etoiles)
+    ("Naulleau", "Naulleau", "M", 0),
+    ("Soral",    "Soral",    "M", 0),
+)
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": "\U0001F1EB\U0001F1F7 France (Qwen)",
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles in _VOIX_22_10_2026
 ]
 
 

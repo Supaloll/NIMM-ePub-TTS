@@ -26,7 +26,17 @@ DOSSIER = Path(__file__).resolve().parent
 RACINE = DOSSIER.parent
 
 TESTS_PY = [
-    "test_ids_ecran.py", "test_lire_moi.py", "test_import_main.py",
+    "test_ids_ecran.py", "test_lire_moi.py",
+    # Ajoute le 19/10/2026 : la fenetre « corriger le texte des voix » doit
+    # afficher les PRENOMS (« Theodore (Homme002) ») et inclure Maya, qui vit
+    # dans le fichier prive. Sans ce test, un retour au texte d'avant remettrait
+    # des noms de fichiers et ferait disparaitre Maya sans que rien ne le dise.
+    "test_outil_ecoute_prenoms.py",
+    # Ajoute le 19/10/2026 : les neuf textes corriges par Laurent doivent etre
+    # ceux que le service lit vraiment (public + prive), et Maya doit rester
+    # dans le prive. Le CSV d'oreille est la source de verite.
+    "test_corrections_voix_appliquees.py",
+    "test_import_main.py",
     "test_pas_de_secrets.py", "test_reparer_moteurs.py",
     "test_prononciation_kokoro.py", "test_bascule_moteur.py",
     "test_start_moteur.py", "test_decoupage_phrases.py",

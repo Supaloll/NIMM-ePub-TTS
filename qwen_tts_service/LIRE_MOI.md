@@ -2,7 +2,7 @@
 
 Ce dossier contient **l'appareil de voix Qwen3-TTS** de NIMM ePub : un
 programme séparé du lecteur, qui fait parler **les voix françaises libres de la
-garde-robe** — **206 extraits au 19/10/2026**, dont les 35 mêmes que Kyutai
+garde-robe** — **218 extraits au 21/10/2026**, dont les 35 mêmes que Kyutai
 (mêmes extraits, donc mêmes timbres et mêmes prénoms) — avec le moteur
 **Qwen3-TTS** d'Alibaba.
 
@@ -30,7 +30,7 @@ ne tournent **jamais ensemble**. Le bouton « Voix de personnages » du lecteur
 | **DEMARRER_QWEN_TTS.bat** | pour allumer le moteur (seul, ou appelé par `START.bat`) | charge le modèle (≈ 5 s) puis reste ouvert |
 | **servir_qwen_tts.py** | — | le service lui-même (routes `/sante`, `/voix`, `/tts`) |
 | **tester_service.py** | après une installation, ou en cas de doute | vérifie que le service répond et fait dire une vraie phrase |
-| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **206 au 19/10/2026** — **et** leur texte exact (`references.csv`) |
+| **voix/** | — | la **garde-robe partagée** : les extraits (WAV) — **218 au 21/10/2026** — **et** leur texte exact (`references.csv`) |
 
 **Pour éteindre le moteur, il suffit de fermer sa fenêtre** : un « gardien »
 intégré au service s'arrête dès que la fenêtre disparaît (même mécanisme que
@@ -139,10 +139,51 @@ premières, « le 04, D, est top » pour Sandor. Quatre clones sur cinq disent
   (`modules/tts.py.bak_avant_5voix_20261019`).
 
 **Deux formats à ne pas mélanger** : le **public** `references.csv` est en
-**CRLF** (201 lignes au 19/10 : en-tête + 200 voix), le **privé**
+**CRLF** (213 lignes au 21/10 : en-tête + 212 voix), le **privé**
 `references_privees.csv` est en **LF** (7 lignes au 19/10 : en-tête + Maya +
 les 5 voix). Les deux sont en **UTF-8 sans BOM**, et l'outil d'entrée vérifie
 ces trois points après écriture.
+
+## Les 12 voix MLS du 20/10/2026 : la garde-robe passe à 218
+
+NIMM Voix a cloné **28 lecteurs français du corpus MLS** (Meta / LibriVox,
+**CC BY 4.0**) — des livres audio du domaine public. Laurent en a **retenu 24 à
+l'oreille**, mais **9 d'entre eux étaient déjà ici** sous un identifiant `cml` :
+c'est le **même lecteur LibriVox**, sur un autre passage, donc **le même
+timbre**. Il ne restait donc que **15 timbres vraiment neufs (13 femmes,
+2 hommes)**.
+
+**Douze sont entrés le 21/10/2026** : Albertine, Angèle, Clémence, Antoinette,
+Élise, Bernadette, Denise, Léonie, Margot, Germaine, Marcelle et Rose.
+
+- **les 3 autres attendent** que NIMM Voix corrige leur **texte de référence**
+  (MLS_5232_F, MLS_1817_H, MLS_2904_H) : un texte qui ne colle pas à l'audio fait
+  **bégayer le clone**. Ce sont les **deux seuls hommes** du lot — la garde-robe
+  n'a donc **pas gagné de timbre masculin** ce jour, et NIMM Voix propose d'en
+  sortir d'autres sur simple demande (sa réserve MLS compte plus de 66 lecteurs) ;
+- **dix prénoms du mémo étaient déjà pris** dans le catalogue (Amélie =
+  `ff_amelie`, Delphine = `ff_delphine`, Solange = `Femme002`, Firmin =
+  `homme_grave_6546546`…) : Laurent a validé les **remplaçants** ci-dessus. Le
+  relevé est fait par `_essais/_verif_voix_mls_20261021.py` ;
+- **0 étoile** → **hors du casting automatique**, mais **choisissables à la
+  main** : ces voix sont faites pour les **petits rôles** (moins de
+  `MINOR_THRESHOLD` = 8 répliques), et un figurant ne doit pas voler la voix
+  d'un personnage principal ;
+- à l'écran : **drapeau français**, plus « accent paysan » (Bernadette) et
+  « accent québécois » (Denise) ;
+- **format des références** : 24 kHz, mono, PCM 16 bits, 17,6 à 20,2 s ;
+- **droits** : MLS est en **CC BY 4.0** → attribution « **MLS / LibriVox** »
+  obligatoire en cas de diffusion. Ce sont des **personnes réelles** : la licence
+  du corpus règle le droit du **fichier**, pas celui de la **voix** (droit de la
+  personnalité, plus strict en France). Usage privé de l'atelier : OK ;
+  **prudence avant tout partage large** ;
+- **entrée faite** par `_essais/_entrer_voix_mls_20261021.py` (**rapport seul**
+  par défaut, `--ecrire` pour agir, idempotent, **copies datées automatiques** de
+  `references.csv` et de `data/annotations_voix.json` avant écriture), avec
+  `_essais/_verifier_import_mls_20261021.py` pour le contrôle après coup et la
+  copie datée `modules/tts.py.bak_avant_mls_20261021` ;
+- **fiches d'écoute créées à 0 étoile** : elles ne devinent **rien** (âge,
+  timbre, débit restent vides) — c'est l'oreille de Laurent qui les remplira.
 
 ## L'environnement Python (à lire avant de s'inquiéter)
 

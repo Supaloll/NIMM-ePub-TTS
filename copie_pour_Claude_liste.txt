@@ -75,6 +75,29 @@ pocket_tts_service/LIRE_MOI.md
 test_voix/_corriger_references_a_l_oreille.py
 test_voix/LIRE_MOI.md
 
+# --- Le MEMO des neuf voix a reprendre (19/10/2026) : ce que Laurent entend,
+#     la cause mesuree (cinq references dont le TEXTE ne dit pas ce que dit
+#     l'AUDIO), les mesures, et le geste propose voix par voix. Diagnostic seul :
+#     aucun WAV, aucun CSV, aucune annotation n'a ete touche.
+test_voix/MEMO_VOIX_A_REFAIRE_19-10-2026_pour_NIMM_Voix.md
+
+# --- Le RETAGUER DES ACCENTS (19/10/2026) : aligne « hindou » et « asiatique »
+#     sur les familles dont l'identifiant ne laisse aucun doute. Rapport seul
+#     par defaut ; `--ecrire` copie les notes datees avant d'ecrire, puis relit.
+test_voix/_retaguer_accents_asie_inde.py
+
+# --- Le MEMO DE SUITE (19/10/2026) : les textes corriges par Laurent et
+#     APPLIQUES, ce qui reste audio, et la regle anti-bruit sur les extraits de
+#     clonage. Pour NIMM ePub et NIMM Voix.
+test_voix/MEMO_SUITE_VOIX_19-10-2026_pour_NIMM_ePub.md
+test_voix/_appliquer_corrections_oreille_19_10.py
+
+# --- La REPONSE a NIMM Voix sur les voix MLS (21/10/2026) : les 12 voix
+#     entrees sur 15, les 10 prenoms deja pris, le compte de 218 voix et non
+#     215, le POST /tts qui attend le moteur, et pourquoi l'annexe C (le
+#     tirage des figurants) n'est pas encore appliquee.
+test_voix/MEMO_REPONSE_VOIX_MLS_21-10-2026_pour_NIMM_Voix.md
+
 # --- Le test A/B de la LONGUEUR des references (03/10/2026) : il fabrique une
 #     reference COURTE et une LONGUE pour la MEME voix (coupees exactement
 #     pareil), puis fait dire la meme phrase aux deux. Il tranche la question
@@ -140,6 +163,14 @@ modules/pov.py
 #     voix du nouveau chapitre des sa premiere phrase.
 test_voix/test_voix_narrateur_chapitre.js
 test_voix/test_pov_carte.py
+
+# --- Le TEXTE D'ECOUTE de la fenetre « Ecouter les voix » (21/10/2026) : trois
+#     lots de dix phrases (la voix nue, les pieges, la prosodie), une phrase par
+#     lot a chaque ecoute puis melangees -- 6000 textes possibles, jamais deux
+#     fois le meme de suite. Le test verrouille la MATIERE des 30 phrases (pas de
+#     didascalie, pas de « ! »), le TIRAGE et le BRANCHEMENT : c'est avec ce
+#     texte que Laurent juge et repare les voix.
+test_voix/test_phrases_ecoute.js
 
 # --- L'outil des SURNOMS (15/10/2026) : il PROPOSE et il ECRIT le rattachement d'un
 #     surnom de chapitre (« SCHLINGUE », « LE NOYÉ », « Le lord perdu ») a un

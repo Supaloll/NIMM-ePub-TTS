@@ -194,6 +194,13 @@ qwen_tts_service/voix/_bords_avant_*/
 # proches) iront la aussi.
 qwen_tts_service/voix/references_privees.csv
 
+# Le 19/10/2026 : le CSV des corrections d'oreille suit la MEME regle. Le fichier
+# public (`test_voix/_corrections_oreille.csv`) reste versionne ; les corrections
+# des voix privees (Maya) vivent dans un fichier separe, ignore, et la copie
+# telechargee a la racine de l'atelier aussi.
+test_voix/_corrections_oreille_privees.csv
+/_corrections_oreille.csv
+
 # Les dossiers de voix RECUES d'un autre atelier (29/09/2026 : la voix de Maya,
 # deposee par NIMM Voix) restent sur le PC. Ils portent le TEXTE de reference
 # (ici, le debut d'un roman du commerce) et des notes PRIVEES (prenom, accord de

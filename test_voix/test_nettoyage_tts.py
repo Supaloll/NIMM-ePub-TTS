@@ -15,6 +15,10 @@ Ce qui est verifie (point d'exclamation mis a jour le 04/10/2026) :
    final ajoute en faisait une vraie fin de phrase, d'ou le silence entendu.
 3. Ce qui NE DOIT PAS changer : les reglages d'ecoute precedents
    (point-virgule -> virgule, parenthese -> virgules, deux-points -> virgule).
+4. Depuis le 23/10/2026 : le drapeau `ponctuation_libre` (banc d'ecoute
+   `_banc_qwen_ponctuation.py`). Il laisse la ponctuation du livre intacte
+   (`;`, ` : `, parentheses, virgule finale) ; FAUX par defaut, il ne change
+   donc rien a ce que le lecteur envoie aujourd'hui.
 """
 
 import sys
@@ -42,6 +46,12 @@ def verifier(nom, condition, detail=''):
 
 def egal(nom, texte, attendu):
     obtenu = _clean_text(texte)
+    verifier(nom, obtenu == attendu, '%r  (attendu %r)' % (obtenu, attendu))
+
+
+def egal_libre(nom, texte, attendu):
+    """Meme controle, avec `ponctuation_libre=True` (23/10/2026)."""
+    obtenu = _clean_text(texte, ponctuation_libre=True)
     verifier(nom, obtenu == attendu, '%r  (attendu %r)' % (obtenu, attendu))
 
 
@@ -189,6 +199,28 @@ def main():
          'par Mlle\u00a0Eugénie.', 'par Mademoiselle\u00a0Eugénie.')
     egal('Mme avant un prenom',
          'Mme\u00a0Danglars arriva.', 'Madame\u00a0Danglars arriva.')
+
+    print('')
+    print('7) la PONCTUATION LIBRE : le texte du livre part tel quel (23/10/2026)')
+    # Constat de Laurent : dans « Dialogues desaccordes », un DEUX-POINTS
+    # sortait en virgule et une VIRGULE tombait comme une fin de phrase.
+    # Le banc `_banc_qwen_ponctuation.py` ecoute les deux versions ; ces
+    # controles verrouillent ce que fait le drapeau.
+    egal_libre('point-virgule conserve',
+               'Il partit ; elle resta.', 'Il partit ; elle resta.')
+    egal_libre('deux-points conserve',
+               'Il dit : bonjour.', 'Il dit : bonjour.')
+    egal_libre('parentheses conservees',
+               'Paul (son frere) arriva.', 'Paul (son frere) arriva.')
+    egal_libre('virgule finale laissee telle quelle',
+               'Il partit, elle resta,', 'Il partit, elle resta,')
+    egal_libre('le reste du nettoyage s applique toujours (abreviation)',
+               'Le temps de complimenter M. de Morcerf (enfin) arriva',
+               'Le temps de complimenter Monsieur de Morcerf (enfin) arriva.')
+    egal('le comportement par defaut ne bouge pas : deux-points -> virgule',
+         'Il dit : bonjour.', 'Il dit, bonjour.')
+    egal('le comportement par defaut ne bouge pas : virgule finale -> point',
+         'Il partit, elle resta,', 'Il partit, elle resta.')
 
     print('')
     print('%d controles, %d en echec' % (CONTROLES, ECHECS))

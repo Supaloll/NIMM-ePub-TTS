@@ -26,7 +26,7 @@ vraiment bon, pas d'accrocs, prosodie impec, on a notre moteur ! »
 | | |
 |---|---|
 | Port | **8086** (`NIMM_QWENTTS_PORT` pour le changer) |
-| Voix | les **206 références** de `../qwen_tts_service/voix/` — le dossier est **partagé** (même matériau, avec le texte exact qui active le mode ICL) : **35** extraits Kyutai/CML-TTS, **94** Kokoro et **28** « Découpage OK » (copiés le 28/09/2026), **25** CML-TTS « cml_restants » (30/09/2026), **18** voix indiennes `hindi_*` (10/10/2026), les **5 voix du 19/10/2026** (`Aldo`, `Gus`, `Jesse`, `Verges`, `Sandor`) et la voix privée **Maya** — les **3 voix de série** du 16/10 (`Thyrion`, `Sersei`, `Saul`) ont été **retirées le 17/10/2026** |
+| Voix | les **218 références** de `../qwen_tts_service/voix/` — le dossier est **partagé** (même matériau, avec le texte exact qui active le mode ICL) : **35** extraits Kyutai/CML-TTS, **94** Kokoro et **28** « Découpage OK » (copiés le 28/09/2026), **25** CML-TTS « cml_restants » (30/09/2026), **18** voix indiennes `hindi_*` (10/10/2026), les **5 voix du 19/10/2026** (`Aldo`, `Gus`, `Jesse`, `Verges`, `Sandor`), les **12 voix MLS** du 21/10/2026 (`MLS_*`) et la voix privée **Maya** — les **3 voix de série** du 16/10 (`Thyrion`, `Sersei`, `Saul`) ont été **retirées le 17/10/2026** |
 | Modèles | **Q4_K_M depuis le 29/09/2026** (629 + 255 Mo), choisis **à l'oreille par Laurent** : « les plus jolies à l'oreille, prosodie et clarté un demi-cran au-dessus ». Les **Q8_0** (947 + 278 Mo) restent sur le disque en **repli automatique** |
 | Réglages | 6 cœurs, **4 fils de codec**, tranches de **2 images**, priorité d'entame |
 | Débit mesuré | **×1,0 à ×1,2 le temps réel** (Q4_K_M, 29/09/2026) — avant, ×0,94 avec les Q8_0 (28/09) |
@@ -118,7 +118,9 @@ déposées ici le 10/10/2026 avec leur paquet et leur mémo
 (`MEMO_FAMILLE_HINDI_10-10-2026`, dossier `passerelle_NIMM_ePub`). La garde-robe
 est passée de **183 à 201 voix**, et `/voix` annonçait **201** — elle est à
 **206** depuis le 19/10/2026 (après un aller-retour par 204 le 16/10, puis le
-retrait des 3 voix de série le 17/10 ; voir « Les 5 voix du 19/10/2026 »).
+retrait des 3 voix de série le 17/10 ; voir « Les 5 voix du 19/10/2026 »), puis à
+**218 depuis le 21/10/2026** (les 12 voix MLS ; voir « Les 12 voix MLS du
+21/10/2026 »).
 
 - **ce ne sont PAS des timbres existants** : ce sont des **mélanges** des 4 voix
   hindi de Kokoro (`hf_alpha`, `hf_beta`, `hm_omega`, `hm_psi`) avec des voix
@@ -184,13 +186,35 @@ Cinq extraits déposés par Laurent dans « Voix à faires » ont été clonés 
   **hors casting automatique**, choisissables **à la main** ;
 - **textes PRIVÉS** : les 5 lignes sont dans `references_privees.csv` (hors
   dépôt), **jamais** dans `references.csv` — répliques de dialogues sous droits.
-  Le privé est en **LF** (7 lignes au 19/10), le public en **CRLF** (201 lignes) ;
+  Le privé est en **LF** (7 lignes au 19/10), le public en **CRLF** (201 lignes
+  au 19/10, **213 au 21/10** après les voix MLS) ;
 - **droits** : voix d'**acteurs de doublages** → **usage privé dans l'atelier**
   (voir `ATTRIBUTION.md`) ;
 - **entrée faite** par `_essais/_entrer_5_voix_20261019.py` (rapport seul par
   défaut, `--ecrire`, idempotent), avec **copies datées avant** :
   `references_privees.csv.bak_avant_5voix_20261019` et
   `modules/tts.py.bak_avant_5voix_20261019`.
+
+## Les 12 voix MLS du 20/10/2026 : la garde-robe passe à 218
+
+NIMM Voix a cloné **28 lecteurs français du corpus MLS** (Meta / LibriVox,
+**CC BY 4.0**) et Laurent en a **retenu 24 à l'oreille**. Mais **9 de ces
+lecteurs étaient déjà ici** sous un identifiant `cml` (même lecteur, autre
+passage) : il ne restait que **15 timbres neufs**, et **12 sont entrés le
+21/10/2026** (les 3 autres attendent la correction de leur texte de référence) :
+**Albertine, Angèle, Clémence, Antoinette, Élise, Bernadette, Denise, Léonie,
+Margot, Germaine, Marcelle et Rose**.
+
+- **fichiers** : `MLS_<lecteur>_F_reference.wav`, 24 kHz mono PCM 16 bits,
+  17,6 à 20,2 s — même format que le reste du dossier ;
+- **textes dans `references.csv`** (le **public**) : MLS est en **CC BY 4.0**,
+  donc rien de sous droits ; attribution « **MLS / LibriVox** » obligatoire en cas
+  de diffusion, et **personnes réelles** → prudence avant tout partage large ;
+- **0 étoile** → **hors casting automatique**, choisissables à la main : ce sont
+  des voix de **petits rôles** ;
+- **détail complet** (pourquoi 12 et pas 15, les prénoms déjà pris, les copies
+  datées) : `../qwen_tts_service/LIRE_MOI.md`, section « Les 12 voix MLS du
+  20/10/2026 ».
 
 ## Les textes de référence : un fichier PUBLIC, un fichier PRIVÉ (29/09/2026)
 

@@ -464,7 +464,7 @@ structure.
 - **trois fichiers, aucun framework** : `index.html`, `app.js` (HTML/CSS/JS
   vanilla) et `styles.css`, servis par `main.py`
   (`app.mount("/static", StaticFiles(directory=FRONTEND_DIR))`) ; la feuille porte
-  la version de cache `?v=20261015-1`, **une seule valeur** pour toute la page ;
+  la version de cache `?v=20261021-1`, **une seule valeur** pour toute la page ;
 - **service worker** : `frontend/sw.js` — sans lui, rien ne s'installe ;
 - **PWA** : `frontend/manifest.json` (`id` et `start_url` `/`,
   `display: standalone`, `orientation: portrait`, thème `#0d0d0d`) et **un fichier
@@ -499,8 +499,8 @@ structure.
   http://localhost:8081` expose `https://<machine>.ts.net:8081` — ne pas mélanger
   avec l'IP Tailscale brute ;
 - *vérifications* : `test_voix/test_chargement_chapitre.js` (**17 contrôles**),
-  `test_voix/test_ids_ecran.py` (**187** — les contrôles **exécutés** ; le fichier
-  en **écrit** 80, et c'est la convention de cette phrase : les boucles des
+  `test_voix/test_ids_ecran.py` (**190** — les contrôles **exécutés** ; le fichier
+  en **écrit** 83, et c'est la convention de cette phrase : les boucles des
   sections en font plus qu'il n'y paraît), `test_voix/test_pwa_manifeste.py`
   (**26**), `test_voix/test_navigateur.js` (**15** — `_appareilMobile`,
   `_nomNavigateur`) et `test_voix/test_couverture_mobile.py` (Chromium, 12 cartes
@@ -1812,7 +1812,9 @@ correction.
   huit branches) : vocabulaire du livre remis en casse normale
   (`modules/majuscules.py` — sinon « LUI » ou « DE » sont lus comme des sigles),
   incises de parole retirées **tout au début** (`modules/incises.py`), `;` et `:`
-  changés en virgules, suites de points ramenées à `…`, abréviations développées
+  changés en virgules (**sauf pour Qwen depuis le 23/10/2026** : il reçoit la
+  ponctuation du livre, voir « La ponctuation du livre, donnée telle quelle au
+  moteur »), suites de points ramenées à `…`, abréviations développées
   (`ABBREVIATION_RULES` : `M.` → Monsieur, `MR.` reconnu quelle que soit la
   casse), et le **point d'exclamation laissé tel quel** (depuis le 04/10/2026 :
   le moteur en service, Qwen, le lit comme un vrai « ! »). **Le texte affiché
@@ -2039,6 +2041,42 @@ d'exclamation et a signalé un silence après « M. » (lu « monsieur ») :
   ce cas rare est gardé par prudence. Le banc
   `test_voix/_banc_qwen_exclamations.py` rejoue le « ! » face à la virgule et au
   point, pour revenir sur ce choix à l'oreille si besoin.
+- **LA PONCTUATION DU LIVRE, DONNÉE TELLE QUELLE AU MOTEUR** — décision de
+  Laurent du **23/10/2026**, après écoute. Sur le moteur en service, le texte
+  part **tel que l'auteur l'a ponctué** : `;`, ` : `, les parenthèses et une
+  virgule finale **ne sont plus convertis**. Le drapeau est
+  `_clean_text(..., ponctuation_libre=True)` et il est **vrai seulement dans
+  `synthesize_qwen`** ; son défaut reste `False`, donc **Edge, Kokoro, Piper,
+  Kyutai, XTTS, NeuTTS et Pocket gardent les règles du 17/09/2026** — ils n'ont
+  pas été réécoutés, et rien ne prouve que ces règles leur soient inutiles.
+  *Ce qui a déclenché la décision* : constat de Laurent dans « Dialogues
+  désaccordés » — « *pour les virgules, parfois elles sonnent comme si c'était
+  un point* ». Le diagnostic a séparé **deux causes** : le **deux-points changé
+  en virgule** venait de **nos règles** (17/09/2026, du temps d'Edge et Kokoro),
+  tandis que la **virgule qui tombe** venait du **moteur**, sur une longue
+  chaîne de virgules — la phrase de 398 caractères part en **une seule
+  requête**, et le service n'a posé **aucune étiquette** `derivee` /
+  `coupee_en_deux` : ni la règle « virgule finale → point », ni la coupe en deux
+  n'étaient en cause.
+  *Mesure* (banc `test_voix/_banc_qwen_ponctuation.py`, lot
+  `test_voix/ecoute_ponctuation_libre_20261023_1109/`, voix Naulleau, carte
+  Q8_0) : la hauteur des **100 dernières millisecondes** avant la pause, contre
+  la médiane de la phrase, donne **+8,6 demi-tons sur la virgule du livre**
+  (elle « reste en l'air ») et **−6,0 sur un vrai point** (elle tombe) : le
+  moteur sait donc distinguer les deux. Sur les deux tirages du passage, la
+  version « ponctuation du livre » dure **1,5 à 2 s de moins** (17,6 et 18,2 s
+  contre 20,8 et 19,4 s) et ne tombe **qu'une fois** au milieu, contre **quatre**
+  pour la version aplatie.
+  **Verdict d'oreille : la variante « ponctuation du livre » est la référence**
+  (B). Sur l'extrait court, Laurent a préféré le **point** à la virgule de
+  l'auteur : cas isolé, **aucune règle n'en est tirée**.
+  *Conséquences à savoir* : le texte envoyé change, donc **les phrases déjà
+  lues se régénèrent** d'elles-mêmes (la clé du cache porte le texte — rien à
+  vider, pas de `VERSION_CACHE` à monter) ; et le « ?! » → « ? » reste, **même
+  en libre** (prudence du 04/10/2026, cas rare jamais réécouté).
+  Vérification : `test_voix/test_nettoyage_tts.py`, **48 contrôles**, dont sept
+  sur le drapeau (les deux-points, `;`, les parenthèses et la virgule finale
+  conservés, le défaut inchangé).
 - **Incises de parole retirées du texte parlé** (`modules/incises.py`, décision
   de Laurent du 18/09/2026 : « la voix me paraît plus fluide ») : avec une voix
   par personnage, « , dit-il, » est redondant et coupe la voix en pleine
@@ -3428,11 +3466,43 @@ du lecteur) ouvre désormais une fenêtre qui répond à ça.
 moteur avec leur nombre (Edge, Kokoro, Piper, Kyutai, XTTS), une **recherche
 par prénom**, un **filtre par moteur**, et pour chaque voix :
 
-- un **bouton ▶** qui lit la **phrase de référence**, identique pour toutes
-  (indispensable pour comparer honnêtement) :
-  *« Le 24 février 1815, la vigie de Notre-Dame de la Garde signala le
-  trois-mâts le Pharaon, venant de Smyrne, Trieste et Naples. »* — la même que
-  les lots d'écoute du projet (nombres, noms propres, accents, liaisons) ;
+- un **bouton ▶** qui lit un **texte de trois phrases**, **tiré au hasard à
+  chaque écoute** (21/10/2026, demande de Laurent : « 3 séries d'une dizaine de
+  phrases […] on les permute aléatoirement […] ça donnera l'impression d'un
+  texte à chaque fois différent »). Trois **lots de dix phrases**
+  (`LOTS_PHRASES_ECOUTE`, `frontend/app.js`), **une phrase prise dans chaque
+  lot** puis **mélangée** aux deux autres :
+  1. **la voix nue** — phrases courtes et simples (timbre, clarté, souffle,
+     bruits d'attaque) ;
+  2. **les pièges** — nombres, noms propres, homographes (« les fils »),
+     liaisons ; la **phrase de référence du projet** l'ouvre (*« Le 24 février
+     1815, la vigie de Notre-Dame de la Garde signala le trois-mâts le
+     Pharaon, venant de Smyrne, Trieste et Naples. »*), pour ne pas perdre
+     l'historique des écoutes ;
+     *Piège connu (21/10/2026)* : le moteur Qwen **prononce le m muet de
+     « thym »** — « de thym et de romarin » s'entend « de thym **mais** de
+     romarin » sur presque toutes les voix. C'est le **modèle**, pas la voix
+     (notre texte part mot pour mot ; détail et mesures : BACKLOG, question de
+     Laurent du 21/10/2026). Un tel défaut n'est **pas** une raison de noter
+     une voix, et comme le moteur tire au sort (température 0,9), un défaut
+     entendu **une seule fois** mérite une seconde écoute ;
+  3. **la prosodie** — phrases longues, virgules, question, accumulation
+     (rythme, blancs, monotonie, respiration en fin).
+  **1000 combinaisons × 6 ordres = 6000 textes possibles**, et le tirage
+  **refuse de redonner le même texte deux fois de suite**. Le texte part en
+  **un seul appel** à `/api/tts` : le moteur lit les trois phrases d'affilée,
+  comme un petit paragraphe.
+  *Ce qu'on y gagne* : l'oreille ne s'habitue plus à une phrase unique — et
+  une phrase ne révèle pas tout (un moteur peut buter sur un nom propre et
+  passer une phrase simple sans broncher). *Ce qu'on y perd* : deux voix ne
+  disent plus **la même chose** ; pour une comparaison à l'identique (A/B
+  avant/après réparation d'une voix), il reste les **bancs d'écoute**, qui
+  imposent la même phrase.
+  *Deux règles pour écrire une phrase dans ces lots* : **pas de didascalie**
+  (« , dit-il, ») — le nettoyage du serveur les retire du texte parlé
+  (`modules/incises.py`) et la phrase arriverait mutilée ; **pas de point
+  d'exclamation** — il fait monter la voix et fausse la comparaison.
+  *Garde-fou* : `test_voix/test_phrases_ecoute.js` (**20 contrôles**) ;
 - **trois champs de note** : genre (**H**/F), étoiles (0 à 3), remarque libre.
   Une voix déjà annotée est **légèrement mise en valeur** dans la liste.
 
@@ -3445,7 +3515,11 @@ l'existant :
 - `GET /api/voices`, qui ne renvoie **que les voix dont le moteur est allumé
   et prêt** : aucun bouton ne peut donc échouer, et la liste se met à jour
   toute seule quand un moteur s'allume ou s'éteint ;
-- le **cache audio** : une voix déjà écoutée se rejoue **instantanément**.
+- le **cache audio** : une voix déjà écoutée se rejoue **instantanément**
+  **quand le même tirage revient**. Depuis le 21/10/2026 c'est rare (1000
+  combinaisons, et le tirage refuse deux fois de suite le même texte) : c'est
+  le prix de la variété, et c'est voulu — la première écoute d'un tirage
+  travaille vraiment.
 
 **Les notes** vont dans `data/annotations_voix.json`, **hors Git** (ce sont
 les observations personnelles de Laurent), via `GET`/`POST
@@ -3538,10 +3612,12 @@ l'état vide, et une **rubrique inconnue** qui affiche son libellé complet) et
 **Vérifications** : `test_voix/test_annotations_voix.py` (**29 contrôles** :
 listes annoncées, enregistrement, refus des valeurs inconnues, annotation
 remise à zéro, annotation ancienne, redémarrage) et
-`test_voix/test_criteres_voix.js` (**25 contrôles**, sans navigateur) : ce
+`test_voix/test_criteres_voix.js` (**27 contrôles**, sans navigateur) : ce
 dernier **lit les critères dans `main.py`** et vérifie que la page construit
 exactement ces menus et envoie exactement ces clés — une valeur ajoutée d'un
-côté sans l'autre fait échouer le test.
+côté sans l'autre fait échouer le test. Depuis le 19/10/2026, il vérifie aussi
+que le **drapeau** est écrit devant « hindou » (🇮🇳) et « asiatique » (🌏) dans
+le menu Accent.
 
 ### Attribution des voix par critères (16/09/2026)
 Suite directe des annotations d'écoute : le **re-cast gratuit** (bouton
@@ -3863,9 +3939,16 @@ qu'aux appels qui ne passent pas par `main.py` (tests).
 - **le libellé d'une voix, exactement** : `_identiteVoix` écrit le symbole, le
   prénom, le drapeau français, le **second drapeau** quand la voix en a un, puis
   l'âge et le timbre annoncés — « ♀️ Eva 🇫🇷🇩🇪 adulte médium » ; `_libelleVoix`
-  y ajoute l'**icône du moteur SEULE** (« — 🎎 »). Ni le pays en toutes lettres,
-  ni la provenance « (NIMM Voix) », ni le **nom** du moteur n'apparaissent dans
-  un libellé : l'icône les a remplacés le 20/09/2026 ;
+  y ajoute l'**icône du moteur SEULE** (« — 🎎 »). Le second drapeau suit cinq
+  règles, dans cet ordre : un drapeau **déjà écrit** dans la région, un **accent
+  nommé** dans la région, un **pays en clair**, l'**accent annoté** par Laurent
+  (`asiatique` → globe Asie 🌏, `hindou` → 🇮🇳 ; `autre` = accent non identifié
+  → **aucun** drapeau, ajoutés le 19/10/2026), puis le **rôle « étranger »**
+  quand aucun pays n'est connu → globe 🌐. « paysan » est un registre : il ne
+  donne **aucun** drapeau. Ni le
+  pays en toutes lettres, ni la provenance « (NIMM Voix) », ni le **nom** du
+  moteur n'apparaissent dans un libellé : l'icône les a remplacés le
+  20/09/2026 ;
 - **huit moteurs, huit icônes** : `FAMILLES_VOIX` (`frontend/app.js`) est la
   **seule** table qui porte l'information — Edge (☁️), Kokoro (🎎), Piper (🎶),
   Kyutai (⚡️), XTTS v2 (🧬), NeuTTS (🧪), **Pocket TTS (🎒)**, arrivé le
@@ -3891,10 +3974,11 @@ qu'aux appels qui ne passent pas par `main.py` (tests).
   (`main.py`, `tts_cache.stats()` / `purger()`), et le quota du cache est de
   **2 Go** (`NIMM_TTS_CACHE_GB`, défaut 2 — il était de 20 Go avant le
   17/09/2026) ;
-- *vérifications* : `test_voix/test_libelle_voix.js` (**17 contrôles** — les
-  libellés exacts, `H` accepté, un genre vide **sans** symbole, et les **deux
-  points de code** du sélecteur emoji), `test_voix/test_ids_ecran.py` (**80** —
-  les contrôles **écrits** dans sa section ; le fichier entier en **exécute** 187
+- *vérifications* : `test_voix/test_libelle_voix.js` (**23 contrôles** — les
+  libellés exacts, `H` accepté, un genre vide **sans** symbole, les **deux
+  points de code** du sélecteur emoji, et depuis le 19/10/2026 les accents
+  « asiatique », « hindou » et « autre » ainsi que le rôle « étranger »), `test_voix/test_ids_ecran.py` (**83** —
+  les contrôles **écrits** dans sa section ; le fichier entier en **exécute** 190
   — les symboles dans les deux fichiers, les deux boutons de la barre de genre,
   l'absence de l'ancien repli sur « Homme » ; ses **six** icônes de moteur
   datent du 20/09/2026, l'icône **🎒 Pocket** n'y est pas encore contrôlée),
@@ -5573,7 +5657,7 @@ lecture écran éteint tienne :
   `test_voix/test_pause_casque.js` (**8**), `test_voix/test_collage_wav.js`
   (**24**, dont 4 ajoutés le 24/09/2026 pour la pause des sauts de ligne),
   `test_voix/test_ids_ecran.py` (**25** contrôles dans sa section
-  « 3 sexies », **187** pour le fichier entier).
+  « 3 sexies », **190** pour le fichier entier).
 
 **Le problème, tel que Laurent l'a décrit** : « la lecture s'arrête si je
 verrouille le téléphone (c'est aléatoire, parfois après quelques secondes,
