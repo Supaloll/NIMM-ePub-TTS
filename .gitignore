@@ -237,6 +237,9 @@ _essais/
 # sont cites par le BACKLOG et ARCHITECTURE.md : eux partent avec le projet.
 _apercu_*.txt
 _audit_*.txt
+# Le rapport de VERIFIER_VOIX_DISQUE_CATALOGUE.bat (24/10/2026) : une sortie de
+# commande, regeneree a chaque double-clic -- jamais versionnee.
+_voix_disque_catalogue.txt
 _migration_dialogue_*.txt
 _debug_proto.py
 _test_piece_incise.py
