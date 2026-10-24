@@ -1987,6 +1987,36 @@ QWEN_VOICES += [
 ]
 
 
+# ---------------------------------------------------------------------------
+# VOIX DU 23/10/2026 (session 147) : Freeman, Martial et Mike, trois doublures
+# VF deposees par Laurent dans "Voix a faires". Nettoyees, egalisees (cible
+# MEDIANE de la garde-robe) et clonees : 41/41 mots chacune.
+#
+# LA COULEUR A ETE CHOISIE PAR SON OREILLE : deux versions avaient ete
+# fabriquees (cible mediane / cible Ariane Edge). Verdict de Laurent :
+# "la variante mediane est mieux, je n'ai pas le son qui diminue sur les fins
+# de phrases". Mesure : la cible Ariane creusait -6 dB entre 905 Hz et
+# 2281 Hz. Voir ARCHITECTURE.md, recette du 23/10/2026.
+#
+# PRIVEES : personnes reelles (comediens de doublage), sources non libres
+# (extraits YouTube decoupes sous Audacity), usage strictement prive. Textes
+# dans `references_privees.csv` (hors depot), JAMAIS dans le public.
+# GENRE "M". 0 ETOILE : hors casting automatique, choisissable a la main.
+# DRAPEAU francais et rien d'autre.
+_VOIX_23_10_2026 = (
+    # (identifiant, prenom, genre, etoiles)
+    ("Freeman", "Freeman", "M", 0),
+    ("Martial", "Martial", "M", 0),
+    ("Mike",    "Mike",    "M", 0),
+)
+QWEN_VOICES += [
+    {"id": "qwen:" + identifiant, "name": prenom,
+     "region": "\U0001F1EB\U0001F1F7 France (Qwen)",
+     "gender": genre, "stars": etoiles}
+    for identifiant, prenom, genre, etoiles in _VOIX_23_10_2026
+]
+
+
 class XttsIndisponible(RuntimeError):
     """Le service XTTS v2 ne repond pas (moteur eteint ou en chargement)."""
 
