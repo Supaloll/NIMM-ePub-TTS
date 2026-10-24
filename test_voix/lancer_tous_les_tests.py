@@ -37,6 +37,14 @@ TESTS_PY = [
     # dans le prive. Le CSV d'oreille est la source de verite.
     "test_corrections_voix_appliquees.py",
     "test_import_main.py",
+    # Ajoute le 24/10/2026 : le CATALOGUE et le DISQUE doivent dire la meme
+    # chose, pour les cinq familles a fichiers de reference (qwen, kyutai,
+    # xtts, neutts, pocket). Une voix au catalogue sans fichier rend un
+    # personnage MUET ; un fichier sans entree au catalogue donne une voix
+    # INVISIBLE dans les menus (elle peut deja etre attribuee a un livre, donc
+    # on l'entend sans pouvoir la choisir) ; et sans texte, qwen et neutts
+    # refusent la voix. Lecture seule, rien a allumer.
+    "test_coherence_voix.py",
     "test_pas_de_secrets.py", "test_reparer_moteurs.py",
     "test_prononciation_kokoro.py", "test_bascule_moteur.py",
     "test_start_moteur.py", "test_decoupage_phrases.py",
