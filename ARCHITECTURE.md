@@ -1488,19 +1488,37 @@ choix se fait par un petit fichier de réglage, **`data\moteur_voix.txt`** :
 
 | Valeur | Effet au démarrage |
 |---|---|
-| `xtts` | allume **XTTS v2** (port 8083) — **défaut** si le fichier n'existe pas |
-| `kyutai` | allume **Kyutai** (port 8082) |
-| `aucun` | ne lance **aucun** moteur (lecture Edge, Kokoro et Piper seulement) |
+| `kyutai` | allume **Kyutai** (port 8082) — **la seule valeur qui l'allume** |
+| `qwen` | **n'allume rien** : Qwen3-TTS (port 8086) est allumé **toujours**, plus haut |
+| `xtts` / `neutts` | **n'allument rien** : message qui renvoie à leur propre lanceur |
+| `aucun` | ne lance **aucun** moteur lourd — **valeur par défaut** si le fichier n'existe pas |
+| mot inconnu | ne lance rien, avec un message clair |
+
+**Règle du 24/10/2026** (demande de Laurent : « il ne devrait y avoir que Qwen
+qui se lance ») : **seule la valeur `kyutai` allume un moteur lourd**. Avant,
+toute valeur autre que `aucun` allumait Kyutai — `qwen` compris, au nom d'une
+« cohabitation » datée du 26/09/2026, alors que Qwen est allumé **de façon
+inconditionnelle** par `START.bat` (bloc QWEN3-TTS, plus haut). Le défaut quand
+le fichier manque est passé de `kyutai` à `aucun`.
 
 Ce fichier est **écrit automatiquement** par le lanceur du moteur :
-`DEMARRER_XTTS.bat` y met `xtts`, `DEMARRER_KYUTAI.bat` y met `kyutai`. On
-n'a donc rien à faire pour que le moteur qu'on utilise reste celui des
-prochains démarrages ; pour en changer, il suffit d'éditer ce fichier (ou
-d'allumer l'autre moteur à la main une fois). Les espaces ajoutés à la main
-sont ignorés, et un nom inconnu n'allume rien (avec un message clair).
-*Vérification sans rien lancer : `test_voix/test_start_moteur.py`* (16
-contrôles : ce que les lanceurs écrivent, les 7 cas du fichier de réglage,
-les garde-fous, et un piège `cmd` documenté plus bas).
+`DEMARRER_KYUTAI.bat` y met `kyutai` — donc Kyutai revient au démarrage suivant,
+c'est le sens du pense-bête. `DEMARRER_XTTS.bat` y met `xtts`,
+`DEMARRER_NEUTTS.bat` y met `neutts` : ces deux valeurs **n'allument plus rien**
+depuis le 24/10/2026, XTTS v2 et NeuTTS se relançant à la main par leur propre
+lanceur (ils ne l'ont d'ailleurs jamais été automatiquement — le document disait
+le contraire). Les espaces ajoutés à la main sont ignorés.
+
+**Chemin détournable (24/10/2026)** : la variable d'environnement
+`NIMM_MOTEUR_VOIX_FICHIER` remplace le chemin du fichier de réglage. C'est par là
+que `test_voix/test_start_moteur.py` écrit ses valeurs de provocation **sans
+jamais toucher au vrai fichier** : avant, il écrivait dedans, et un run
+interrompu y laissait `kyutai` — `START.bat` rallumait alors Kyutai à chaque
+démarrage (constaté les 01/10 et 24/10/2026). *Vérification sans rien lancer :
+`test_voix/test_start_moteur.py`* (les valeurs écrites par les lanceurs, les
+**9** cas du fichier de réglage, les garde-fous, un piège `cmd` documenté plus
+bas, et un contrôle final qui vérifie que le **vrai** fichier est intact — et le
+restaure s'il a bougé).
 
 1. **Pas de second moteur** : `START.bat` teste le port du moteur choisi
    (`curl` sur `/sante`) et saute le démarrage s'il répond déjà ;

@@ -28,8 +28,10 @@ rem  Pour POCKET : voir le bloc « POCKET TTS », plus bas.
 rem
 rem  Ce qui suit decrit l'ancien fonctionnement (Kyutai automatique) : il
 rem  est CONSERVE tel quel, parce qu'il sert le jour ou l'on rebranche.
-rem  Les commentaires plus bas ne sont donc pas a jour sur ce point, et
-rem  c'est voulu.
+rem  MAIS LA REGLE, ELLE, A CHANGE LE 24/10/2026 (demande de Laurent :
+rem  « il ne devrait y avoir que Qwen qui se lance ») : seule la valeur
+rem  « kyutai » allume Kyutai. Voir le bloc « QUI DEMARRE », plus bas --
+rem  c'est LUI qui fait foi.
 rem ============================================================
 
 rem ============================================================
@@ -53,9 +55,10 @@ rem  ou le bouton « Voix de personnages », en bas de la fenetre du
 rem  lecteur (il eteint l'autre moteur avant d'allumer le nouveau).
 rem
 rem  data\moteur_voix.txt est toujours lu (le bouton du lecteur y
-rem  ecrit le moteur choisi) : la valeur « aucun » est respectee --
-rem  demarrage sans moteur lourd -- et toute autre valeur fait
-rem  demarrer Kyutai.
+rem  ecrit le moteur choisi). DEPUIS LE 24/10/2026, seule la valeur
+rem  « kyutai » fait demarrer Kyutai : « aucun », « qwen », un mot
+rem  inconnu ou un fichier absent laissent Kyutai eteint. Voir le bloc
+rem  « QUI DEMARRE », plus bas.
 rem
 rem  Deux precautions, inchangees :
 rem   - si le moteur tourne deja ou finit de charger, on ne le
@@ -69,8 +72,23 @@ rem    Forme volontairement simple : "set /p" lit la premiere ligne du
 rem    fichier. Pas de bloc ( ) ni de boucle for ici -- un bloc multi-lignes
 rem    contenant un "for" fait derailler l'analyseur de cmd (constate au
 rem    test le 14/09/2026). Les espaces ajoutes a la main sont ignores.
-set MOTEUR_VOIX=kyutai
-if exist "data\moteur_voix.txt" set /p MOTEUR_VOIX=<"data\moteur_voix.txt"
+rem    DEFAUT quand le fichier n'existe pas : « aucun » (depuis le 24/10/2026).
+rem    Avant, c'etait « kyutai » ; depuis que QWEN3-TTS est notre moteur et
+rem    qu'il est allume plus bas de facon INCONDITIONNELLE, demarrer Kyutai
+rem    par defaut n'a plus aucun sens.
+rem
+rem    CHEMIN DETOURNABLE (24/10/2026) : la variable d'environnement
+rem    NIMM_MOTEUR_VOIX_FICHIER remplace ce chemin. Raison : le test
+rem    test_voix\test_start_moteur.py a besoin d'ecrire des valeurs de
+rem    provocation pour verifier ce fichier, et il ecrivait dans le VRAI
+rem    pense-bete de la machine -- un run interrompu y laissait « kyutai », et
+rem    START.bat rallumait Kyutai a chaque demarrage (constate les 01/10 et
+rem    24/10/2026). Avec cette variable, le test ecrit dans un fichier JETABLE.
+rem    Personne d'autre ne la pose : sans elle, rien ne change.
+set "MOTEUR_VOIX_FICHIER=data\moteur_voix.txt"
+if defined NIMM_MOTEUR_VOIX_FICHIER set "MOTEUR_VOIX_FICHIER=%NIMM_MOTEUR_VOIX_FICHIER%"
+set MOTEUR_VOIX=aucun
+if exist "%MOTEUR_VOIX_FICHIER%" set /p MOTEUR_VOIX=<"%MOTEUR_VOIX_FICHIER%"
 set MOTEUR_VOIX=%MOTEUR_VOIX: =%
 
 rem ============================================================
@@ -175,40 +193,46 @@ start "NIMM ePub - appareil de voix Qwen3-TTS" /D "%~dp0qwentts_service" cmd /k 
 :qwentts_pret
 
 
-if /i "%MOTEUR_VOIX%"=="aucun" (
-    echo  Moteur de voix LOURD : aucun - choix enregistre le 29/09/2026.
-    echo  Voix disponibles : Edge, Kokoro, Piper, plus QWEN3-TTS, allume
-    echo  plus haut - sur la carte graphique, avec repli processeur.
-    echo  Kyutai, XTTS et NeuTTS ne demarrent pas. Pour l'un d'eux : son
-    echo  lanceur, ex. kyutai_service\DEMARRER_KYUTAI.bat, ou le bouton
-    echo  "Voix de personnages" dans le lecteur.
+rem ============================================================
+rem  QUI DEMARRE, DEPUIS LE 24/10/2026 (demande de Laurent : « il ne
+rem  devrait y avoir que Qwen qui se lance », Kyutai etant en standby)
+rem
+rem  KYUTAI NE DEMARRE QUE SI le fichier dit exactement « kyutai ».
+rem  Tout le reste laisse Kyutai ETEINT : « aucun », « qwen », « xtts »,
+rem  « neutts », un mot inconnu, un fichier vide ou absent.
+rem
+rem  AVANT, toute valeur autre que « aucun » allumait Kyutai -- « qwen »
+rem  compris, au nom d'une « cohabitation » datee du 26/09/2026, du temps
+rem  ou Qwen n'etait pas encore allume d'office. Deux moteurs sur la carte
+rem  graphique pour rien, et ~3,7 Go perdus : c'est corrige ici.
+rem
+rem  QWEN3-TTS, lui, est allume PLUS HAUT et TOUJOURS : c'est le moteur
+rem  des voix de personnages (carte graphique, repli processeur).
+rem ============================================================
+if /i "%MOTEUR_VOIX%"=="kyutai" goto demarrer_kyutai
+
+if /i "%MOTEUR_VOIX%"=="qwen" (
+    echo  Moteur de voix Kyutai : en STANDBY - il ne demarre plus avec Qwen.
     goto lecteur
 )
 if /i "%MOTEUR_VOIX%"=="xtts" (
     echo  Moteur retenu : XTTS v2.
-    echo  Son allumage automatique est desactive : Kyutai demarre a sa place.
+    echo  Son allumage automatique est desactive.
     echo  Pour utiliser XTTS : xtts_service\DEMARRER_XTTS.bat
+    goto lecteur
 )
 if /i "%MOTEUR_VOIX%"=="neutts" (
     echo  Moteur retenu : NeuTTS.
-    echo  Son allumage automatique est desactive : Kyutai demarre a sa place.
+    echo  Son allumage automatique est desactive.
     echo  Pour utiliser NeuTTS : neutts_service\DEMARRER_NEUTTS.bat
+    goto lecteur
 )
+echo  Moteur de voix LOURD : aucun - QWEN3-TTS est allume plus haut.
+echo  Kyutai est en STANDBY. Voix disponibles tout de suite : Edge, Kokoro,
+echo  Piper et Qwen3-TTS. Pour rallumer Kyutai : kyutai_service\DEMARRER_KYUTAI.bat
+goto lecteur
 
-rem -- QWEN3-TTS : allume PLUS HAUT, avec Pocket, et depuis le 01/10/2026 SUR LA
-rem    CARTE GRAPHIQUE, avec REPLI processeur automatique. Il ne remplace personne.
-rem    Si data\moteur_voix.txt porte encore « qwen » (choix du 26/09/2026), on le
-rem    DIT et on continue : Kyutai demarre normalement, et les deux vivent
-rem    ensemble -- c'est le sens du drapeau « cohabite » de main.py.
-rem    ATTENTION : Qwen sur la carte prend ~3,7 Go des 8 Go de la carte ; lancer
-rem    Kyutai EN MEME TEMPS peut manquer de memoire video.
-if /i not "%MOTEUR_VOIX%"=="qwen" goto pas_qwen
-echo.
-echo  Moteur retenu : Qwen3-TTS, sur la carte graphique - repli processeur.
-echo  Il COHABITE avec Kyutai, mais les deux sur la carte peut manquer de place.
-echo.
-
-:pas_qwen
+:demarrer_kyutai
 rem -- Kyutai est-il deja allume ? Le port s'ouvre des les premieres secondes
 rem    du chargement : ce seul test suffit a ne pas lancer un second moteur.
 curl -s -o NUL --max-time 2 http://127.0.0.1:8082/sante >nul 2>&1

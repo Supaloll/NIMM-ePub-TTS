@@ -8,20 +8,20 @@ moteurs dont j'ai besoin ») :
     Son marqueur d'arret volontaire n'est donc PLUS efface au demarrage -- c'est
     lui qui empeche le veilleur du lecteur de le rallumer ;
   - le moteur LOURD lu dans data\\moteur_voix.txt vaut « aucun » depuis le
-    29/09/2026 : aucun moteur lourd ne demarre. KYUTAI (le seul moteur lourd du
-    projet) n'est donc plus allume automatiquement ; il reste INSTALLE et
-    rebranchable par le bouton « Voix de personnages » du lecteur, qui reecrit
-    ce fichier -- donc START.bat le rallumera ensuite. XTTS v2 et NeuTTS restent
-    lancables a la main, par leur propre lanceur ;
+    29/09/2026. DEPUIS LE 24/10/2026, seule la valeur « kyutai » allume KYUTAI :
+    « aucun », « qwen », un mot inconnu ou un fichier absent laissent Kyutai
+    ETEINT. Il reste INSTALLE et rebranchable par son propre lanceur, qui
+    reecrit ce fichier -- donc START.bat le rallumera ensuite. XTTS v2 et NeuTTS
+    restent lancables a la main, par leur propre lanceur ;
   - QWEN3-TTS (qwentts.cpp, port 8086) est le moteur des voix de personnages : il
     tourne SUR LA CARTE GRAPHIQUE depuis le 01/10/2026 (repli processeur
-    automatique), et il demarre avec le lecteur.
+    automatique), et il demarre avec le lecteur, TOUJOURS.
 
 Ce que le script controle, sans RIEN lancer (ni moteur, ni lecteur) :
   1. les trois lanceurs ecrivent bien leur nom dans data\\moteur_voix.txt ;
-  2. START.bat lit ce fichier : « aucun » -> pas de moteur lourd, toute autre
-     valeur (y compris vide ou inconnue) -> Kyutai, et un message clair quand le
-     fichier dit encore « xtts » ou « neutts » ;
+  2. START.bat lit ce fichier : « kyutai » -> Kyutai, TOUT LE RESTE -> aucun
+     moteur lourd (y compris vide, inconnu, « qwen »), et un message clair quand
+     le fichier dit encore « xtts » ou « neutts » ;
   3. les garde-fous : les ports 8085 (Pocket) et 8082 (Kyutai) sont testes avant
      tout lancement, l'absence d'environnement n'empeche pas le lecteur de
      demarrer, Pocket TTS part SANS fenetre, et les anciens blocs
@@ -29,9 +29,10 @@ Ce que le script controle, sans RIEN lancer (ni moteur, ni lecteur) :
   4. le piege des parentheses dans un bloc cmd (lecon du 14/09/2026).
 
 Methode : une COPIE de START.bat est fabriquee avec TOUTES les commandes qui
-lancent reellement quelque chose (le lanceur de Kyutai, celui de Pocket TTS,
+lancent reellement quelque chose (le lanceur de Kyutai, celui de Qwen3-TTS,
 `python main.py`) remplacees par des affichages, et le « pause » final retire.
-Rien n'est donc execute.
+Rien n'est donc execute. La « regle » du moteur, elle, est ecrite dans un fichier
+JETABLE (voir juste apres) -- plus jamais dans celui de la machine.
 
 ATTENTION (revision du 21/09/2026) : cette neutralisation avait cesse de
 fonctionner sans qu'on s'en apercoive. Deux consequences, toutes les deux
@@ -44,10 +45,19 @@ reelles :
 Le controle « la copie neutre ne lance plus rien » (section 2 bis) empeche que
 cela recommence.
 
+DEPUIS LE 24/10/2026, CE TEST N'ECRIT PLUS DANS LE VRAI PENSE-BETE. START.bat lit
+son chemin dans la variable NIMM_MOTEUR_VOIX_FICHIER ; on la detourne vers
+data\\_test_moteur_voix_jetable.txt. Avant, ce test ecrivait VRAIMENT dans
+data\\moteur_voix.txt : un run INTERROMPU (fenetre fermee, plantage) y laissait
+« kyutai », et START.bat rallumait alors Kyutai a chaque demarrage -- constate les
+01/10 et 24/10/2026. Un filet de plus, a la fin du run, verifie que le VRAI
+fichier n'a pas bouge, et le RESTAURE s'il a bouge (avec un ECHEC affiche).
+
 A lancer avec le Python du lecteur :
     python test_voix/test_start_moteur.py
 """
 
+import os
 import re
 import subprocess
 import sys
@@ -56,7 +66,12 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent.parent
 sys.stdout.reconfigure(encoding='utf-8')
 
+# Le pense-bete de la MACHINE. Ce test ne l'ecrit JAMAIS (depuis le 24/10/2026) :
+# il le surveille seulement, et le restaure s'il a bouge (voir la fin de main).
 REGLE = RACINE / "data" / "moteur_voix.txt"
+# Le fichier JETABLE ou l'on ecrit les valeurs de provocation. START.bat le lit a
+# la place du vrai, grace a la variable NIMM_MOTEUR_VOIX_FICHIER.
+JETABLE = RACINE / "data" / "_test_moteur_voix_jetable.txt"
 COPIE = RACINE / "_test_start_neutre.bat"
 ECHECS = 0
 
@@ -127,20 +142,29 @@ def fabriquer_copie_neutre():
 
 
 def lancer_start(contenu_regle):
-    """Ecrit le fichier de regle demande puis execute la copie neutre.
+    """Ecrit la regle demandee dans le fichier JETABLE, puis execute la copie neutre.
 
     Le CHEMIN COMPLET est passe a `cmd`, jamais le seul nom du fichier : depuis
     Python 3.11, les processus enfants sont lances avec la variable
     `NoDefaultCurrentDirectoryInExePath`, donc cmd ne cherche plus dans le
     dossier courant (panne du 21/09/2026 : « '_test_start_neutre.bat' n'est pas
     reconnu... »). Le chemin complet, lui, marche toujours.
+
+    DEPUIS LE 24/10/2026 : la regle va dans JETABLE, et on pose
+    `NIMM_MOTEUR_VOIX_FICHIER` pour que START.bat la lise LA au lieu du vrai
+    `data\\moteur_voix.txt`. C'est ce detour qui a manque pendant deux mois : le
+    test ecrivait dans le pense-bete de la machine, et un run interrompu y
+    laissait « kyutai » (donc Kyutai rallume a chaque demarrage).
     """
     if contenu_regle is None:
-        if REGLE.exists():
-            REGLE.unlink()
+        if JETABLE.exists():
+            JETABLE.unlink()
     else:
-        REGLE.write_text(contenu_regle, encoding='utf-8')
+        JETABLE.write_text(contenu_regle, encoding='utf-8')
+    environnement = dict(os.environ)
+    environnement['NIMM_MOTEUR_VOIX_FICHIER'] = str(JETABLE)
     r = subprocess.run(['cmd', '/c', str(COPIE)], cwd=str(RACINE),
+                       env=environnement,
                        capture_output=True, text=True, encoding='utf-8',
                        errors='replace')
     return (r.stdout or '') + (r.stderr or '')
@@ -169,13 +193,16 @@ def test_ecriture_par_les_lanceurs():
 def test_choix_du_moteur():
     print('')
     print('2) ce que START.bat choisit selon le fichier de regle')
+    # REGLE DU 24/10/2026 : « kyutai » est la SEULE valeur qui allume Kyutai.
+    # Avant, toute valeur autre que « aucun » l'allumait, « qwen » compris.
     cas = [
-        (None,           'Moteur de voix Kyutai'),        # pas de fichier -> Kyutai
+        (None,           'Moteur de voix LOURD : aucun'),  # pas de fichier -> rien
         ('neutts',       'Moteur retenu : NeuTTS'),       # plus allume tout seul
         ('xtts',         'Moteur retenu : XTTS v2'),      # plus allume tout seul
-        ('kyutai',       'Moteur de voix Kyutai'),
+        ('kyutai',       'Moteur de voix Kyutai'),        # LE SEUL cas qui l'allume
         ('aucun',        'Moteur de voix LOURD : aucun'),
-        ('bidule',       'Moteur de voix Kyutai'),        # inconnu -> Kyutai
+        ('qwen',         'en STANDBY'),                   # 24/10 : plus de cohabitation
+        ('bidule',       'Moteur de voix LOURD : aucun'), # inconnu -> rien
         ('xtts\r\n',     'Moteur retenu : XTTS v2'),      # saut de ligne final
         ('  kyutai  \n', 'Moteur de voix Kyutai'),        # espaces parasites
     ]
@@ -316,7 +343,9 @@ def main():
     print('VERIFICATION : demarrage du moteur de voix par START.bat')
     print('=' * 66)
 
-    regle_avant = REGLE.read_text(encoding='utf-8') if REGLE.exists() else None
+    # Photographie du VRAI pense-bete de la machine : depuis le 24/10/2026, ce
+    # test ne doit plus y toucher. On lit des OCTETS, pour ne rien normaliser.
+    vrai_avant = REGLE.read_bytes() if REGLE.exists() else None
     try:
         fabriquer_copie_neutre()
         test_ecriture_par_les_lanceurs()
@@ -328,16 +357,31 @@ def main():
     finally:
         if COPIE.exists():
             COPIE.unlink()
-        if regle_avant is None:
+        if JETABLE.exists():
+            JETABLE.unlink()
+
+    print('')
+    print('6) le pense-bete de la machine n a pas bouge')
+    # FILET DU 24/10/2026 : le vrai fichier doit etre IDENTIQUE a l'arrivee. Sans
+    # ce controle, la panne des 01/10 et 24/10 restait invisible : le test
+    # ecrivait dans le pense-bete de la machine, et « kyutai » y restait pour de
+    # bon -- START.bat rallumait alors Kyutai a chaque demarrage.
+    vrai_apres = REGLE.read_bytes() if REGLE.exists() else None
+    verifier("data\\moteur_voix.txt est intact apres le test",
+             vrai_apres == vrai_avant,
+             'avant : %r  apres : %r' % (vrai_avant, vrai_apres))
+    if vrai_apres != vrai_avant:
+        if vrai_avant is None:
             if REGLE.exists():
                 REGLE.unlink()
         else:
-            REGLE.write_text(regle_avant, encoding='utf-8')
+            REGLE.write_bytes(vrai_avant)
+        print('      -> fichier RESTAURE a sa valeur d avant le test.')
 
     print('')
     print('TOUT EST OK' if ECHECS == 0
           else '%d VERIFICATION(S) EN ECHEC' % ECHECS)
-    print('(fichier de regle et copie de test nettoyes)')
+    print('(copie de test et fichier jetable nettoyes ; pense-bete de la machine intact)')
     return 0 if ECHECS == 0 else 1
 
 
